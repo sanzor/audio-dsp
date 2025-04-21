@@ -1,5 +1,5 @@
 pub trait AudioTransform{
-    fn gain(self,gain:f32)->Self;
+    fn gain(&mut self,gain:f32)->&mut Self;
     // pub fn normalize(self)->Self;
     // pub fn fade_in(self,fade_length:f32)->Self;
     // pub fn fade_out(self,fade_length:f32)->Self;

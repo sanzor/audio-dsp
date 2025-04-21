@@ -1,0 +1,16 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "Debug audio_buffer_test",
+        "type": "lldb",
+        "request": "launch",
+        "program": "${workspaceFolder}/target/debug/deps/audio_buffer_test-66d73727d7380e28",
+        "args": [],
+        "cwd": "${workspaceFolder}",
+        "stopOnEntry": false,
+        "sourceLanguages": ["rust"]
+      }
+    ]
+  }
+  

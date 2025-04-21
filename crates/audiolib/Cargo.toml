@@ -2,3 +2,7 @@
 name="audiolib"
 version="0.1.0"
 edition="2021"
+
+[dependencies]
+rstest="0.25"
+hound="3"
