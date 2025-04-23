@@ -1,5 +1,7 @@
+use std::thread;
+
 use crate::audio_transform::AudioTransform;
-use crate::filters::{self, alpha};
+use crate::filters::alpha;
 
 #[derive(Debug)]
 pub struct AudioBuffer{
@@ -27,36 +29,68 @@ impl AudioTransform for AudioBuffer{
         normalized_buffer
     }
     
-    fn low_pass(self,cutoff:f32)->Self {
-        let mut result=Vec::with_capacity(self.samples.len());
+    fn low_pass(mut self,cutoff:f32)->Self {
         let mut prev_y=0.0;
         let alpha=alpha(cutoff, self.sample_rate);
-        for sample in &self.samples{
+        for sample in self.samples.iter_mut(){
             let y=alpha * (*sample)+ (1.0-alpha)*prev_y;
-            result.push(y);
+            *sample=y;
             prev_y=y;
         }
         return self;
     }
 
-    fn high_pass(self,cutoff:f32)->Self {
-        let mut result=Vec::with_capacity(self.samples.len());
+    fn high_pass(mut self,cutoff:f32)->Self {
         let mut prev_y=0.0;
         let mut prev_x:f32=0.0;
         let alpha=alpha(cutoff, self.sample_rate);
-        for sample in &self.samples{
-            let y=alpha * (prev_y+*sample-prev_x);
-            result.push(y);
+        for sample in self.samples.iter_mut(){
+            let x=*sample;
+            let y=alpha * (prev_y+x-prev_x);
+            *sample=y;
             prev_y=y;
-            prev_x=*sample;
+            prev_x=x;
         }
         return self;
     }
+
 }
 impl AudioBuffer{
     fn max_sample(&self)->f32{
         let max_sample=self.samples.iter().map(|el| el.abs()).fold(0.0, f32::max); 
         return max_sample
+    }
+    fn gain_parallel(mut self,gain:f32)->Self{
+       
+        let parallelism=std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4);
+        let len=self.samples.len();
+        let chunk_size=(len+parallelism-1)/parallelism;
+        let ptr=self.samples.as_mut_ptr();
+        let mut handles=Vec::with_capacity(parallelism);
+
+        for chunk_start in (0..len).step_by(chunk_size){
+            let chunkend=usize::min(chunk_start+chunk_size, len);
+            let chunk_len=chunkend-chunk_start;
+            if chunk_len==0{
+                continue
+            }
+           
+            let handle = thread::spawn({
+                let ptr = self.samples.as_mut_ptr(); // this is ok
+                move || {
+                    unsafe {
+                        let chunk_ptr = ptr.add(chunk_s); // pointer stays inside closure
+                        let chunk = std::slice::from_raw_parts_mut(chunk_ptr, chunk_len);
+            
+                        for sample in chunk {
+                            *sample *= gain;
+                        }
+                    }
+                }
+            });
+        }
+
+        self
     }
 }
 
