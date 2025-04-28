@@ -1,5 +1,5 @@
 use rstest::rstest;
-use audiolib::{audio_buffer::{AudioBuffer,Channels},audio_transform::AudioTransform, filters::alpha};
+use audiolib::{audio_buffer::{AudioBuffer,Channels},audio_transform::{AudioTransform, AudioTransformP}, filters::alpha};
 
 #[rstest]
 #[case(2.0)]
@@ -12,6 +12,22 @@ pub fn can_gain(#[case] factor:f32){
     let x= buffer.gain(factor);
     assert_eq!(x.samples[0],(original_gain*factor));
 }
+
+#[rstest]
+#[case(2.0,24)]
+pub fn can_gain_parallel(#[case] factor:f32,#[case]size:usize){
+    let original_gain=1.5_f32;
+    let samples:Vec<f32>=vec![original_gain;size];
+    let original_samples=samples.clone();
+    let sample_rate=32.0;
+    let channels=Channels::Mono;
+    let buffer=AudioBuffer{samples:samples,channels:channels,sample_rate:sample_rate};
+    let x= buffer.gain_p(factor);
+    for (index,sample) in x.samples.iter().enumerate(){
+        assert_eq!(*sample,(original_samples[index]*factor));
+    }
+}
+
 
 #[rstest]
 pub fn can_normalize(){

@@ -1,6 +1,6 @@
-use std::thread;
 
-use crate::audio_transform::AudioTransform;
+
+use crate::audio_transform::{AudioTransform, AudioTransformFull, AudioTransformP};
 use crate::filters::alpha;
 
 #[derive(Debug)]
@@ -16,6 +16,7 @@ pub enum Channels{
 }
 
 impl AudioTransform for AudioBuffer{
+
     fn gain(mut self,factor:f32)->AudioBuffer{
         if self.max_sample()>0.0{
             self.samples.iter_mut().for_each(|sample| *sample *=factor);
@@ -53,44 +54,44 @@ impl AudioTransform for AudioBuffer{
         }
         return self;
     }
-
 }
+
+impl AudioTransformP for AudioBuffer{
+    fn gain_p(mut self,gain:f32)->Self {
+        let parallelism=AudioBuffer::thread_count();
+        let _=std::thread::scope(|s|{
+            let chunk_size = (self.samples.len() + parallelism - 1) / parallelism;
+            let vec=self.samples.chunks_mut(chunk_size);
+            for chunk in vec{
+                let _=s.spawn(move||{
+                    for val in chunk{
+                        *val *=gain;
+                    }
+                });
+            }
+        });
+        return self;
+    }
+    fn normalize_p(self)->AudioBuffer{
+        let max_sample=self.max_sample();
+        let normalized_buffer= self.gain_p(1.0/max_sample);
+        normalized_buffer
+    }
+}
+
 impl AudioBuffer{
     fn max_sample(&self)->f32{
         let max_sample=self.samples.iter().map(|el| el.abs()).fold(0.0, f32::max); 
         return max_sample
     }
-    fn gain_parallel(mut self,gain:f32)->Self{
-       
-        let parallelism=std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4);
-        let len=self.samples.len();
-        let chunk_size=(len+parallelism-1)/parallelism;
-        let ptr=self.samples.as_mut_ptr();
-        let mut handles=Vec::with_capacity(parallelism);
-
-        for chunk_start in (0..len).step_by(chunk_size){
-            let chunkend=usize::min(chunk_start+chunk_size, len);
-            let chunk_len=chunkend-chunk_start;
-            if chunk_len==0{
-                continue
-            }
-           
-            let handle = thread::spawn({
-                let ptr = self.samples.as_mut_ptr(); // this is ok
-                move || {
-                    unsafe {
-                        let chunk_ptr = ptr.add(chunk_s); // pointer stays inside closure
-                        let chunk = std::slice::from_raw_parts_mut(chunk_ptr, chunk_len);
-            
-                        for sample in chunk {
-                            *sample *= gain;
-                        }
-                    }
-                }
-            });
-        }
-
-        self
+    fn thread_count()->usize{
+        std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(4)
     }
+}
+
+impl AudioTransformFull for AudioBuffer{
+
 }
 
