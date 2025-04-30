@@ -1,12 +1,18 @@
 mod command;
-
-use command::{Command, CommandResult, RunMode};
+mod command_parser;
+mod command_dispatch;
+mod dispatchers;
+use command::{Command, CommandResult};
+use command_parser::*;
+use dispatchers::Load;
 fn main() {
    loop{
         let user_input=read_line();
         loop{
-            let command=parse_command(user_input.as_str()).expect("Could not parse command {command}");
-            let result=dispatch(command);
+            let _result=
+                parse_command(user_input.as_str())
+                .map(dispatch)
+                .map(|r|println!("{}",r));
         }
    }
 }
@@ -22,23 +28,29 @@ fn read_line()->String{
 
 fn parse_command(input:&str)->Result<Command,String>{
     let parts:Vec<&str>=input.trim().split_whitespace().collect();
-    let parts_slice=parts.as_slice();
-    let rez=match parts_slice{
-        ["load", filename,name]=>Ok(Command::Load { filname: filename.to_string(),name:name.to_string()}),
-        ["save", filename,name]=>Ok(Command::Save { filname: filename.to_string(),name:Some(name.to_string())}),
-        ["unload",name]=>Ok(Command::Delete { name:name.to_string()}),
-        ["list"]=> Ok(Command::Ls),
-        ["gain",factor]=>factor.parse::<f32>().map(|f|Command::Gain { gain:f,mode:Some(RunMode::Simple)}).map_err(|e|e.to_string()),
-        ["normalize"]=> Ok(Command::Normalize { mode: Some(RunMode::Simple) }),
-        ["low_pass",cutoff]=> cutoff.parse::<f32>().map(|f| Command::LowPass { cutoff: f }).map_err(|e|e.to_string()),
-        ["high_pass",cutoff]=>cutoff.parse::<f32>().map(|f| Command::HighPass{ cutoff:  f}).map_err(|e|e.to_string()),
+    if parts.len()<1{
+        return Err("No command provided".to_string())
+    }
+    let command=parts.get(0).map(|v|v.to_ascii_lowercase());
+    let payload=&parts[1..];
+    let rez=match command.as_deref(){
+        Some("load")=>parse_load(payload),
+        Some("save")=>parse_save(payload),
+        Some("info")=>parse_info(payload),
+        Some("unload")=>parse_unload(payload),
+        Some("list")=> parse_ls(payload),
+        Some("gain")=>parse_gain(payload),
+        Some("normalize")=> parse_normalize(payload),
+        Some("low_pass")=> parse_low_pass(payload),
+        Some("high_pass")=> parse_high_pass(payload),
         _ => Err("Could not process comand".to_string())
     };
     rez
-   
-    
 }
 
 fn dispatch(command:Command)->CommandResult{
-    
+    match command{
+        Command::Exit=>return CommandResult{},
+        Command::Info { name }
+    }
 }

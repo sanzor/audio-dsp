@@ -1,6 +1,8 @@
+use std::{fmt::Display};
+
 pub enum Command{
-    Load{name:String,filname:String},
-    Save{name:String,filename:String},
+    Load{name:Option<String>,filename:String},
+    Save{name:Option<String>,filename:String},
     Delete{name:Option<String>},
     Ls,
     Info{name:Option<String>},
@@ -11,8 +13,14 @@ pub enum Command{
     Exit
 }
 
+#[derive(Debug)]
 pub struct CommandResult{
 
+}
+impl Display for CommandResult{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+       write!(f,"{}{}",1,2)
+    }
 }
 pub enum RunMode{
     Simple,
