@@ -1,3 +1,4 @@
+use std::ops::Deref;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
@@ -38,9 +39,12 @@ pub struct HighPass{
 impl Load{
     fn internal_dispatch(&self,name:Option<String>,filename:String)->Result<CommandResult,String>{
         let name=PathBuf::from(name.ok_or(filename)?);
-        let v=self.state.lock().unwrap();
-        let file=audiolib::audio_parse::read_wav_file(&name)
-            .map(|f| Track{info:TrackInfo{name:&name},data:f});
+        let mut v=self.state.lock().unwrap();
+        let result=audiolib::audio_parse::read_wav_file(&name)
+            .map(|f| Track{info:TrackInfo{name:name.to_str().unwrap().to_string()},data:f})
+            .and_then(|new_track|v.upsert_track(new_track))
+            .map(|()|CommandResult{});
+        result
     }   
 }
 impl Info{
