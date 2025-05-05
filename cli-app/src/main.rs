@@ -2,9 +2,11 @@ mod command;
 mod command_parser;
 mod command_dispatch;
 mod dispatchers;
+pub(crate) mod state;
 use command::{Command, CommandResult};
 use command_parser::*;
-use dispatchers::Load;
+use dispatchers::*;
+
 fn main() {
    loop{
         let user_input=read_line();
@@ -51,6 +53,6 @@ fn parse_command(input:&str)->Result<Command,String>{
 fn dispatch(command:Command)->CommandResult{
     match command{
         Command::Exit=>return CommandResult{},
-        Command::Info { name }
+        Command::Info { name }=>dispatchers::
     }
 }
