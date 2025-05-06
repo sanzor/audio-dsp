@@ -1,4 +1,4 @@
-use std::{fmt::Display};
+use std::fmt::Display;
 
 pub enum Command{
     Load{name:Option<String>,filename:String},

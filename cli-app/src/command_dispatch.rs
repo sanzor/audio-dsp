@@ -1,5 +1,7 @@
-use crate::command::{Command, CommandResult};
 
+
+use crate::{command::CommandResult, envelope::Envelope};
+use crate::state::SharedState;
 pub trait CommandDispatch{
-    fn dispatch(self,command:Command)->Result<CommandResult,String>;
+    fn dispatch(&self,envelope:Envelope,state: SharedState)->Result<CommandResult,String>;
 }

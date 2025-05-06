@@ -1,11 +1,12 @@
 mod command;
 mod command_parser;
 mod command_dispatch;
-mod dispatchers;
+mod command_dispatchers;
 pub(crate) mod state;
+mod scheduler;
 use command::{Command, CommandResult};
 use command_parser::*;
-use dispatchers::*;
+
 
 fn main() {
    loop{
@@ -53,6 +54,6 @@ fn parse_command(input:&str)->Result<Command,String>{
 fn dispatch(command:Command)->CommandResult{
     match command{
         Command::Exit=>return CommandResult{},
-        Command::Info { name }=>dispatchers::
+        Command::Info { name }=>command_dispatchers::
     }
 }
