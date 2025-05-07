@@ -6,6 +6,7 @@ pub enum Command{
     Delete{name:Option<String>},
     Ls,
     Info{name:Option<String>},
+    Copy{name:Option<String>,copy_name:Option<String>},
     Gain{name:Option<String>,gain:f32,mode:Option<RunMode>},
     LowPass{name:Option<String>,cutoff:f32},
     HighPass{name:Option<String>,cutoff:f32},

@@ -4,12 +4,14 @@ use crate::audio_transform::{AudioTransform, AudioTransformFull, AudioTransformP
 use crate::filters::alpha;
 
 #[derive(Debug)]
+#[derive(Clone)]
 pub struct AudioBuffer{
     pub samples:Vec<f32>,
     pub sample_rate:f32,
     pub channels:Channels
 }
 #[derive(Debug)]
+#[derive(Clone)]
 pub enum Channels{
     Mono=1,
     Stereo=2

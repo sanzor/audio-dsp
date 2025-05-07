@@ -18,6 +18,9 @@ impl State{
     pub fn get_track<'a>(&'a self,name:&str)->Option<& 'a Track>{
         self.tracks.get(name)
     }
+    pub fn tracks(&self)->Vec<TrackInfo>{
+        self.tracks.values().map(|t|t.info.clone()).collect()
+    }
 
 
     pub fn upsert_track (&mut self,track:Track)->Result<(),String>{

@@ -33,5 +33,5 @@ pub fn can_write_wav_file(#[case]input_file:&str,#[case]output_file:&str,#[case]
         .map(|wav| 
             wav.gain(gain)
         ).unwrap();
-    let _= write_wav_file(wav_stream_with_gain, &output_path);
+    let _= write_wav_file(&wav_stream_with_gain, &output_path);
 }

@@ -24,7 +24,7 @@ pub fn read_wav_file(filename:&Path)->Result<AudioBuffer,String>{
         }})
 }
 
-pub fn write_wav_file(audio_buffer:AudioBuffer,filename:&Path)->Result<(),String>{
+pub fn write_wav_file(audio_buffer:&AudioBuffer,filename:&Path)->Result<(),String>{
     let wav_spec=hound::WavSpec {
         channels: match audio_buffer.channels{
             Channels::Mono =>1,

@@ -1,6 +1,8 @@
 
-use std::env;
+
 use std::path::PathBuf;
+
+use audiolib::audio_parse;
 
 use crate::command::{Command, CommandResult};
 use crate::command_dispatch::CommandDispatch;
@@ -12,7 +14,9 @@ use crate::track::{Track, TrackInfo};
 pub struct LoadDispatcher{}
 pub struct InfoDispatcher{}
 pub struct ListDispatcher{}
-pub struct SaveDispatcher{}
+pub struct UploadDispatcher{}
+
+pub struct CopyDispatcher{}
 
 pub struct UnloadDispatcher{}
 pub struct GainDispatcher{}
@@ -23,11 +27,17 @@ pub struct HighPassDispatcher{}
 
 impl CommandDispatch for LoadDispatcher{
     fn dispatch(&self,envelope:Envelope,state:SharedState)->Result<CommandResult,String>{
-         let mut guard=state.write().unwrap();
-         let result=match envelope.command{
-            Command::Load { name, filename }=>self.internal_dispatch(name, filename,&mut *guard),
-            _=> Err("".to_owned())
-         };
+         let result=state
+         .try_write()
+         .map_err(|e|e.to_string())
+         .and_then(|mut guard|{
+            let  state_ref=&mut *guard;
+            match envelope.command{
+                Command::Load { name, filename }=>self.internal_dispatch(name, filename,state_ref),
+                _=> Err("".to_owned())
+            }
+         });
+        
          return result;
     }
 }
@@ -44,17 +54,45 @@ impl CommandDispatch for ListDispatcher{
 
 impl CommandDispatch for InfoDispatcher{
     fn dispatch(&self,envelope:Envelope,state: SharedState)->Result<CommandResult,String> {
-        let result=state.try_read().map_err(|e|e.to_string())?;
-        let guard=&*result;
-        let rez=
-            .map_err(|err| err.to_string())
-            .and_then(|state|{
-                let result=match envelope.command {
-                    Command::Info { name }=>self.internal_dispatch(name, state),
+        let result=state.try_read()
+        .map_err(|e|e.to_string())
+            .and_then(|guard|{
+                let state_ref=&*guard;
+                match envelope.command {
+                    Command::Info { name }=>self.internal_dispatch(name, state_ref),
                     _ =>Err("".to_owned())
-                };
-                result
+                }
             });
+        return result;
+    }
+}
+
+impl CommandDispatch for UnloadDispatcher{
+    fn dispatch(&self,envelope:Envelope,state: SharedState)->Result<CommandResult,String> {
+        let result=state.try_write()
+            .map_err(|e|e.to_string())
+            .and_then(|mut guard|{
+                let state=&mut *guard;
+                match envelope.command{
+                    Command::Delete { name }=>self.internal_dispatch(name,state),
+                    _ => Err("".to_string())
+                }
+            });
+        return result;
+    }
+}
+
+impl CommandDispatch for CopyDispatcher{
+    fn dispatch(&self,envelope:Envelope,state: SharedState)->Result<CommandResult,String> {
+        let result=state.try_write()
+        .map_err(|e|e.to_string())
+        .and_then(|mut guard|{
+            let s=&mut *guard;
+            match envelope.command{
+                Command::Copy { name, copy_name }=>self.internal_dispatch(name, copy_name, state),
+                _=>Err("Could not perform copy".to_owned())
+            }
+        });
         result
     }
 }
@@ -73,24 +111,40 @@ impl LoadDispatcher{
 }
 impl InfoDispatcher{
     fn internal_dispatch(&self,name:Option<String>,state:&State)->Result<CommandResult,String>{
-        name.map(|n|state.get_track_info(name))
+        let rez=name.map(|n|state.get_track_info(n.as_str()));
+        Ok(CommandResult{})
     }
 }
 
 impl ListDispatcher{
     fn internal_dispatch(&self,state:&State)->Result<CommandResult,String>{
-        
+        let _=state.tracks();
+        Ok(CommandResult {  })
     }
 }
 
-impl SaveDispatcher{
-    fn internal_dispatch(self,name:Option<String>,filename:String)->Result<CommandResult,String>{
-        
+impl UploadDispatcher{
+    fn internal_dispatch(self,name:Option<String>,filename:String,state:&State)->Result<CommandResult,String>{
+        let result=name.map(|n|state.get_track(n.as_str())
+            .and_then(|track|{
+                audio_parse::write_wav_file(&track.data, filename)
+            }
+            );
     }
 }
 
+impl CopyDispatcher{
+    fn internal_dispatch(self,name:Option<String>,copy_name:Option<String>,state:&State)->Result<CommandResult,String>{
+        state.get_track(name)
+            .and_then(|track|{
+                
+            })
+
+    
+    }
+}
 impl UnloadDispatcher{
-    fn internal_dispatch(self,name:Option<String>)->Result<CommandResult,String>{
+    fn internal_dispatch(&self,name:Option<String>,state:&mut State)->Result<CommandResult,String>{
         
     }
 }
