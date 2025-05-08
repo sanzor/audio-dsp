@@ -1,6 +1,8 @@
 
 
+use std::io::copy;
 use std::path::PathBuf;
+use std::str::FromStr;
 
 use audiolib::audio_parse;
 
@@ -125,21 +127,41 @@ impl ListDispatcher{
 
 impl UploadDispatcher{
     fn internal_dispatch(self,name:Option<String>,filename:String,state:&State)->Result<CommandResult,String>{
-        let result=name.map(|n|state.get_track(n.as_str())
-            .and_then(|track|{
-                audio_parse::write_wav_file(&track.data, filename)
-            }
-            );
+        let result=name
+            .ok_or_else(||"Invalid name".to_string())
+            .and_then(|name|
+                state.get_track_ref(name.as_str())
+                     .ok_or_else(||"Track not found".to_string()))
+            .and_then(|track_ref| match PathBuf::from_str(&filename){
+                        Ok(path)=>Ok((track_ref,path)),
+                        _=>Err("Could not read path".to_owned())
+            })
+            .and_then(|(track_ref,path)|
+                audio_parse::write_wav_file(&track_ref.inner.data, &path))
+            .map(|()| CommandResult{});
+        return result;
     }
 }
 
 impl CopyDispatcher{
-    fn internal_dispatch(self,name:Option<String>,copy_name:Option<String>,state:&State)->Result<CommandResult,String>{
-        state.get_track(name)
-            .and_then(|track|{
-                
-            })
-
+    fn internal_dispatch(self,name:Option<String>,copy_name:Option<String>,state:&mut State)->Result<CommandResult,String>{
+       
+       let result=
+                name
+                .ok_or_else(||"invalid name".to_string())
+                .and_then(|n| 
+                    match state.get_track_copy(n.as_str()){
+                        Some(track)=>Ok(track),
+                        _ => Err("Could not find track".to_string())
+                })
+                .map(|mut new_track|{
+                    new_track.info.name=copy_name.ok_or(new_track.info.name+"v2").unwrap();
+                    new_track
+                })
+                .and_then(|new_track|state.upsert_track(new_track))
+              
+                .map(|()| CommandResult {  });
+            return result;
     
     }
 }

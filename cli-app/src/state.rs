@@ -2,7 +2,7 @@
 
 use std::{collections::HashMap, sync::{Arc, RwLock}};
 
-use crate::track::{Track, TrackInfo};
+use crate::track::{Track, TrackInfo, TrackRef};
 
 pub type SharedState=Arc<RwLock<State>>;
 pub struct State{
@@ -11,12 +11,16 @@ pub struct State{
 
 impl State{
 
-    pub fn get_track_info<'a>(& 'a self,name:&str)->Option<& 'a TrackInfo>{
-        self.tracks.get(name).map(|t|&t.info)
+    pub fn get_track_info(&self,name:&str)->Option<TrackInfo>{
+        self.tracks.get(name).map(|t|t.info.clone())
     }
 
-    pub fn get_track<'a>(&'a self,name:&str)->Option<& 'a Track>{
-        self.tracks.get(name)
+    pub fn get_track_ref(&self,name:&str)->Option<TrackRef>{
+        self.tracks.get(name).map(|tr| TrackRef { inner: tr })
+    }
+
+    pub fn get_track_copy(&self,name:&str)->Option<Track>{
+        self.tracks.get(name).map(|t|t.clone())
     }
     pub fn tracks(&self)->Vec<TrackInfo>{
         self.tracks.values().map(|t|t.info.clone()).collect()

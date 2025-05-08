@@ -10,3 +10,7 @@ pub struct Track{
 pub struct TrackInfo{
     pub name:String
 }
+
+pub struct TrackRef<'a>{
+    pub inner:&'a Track,
+}
