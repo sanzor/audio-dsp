@@ -11,7 +11,7 @@ use crate::command::{Command, CommandResult};
 use crate::command_dispatch::CommandDispatch;
 use crate::envelope::Envelope;
 use crate::state::{SharedState, State};
-use crate::track::{Track, TrackInfo};
+use crate::track::{Track, TrackInfo, TrackRefMut};
 
 
 pub struct LoadDispatcher{}
@@ -109,17 +109,20 @@ impl CommandDispatch for GainDispatcher{
             .and_then(|mut guard|{
                 let state=&mut *guard;
                 match envelope.command{
-                    Command::Gain { name, gain, mode }=>{
-                        let track_ref=name
+                    cmd@ Command::Gain { name, gain, mode }=>{
+                        let track_tuple=name
                         .ok_or_else(||"invalid track name".to_string())
-                        .and_then(|n| state.get_track_ref_mut(n.as_str()).ok_or_else(||"could not get track_ref_mut".to_string()));
-                         track_ref
+                        .and_then(|n| state.get_track_ref_mut(n.as_str()).ok_or_else(||"could not get track_ref_mut".to_string()))
+                        .map(|tref|(tref,gain));
+                        track_tuple
                     },
                     _ =>Err("".to_string())
                     
                 }
             })
-            .and_then(|track_ref| track_ref.inner.data.gain(gain));
+            .map(|(track_ref,gain)| track_ref.inner.data=track_ref.inner.data.gain(gain))
+            .map(|()|CommandResult {  });
+        return result;
     }
 }
 impl LoadDispatcher{
