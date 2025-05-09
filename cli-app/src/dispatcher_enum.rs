@@ -10,7 +10,7 @@ pub enum DispatcherEnum{
     List(ListDispatcher),
     Save(UploadDispatcher),
     Copy(CopyDispatcher),
-    Unload(UnloadDispatcher),
+    Unload(DeleteDispatcher),
     Gain(GainDispatcher),
     Normalize(NormalizeDispatcher),
     LowPass(LowPassDispatcher),

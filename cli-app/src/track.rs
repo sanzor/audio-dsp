@@ -14,3 +14,7 @@ pub struct TrackInfo{
 pub struct TrackRef<'a>{
     pub inner:&'a Track,
 }
+
+pub struct TrackRefMut<'a>{
+    pub inner:&'a mut Track,
+}

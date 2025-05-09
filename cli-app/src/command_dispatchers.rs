@@ -1,10 +1,11 @@
 
 
-use std::io::copy;
+use std::env;
 use std::path::PathBuf;
 use std::str::FromStr;
 
 use audiolib::audio_parse;
+use audiolib::audio_transform::AudioTransform;
 
 use crate::command::{Command, CommandResult};
 use crate::command_dispatch::CommandDispatch;
@@ -20,7 +21,7 @@ pub struct UploadDispatcher{}
 
 pub struct CopyDispatcher{}
 
-pub struct UnloadDispatcher{}
+pub struct DeleteDispatcher{}
 pub struct GainDispatcher{}
 pub struct NormalizeDispatcher{}
 pub struct LowPassDispatcher{}
@@ -69,7 +70,7 @@ impl CommandDispatch for InfoDispatcher{
     }
 }
 
-impl CommandDispatch for UnloadDispatcher{
+impl CommandDispatch for DeleteDispatcher{
     fn dispatch(&self,envelope:Envelope,state: SharedState)->Result<CommandResult,String> {
         let result=state.try_write()
             .map_err(|e|e.to_string())
@@ -91,7 +92,7 @@ impl CommandDispatch for CopyDispatcher{
         .and_then(|mut guard|{
             let s=&mut *guard;
             match envelope.command{
-                Command::Copy { name, copy_name }=>self.internal_dispatch(name, copy_name, state),
+                Command::Copy { name, copy_name }=>self.internal_dispatch(name, copy_name, s),
                 _=>Err("Could not perform copy".to_owned())
             }
         });
@@ -100,7 +101,27 @@ impl CommandDispatch for CopyDispatcher{
 }
 
 
-
+impl CommandDispatch for GainDispatcher{
+    fn dispatch(&self,envelope:Envelope,state: SharedState)->Result<CommandResult,String> {
+        
+        let result=state.try_write()
+            .map_err(|e|e.to_string())
+            .and_then(|mut guard|{
+                let state=&mut *guard;
+                match envelope.command{
+                    Command::Gain { name, gain, mode }=>{
+                        let track_ref=name
+                        .ok_or_else(||"invalid track name".to_string())
+                        .and_then(|n| state.get_track_ref_mut(n.as_str()).ok_or_else(||"could not get track_ref_mut".to_string()));
+                         track_ref
+                    },
+                    _ =>Err("".to_string())
+                    
+                }
+            })
+            .and_then(|track_ref| track_ref.inner.data.gain(gain));
+    }
+}
 impl LoadDispatcher{
     fn internal_dispatch(&self,name:Option<String>,filename:String,state:&mut State)->Result<CommandResult,String>{
         let name=PathBuf::from(name.ok_or(filename)?);
@@ -144,7 +165,7 @@ impl UploadDispatcher{
 }
 
 impl CopyDispatcher{
-    fn internal_dispatch(self,name:Option<String>,copy_name:Option<String>,state:&mut State)->Result<CommandResult,String>{
+    fn internal_dispatch(&self,name:Option<String>,copy_name:Option<String>,state:&mut State)->Result<CommandResult,String>{
        
        let result=
                 name
@@ -165,9 +186,15 @@ impl CopyDispatcher{
     
     }
 }
-impl UnloadDispatcher{
+impl DeleteDispatcher{
     fn internal_dispatch(&self,name:Option<String>,state:&mut State)->Result<CommandResult,String>{
-        
+            let result=
+                    name.ok_or_else(||"Invalid name for deleted track".to_string())
+                    .and_then(|n|
+                        state.delete_track(n.as_str())
+                    )
+                    .map(|()|CommandResult{});
+            return result;
     }
 }
 
