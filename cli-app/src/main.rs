@@ -54,6 +54,6 @@ fn parse_command(input:&str)->Result<Command,String>{
 fn dispatch(command:Command)->CommandResult{
     match command{
         Command::Exit=>return CommandResult{},
-        Command::Info { name }=>command_dispatchers::
+        Command::Load { name,filename }=>command_dispatchers::LoadDispatcher
     }
 }

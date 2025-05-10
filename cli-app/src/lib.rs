@@ -3,5 +3,5 @@ pub mod command;
 pub mod envelope;
 pub mod dispatcher_enum;
 mod command_dispatch;
-mod state;
+pub mod state;
 mod command_dispatchers;

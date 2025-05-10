@@ -9,8 +9,8 @@ pub fn parse_load(value:&[&str])->Result<Command,String>{
 }
 pub fn parse_save(value:&[&str])->Result<Command,String>{
     match value{
-        [filename,name]=>Ok(Command::Save { filename: filename.to_string(),name:Some(name.to_string())}),
-        [name]=>Ok(Command::Save { filename: name.to_string(),name:Some(name.to_string())}),
+        [filename,name]=>Ok(Command::Upload { filename: filename.to_string(),name:Some(name.to_string())}),
+        [name]=>Ok(Command::Upload { filename: name.to_string(),name:Some(name.to_string())}),
         _ =>Err("Invalid save command".to_owned())
 
     } 

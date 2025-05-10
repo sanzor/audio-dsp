@@ -2,15 +2,21 @@
 
 use std::{collections::HashMap, sync::{Arc, RwLock}};
 
-use crate::track::{Track, TrackInfo, TrackRef, TrackRefMut};
+
+use crate::track::{Track,TrackInfo,TrackRefMut,TrackRef};
+
 
 pub type SharedState=Arc<RwLock<State>>;
 pub struct State{
     tracks:HashMap<String,Track>
 }
-
+pub fn create_shared_state()->SharedState{
+    Arc::new(RwLock::new(State::new()))
+}
 impl State{
-
+    pub fn new()->State{
+        State { tracks: HashMap::new() }
+    }
     pub fn get_track_info(&self,name:&str)->Option<TrackInfo>{
         self.tracks.get(name).map(|t|t.info.clone())
     }

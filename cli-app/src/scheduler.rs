@@ -1,10 +1,21 @@
-use std::{collections::HashMap, sync::{Arc, RwLock}};
+use std::collections::HashMap;
 
 use cli_app::dispatcher_enum::DispatcherEnum;
 
-use crate::{command_dispatchers::CommandDispatcher, state::State,scheduler::SharedState};
+use crate::state::{SharedState,create_shared_state};
+
 
 pub struct Scheduler{
     pub dispatch_map:HashMap<String,DispatcherEnum>,
-    pub state:SharedState
+    state:SharedState
+}
+
+impl Scheduler{
+    pub fn new()->Scheduler{
+        Scheduler { dispatch_map:Self::create_dispatch_map() , state: create_shared_state() }
+    }
+    fn create_dispatch_map()->HashMap<String,DispatcherEnum>{
+        HashMap::new()
+    }
+
 }
