@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use cli_app::dispatcher_enum::DispatcherEnum;
+use cli_app::{dispatcher_enum::DispatcherEnum, state::{create_shared_state, SharedState}};
 
-use crate::state::{SharedState,create_shared_state};
+
 
 
 pub struct Scheduler{
@@ -17,5 +17,4 @@ impl Scheduler{
     fn create_dispatch_map()->HashMap<String,DispatcherEnum>{
         HashMap::new()
     }
-
 }

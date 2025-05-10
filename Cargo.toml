@@ -2,4 +2,4 @@
 members=[
     "crates/audiolib",
     "cli-app"
-]
+, "dsp_core"]
