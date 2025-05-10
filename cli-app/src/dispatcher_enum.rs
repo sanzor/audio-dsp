@@ -8,9 +8,9 @@ pub enum DispatcherEnum{
     Load(LoadDispatcher),
     Info(InfoDispatcher),
     List(ListDispatcher),
-    Save(UploadDispatcher),
+    Upload(UploadDispatcher),
     Copy(CopyDispatcher),
-    Unload(DeleteDispatcher),
+    Delete(DeleteDispatcher),
     Gain(GainDispatcher),
     Normalize(NormalizeDispatcher),
     LowPass(LowPassDispatcher),
@@ -20,8 +20,17 @@ pub enum DispatcherEnum{
 impl CommandDispatch for DispatcherEnum{
     fn dispatch(&self,envelope:Envelope,state: SharedState)->Result<CommandResult,String> {
        match self{
-            DispatcherEnum::Info(handler)=>handler.dispatch(envelope,state),
-            DispatcherEnum::List(handler)=>handler.dispatch(envelope, state)
+            DispatcherEnum::Load(handler)=>handler.dispatch(envelope,state),
+            DispatcherEnum::Info(handler)=>handler.dispatch(envelope, state),
+            DispatcherEnum::List(handler)=>handler.dispatch(envelope, state),
+            DispatcherEnum::Upload(handler)=>handler.dispatch(envelope, state),
+            DispatcherEnum::Copy(handler)=>handler.dispatch(envelope, state),
+            DispatcherEnum::Delete(handler)=>handler.dispatch(envelope, state),
+
+            DispatcherEnum::Gain(handler)=>handler.dispatch(envelope, state),
+            DispatcherEnum::Normalize(handler)=>handler.dispatch(envelope, state),
+            DispatcherEnum::HighPass(handler)=>handler.dispatch(envelope, state),
+            DispatcherEnum::LowPass(handler)=>handler.dispatch(envelope, state)
        }
     }
 }

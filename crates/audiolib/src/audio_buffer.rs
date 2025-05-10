@@ -1,6 +1,6 @@
 
 
-use crate::audio_transform::{AudioTransform, AudioTransformFull, AudioTransformP};
+use crate::audio_transform::{AudioTransform, AudioTransformFull, AudioTransformMut, AudioTransformP};
 use crate::filters::alpha;
 
 #[derive(Debug)]
@@ -58,6 +58,45 @@ impl AudioTransform for AudioBuffer{
     }
 }
 
+impl AudioTransformMut for AudioBuffer{
+    fn gain_mut(&mut self,gain:f32)->&mut Self {
+       if self.max_sample()>0.0{
+            self.samples.iter_mut().for_each(|sample| *sample *=gain);
+        }
+        return self;
+    }
+
+    fn normalize_mut(&mut self)->&mut Self {
+        let max_sample=self.max_sample();
+        self.gain_mut(1.0/max_sample);
+        self
+    }
+
+    fn low_pass_mut(&mut self,cutoff:f32)->&mut Self {
+        let mut prev_y=0.0;
+        let alpha=alpha(cutoff, self.sample_rate);
+        for sample in self.samples.iter_mut(){
+            let y=alpha * (*sample)+ (1.0-alpha)*prev_y;
+            *sample=y;
+            prev_y=y;
+        }
+        return self;
+    }
+
+    fn high_pass_mut(&mut self,cutoff:f32)->&mut Self {
+        let mut prev_y=0.0;
+        let mut prev_x:f32=0.0;
+        let alpha=alpha(cutoff, self.sample_rate);
+        for sample in self.samples.iter_mut(){
+            let x=*sample;
+            let y=alpha * (prev_y+x-prev_x);
+            *sample=y;
+            prev_y=y;
+            prev_x=x;
+        }
+        return self;
+    }
+}
 impl AudioTransformP for AudioBuffer{
     fn gain_p(mut self,gain:f32)->Self {
         let parallelism=AudioBuffer::thread_count();

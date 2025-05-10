@@ -1,17 +1,18 @@
 
 
-use std::env;
 use std::path::PathBuf;
 use std::str::FromStr;
 
 use audiolib::audio_parse;
-use audiolib::audio_transform::AudioTransform;
+use audiolib::audio_transform::AudioTransformMut;
 
 use crate::command::{Command, CommandResult};
 use crate::command_dispatch::CommandDispatch;
+
 use crate::envelope::Envelope;
 use crate::state::{SharedState, State};
-use crate::track::{Track, TrackInfo, TrackRefMut};
+use crate::track::{Track, TrackInfo};
+
 
 
 pub struct LoadDispatcher{}
@@ -37,6 +38,23 @@ impl CommandDispatch for LoadDispatcher{
             let  state_ref=&mut *guard;
             match envelope.command{
                 Command::Load { name, filename }=>self.internal_dispatch(name, filename,state_ref),
+                _=> Err("".to_owned())
+            }
+         });
+        
+         return result;
+    }
+}
+
+impl CommandDispatch for UploadDispatcher{
+    fn dispatch(&self,envelope:Envelope,state:SharedState)->Result<CommandResult,String>{
+         let result=state
+         .try_write()
+         .map_err(|e|e.to_string())
+         .and_then(|mut guard|{
+            let  state_ref=&mut *guard;
+            match envelope.command{
+                Command::Upload { name, filename }=>self.internal_dispatch(name, filename,state_ref),
                 _=> Err("".to_owned())
             }
          });
@@ -103,28 +121,64 @@ impl CommandDispatch for CopyDispatcher{
 
 impl CommandDispatch for GainDispatcher{
     fn dispatch(&self,envelope:Envelope,state: SharedState)->Result<CommandResult,String> {
-        
-        let result=state.try_write()
+        let rez=state.try_write()
             .map_err(|e|e.to_string())
             .and_then(|mut guard|{
-                let state=&mut *guard;
-                match envelope.command{
-                    cmd@ Command::Gain { name, gain, mode }=>{
-                        let track_tuple=name
-                        .ok_or_else(||"invalid track name".to_string())
-                        .and_then(|n| state.get_track_ref_mut(n.as_str()).ok_or_else(||"could not get track_ref_mut".to_string()))
-                        .map(|tref|(tref,gain));
-                        track_tuple
-                    },
-                    _ =>Err("".to_string())
-                    
-                }
-            })
-            .map(|(track_ref,gain)| track_ref.inner.data=track_ref.inner.data.gain(gain))
-            .map(|()|CommandResult {  });
-        return result;
-    }
+                 let s=&mut *guard;
+                 match envelope.command{
+                    Command::Gain { name, gain, mode }=>self.internal_dispatch(name, gain,s),
+                    _ =>Err("err".to_string())
+                 }
+                });
+        return rez;
+    }   
 }
+
+impl CommandDispatch for NormalizeDispatcher{
+    fn dispatch(&self,envelope:Envelope,state: SharedState)->Result<CommandResult,String> {
+        let rez=state.try_write()
+            .map_err(|e|e.to_string())
+            .and_then(|mut guard|{
+                 let s=&mut *guard;
+                 match envelope.command{
+                    Command::Normalize { name,mode: _}=>self.internal_dispatch(name,s),
+                    _ =>Err("err".to_string())
+                 }
+                });
+        return rez;
+    }   
+}
+
+impl CommandDispatch for LowPassDispatcher{
+    fn dispatch(&self,envelope:Envelope,state: SharedState)->Result<CommandResult,String> {
+        let rez=state.try_write()
+            .map_err(|e|e.to_string())
+            .and_then(|mut guard|{
+                 let s=&mut *guard;
+                 match envelope.command{
+                    Command::LowPass { name,cutoff}=>self.internal_dispatch(name,cutoff,s),
+                    _ =>Err("err".to_string())
+                 }
+                });
+        return rez;
+    }   
+}
+
+impl CommandDispatch for HighPassDispatcher{
+    fn dispatch(&self,envelope:Envelope,state: SharedState)->Result<CommandResult,String> {
+        let rez=state.try_write()
+            .map_err(|e|e.to_string())
+            .and_then(|mut guard|{
+                 let s=&mut *guard;
+                 match envelope.command{
+                    Command::HighPass { name,cutoff}=>self.internal_dispatch(name,cutoff,s),
+                    _ =>Err("err".to_string())
+                 }
+                });
+        return rez;
+    }   
+}
+
 impl LoadDispatcher{
     fn internal_dispatch(&self,name:Option<String>,filename:String,state:&mut State)->Result<CommandResult,String>{
         let name=PathBuf::from(name.ok_or(filename)?);
@@ -150,7 +204,7 @@ impl ListDispatcher{
 }
 
 impl UploadDispatcher{
-    fn internal_dispatch(self,name:Option<String>,filename:String,state:&State)->Result<CommandResult,String>{
+    fn internal_dispatch(&self,name:Option<String>,filename:String,state:&State)->Result<CommandResult,String>{
         let result=name
             .ok_or_else(||"Invalid name".to_string())
             .and_then(|name|
@@ -202,26 +256,58 @@ impl DeleteDispatcher{
 }
 
 impl GainDispatcher{
-    fn internal_dispatch(self,name:Option<String>,cutoff:f32)->Result<CommandResult,String>{
-        
+    fn internal_dispatch(&self,name:Option<String>,cutoff:f32,state:&mut State)->Result<CommandResult,String>{
+        let result=
+                    name.ok_or_else(||"Invalid name for deleted track".to_string())
+                        .and_then(|n| 
+                            state.get_track_ref_mut(n.as_str())
+                             .ok_or_else(||"could not find ref mut".to_string())
+                             .map(|track_ref| track_ref.inner.data.gain_mut(cutoff))
+                        )
+                        .map(|x|CommandResult{});
+        return result;
     }
 }
 
 impl NormalizeDispatcher{
-    fn internal_dispatch(self,name:Option<String>)->Result<CommandResult,String>{
-        
+    fn internal_dispatch(&self,name:Option<String>,state:&mut State)->Result<CommandResult,String>{
+          let result=
+                    name.ok_or_else(||"Invalid name for deleted track".to_string())
+                        .and_then(|n| 
+                            state.get_track_ref_mut(n.as_str())
+                             .ok_or_else(||"could not find ref mut".to_string())
+                             .map(|track_ref| track_ref.inner.data.normalize_mut())
+                        )
+                        .map(|_|CommandResult{});
+        return result;
     }
 }
 
 impl LowPassDispatcher{
-    fn internal_dispatch(self,name:Option<String>,cutoff:f32)->Result<CommandResult,String>{
-        
+    fn internal_dispatch(&self,name:Option<String>,cutoff:f32,state:&mut State)->Result<CommandResult,String>{
+         let result=
+                    name.ok_or_else(||"Invalid name for deleted track".to_string())
+                        .and_then(|n| 
+                            state.get_track_ref_mut(n.as_str())
+                             .ok_or_else(||"could not find ref mut".to_string())
+                             .map(|track_ref| track_ref.inner.data.low_pass_mut(cutoff))
+                        )
+                        .map(|x|CommandResult{});
+        return result;
     }
 }
 
 impl HighPassDispatcher{
-    fn internal_dispatch(self,name:Option<String>,cutoff:f32)->Result<CommandResult,String>{
-        
+    fn internal_dispatch(&self,name:Option<String>,cutoff:f32,state:&mut State)->Result<CommandResult,String>{
+         let result=
+                    name.ok_or_else(||"Invalid name for deleted track".to_string())
+                        .and_then(|n| 
+                            state.get_track_ref_mut(n.as_str())
+                             .ok_or_else(||"could not find ref mut".to_string())
+                             .map(|track_ref| track_ref.inner.data.high_pass_mut(cutoff))
+                        )
+                        .map(|x|CommandResult{});
+        return result;
     }
 }
 

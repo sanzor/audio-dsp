@@ -10,9 +10,16 @@ pub trait AudioTransform{
     // pub fn delay(self)->Self;
 }
 
+pub trait AudioTransformMut{
+    fn gain_mut(&mut self,gain:f32)->&mut Self;
+    fn normalize_mut(&mut self)->&mut Self;
+   
+    fn low_pass_mut(&mut self,cutoff:f32)->&mut Self;
+    fn high_pass_mut(&mut self,cutoff:f32)->&mut Self;
+}
 pub trait AudioTransformP{
     fn gain_p(self,gain:f32)->Self;
     fn normalize_p(self)->Self;
 }
 
-pub trait AudioTransformFull:AudioTransform+AudioTransformP{}
+pub trait AudioTransformFull:AudioTransform+AudioTransformP+AudioTransformMut{}

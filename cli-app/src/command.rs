@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 pub enum Command{
     Load{name:Option<String>,filename:String},
-    Save{name:Option<String>,filename:String},
+    Upload{name:Option<String>,filename:String},
     Delete{name:Option<String>},
     Ls,
     Info{name:Option<String>},
