@@ -1,5 +1,5 @@
 use std::fmt::Display;
-
+use serde::Serialize;
 pub enum Command{
     Load{name:Option<String>,filename:String},
     Upload{name:Option<String>,filename:String},
@@ -17,8 +17,9 @@ pub enum Command{
 
 
 #[derive(Debug)]
+#[derive(Serialize)]
 pub struct CommandResult{
-
+    pub output:String
 }
 impl Display for CommandResult{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

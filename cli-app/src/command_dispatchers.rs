@@ -179,31 +179,38 @@ impl CommandDispatch for HighPassDispatcher{
 
 impl LoadDispatcher{
     fn internal_dispatch(&self,name:Option<String>,filename:String,state:&mut State)->Result<CommandResult,String>{
-        let name=PathBuf::from(name.ok_or(filename)?);
-        let result=audiolib::audio_parse::read_wav_file(&name)
-            .map(|f| Track{info:TrackInfo{name:name.to_str().unwrap().to_string()},data:f})
-            .and_then(|new_track|state.upsert_track(new_track))
-            .map(|()|CommandResult{});
+        let filepath=PathBuf::from(filename.clone());
+        let name=name.unwrap_or(filename);
+        let result=audiolib::audio_parse::read_wav_file(&filepath)
+            .and_then(|f|{ 
+                let new_track=Track{info:TrackInfo{name:name.to_string()},data:f};
+                let result=state.upsert_track(new_track);
+                result
+            })
+            .map(|()|CommandResult{ output: serde_json::to_string("Load succesful").unwrap()});
         result
     }   
 }
 impl InfoDispatcher{
     fn internal_dispatch(&self,name:Option<String>,state:&State)->Result<CommandResult,String>{
-        let rez=name.map(|n|state.get_track_info(n.as_str()));
-        Ok(CommandResult{})
+        let rez=
+            name.and_then(|n|state.get_track_info(n.as_str()))
+            .ok_or_else(||"Could not get track info".to_string())
+            .map(|f|CommandResult{ output:serde_json::to_string_pretty(&f).unwrap()});
+        rez
     }
 }
 
 impl ListDispatcher{
     fn internal_dispatch(&self,state:&State)->Result<CommandResult,String>{
-        let _=state.tracks();
-        Ok(CommandResult {  })
+        let tracks=state.tracks();
+        Ok(CommandResult {  output:serde_json::to_string_pretty(&tracks).unwrap()})
     }
 }
 
 impl UploadDispatcher{
     fn internal_dispatch(&self,name:Option<String>,filename:String,state:&State)->Result<CommandResult,String>{
-        let result=name
+        let track_and_path=name
             .ok_or_else(||"Invalid name".to_string())
             .and_then(|name|
                 state.get_track_ref(name.as_str())
@@ -211,11 +218,13 @@ impl UploadDispatcher{
             .and_then(|track_ref| match PathBuf::from_str(&filename){
                         Ok(path)=>Ok((track_ref,path)),
                         _=>Err("Could not read path".to_owned())
-            })
-            .and_then(|(track_ref,path)|
-                audio_parse::write_wav_file(&track_ref.inner.data, &path))
-            .map(|()| CommandResult{});
-        return result;
+            });
+
+        let rez=track_and_path.and_then(|(track_ref,path)|
+                audio_parse::write_wav_file(&track_ref.inner.data, &path)
+                .map(|()| path))
+            .map(|path| CommandResult{ output:format!("Saved file successfully: {}", path.display())});
+        return rez;
     }
 }
 

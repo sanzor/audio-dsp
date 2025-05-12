@@ -1,21 +1,18 @@
+use crate::{command::{Command, CommandResult}, command_parser::*, command_processor::CommandProcessor};
 
-
-use crate::{command::CommandResult, dispatcher_enum::DispatcherEnum, envelope::Envelope, scheduler::{self, Scheduler}};
-use crate::command::Command;
-pub struct Processor{ 
-    scheduler:Scheduler
+pub struct Processor{
+    command_processor:CommandProcessor,
 }
 
 impl Processor{
-    pub fn new(scheduler:Scheduler){
-        Processor{scheduler:scheduler}
+    pub fn new(command_processor:CommandProcessor)->Processor{
+        Processor { command_processor: command_processor }
     }
 
-    pub fn process_command(&self,input:&str)->CommandResult{
-         let _result=
-                parse_command(user_input.as_str())
-                .map(dispatch)
-                .map(|r|println!("{}",r));
+    pub fn process(&mut self,input:&str)->Result<CommandResult,String>{
+        let command=Processor::parse_command(input);
+        let result=command.and_then(|com| self.command_processor.process_command(com));
+        result
     }
 
     fn parse_command(input:&str)->Result<Command,String>{
@@ -39,25 +36,5 @@ impl Processor{
         };
         rez
     }
-    fn dispatch(&self,command:Command)->CommandResult{
-        let dispatcher_name=self.get_dispatcher_name(command);
-        let dispatcher=self.scheduler.dispatch_map.get(dispatcher).unwrap();
-        CommandResult{}
-    }
-    fn get_dispatcher_name(&self,command:Command)->&'static str{
-       match command{
-            Command::Copy { name, copy_name }=>"copy",
-            Command::Exit=>"exit",
-            Command::HighPass { name, cutoff }=>"high_pass",
-            Command::LowPass { name, cutoff }=>"low_pass",
-            Command::Delete { name }=>"delete",
-            Command::Info { name }=>"info",
-            Command::Load { name, filename }=>"load",
-            Command::Ls=>"ls",
-            Command::Gain { name, gain, mode }=>"gain",
-            Command::Normalize { name, mode }=>"normalize",
-            Command::Upload { name, filename }=>"upload",
-       }
-    }
-    
 }
+

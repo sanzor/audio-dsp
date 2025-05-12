@@ -43,14 +43,10 @@ impl State{
         };
         return result;
     }
-    pub fn upsert_track (&mut self,track:Track)->Result<(),String>{
-        let track_name=track.info.name.clone();
-        let upsert=self.tracks.insert(track_name.clone(),track);
-        let result= match upsert{
-            None=>Err(format!("Could not upsert track with name {}",track_name)),
-            Some(_)=>Ok(())
-        };
-        result
+    pub fn upsert_track(&mut self, track: Track) -> Result<(), String> {
+        let track_name = track.info.name.clone();
+        self.tracks.insert(track_name, track);
+        Ok(())
     }
 
 }

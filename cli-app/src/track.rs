@@ -1,12 +1,14 @@
 use audiolib::audio_buffer::AudioBuffer;
+use serde::Serialize;
 
 #[derive(Clone)]
+#[derive(Serialize)]
 pub struct Track{
     pub info:TrackInfo,
     pub data:AudioBuffer
 }
 #[derive(Clone)]
-#[derive(Debug)]
+#[derive(Debug,Serialize)]
 pub struct TrackInfo{
     pub name:String
 }
