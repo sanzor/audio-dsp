@@ -15,10 +15,8 @@ impl CommandProcessor{
     pub fn process_command(&mut self,input:Command)->Result<CommandResult,String>{
         let dispatcher_name=self.get_dispatcher_name(&input);
         let dispatcher=self.dispatch_provider.get_dispatcher_by_name(dispatcher_name)
-                    .ok_or_else(||"Could not find dispatcher".to_string());
-        let result=dispatcher.and_then(|dispatcher|{
-             dispatcher.dispatch(Envelope{command:input,from:None}, self.state.clone())
-        });
+                    .ok_or_else(||"Could not find dispatcher".to_string())?;
+        let result=dispatcher.dispatch(Envelope{command:input,from:None}, self.state.clone());
         result
     }
 

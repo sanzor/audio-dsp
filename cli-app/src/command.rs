@@ -1,8 +1,8 @@
 use std::fmt::Display;
 use serde::Serialize;
 pub enum Command{
-    Load{name:Option<String>,filename:String},
-    Upload{name:Option<String>,filename:String},
+    Load{name:Option<String>,filename:Option<String>},
+    Upload{name:Option<String>,filename:Option<String>},
     Delete{name:Option<String>},
     Ls,
     Info{name:Option<String>},

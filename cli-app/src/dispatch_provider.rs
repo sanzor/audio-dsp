@@ -2,7 +2,7 @@
 use std::collections::HashMap;
 
 use crate::command_dispatchers::{CopyDispatcher,DeleteDispatcher,GainDispatcher,HighPassDispatcher,InfoDispatcher,ListDispatcher,
-LoadDispatcher,LowPassDispatcher,NormalizeDispatcher,UploadDispatcher};
+LowPassDispatcher,NormalizeDispatcher,UploadDispatcher};
 use crate::dispatcher_enum::DispatcherEnum;
 
 pub struct DispatchProvider{

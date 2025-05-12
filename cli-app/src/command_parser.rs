@@ -2,17 +2,16 @@ use crate::command::{Command, RunMode};
 
 pub fn parse_load(value:&[&str])->Result<Command,String>{
     match value {
-        [filename,name]=>Ok(Command::Load { filename: filename.to_string(),name:Some(name.to_string())}),
-        [filename]=>Ok(Command::Load { filename: filename.to_string(),name:Some(filename.to_string())}),
+        [filename,name]=>Ok(Command::Load { filename: Some(filename.to_string()),name:Some(name.to_string())}),
+        [filename]=>Ok(Command::Load { filename: Some(filename.to_string()),name:Some(filename.to_string())}),
         _ =>Err("Invalid load command".to_owned())
     }
 }
-pub fn parse_save(value:&[&str])->Result<Command,String>{
+pub fn parse_upload(value:&[&str])->Result<Command,String>{
     match value{
-        [filename,name]=>Ok(Command::Upload { filename: filename.to_string(),name:Some(name.to_string())}),
-        [name]=>Ok(Command::Upload { filename: name.to_string(),name:Some(name.to_string())}),
+        [filename,name]=>Ok(Command::Upload { filename: Some(filename.to_string()),name:Some(name.to_string())}),
+        [name]=>Ok(Command::Upload { filename: Some(name.to_string()),name:Some(name.to_string())}),
         _ =>Err("Invalid save command".to_owned())
-
     } 
 }
 

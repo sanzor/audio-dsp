@@ -10,8 +10,8 @@ impl Processor{
     }
 
     pub fn process(&mut self,input:&str)->Result<CommandResult,String>{
-        let command=Processor::parse_command(input);
-        let result=command.and_then(|com| self.command_processor.process_command(com));
+        let command=Processor::parse_command(input)?;
+        let result=self.command_processor.process_command(command);
         result
     }
 
@@ -24,7 +24,7 @@ impl Processor{
         let payload=&parts[1..];
         let rez=match command.as_deref(){
             Some("load")=>parse_load(payload),
-            Some("save")=>parse_save(payload),
+            Some("save")=>parse_upload(payload),
             Some("info")=>parse_info(payload),
             Some("unload")=>parse_unload(payload),
             Some("list")=> parse_ls(payload),
