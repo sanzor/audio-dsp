@@ -1,5 +1,6 @@
 
-use crate::command_dispatchers::*;
+
+use crate::dispatchers::{CopyDispatcher, DeleteDispatcher, GainDispatcher, HighPassDispatcher, InfoDispatcher, ListDispatcher, LoadDispatcher, LowPassDispatcher, NormalizeDispatcher, UploadDispatcher};
 use crate::{command::CommandResult, command_dispatch::CommandDispatch, envelope::Envelope};
 use crate::state::SharedState;
 

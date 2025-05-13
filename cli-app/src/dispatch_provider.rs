@@ -1,8 +1,6 @@
 
 use std::collections::HashMap;
-
-use crate::command_dispatchers::{CopyDispatcher,DeleteDispatcher,GainDispatcher,HighPassDispatcher,InfoDispatcher,ListDispatcher,
-LowPassDispatcher,NormalizeDispatcher,UploadDispatcher};
+use crate::dispatchers::*;
 use crate::dispatcher_enum::DispatcherEnum;
 
 pub struct DispatchProvider{
