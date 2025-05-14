@@ -1,11 +1,11 @@
-pub mod track;
 pub mod command;
-pub mod envelope;
-pub mod dispatcher_enum;
 pub mod command_dispatch;
-pub mod state;
 pub mod command_parser;
-pub mod dispatch_provider;
 pub mod command_processor;
-pub mod processor;
+pub mod dispatch_provider;
+pub mod dispatcher_enum;
 pub mod dispatchers;
+pub mod envelope;
+pub mod processor;
+pub mod state;
+pub mod track;
