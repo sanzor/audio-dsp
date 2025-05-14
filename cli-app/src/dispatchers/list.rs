@@ -9,7 +9,7 @@ impl CommandDispatch for ListDispatcher {
     fn dispatch(&self, envelope: Envelope, state: SharedState) -> Result<CommandResult, String> {
         let guard = state.read().unwrap();
         let result = match envelope.command {
-            Command::Info { name: _ } => self.internal_dispatch(&*guard),
+            Command::Ls=> self.internal_dispatch(&*guard),
             _ => Err("".to_owned()),
         };
         return result;

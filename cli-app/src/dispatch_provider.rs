@@ -21,7 +21,7 @@ impl DispatchProvider {
     fn populate_dispatchers(hash_map: &mut HashMap<String, DispatcherEnum>) {
         hash_map.insert("load".to_string(), DispatcherEnum::Load(LoadDispatcher {}));
         hash_map.insert("copy".to_string(), DispatcherEnum::Copy(CopyDispatcher {}));
-        hash_map.insert("list".to_string(), DispatcherEnum::List(ListDispatcher {}));
+        hash_map.insert("ls".to_string(), DispatcherEnum::List(ListDispatcher {}));
         hash_map.insert(
             "delete".to_string(),
             DispatcherEnum::Delete(DeleteDispatcher {}),

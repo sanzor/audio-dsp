@@ -36,6 +36,34 @@ pub fn can_run_info_command() -> Result<(), String> {
     Ok(())
 }
 
+#[rstest]
+pub fn can_run_list_command() -> Result<(), String> {
+    let name = "my-track";
+    let mut processor = CommandProcessor::new(DispatchProvider::new(), create_shared_state());
+    load_command(&mut processor, name).unwrap();
+    let info_command = Command::Ls {
+    };
+    let ls_result = processor.process_command(info_command)?.output;
+    let track_list: Vec<TrackInfo> = serde_json::from_str(&ls_result).unwrap();
+    assert!(track_list.len()==1);
+    assert!(track_list[0].name==name);
+    Ok(())
+}
+
+#[rstest]
+pub fn can_run_save_command() -> Result<(), String> {
+    let name = "my-track";
+    let mut processor = CommandProcessor::new(DispatchProvider::new(), create_shared_state());
+    load_command(&mut processor, name).unwrap();
+    let info_command = Command::Ls {
+    };
+    let ls_result = processor.process_command(info_command)?.output;
+    let track_list: Vec<TrackInfo> = serde_json::from_str(&ls_result).unwrap();
+    assert!(track_list.len()==1);
+    assert!(track_list[0].name==name);
+    Ok(())
+}
+
 fn load_command(processor: &mut CommandProcessor, name: &str) -> Result<CommandResult, String> {
     let path = common::test_data("dragons.wav");
     let path_str = path.to_str().ok_or_else(|| "Invalid file".to_string())?;
