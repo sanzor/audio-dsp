@@ -9,17 +9,13 @@ pub struct CopyDispatcher {}
 
 impl CommandDispatch for CopyDispatcher {
     fn dispatch(&self, envelope: Envelope, state: SharedState) -> Result<CommandResult, String> {
-        let result = state
-            .try_write()
-            .map_err(|e| e.to_string())
-            .and_then(|mut guard| {
-                let s = &mut *guard;
-                match envelope.command {
-                    Command::Copy { name, copy_name } => self.internal_dispatch(name, copy_name, s),
-                    _ => Err("Could not perform copy".to_owned()),
-                }
-            });
-        result
+        let mut guard = state.try_write().map_err(|e| e.to_string())?;
+        let state = &mut *guard;
+
+        match envelope.command {
+            Command::Copy { name, copy_name } => self.internal_dispatch(name, copy_name, state),
+            _ => Err("Could not perform copy".to_owned()),
+        }
     }
 }
 

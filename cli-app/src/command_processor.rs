@@ -1,18 +1,18 @@
 use crate::{
     command::{Command, CommandResult},
     command_dispatch::CommandDispatch,
-    dispatch_provider::DispatchProvider,
+    command_dispatchers_provider::DispatchersProvider,
     envelope::Envelope,
     state::SharedState,
 };
 
 pub struct CommandProcessor {
-    dispatch_provider: DispatchProvider,
+    dispatch_provider: DispatchersProvider,
     state: SharedState,
 }
 
 impl CommandProcessor {
-    pub fn new(dispatch_provider: DispatchProvider, state: SharedState) -> CommandProcessor {
+    pub fn new(dispatch_provider: DispatchersProvider, state: SharedState) -> CommandProcessor {
         CommandProcessor {
             dispatch_provider,
             state,

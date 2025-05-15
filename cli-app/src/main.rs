@@ -1,13 +1,13 @@
 use cli_app::command_processor::CommandProcessor;
 use cli_app::{
-    dispatch_provider::DispatchProvider,
+    command_dispatchers_provider::DispatchersProvider,
     processor::Processor,
     state::{create_shared_state, SharedState},
 };
 
 fn main() {
     let mut processor = Processor::new(CommandProcessor::new(
-        DispatchProvider::new(),
+        DispatchersProvider::new(),
         initialize_state(),
     ));
     loop {

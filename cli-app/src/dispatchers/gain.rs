@@ -11,17 +11,13 @@ pub struct GainDispatcher {}
 
 impl CommandDispatch for GainDispatcher {
     fn dispatch(&self, envelope: Envelope, state: SharedState) -> Result<CommandResult, String> {
-        let rez = state
-            .try_write()
-            .map_err(|e| e.to_string())
-            .and_then(|mut guard| {
-                let s = &mut *guard;
-                match envelope.command {
-                    Command::Gain { name, gain, mode } => self.internal_dispatch(name, gain, s),
-                    _ => Err("err".to_string()),
-                }
-            });
-        return rez;
+        let mut guard = state.try_write().map_err(|e| e.to_string())?;
+        let state = &mut *guard;
+
+        match envelope.command {
+            Command::Gain { name, gain, mode } => self.internal_dispatch(name, gain, state),
+            _ => Err("err".to_string()),
+        }
     }
 }
 

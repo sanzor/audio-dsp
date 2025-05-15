@@ -17,6 +17,11 @@ impl Processor {
 
     pub fn process(&mut self, input: &str) -> Result<CommandResult, String> {
         let command = Processor::parse_command(input)?;
+        if let Command::Exit = command {
+            return Ok(CommandResult {
+                output: "exit".to_string(),
+            });
+        }
         let result = self.command_processor.process_command(command);
         result
     }
