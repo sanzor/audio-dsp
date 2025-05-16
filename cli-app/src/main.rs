@@ -1,10 +1,5 @@
-
-use cli_app::{
-
-    processor::Processor,
-
-};
-use dsp_core::{api::create_command_processor};
+use cli_app::processor::Processor;
+use dsp_core::api::create_command_processor;
 
 fn main() {
     let mut processor = Processor::new(create_command_processor());
@@ -15,7 +10,6 @@ fn main() {
             .map(|r| println!("{}", r));
     }
 }
-
 
 fn read_line() -> String {
     use std::io::{self, Write};

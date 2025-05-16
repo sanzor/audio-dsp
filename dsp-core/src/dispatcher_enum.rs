@@ -1,12 +1,12 @@
 use dsp_domain::command::CommandResult;
 use dsp_domain::envelope::Envelope;
 
+use crate::command_dispatch::CommandDispatch;
 use crate::dispatchers::{
     CopyDispatcher, DeleteDispatcher, GainDispatcher, HighPassDispatcher, InfoDispatcher,
     ListDispatcher, LoadDispatcher, LowPassDispatcher, NormalizeDispatcher, UploadDispatcher,
 };
 use crate::state::SharedState;
-use crate::{ command_dispatch::CommandDispatch};
 
 pub(crate) enum DispatcherEnum {
     Load(LoadDispatcher),

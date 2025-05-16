@@ -1,7 +1,5 @@
 use dsp_domain::command::{DspCommand, RunMode};
 
-
-
 pub fn parse_load(value: &[&str]) -> Result<DspCommand, String> {
     match value {
         [filename, name] => Ok(DspCommand::Load {
@@ -95,5 +93,12 @@ pub fn parse_high_pass(value: &[&str]) -> Result<DspCommand, String> {
             })
             .map_err(|e| e.to_string()),
         _ => Err("Invalid high_pass command".to_owned()),
+    }
+}
+
+pub fn parse_play(value: &[&str])->Result<DspCommand,String>{
+    match value{
+        [name] => Ok(DspCommand::Play { name:Some(name.to_string())}),
+        _ => Err("Invalid run command".to_string())
     }
 }

@@ -1,9 +1,7 @@
 use dsp_core::command_processor::CommandProcessor;
 use dsp_domain::command::{CommandResult, DspCommand};
 
-use crate::{
-    command_parser::*
-};
+use crate::command_parser::*;
 
 pub struct Processor {
     command_processor: CommandProcessor,

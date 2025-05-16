@@ -39,6 +39,9 @@ pub enum DspCommand {
         mode: Option<RunMode>,
     },
     Exit,
+    Play{
+        name:Option<String>
+    }
 }
 
 #[derive(Debug, Serialize)]

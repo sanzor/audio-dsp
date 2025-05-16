@@ -1,4 +1,7 @@
-use dsp_domain::{command::{DspCommand, CommandResult}, envelope::Envelope};
+use dsp_domain::{
+    command::{CommandResult, DspCommand},
+    envelope::Envelope,
+};
 
 use crate::{
     command_dispatch::CommandDispatch,

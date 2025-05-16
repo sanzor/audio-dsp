@@ -1,9 +1,15 @@
-use dsp_domain::{command::{DspCommand, CommandResult}, envelope::Envelope};
+use dsp_domain::{
+    command::{CommandResult, DspCommand},
+    envelope::Envelope,
+};
 
-use crate::{command_dispatch::CommandDispatch, dispatchers_provider::DispatchersProvider, state::SharedState};
+use crate::{
+    command_dispatch::CommandDispatch, dispatchers_provider::DispatchersProvider,
+    state::SharedState,
+};
 
-pub struct CommandProcessorConfig{
-    pub(crate) state:Option<SharedState>
+pub struct CommandProcessorConfig {
+    pub(crate) state: Option<SharedState>,
 }
 pub struct CommandProcessor {
     dispatch_provider: DispatchersProvider,
@@ -11,7 +17,10 @@ pub struct CommandProcessor {
 }
 
 impl CommandProcessor {
-    pub(crate) fn new(dispatch_provider: DispatchersProvider, state: SharedState) -> CommandProcessor {
+    pub(crate) fn new(
+        dispatch_provider: DispatchersProvider,
+        state: SharedState,
+    ) -> CommandProcessor {
         CommandProcessor {
             dispatch_provider,
             state,
@@ -47,6 +56,7 @@ impl CommandProcessor {
             DspCommand::Gain { name, gain, mode } => "gain",
             DspCommand::Normalize { name: _, mode } => "normalize",
             DspCommand::Upload { name, filename } => "upload",
+            DspCommand::Play { name }=>"play"
         }
     }
 }

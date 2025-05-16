@@ -1,11 +1,12 @@
-use std::{path::PathBuf, str::FromStr};
-use dsp_domain::{command::{DspCommand, CommandResult}, envelope::Envelope};
 use audiolib::audio_parse;
+use dsp_domain::{
+    command::{CommandResult, DspCommand},
+    envelope::Envelope,
+};
+use std::{path::PathBuf, str::FromStr};
 
 use crate::{
-
     command_dispatch::CommandDispatch,
-
     state::{SharedState, State},
 };
 pub(crate) struct UploadDispatcher {}

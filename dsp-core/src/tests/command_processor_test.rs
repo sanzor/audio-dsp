@@ -1,9 +1,13 @@
-
-use dsp_domain::{command::{CommandResult, DspCommand}, track::TrackInfo};
+use dsp_domain::{
+    command::{CommandResult, DspCommand},
+    track::TrackInfo,
+};
 use rstest::rstest;
 
-use crate::{command_processor::CommandProcessor, command_processor_test::common, dispatchers_provider::DispatchersProvider, state::create_shared_state};
-
+use crate::{
+    command_processor::CommandProcessor, command_processor_test::common,
+    dispatchers_provider::DispatchersProvider, state::create_shared_state,
+};
 
 #[rstest]
 pub fn can_run_load_command() -> Result<(), String> {
@@ -89,17 +93,16 @@ pub fn can_run_copy_command() -> Result<(), String> {
     let mut processor = CommandProcessor::new(DispatchersProvider::new(), create_shared_state());
     load_command(&mut processor, name).unwrap();
 
-    let copy_result_string = 
-        &processor
-            .process_command(DspCommand::Copy {
-                name: Some(name.to_string()),
-                copy_name: Some(copy_name.to_string()),
-            })?
-            .output;
+    let copy_result_string = &processor
+        .process_command(DspCommand::Copy {
+            name: Some(name.to_string()),
+            copy_name: Some(copy_name.to_string()),
+        })?
+        .output;
     assert!(copy_result_string.contains("Copied successfully"));
     let track_list_after_copy = get_track_list(&mut processor)?;
     assert!(track_list_after_copy.len() == 2);
-    assert!(track_list_after_copy[1].name==copy_name);
+    assert!(track_list_after_copy[1].name == copy_name);
 
     Ok(())
 }
@@ -129,6 +132,7 @@ fn load_command(processor: &mut CommandProcessor, name: &str) -> Result<CommandR
     _result
 }
 
-fn get_track_list(processor:&mut CommandProcessor)->Result<Vec<TrackInfo>,String>{
-    serde_json::from_str(&processor.process_command(DspCommand::Ls{})?.output).map_err(|e|e.to_string())
+fn get_track_list(processor: &mut CommandProcessor) -> Result<Vec<TrackInfo>, String> {
+    serde_json::from_str(&processor.process_command(DspCommand::Ls {})?.output)
+        .map_err(|e| e.to_string())
 }

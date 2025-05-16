@@ -1,8 +1,11 @@
-use audiolib::audio_transform::AudioTransformMut;
-use dsp_domain::{command::{DspCommand, CommandResult}, envelope::Envelope};
 use crate::{
     command_dispatch::CommandDispatch,
     state::{SharedState, State},
+};
+use audiolib::audio_transform::AudioTransformMut;
+use dsp_domain::{
+    command::{CommandResult, DspCommand},
+    envelope::Envelope,
 };
 pub(crate) struct NormalizeDispatcher {}
 impl CommandDispatch for NormalizeDispatcher {

@@ -1,10 +1,11 @@
-use audiolib::audio_transform::AudioTransformMut;
-use dsp_domain::{command::{DspCommand, CommandResult}, envelope::Envelope};
 use crate::{
-
     command_dispatch::CommandDispatch,
-
     state::{SharedState, State},
+};
+use audiolib::audio_transform::AudioTransformMut;
+use dsp_domain::{
+    command::{CommandResult, DspCommand},
+    envelope::Envelope,
 };
 pub(crate) struct HighPassDispatcher {}
 
@@ -16,7 +17,9 @@ impl CommandDispatch for HighPassDispatcher {
             .and_then(|mut guard| {
                 let s = &mut *guard;
                 match envelope.command {
-                    DspCommand::HighPass { name, cutoff } => self.internal_dispatch(name, cutoff, s),
+                    DspCommand::HighPass { name, cutoff } => {
+                        self.internal_dispatch(name, cutoff, s)
+                    }
                     _ => Err("err".to_string()),
                 }
             });

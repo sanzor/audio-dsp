@@ -1,6 +1,6 @@
 use std::sync::mpsc::Sender;
 
-use crate::command::{DspCommand, CommandResult};
+use crate::command::{CommandResult, DspCommand};
 
 pub struct Caller(Sender<CommandResult>);
 pub struct Envelope {
