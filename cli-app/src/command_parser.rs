@@ -1,25 +1,27 @@
-use crate::command::{Command, RunMode};
+use dsp_domain::command::{DspCommand, RunMode};
 
-pub fn parse_load(value: &[&str]) -> Result<Command, String> {
+
+
+pub fn parse_load(value: &[&str]) -> Result<DspCommand, String> {
     match value {
-        [filename, name] => Ok(Command::Load {
+        [filename, name] => Ok(DspCommand::Load {
             filename: Some(filename.to_string()),
             name: Some(name.to_string()),
         }),
-        [filename] => Ok(Command::Load {
+        [filename] => Ok(DspCommand::Load {
             filename: Some(filename.to_string()),
             name: Some(filename.to_string()),
         }),
         _ => Err("Invalid load command".to_owned()),
     }
 }
-pub fn parse_upload(value: &[&str]) -> Result<Command, String> {
+pub fn parse_upload(value: &[&str]) -> Result<DspCommand, String> {
     match value {
-        [filename, name] => Ok(Command::Upload {
+        [filename, name] => Ok(DspCommand::Upload {
             filename: Some(filename.to_string()),
             name: Some(name.to_string()),
         }),
-        [name] => Ok(Command::Upload {
+        [name] => Ok(DspCommand::Upload {
             filename: Some(name.to_string()),
             name: Some(name.to_string()),
         }),
@@ -27,33 +29,33 @@ pub fn parse_upload(value: &[&str]) -> Result<Command, String> {
     }
 }
 
-pub fn parse_unload(value: &[&str]) -> Result<Command, String> {
+pub fn parse_unload(value: &[&str]) -> Result<DspCommand, String> {
     match value {
-        [name] => Ok(Command::Delete {
+        [name] => Ok(DspCommand::Delete {
             name: Some(name.to_string()),
         }),
         _ => Err("Invalid unload command".to_owned()),
     }
 }
 
-pub fn parse_info(value: &[&str]) -> Result<Command, String> {
+pub fn parse_info(value: &[&str]) -> Result<DspCommand, String> {
     match value {
-        [name] => Ok(Command::Info {
+        [name] => Ok(DspCommand::Info {
             name: Some(name.to_string()),
         }),
         _ => Err("Invalid info command".to_owned()),
     }
 }
 
-pub fn parse_ls(value: &[&str]) -> Result<Command, String> {
+pub fn parse_ls(value: &[&str]) -> Result<DspCommand, String> {
     let _ = value;
-    Ok(Command::Ls)
+    Ok(DspCommand::Ls)
 }
-pub fn parse_gain(value: &[&str]) -> Result<Command, String> {
+pub fn parse_gain(value: &[&str]) -> Result<DspCommand, String> {
     match value {
         [name, factor] => factor
             .parse::<f32>()
-            .map(|f| Command::Gain {
+            .map(|f| DspCommand::Gain {
                 name: Some(name.to_string()),
                 gain: f,
                 mode: Some(RunMode::Simple),
@@ -62,20 +64,20 @@ pub fn parse_gain(value: &[&str]) -> Result<Command, String> {
         _ => Err("Invalid gain command".to_owned()),
     }
 }
-pub fn parse_normalize(value: &[&str]) -> Result<Command, String> {
+pub fn parse_normalize(value: &[&str]) -> Result<DspCommand, String> {
     match value {
-        [name] => Ok(Command::Normalize {
+        [name] => Ok(DspCommand::Normalize {
             name: Some(name.to_string()),
             mode: Some(RunMode::Simple),
         }),
         _ => Err("Invalid load command".to_owned()),
     }
 }
-pub fn parse_low_pass(value: &[&str]) -> Result<Command, String> {
+pub fn parse_low_pass(value: &[&str]) -> Result<DspCommand, String> {
     match value {
         [cutoff, name] => cutoff
             .parse::<f32>()
-            .map(|f| Command::LowPass {
+            .map(|f| DspCommand::LowPass {
                 name: Some(name.to_string()),
                 cutoff: f,
             })
@@ -83,11 +85,11 @@ pub fn parse_low_pass(value: &[&str]) -> Result<Command, String> {
         _ => Err("Invalid low_pass command".to_owned()),
     }
 }
-pub fn parse_high_pass(value: &[&str]) -> Result<Command, String> {
+pub fn parse_high_pass(value: &[&str]) -> Result<DspCommand, String> {
     match value {
         [cutoff, name] => cutoff
             .parse::<f32>()
-            .map(|f| Command::HighPass {
+            .map(|f| DspCommand::HighPass {
                 name: Some(name.to_string()),
                 cutoff: f,
             })

@@ -1,7 +1,8 @@
+use dsp_core::command_processor::CommandProcessor;
+use dsp_domain::command::{CommandResult, DspCommand};
+
 use crate::{
-    command::{Command, CommandResult},
-    command_parser::*,
-    command_processor::CommandProcessor,
+    command_parser::*
 };
 
 pub struct Processor {
@@ -17,7 +18,7 @@ impl Processor {
 
     pub fn process(&mut self, input: &str) -> Result<CommandResult, String> {
         let command = Processor::parse_command(input)?;
-        if let Command::Exit = command {
+        if let DspCommand::Exit = command {
             return Ok(CommandResult {
                 output: "exit".to_string(),
             });
@@ -26,7 +27,7 @@ impl Processor {
         result
     }
 
-    fn parse_command(input: &str) -> Result<Command, String> {
+    fn parse_command(input: &str) -> Result<DspCommand, String> {
         let parts: Vec<&str> = input.trim().split_whitespace().collect();
         if parts.len() < 1 {
             return Err("No command provided".to_string());

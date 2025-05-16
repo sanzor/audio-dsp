@@ -1,15 +1,13 @@
-use cli_app::command_processor::CommandProcessor;
+
 use cli_app::{
-    command_dispatchers_provider::DispatchersProvider,
+
     processor::Processor,
-    state::{create_shared_state, SharedState},
+
 };
+use dsp_core::{api::create_command_processor};
 
 fn main() {
-    let mut processor = Processor::new(CommandProcessor::new(
-        DispatchersProvider::new(),
-        initialize_state(),
-    ));
+    let mut processor = Processor::new(create_command_processor());
     loop {
         let user_input = read_line();
         let _result = processor
@@ -18,9 +16,7 @@ fn main() {
     }
 }
 
-fn initialize_state() -> SharedState {
-    create_shared_state()
-}
+
 fn read_line() -> String {
     use std::io::{self, Write};
     print!("> ");
