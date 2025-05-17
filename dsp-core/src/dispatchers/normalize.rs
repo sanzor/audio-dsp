@@ -4,23 +4,22 @@ use crate::{
 };
 use audiolib::audio_transform::AudioTransformMut;
 use dsp_domain::{
-    command::{CommandResult, DspCommand},
-    envelope::Envelope,
+    dsp_command::DspCommand, dsp_command_result::DspCommandResult, envelope::Envelope,
 };
+
 pub(crate) struct NormalizeDispatcher {}
 impl CommandDispatch for NormalizeDispatcher {
-    fn dispatch(&self, envelope: Envelope, state: SharedState) -> Result<CommandResult, String> {
-        let rez = state
-            .try_write()
-            .map_err(|e| e.to_string())
-            .and_then(|mut guard| {
-                let s = &mut *guard;
-                match envelope.command {
-                    DspCommand::Normalize { name, mode: _ } => self.internal_dispatch(name, s),
-                    _ => Err("err".to_string()),
-                }
-            });
-        return rez;
+    fn dispatch(&self, envelope: Envelope, state: SharedState) -> Result<DspCommandResult, String> {
+        let mut guard = state.try_write().map_err(|e| e.to_string())?;
+        let state = &mut *guard;
+        match envelope.command {
+            DspCommand::Normalize {
+                name,
+                mode: _,
+                parallelism,
+            } => self.internal_dispatch(name, state),
+            _ => Err("err".to_string()),
+        }
     }
 }
 
@@ -29,13 +28,13 @@ impl NormalizeDispatcher {
         &self,
         name: Option<String>,
         state: &mut State,
-    ) -> Result<CommandResult, String> {
+    ) -> Result<DspCommandResult, String> {
         let name = name.ok_or("Invalid name for track to perform normalize on")?;
         let track_ref = state
             .get_track_ref_mut(&name)
             .ok_or_else(|| "Could not find track ref")?;
         let _ = track_ref.inner.data.normalize_mut();
-        Ok(CommandResult {
+        Ok(DspCommandResult {
             output: format!("Normalize track {} succesful", name),
         })
     }

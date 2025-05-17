@@ -7,3 +7,4 @@ edition="2021"
 audiolib={path="../audiolib"}
 dsp-core={path="../dsp-core"}
 dsp-domain={path="../dsp-domain"}
+clap = { version = "4.4", features = ["derive"] }

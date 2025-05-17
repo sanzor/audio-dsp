@@ -1,5 +1,4 @@
-use dsp_domain::command::CommandResult;
-use dsp_domain::envelope::Envelope;
+use dsp_domain::{dsp_command_result::DspCommandResult, envelope::Envelope};
 
 use crate::command_dispatch::CommandDispatch;
 use crate::dispatchers::{
@@ -22,7 +21,7 @@ pub(crate) enum DispatcherEnum {
 }
 
 impl CommandDispatch for DispatcherEnum {
-    fn dispatch(&self, envelope: Envelope, state: SharedState) -> Result<CommandResult, String> {
+    fn dispatch(&self, envelope: Envelope, state: SharedState) -> Result<DspCommandResult, String> {
         match self {
             DispatcherEnum::Load(handler) => handler.dispatch(envelope, state),
             DispatcherEnum::Info(handler) => handler.dispatch(envelope, state),

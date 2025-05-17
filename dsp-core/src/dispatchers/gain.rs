@@ -4,19 +4,23 @@ use crate::{
 };
 use audiolib::audio_transform::AudioTransformMut;
 use dsp_domain::{
-    command::{CommandResult, DspCommand},
-    envelope::Envelope,
+    dsp_command::DspCommand, dsp_command_result::DspCommandResult, envelope::Envelope,
 };
 
 pub(crate) struct GainDispatcher {}
 
 impl CommandDispatch for GainDispatcher {
-    fn dispatch(&self, envelope: Envelope, state: SharedState) -> Result<CommandResult, String> {
+    fn dispatch(&self, envelope: Envelope, state: SharedState) -> Result<DspCommandResult, String> {
         let mut guard = state.try_write().map_err(|e| e.to_string())?;
         let state = &mut *guard;
 
         match envelope.command {
-            DspCommand::Gain { name, gain, mode } => self.internal_dispatch(name, gain, state),
+            DspCommand::Gain {
+                name,
+                gain,
+                mode,
+                parallelism,
+            } => self.internal_dispatch(name, gain, state),
             _ => Err("err".to_string()),
         }
     }
@@ -28,13 +32,13 @@ impl GainDispatcher {
         name: Option<String>,
         cutoff: f32,
         state: &mut State,
-    ) -> Result<CommandResult, String> {
+    ) -> Result<DspCommandResult, String> {
         let name = name.ok_or("Invalid name for track to perform gain on")?;
         let track_ref = state
             .get_track_ref_mut(&name)
             .ok_or("Could not find track ref")?;
         let _ = track_ref.inner.data.gain_mut(cutoff);
-        Ok(CommandResult {
+        Ok(DspCommandResult {
             output: format!("Updated gain for track {} succesful", name),
         })
     }

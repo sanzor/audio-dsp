@@ -1,6 +1,5 @@
 use dsp_domain::{
-    command::{CommandResult, DspCommand},
-    envelope::Envelope,
+    dsp_command::DspCommand, dsp_command_result::DspCommandResult, envelope::Envelope,
 };
 
 use crate::{
@@ -11,7 +10,7 @@ use crate::{
 pub(crate) struct CopyDispatcher {}
 
 impl CommandDispatch for CopyDispatcher {
-    fn dispatch(&self, envelope: Envelope, state: SharedState) -> Result<CommandResult, String> {
+    fn dispatch(&self, envelope: Envelope, state: SharedState) -> Result<DspCommandResult, String> {
         let mut guard = state.try_write().map_err(|e| e.to_string())?;
         let state = &mut *guard;
 
@@ -28,7 +27,7 @@ impl CopyDispatcher {
         name: Option<String>,
         copy_name: Option<String>,
         state: &mut State,
-    ) -> Result<CommandResult, String> {
+    ) -> Result<DspCommandResult, String> {
         let fname = name.ok_or("Invalid name for copy")?;
         let mut new_track = state
             .get_track_copy(&fname.clone())
@@ -37,7 +36,7 @@ impl CopyDispatcher {
         let copy_name = copy_name.unwrap_or_else(|| new_track.info.name.clone() + "v2");
         new_track.info.name = copy_name.clone();
         let _ = state.upsert_track(new_track);
-        Ok(CommandResult {
+        Ok(DspCommandResult {
             output: format!("Copied successfully track:{} to {}", fname, copy_name),
         })
     }

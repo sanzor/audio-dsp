@@ -1,9 +1,17 @@
-use cli_app::processor::Processor;
-use dsp_core::api::create_command_processor;
+use clap::Parser;
+use cli_app::args::Args;
+use dsp_core::command_processor::CommandProcessor;
+
+
+
+
 
 fn main() {
-    let mut processor = Processor::new(create_command_processor());
+    let processor=CommandProcessor::new(DispatcherProvider::new(),create)
     loop {
+        let args=Args::parse();
+
+       
         let user_input = read_line();
         let _result = processor
             .process(user_input.as_str())

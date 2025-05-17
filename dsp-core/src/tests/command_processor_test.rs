@@ -1,7 +1,4 @@
-use dsp_domain::{
-    command::{CommandResult, DspCommand},
-    track::TrackInfo,
-};
+use dsp_domain::{dsp_command::DspCommand, track::TrackInfo};
 use rstest::rstest;
 
 use crate::{

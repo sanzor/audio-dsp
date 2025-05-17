@@ -1,6 +1,10 @@
 use std::fmt::Display;
 
-use serde::Serialize;
+use clap::ValueEnum;
+use serde::{Deserialize, Serialize};
+
+use crate::dsp_command_result::DspCommandResult;
+#[derive(clap::Subcommand, Debug, Serialize, Deserialize)]
 pub enum DspCommand {
     Load {
         name: Option<String>,
@@ -25,6 +29,8 @@ pub enum DspCommand {
         name: Option<String>,
         gain: f32,
         mode: Option<RunMode>,
+        #[arg(long)]
+        parallelism: Option<u8>,
     },
     LowPass {
         name: Option<String>,
@@ -37,23 +43,22 @@ pub enum DspCommand {
     Normalize {
         name: Option<String>,
         mode: Option<RunMode>,
+        #[arg(long)]
+        parallelism: Option<u8>,
     },
     Exit,
-    Play{
-        name:Option<String>
-    }
+    Play {
+        name: Option<String>,
+    },
 }
 
-#[derive(Debug, Serialize)]
-pub struct CommandResult {
-    pub output: String,
-}
-impl Display for CommandResult {
+impl Display for DspCommandResult {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}{}", 1, 2)
     }
 }
+#[derive(Debug, Clone, ValueEnum,Serialize,Deserialize)]
 pub enum RunMode {
     Simple,
-    Parallel { parallelism: u8 },
+    Parallel,
 }

@@ -1,11 +1,8 @@
-use dsp_domain::{
-    command::{CommandResult, DspCommand},
-    envelope::Envelope,
-};
+use dsp_domain::{dsp_command::DspCommand, dsp_command_result::DspCommandResult, envelope::Envelope};
 
 use crate::{
     command_dispatch::CommandDispatch, dispatchers_provider::DispatchersProvider,
-    state::SharedState,
+    state::{create_shared_state, SharedState},
 };
 
 pub struct CommandProcessorConfig {
@@ -17,6 +14,9 @@ pub struct CommandProcessor {
 }
 
 impl CommandProcessor {
+    pub fn create_processor()->CommandProcessor{
+        CommandProcessor { dispatch_provider:  DispatchersProvider::new() , state: create_shared_state() }
+    }
     pub(crate) fn new(
         dispatch_provider: DispatchersProvider,
         state: SharedState,
@@ -27,7 +27,7 @@ impl CommandProcessor {
         }
     }
 
-    pub fn process_command(&mut self, input: DspCommand) -> Result<CommandResult, String> {
+    pub fn process_command(&mut self, input: DspCommand) -> Result<DspCommandResult, String> {
         let dispatcher_name = self.get_dispatcher_name(&input);
         let dispatcher = self
             .dispatch_provider
@@ -53,10 +53,10 @@ impl CommandProcessor {
             DspCommand::Info { name } => "info",
             DspCommand::Load { name, filename } => "load",
             DspCommand::Ls => "ls",
-            DspCommand::Gain { name, gain, mode } => "gain",
-            DspCommand::Normalize { name: _, mode } => "normalize",
+            DspCommand::Gain { name, gain, mode ,parallelism} => "gain",
+            DspCommand::Normalize { name: _, mode,parallelism } => "normalize",
             DspCommand::Upload { name, filename } => "upload",
-            DspCommand::Play { name }=>"play"
+            DspCommand::Play { name } => "play",
         }
     }
 }

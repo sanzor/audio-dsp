@@ -1,17 +1,19 @@
+use dsp_domain::{
+    dsp_command::DspCommand, dsp_command_result::DspCommandResult, envelope::Envelope,
+};
+
 use crate::{
     command_dispatch::CommandDispatch,
     state::{SharedState, State},
 };
-use dsp_domain::{
-    command::{CommandResult, DspCommand},
-    envelope::Envelope,
-};
+
 pub(crate) struct ListDispatcher {}
 impl CommandDispatch for ListDispatcher {
-    fn dispatch(&self, envelope: Envelope, state: SharedState) -> Result<CommandResult, String> {
-        let guard = state.read().unwrap();
+    fn dispatch(&self, envelope: Envelope, state: SharedState) -> Result<DspCommandResult, String> {
+        let guard = state.try_read().map_err(|e| e.to_string())?;
+        let state = &*guard;
         let result = match envelope.command {
-            DspCommand::Ls => self.internal_dispatch(&*guard),
+            DspCommand::Ls => self.internal_dispatch(state),
             _ => Err("".to_owned()),
         };
         return result;
@@ -19,9 +21,9 @@ impl CommandDispatch for ListDispatcher {
 }
 
 impl ListDispatcher {
-    fn internal_dispatch(&self, state: &State) -> Result<CommandResult, String> {
+    fn internal_dispatch(&self, state: &State) -> Result<DspCommandResult, String> {
         let tracks = state.tracks();
-        Ok(CommandResult {
+        Ok(DspCommandResult {
             output: serde_json::to_string_pretty(&tracks).unwrap(),
         })
     }
