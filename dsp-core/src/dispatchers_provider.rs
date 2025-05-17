@@ -44,6 +44,10 @@ impl DispatchersProvider {
             "high_pass".to_string(),
             DispatcherEnum::HighPass(HighPassDispatcher {}),
         );
+        hash_map.insert(
+            "run-script".to_string(),
+            DispatcherEnum::RunScript(RunScriptDispatcher {}),
+        );
     }
     pub fn get_dispatcher_by_name(&self, name: &str) -> Option<&DispatcherEnum> {
         self.dispatch_map.get(name)

@@ -3,7 +3,8 @@ use dsp_domain::{dsp_command_result::DspCommandResult, envelope::Envelope};
 use crate::command_dispatch::CommandDispatch;
 use crate::dispatchers::{
     CopyDispatcher, DeleteDispatcher, GainDispatcher, HighPassDispatcher, InfoDispatcher,
-    ListDispatcher, LoadDispatcher, LowPassDispatcher, NormalizeDispatcher, UploadDispatcher,
+    ListDispatcher, LoadDispatcher, LowPassDispatcher, NormalizeDispatcher, RunScriptDispatcher,
+    UploadDispatcher,
 };
 use crate::state::SharedState;
 
@@ -18,6 +19,7 @@ pub(crate) enum DispatcherEnum {
     Normalize(NormalizeDispatcher),
     LowPass(LowPassDispatcher),
     HighPass(HighPassDispatcher),
+    RunScript(RunScriptDispatcher),
 }
 
 impl CommandDispatch for DispatcherEnum {
@@ -34,6 +36,7 @@ impl CommandDispatch for DispatcherEnum {
             DispatcherEnum::Normalize(handler) => handler.dispatch(envelope, state),
             DispatcherEnum::HighPass(handler) => handler.dispatch(envelope, state),
             DispatcherEnum::LowPass(handler) => handler.dispatch(envelope, state),
+            DispatcherEnum::RunScript(handler) => handler.dispatch(envelope, state),
         }
     }
 }

@@ -4,5 +4,5 @@ use dsp_domain::dsp_command::DspCommand;
 #[command(author, version, about, long_about = None)]
 pub struct Args {
     #[command(subcommand)]
-    command: DspCommand,
+    pub command: Option<DspCommand>,
 }

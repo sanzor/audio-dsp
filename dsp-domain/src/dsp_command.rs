@@ -50,6 +50,10 @@ pub enum DspCommand {
     Play {
         name: Option<String>,
     },
+    RunScript {
+        #[arg(help = "Path to batch JSON file")]
+        file: String,
+    },
 }
 
 impl Display for DspCommandResult {
@@ -57,7 +61,7 @@ impl Display for DspCommandResult {
         write!(f, "{}{}", 1, 2)
     }
 }
-#[derive(Debug, Clone, ValueEnum,Serialize,Deserialize)]
+#[derive(Debug, Clone, ValueEnum, Serialize, Deserialize)]
 pub enum RunMode {
     Simple,
     Parallel,

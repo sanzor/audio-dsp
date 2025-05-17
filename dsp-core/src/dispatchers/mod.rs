@@ -27,3 +27,6 @@ pub(crate) use high_pass::HighPassDispatcher;
 
 pub(crate) mod low_pass;
 pub(crate) use low_pass::LowPassDispatcher;
+
+pub(crate) mod run_script;
+pub(crate) use run_script::RunScriptDispatcher;
