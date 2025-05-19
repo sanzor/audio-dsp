@@ -36,6 +36,7 @@ impl NormalizeDispatcher {
         let _ = track_ref.inner.data.normalize_mut();
         Ok(DspCommandResult {
             output: format!("Normalize track {} succesful", name),
+            should_exit:false
         })
     }
 }

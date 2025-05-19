@@ -25,7 +25,8 @@ impl Processor {
         let command = self.command_parser.parse_command(input)?;
         if let DspCommand::Exit = command {
             return Ok(DspCommandResult {
-                output: "exit".to_string(),
+                output: "exit".to_string(), 
+                should_exit:true
             });
         }
         let result = self.command_processor.process_command(command);

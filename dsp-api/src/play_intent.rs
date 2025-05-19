@@ -1,4 +1,4 @@
-use dsp_domain::
+use dsp_domain::Track;
 pub struct PlayIntent{
     track:Track
 }

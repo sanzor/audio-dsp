@@ -1,0 +1,8 @@
+[package]
+name="player"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+dsp-domain={path="../dsp-domain"}
+rstest="0.25"

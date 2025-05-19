@@ -47,6 +47,7 @@ impl LoadDispatcher {
 
         Ok(DspCommandResult {
             output: format!("Loaded track '{}' from '{}'", name, filepath.display()),
+            should_exit:false
         })
     }
 }

@@ -32,6 +32,7 @@ impl InfoDispatcher {
             .ok_or(format!("Could not find track info for {}", name))?;
         Ok(DspCommandResult {
             output: serde_json::to_string_pretty(&track_info).unwrap(),
+            should_exit:false
         })
     }
 }

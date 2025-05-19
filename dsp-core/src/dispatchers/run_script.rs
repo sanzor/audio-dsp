@@ -38,6 +38,7 @@ impl RunScriptDispatcher {
         let _ = state.upsert_track(new_track);
         Ok(DspCommandResult {
             output: format!("Copied successfully track:{} to {}", fname, copy_name),
+            should_exit:false
         })
     }
 }

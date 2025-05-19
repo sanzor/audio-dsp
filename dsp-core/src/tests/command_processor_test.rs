@@ -1,4 +1,4 @@
-use dsp_domain::{dsp_command::DspCommand, track::TrackInfo};
+use dsp_domain::{dsp_command::DspCommand, dsp_command_result::DspCommandResult, track::TrackInfo};
 use rstest::rstest;
 
 use crate::{
@@ -118,7 +118,7 @@ pub fn can_run_exit_command() -> Result<(), String> {
     Ok(())
 }
 
-fn load_command(processor: &mut CommandProcessor, name: &str) -> Result<CommandResult, String> {
+fn load_command(processor: &mut CommandProcessor, name: &str) -> Result<DspCommandResult, String> {
     let path = common::test_data("dragons.wav");
     let path_str = path.to_str().ok_or_else(|| "Invalid file".to_string())?;
     let command = DspCommand::Load {

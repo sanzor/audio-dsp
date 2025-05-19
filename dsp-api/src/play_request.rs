@@ -1,4 +1,4 @@
 pub struct PlayRequest{
-    track_id:String
+    track_id:String,
     policy:String
 }

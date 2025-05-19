@@ -131,6 +131,8 @@ dependencies = [
  "clap",
  "dsp-core",
  "dsp-domain",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -138,6 +140,13 @@ name = "colorchoice"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5b63caa9aa9397e2d9480a9b13673856c78d8ac123288526c37d7839f2a86990"
+
+[[package]]
+name = "dsp-api"
+version = "0.1.0"
+dependencies = [
+ "dsp-domain",
+]
 
 [[package]]
 name = "dsp-core"
