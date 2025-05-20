@@ -32,6 +32,19 @@ impl Player{
 
     }
     fn play_frame(&mut self){
+        match self.track.data.channels{
+                Channels
+        }
+    }
+    fn get_stereo_frame(&self,cursor:usize)->Option<(f32,f32)>{
+        let i=cursor*2;
+        if i+1>=self.track.data.samples.len(){
+            return None
+        }
+        Some((self.track.data.samples[i],self.track.data.samples[i+1]))
+    }
 
+    fn get_mono_sample(&self,cursor:usize)->Option<f32,f32>{
+        self.track.data.samples.get(cursor).copied()
     }
 }
