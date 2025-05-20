@@ -1,4 +1,4 @@
-enum PlayerCommand{
+pub enum PlayerCommand{
     Play,
     Pause,
     Seek(usize),

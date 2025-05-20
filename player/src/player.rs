@@ -1,11 +1,37 @@
+use std::sync::mpsc::Receiver;
+
+use dsp_domain::track::Track;
+
+use crate::{player_command::PlayerCommand, player_params::PlayerParams};
+
 
 pub struct Player{
-    track:AudioTrack
+    track:Track,
+    cursor:usize,
+    is_playing:bool
 }
 
 
 impl Player{
     pub fn new(player_params:PlayerParams)->Player{
-        Player{track:player_params.track}
+        Player{track:player_params.track,is_playing:false,cursor:0}
+    }
+
+    pub fn run(&mut self,cmd_rx:Receiver<PlayerCommand>){
+        loop{
+            while let Ok(cmd)=cmd_rx.try_recv(){
+                self.handle_command(cmd);
+            }
+            if self.is_playing{
+                self.play_frame();
+                self.cursor+=1;
+            }
+        }
+    }
+    fn handle_command(&mut self,cmd:PlayerCommand){
+
+    }
+    fn play_frame(&mut self){
+
     }
 }
