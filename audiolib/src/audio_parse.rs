@@ -1,8 +1,8 @@
+use crate::layout::Channels;
+use hound::{WavReader, WavWriter};
 use std::path::Path;
 
-use hound::{WavReader, WavWriter};
-
-use crate::audio_buffer::{AudioBuffer, Channels};
+use crate::audio_buffer::AudioBuffer;
 pub fn read_wav_file(filename: &Path) -> Result<AudioBuffer, String> {
     let mut reader = WavReader::open(filename).map_err(|e| e.to_string())?;
     let spec = reader.spec();

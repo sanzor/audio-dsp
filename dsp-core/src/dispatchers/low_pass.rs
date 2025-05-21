@@ -35,7 +35,7 @@ impl LowPassDispatcher {
         let _ = track_ref.inner.data.low_pass_mut(cutoff);
         Ok(DspCommandResult {
             output: format!("Normalize track {} succesful", name),
-            should_exit:false
+            should_exit: false,
         })
     }
 }

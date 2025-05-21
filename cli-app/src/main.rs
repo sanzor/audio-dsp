@@ -10,7 +10,7 @@ fn main() -> Result<(), String> {
 
     if let Some(command) = init_args.command {
         let result = processor.process_command(command)?;
-        let json = serde_json::to_string_pretty(&result.output).map_err(|e|e.to_string())?;
+        let json = serde_json::to_string_pretty(&result.output).map_err(|e| e.to_string())?;
         println!("{json}");
         Ok(())
     } else {
@@ -24,14 +24,14 @@ fn run_repl(processor: &mut Processor) -> Result<(), String> {
         let user_input = read_line();
 
         match processor.process(user_input.as_str()) {
-            Ok( DspCommandResult{should_exit:true,output:_})=>break,
-            Ok(result) => {
-                match serde_json::to_string_pretty(&result.output) {
-                
-                    Ok(json) => println!("{json}"),
-                    Err(e) => eprintln!("Failed to serialize result: {e}"),
-                }
-            }
+            Ok(DspCommandResult {
+                should_exit: true,
+                output: _,
+            }) => break,
+            Ok(result) => match serde_json::to_string_pretty(&result.output) {
+                Ok(json) => println!("{json}"),
+                Err(e) => eprintln!("Failed to serialize result: {e}"),
+            },
             Err(e) => eprintln!("Error: {e}"),
         }
     }

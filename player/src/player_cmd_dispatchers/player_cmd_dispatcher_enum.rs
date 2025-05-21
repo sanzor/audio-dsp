@@ -1,6 +1,5 @@
 use super::PlayCommandDispatcher;
 
-pub enum PlayerCommandDispatcherEnum{
+pub enum PlayerCommandDispatcherEnum {
     PlayDispatcher(PlayCommandDispatcher),
-    
 }

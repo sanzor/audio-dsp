@@ -26,7 +26,8 @@ impl DeleteDispatcher {
         let name = name.ok_or_else(|| "Invalid name for deleted track".to_string())?;
         let _ = state.delete_track(&name)?;
         Ok(DspCommandResult {
-            output: format!("Delete track {} succesful", name),should_exit:false
+            output: format!("Delete track {} succesful", name),
+            should_exit: false,
         })
     }
 }

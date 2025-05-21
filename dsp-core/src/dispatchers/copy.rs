@@ -39,7 +39,7 @@ impl CopyDispatcher {
         Ok(DspCommandResult {
             output: format!("Copied successfully track:{} to {}", fname, copy_name),
 
-            should_exit:false
+            should_exit: false,
         })
     }
 }

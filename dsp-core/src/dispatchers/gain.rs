@@ -40,7 +40,7 @@ impl GainDispatcher {
         let _ = track_ref.inner.data.gain_mut(cutoff);
         Ok(DspCommandResult {
             output: format!("Updated gain for track {} succesful", name),
-            should_exit:false
+            should_exit: false,
         })
     }
 }

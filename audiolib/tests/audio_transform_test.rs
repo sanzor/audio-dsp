@@ -1,13 +1,16 @@
 use audiolib::{
-    audio_buffer::{AudioBuffer, Channels},
+    audio_buffer::AudioBuffer,
     audio_transform::{AudioTransform, AudioTransformP},
     filters::alpha,
+    layout::Channels,
 };
 use rstest::rstest;
 
 #[rstest]
 #[case(2.0)]
 pub fn can_gain(#[case] factor: f32) {
+    use audiolib::layout::Channels;
+
     let original_gain = 1.5_f32;
     let samples: Vec<f32> = vec![original_gain];
     let sample_rate = 32.0;
@@ -24,6 +27,8 @@ pub fn can_gain(#[case] factor: f32) {
 #[rstest]
 #[case(2.0, 24)]
 pub fn can_gain_parallel(#[case] factor: f32, #[case] size: usize) {
+    use audiolib::layout::Channels;
+
     let original_gain = 1.5_f32;
     let samples: Vec<f32> = vec![original_gain; size];
     let original_samples = samples.clone();

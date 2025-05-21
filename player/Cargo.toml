@@ -5,4 +5,5 @@ edition = "2021"
 
 [dependencies]
 dsp-domain={path="../dsp-domain"}
+audiolib={path = "../audiolib"}
 rstest="0.25"

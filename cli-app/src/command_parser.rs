@@ -2,7 +2,7 @@ use dsp_domain::dsp_command::{DspCommand, RunMode};
 pub(crate) struct CommandParser {}
 
 impl CommandParser {
-    pub (crate) fn parse_command(&self,input: &str) -> Result<DspCommand, String> {
+    pub(crate) fn parse_command(&self, input: &str) -> Result<DspCommand, String> {
         let parts: Vec<&str> = input.trim().split_whitespace().collect();
         if parts.len() < 1 {
             return Err("No command provided".to_string());
@@ -14,18 +14,18 @@ impl CommandParser {
             Some("save") => self.parse_upload(payload),
             Some("info") => self.parse_info(payload),
             Some("unload") => self.parse_unload(payload),
-            Some("list") => self.parse_ls(payload),  
+            Some("list") => self.parse_ls(payload),
             Some("gain") => self.parse_gain(payload),
             Some("normalize") => self.parse_normalize(payload),
             Some("low_pass") => self.parse_low_pass(payload),
             Some("high_pass") => self.parse_high_pass(payload),
-            Some("play")=>self.parse_play(payload),
-            Some("run-script")=>self.parse_run_script(payload),
+            Some("play") => self.parse_play(payload),
+            Some("run-script") => self.parse_run_script(payload),
             _ => Err("Could not process comand".to_string()),
         };
         rez
     }
-    fn parse_load(&self,value: &[&str]) -> Result<DspCommand, String> {
+    fn parse_load(&self, value: &[&str]) -> Result<DspCommand, String> {
         match value {
             [filename, name] => Ok(DspCommand::Load {
                 filename: Some(filename.to_string()),
@@ -38,7 +38,7 @@ impl CommandParser {
             _ => Err("Invalid load command".to_owned()),
         }
     }
-    fn parse_upload(&self,value: &[&str]) -> Result<DspCommand, String> {
+    fn parse_upload(&self, value: &[&str]) -> Result<DspCommand, String> {
         match value {
             [filename, name] => Ok(DspCommand::Upload {
                 filename: Some(filename.to_string()),
@@ -52,7 +52,7 @@ impl CommandParser {
         }
     }
 
-    fn parse_unload(&self,value: &[&str]) -> Result<DspCommand, String> {
+    fn parse_unload(&self, value: &[&str]) -> Result<DspCommand, String> {
         match value {
             [name] => Ok(DspCommand::Delete {
                 name: Some(name.to_string()),
@@ -61,7 +61,7 @@ impl CommandParser {
         }
     }
 
-    fn parse_info(&self,value: &[&str]) -> Result<DspCommand, String> {
+    fn parse_info(&self, value: &[&str]) -> Result<DspCommand, String> {
         match value {
             [name] => Ok(DspCommand::Info {
                 name: Some(name.to_string()),
@@ -70,12 +70,12 @@ impl CommandParser {
         }
     }
 
-    fn parse_ls(&self,value: &[&str]) -> Result<DspCommand, String> {
+    fn parse_ls(&self, value: &[&str]) -> Result<DspCommand, String> {
         let _ = value;
         Ok(DspCommand::Ls)
     }
 
-    fn parse_gain(&self,value: &[&str]) -> Result<DspCommand, String> {
+    fn parse_gain(&self, value: &[&str]) -> Result<DspCommand, String> {
         match value {
             [name, factor] => factor
                 .parse::<f32>()
@@ -89,7 +89,7 @@ impl CommandParser {
             _ => Err("Invalid gain command".to_owned()),
         }
     }
-    fn parse_normalize(&self,value: &[&str]) -> Result<DspCommand, String> {
+    fn parse_normalize(&self, value: &[&str]) -> Result<DspCommand, String> {
         match value {
             [name] => Ok(DspCommand::Normalize {
                 name: Some(name.to_string()),
@@ -99,7 +99,7 @@ impl CommandParser {
             _ => Err("Invalid load command".to_owned()),
         }
     }
-    fn parse_low_pass(&self,value: &[&str]) -> Result<DspCommand, String> {
+    fn parse_low_pass(&self, value: &[&str]) -> Result<DspCommand, String> {
         match value {
             [cutoff, name] => cutoff
                 .parse::<f32>()
@@ -111,7 +111,7 @@ impl CommandParser {
             _ => Err("Invalid low_pass command".to_owned()),
         }
     }
-    fn parse_high_pass(&self,value: &[&str]) -> Result<DspCommand, String> {
+    fn parse_high_pass(&self, value: &[&str]) -> Result<DspCommand, String> {
         match value {
             [cutoff, name] => cutoff
                 .parse::<f32>()
@@ -124,7 +124,7 @@ impl CommandParser {
         }
     }
 
-    fn parse_play(&self,value: &[&str]) -> Result<DspCommand, String> {
+    fn parse_play(&self, value: &[&str]) -> Result<DspCommand, String> {
         match value {
             [name] => Ok(DspCommand::Play {
                 name: Some(name.to_string()),
@@ -133,9 +133,11 @@ impl CommandParser {
         }
     }
 
-     fn parse_run_script(&self,value: &[&str]) -> Result<DspCommand, String> {
+    fn parse_run_script(&self, value: &[&str]) -> Result<DspCommand, String> {
         match value {
-            [file] => Ok(DspCommand::RunScript { file: file.to_string() }),
+            [file] => Ok(DspCommand::RunScript {
+                file: file.to_string(),
+            }),
             _ => Err("Invalid run command".to_string()),
         }
     }

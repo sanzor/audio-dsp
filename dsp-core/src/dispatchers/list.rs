@@ -25,7 +25,7 @@ impl ListDispatcher {
         let tracks = state.tracks();
         Ok(DspCommandResult {
             output: serde_json::to_string_pretty(&tracks).unwrap(),
-            should_exit:false
+            should_exit: false,
         })
     }
 }

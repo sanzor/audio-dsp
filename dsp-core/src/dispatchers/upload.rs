@@ -30,7 +30,7 @@ impl UploadDispatcher {
                 "Upload file successfully: {}",
                 path.to_str().ok_or("invalid path")?.to_string()
             ),
-            should_exit:false
+            should_exit: false,
         })
     }
 }

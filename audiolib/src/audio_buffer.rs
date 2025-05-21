@@ -2,6 +2,7 @@ use crate::audio_transform::{
     AudioTransform, AudioTransformFull, AudioTransformMut, AudioTransformP,
 };
 use crate::filters::alpha;
+use crate::layout::Channels;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -9,11 +10,6 @@ pub struct AudioBuffer {
     pub samples: Vec<f32>,
     pub sample_rate: f32,
     pub channels: Channels,
-}
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum Channels {
-    Mono = 1,
-    Stereo = 2,
 }
 
 impl AudioTransform for AudioBuffer {

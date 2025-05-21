@@ -5,5 +5,5 @@ use serde::Serialize;
 #[derive(Debug, Serialize)]
 pub struct DspCommandResult {
     pub output: String,
-    pub should_exit:bool
+    pub should_exit: bool,
 }
