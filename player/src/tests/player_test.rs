@@ -1,3 +1,8 @@
+use std::sync::mpsc::channel;
+use std::sync::Arc;
+use std::sync::Mutex;
+use std::thread;
+
 use audiolib::audio_buffer::AudioBuffer;
 use audiolib::Channels;
 use dsp_domain::track::Track;
@@ -9,6 +14,7 @@ use crate::player_core::player_state::PlayerState;
 use crate::player_core::Player;
 use crate::player_params::PlayerParams;
 use crate::player_test::test_receiver::TestReceiver;
+use crate::player_test::test_sink::TestConcurrentSink;
 use crate::player_test::test_sink::TestSink;
 
 #[rstest]
@@ -32,11 +38,14 @@ fn can_run_player() {
 fn can_run_and_write_frame() {
     let track = make_track_from_samples(vec![1.0, 2.0, 3.0], Channels::Mono);
     let player_params = PlayerParams { track: track };
-
-    let audio_sink = TestSink { written: vec![] };
-    let receiver = TestReceiver::new(vec![PlayerCommand::Play]);
+    let (tx,rx)=channel();
+    let written=Arc::new(Mutex::new(vec![]));
+    let audio_sink = TestConcurrentSink { written: written.clone() };
+    let receiver = Box::new()
     let mut player = Player::new(player_params, audio_sink, Box::new(receiver));
-    let result = player.run();
+    let result = thread::spawn(move||{
+        player.run();
+    });
     assert!(result.is_ok());
     assert_eq!(player.cursor_position(), 0);
     assert_eq!(player.player_state(), PlayerState::Stopped);
