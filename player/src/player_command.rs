@@ -3,4 +3,5 @@ pub enum PlayerCommand {
     Pause,
     Seek(usize),
     Stop,
+    Close,
 }
