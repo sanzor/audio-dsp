@@ -22,9 +22,9 @@ where
     track: Track,
     state: Arc<Mutex<PlayerState>>,
     sink: S,
-    receiver: Box<dyn CommandReceiver + Send>,
+    message_receiver: Box<dyn CommandReceiver + Send>,
     self_sender: Sender<PlayerMessage>,
-    self_receiver: Receiver<PlayerMessage>,
+    self_message_receiver: Receiver<PlayerMessage>,
 }
 
 impl<S: AudioSink> Player<S> {
@@ -41,19 +41,19 @@ impl<S: AudioSink> Player<S> {
                 cursor: 0,
             })),
             sink,
-            receiver: message_receiver,
+            message_receiver,
             self_sender: tx,
-            self_receiver: rx,
+            self_message_receiver: rx,
         }
     }
 
     pub fn run(&mut self) -> Result<(), String> {
         loop {
-            while let Ok(self_message) = self.self_receiver.try_recv() {
+            while let Ok(self_message) = self.self_message_receiver.try_recv() {
                 self.handle_self_message(self_message);
             }
             // let mut state=self.state.try_lock().map_err(|e|e.to_string())?;
-            while let Ok(message) = self.receiver.receive_message() {
+            while let Ok(message) = self.message_receiver.receive_message() {
                 match message {
                     PlayerMessage::Query { query } => {let _ = self.handle_query(query);},
                     PlayerMessage::Command { command: command } => {

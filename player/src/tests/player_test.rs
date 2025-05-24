@@ -54,19 +54,20 @@ fn can_run_player()->Result<(),String> {
 fn can_run_and_write_frame()->Result<(),String> {
     let track = make_track_from_samples(vec![1.0, 2.0, 3.0], Channels::Mono);
     let player_params = PlayerParams { track: track };
-    let (query_tx, query_rx) = channel();
-    let (command_tx, _) = channel();
+    let (query_tx, _query_rx) = channel();
+    let (command_tx, command_rx) = channel();
     let player_handle=LocalPlayerRef{tx:command_tx};
-    let written = Arc::new(Mutex::new(vec![]));
+    let written = Arc::new(Mutex::new(vec![]
+    ));
     let audio_sink = TestConcurrentSink {
         written: written.clone(),
     };
-    let receiver = Box::new(LocalReceiver { receiver: sink_rx });
+    let receiver = Box::new(LocalReceiver { receiver: command_rx });
     let mut player = Player::new(player_params, audio_sink, receiver);
     let result = thread::spawn(move || {
         player.run();
     });
-    let state= get_state(player.query(QueryMessage::GetState { to: None })?)?;
+    let state= query_state(player_handle)?;
 
     assert_eq!(state.cursor, 0);
     assert_eq!(state.current_state, PlayerStates::Stopped);
