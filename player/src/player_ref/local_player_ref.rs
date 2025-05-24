@@ -1,22 +1,19 @@
 use std::sync::mpsc::Sender;
 
-use crate::player_command::PlayerCommand;
+use crate::player_command::PlayerMessage;
 
 use super::player_ref::PlayerRef;
 
 pub struct LocalPlayerRef {
-    tx: Sender<PlayerCommand>,
+    pub tx: Sender<PlayerMessage>,
 }
 
+
 impl PlayerRef for LocalPlayerRef {
-    fn send(&self, command: PlayerCommand) -> Result<(), String> {
+    fn send_message(&self, message: PlayerMessage) -> Result<(), String> {
         self.tx
-            .send(command)
+            .send(message)
             .map_err(|_| "Disconnected".to_string())
     }
 }
-impl LocalPlayerRef {
-    pub fn new(tx: Sender<PlayerCommand>) -> LocalPlayerRef {
-        LocalPlayerRef { tx: tx }
-    }
-}
+

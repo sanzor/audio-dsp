@@ -1,5 +1,5 @@
-use crate::player_command::PlayerCommand;
+use crate::player_command::{PlayerCommand, PlayerMessage, QueryResult};
 
 pub trait PlayerRef {
-    fn send(&self, command: PlayerCommand) -> Result<(), String>;
+    fn send_message(&self, message: PlayerMessage) -> Result<(), String>;
 }
