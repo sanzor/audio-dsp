@@ -10,13 +10,15 @@ pub enum PlayerCommand {
     Close,
 }
 pub enum QueryMessage {
-    GetState{to:Option<Sender<Result<QueryResult,String>>>},
+    GetState {
+        to: Option<Sender<Result<QueryResult, String>>>,
+    },
 }
 pub enum PlayerMessage {
     Command { command: PlayerCommand },
     Query { query: QueryMessage },
 }
 
-pub enum QueryResult{
-    State{state:PlayerState}
+pub enum QueryResult {
+    State { state: PlayerState },
 }

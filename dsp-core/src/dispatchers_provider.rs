@@ -15,7 +15,7 @@ impl DispatchersProvider {
     fn create_dispatch_map() -> HashMap<String, DispatcherEnum> {
         let mut hash_map: HashMap<String, DispatcherEnum> = HashMap::new();
         DispatchersProvider::populate_dispatchers(&mut hash_map);
-        return hash_map;
+        hash_map
     }
 
     fn populate_dispatchers(hash_map: &mut HashMap<String, DispatcherEnum>) {

@@ -1,7 +1,7 @@
-use std::sync::{
+use std::{sync::{
     mpsc::{channel, Receiver, Sender},
     Arc, Mutex,
-};
+}, time::{Duration, Instant}};
 
 use audiolib::Channels;
 use dsp_domain::track::Track;
@@ -19,19 +19,23 @@ pub struct Player<S>
 where
     S: AudioSink,
 {
+    
     track: Track,
     state: Arc<Mutex<PlayerState>>,
     sink: S,
     message_receiver: Box<dyn CommandReceiver + Send>,
     self_sender: Sender<PlayerMessage>,
     self_message_receiver: Receiver<PlayerMessage>,
+    throttle:Duration
 }
 
 impl<S: AudioSink> Player<S> {
+    const DEFAULT_THROTTLE_MILLIS:u64=100;
     pub fn new(
         player_params: PlayerParams,
-        sink: S,
+        stream_sink: S,
         message_receiver: Box<dyn CommandReceiver + Send>,
+        throttle:Option<u64>
     ) -> Player<S> {
         let (tx, rx) = channel();
         Player {
@@ -39,15 +43,18 @@ impl<S: AudioSink> Player<S> {
             state: Arc::new(Mutex::new(PlayerState {
                 current_state: PlayerStates::Stopped,
                 cursor: 0,
+                frames_written:0
             })),
-            sink,
+            sink: stream_sink,
             message_receiver,
             self_sender: tx,
             self_message_receiver: rx,
+            throttle:Duration::from_millis(match throttle{ Some(millis)=>millis,None=>Self::DEFAULT_THROTTLE_MILLIS})
         }
     }
 
     pub fn run(&mut self) -> Result<(), String> {
+        let loop_start=Instant::now();
         loop {
             while let Ok(self_message) = self.self_message_receiver.try_recv() {
                 self.handle_self_message(self_message);
@@ -55,8 +62,10 @@ impl<S: AudioSink> Player<S> {
             // let mut state=self.state.try_lock().map_err(|e|e.to_string())?;
             while let Ok(message) = self.message_receiver.receive_message() {
                 match message {
-                    PlayerMessage::Query { query } => {let _ = self.handle_query(query);},
-                    PlayerMessage::Command { command: command } => {
+                    PlayerMessage::Query { query } => {
+                        let _ = self.handle_query(query);
+                    }
+                    PlayerMessage::Command { command } => {
                         if let Some(effect) = self.handle_command(command) {
                             let mut state = self.state.try_lock().map_err(|e| e.to_string())?;
                             match effect {
@@ -64,10 +73,10 @@ impl<S: AudioSink> Player<S> {
                                 PlayerEffect::ResetCursor => {
                                     state.cursor = 0;
                                 }
-                                PlayerEffect::Seek { pos: pos } => {
+                                PlayerEffect::Seek { pos } => {
                                     state.cursor = pos;
                                 }
-                                PlayerEffect::Schedule { command: command } => self
+                                PlayerEffect::Schedule { command } => self
                                     .self_sender
                                     .send(PlayerMessage::Command { command: command })
                                     .map_err(|e| e.to_string())?,
@@ -83,35 +92,48 @@ impl<S: AudioSink> Player<S> {
                     if let Some(frame) = self.get_frame(st.cursor) {
                         self.sink.write_frame(frame)?;
                         st.cursor += 1;
+                        st.frames_written+=1;
                     } else {
-                        st.current_state = PlayerStates::Paused;
+                        st.current_state = PlayerStates::Stopped;
+                        st.cursor = 0;
                     }
                 }
             }
+            let elapsed=loop_start.elapsed();
+            if elapsed<self.throttle{
+                std::thread::sleep(self.throttle-elapsed);
+            }
         }
     }
-    pub fn query(&self,query: QueryMessage)->Result<(),String> {
-      match query{
-                QueryMessage::GetState { to:to }=>{
-                    let message_to_send=self.state.try_lock().map_err(|e|e.to_string())?.clone();
-                    let result=Ok(QueryResult::State { state: message_to_send });
-                    let sender=to.ok_or_else(||"err".to_string())?;
-                    let r=sender.send(result);
-                    Ok(())
-                }
-                _=>Err("Not supported".to_string())
+    #[cfg(test)] pub fn state_ref(&self)->Arc<Mutex<PlayerState>>{
+        Arc::clone(&self.state)
+    }
+    pub fn query(&self, query: QueryMessage) -> Result<(), String> {
+        match query {
+            QueryMessage::GetState { to } => {
+                let message_to_send = self.state.try_lock().map_err(|e| e.to_string())?.clone();
+                let result = Ok(QueryResult::State {
+                    state: message_to_send,
+                });
+                let sender = to.ok_or_else(|| "err".to_string())?;
+                let r = sender.send(result);
+                Ok(())
+            }
+            _ => Err("Not supported".to_string()),
         }
     }
-    fn handle_query(&self, query: QueryMessage)->Result<(),String> {
-        match query{
-                QueryMessage::GetState { to:to }=>{
-                    let message_to_send=self.state.try_lock().map_err(|e|e.to_string())?.clone();
-                    let result=Ok(QueryResult::State { state: message_to_send });
-                    let sender=to.ok_or_else(||"err".to_string())?;
-                    sender.send(result);
-                    Ok(())
-                }
-                _=>Err("Not supported".to_string())
+    fn handle_query(&self, query: QueryMessage) -> Result<(), String> {
+        match query {
+            QueryMessage::GetState { to } => {
+                let message_to_send = self.state.try_lock().map_err(|e| e.to_string())?.clone();
+                let result = Ok(QueryResult::State {
+                    state: message_to_send,
+                });
+                let sender = to.ok_or_else(|| "err".to_string())?;
+                let _ = sender.send(result);
+                Ok(())
+            }
+            _ => Err("Not supported".to_string()),
         }
     }
     fn handle_command(&mut self, cmd: PlayerCommand) -> Option<PlayerEffect> {
