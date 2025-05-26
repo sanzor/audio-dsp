@@ -7,8 +7,6 @@ use std::time::Instant;
 
 use audiolib::audio_buffer::AudioBuffer;
 use audiolib::Channels;
-use cpal::traits::DeviceTrait;
-use cpal::traits::HostTrait;
 use dsp_domain::track::Track;
 use dsp_domain::track::TrackInfo;
 use rstest::rstest;
