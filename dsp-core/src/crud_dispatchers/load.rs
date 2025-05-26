@@ -1,9 +1,9 @@
 use std::path::PathBuf;
 
 use dsp_domain::{
-    dsp_command::DspCommand,
     dsp_command_result::DspCommandResult,
     envelope::Envelope,
+    message::Message,
     track::{Track, TrackInfo},
 };
 
@@ -20,7 +20,7 @@ impl CommandDispatch for LoadDispatcher {
         let state = &mut *guard;
 
         match envelope.command {
-            DspCommand::Load { name, filename } => self.internal_dispatch(name, filename, state),
+            Message::Load { name, filename } => self.internal_dispatch(name, filename, state),
             _ => Err("".to_owned()),
         }
     }

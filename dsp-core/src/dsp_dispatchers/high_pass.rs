@@ -3,9 +3,7 @@ use crate::{
     state::{SharedState, State},
 };
 use audiolib::audio_transform::AudioTransformMut;
-use dsp_domain::{
-    dsp_command::DspCommand, dsp_command_result::DspCommandResult, envelope::Envelope,
-};
+use dsp_domain::{dsp_command_result::DspCommandResult, envelope::Envelope, message::Message};
 pub(crate) struct HighPassDispatcher {}
 
 impl CommandDispatch for HighPassDispatcher {
@@ -13,7 +11,7 @@ impl CommandDispatch for HighPassDispatcher {
         let mut guard = state.try_write().map_err(|e| e.to_string())?;
         let state = &mut *guard;
         match envelope.command {
-            DspCommand::HighPass { name, cutoff } => self.internal_dispatch(name, cutoff, state),
+            Message::HighPass { name, cutoff } => self.internal_dispatch(name, cutoff, state),
             _ => Err("err".to_string()),
         }
     }

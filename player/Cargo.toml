@@ -7,3 +7,4 @@ edition = "2021"
 dsp-domain={path="../dsp-domain"}
 audiolib={path = "../audiolib"}
 rstest="0.25"
+cpal = "0.15"

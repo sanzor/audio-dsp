@@ -1,10 +1,12 @@
 use dsp_domain::{dsp_command_result::DspCommandResult, envelope::Envelope};
 
 use crate::command_dispatch::CommandDispatch;
-use crate::dispatchers::{
-    CopyDispatcher, DeleteDispatcher, GainDispatcher, HighPassDispatcher, InfoDispatcher,
-    ListDispatcher, LoadDispatcher, LowPassDispatcher, NormalizeDispatcher, RunScriptDispatcher,
-    UploadDispatcher,
+use crate::crud_dispatchers::{
+    CopyDispatcher, DeleteDispatcher, InfoDispatcher, ListDispatcher, LoadDispatcher,
+    RunScriptDispatcher, UploadDispatcher,
+};
+use crate::dsp_dispatchers::{
+    GainDispatcher, HighPassDispatcher, LowPassDispatcher, NormalizeDispatcher,
 };
 use crate::state::SharedState;
 

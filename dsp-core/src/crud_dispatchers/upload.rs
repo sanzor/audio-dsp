@@ -1,7 +1,5 @@
 use audiolib::audio_parse;
-use dsp_domain::{
-    dsp_command::DspCommand, dsp_command_result::DspCommandResult, envelope::Envelope,
-};
+use dsp_domain::{dsp_command_result::DspCommandResult, envelope::Envelope, message::Message};
 
 use std::{path::PathBuf, str::FromStr};
 
@@ -41,7 +39,7 @@ impl CommandDispatch for UploadDispatcher {
         let state = &mut *guard;
 
         match envelope.command {
-            DspCommand::Upload { name, filename } => self.internal_dispatch(name, filename, state),
+            Message::Upload { name, filename } => self.internal_dispatch(name, filename, state),
             _ => Err("".to_owned()),
         }
     }

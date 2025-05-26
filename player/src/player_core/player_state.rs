@@ -3,5 +3,5 @@ use super::player_states::PlayerStates;
 pub struct PlayerState {
     pub(crate) current_state: PlayerStates,
     pub cursor: usize,
-    pub frames_written:usize
+    pub frames_written: usize,
 }

@@ -1,5 +1,6 @@
+use crate::crud_dispatchers::*;
 use crate::dispatcher_enum::DispatcherEnum;
-use crate::dispatchers::*;
+use crate::dsp_dispatchers::*;
 use std::collections::HashMap;
 
 pub(crate) struct DispatchersProvider {

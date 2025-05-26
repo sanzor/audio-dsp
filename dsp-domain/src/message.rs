@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::dsp_command_result::DspCommandResult;
 #[derive(clap::Subcommand, Debug, Serialize, Deserialize)]
-pub enum DspCommand {
+pub enum Message {
     Load {
         name: Option<String>,
         filename: Option<String>,
@@ -24,6 +24,15 @@ pub enum DspCommand {
     Copy {
         name: Option<String>,
         copy_name: Option<String>,
+    },
+
+    Exit,
+    Play {
+        name: Option<String>,
+    },
+    RunScript {
+        #[arg(help = "Path to batch JSON file")]
+        file: String,
     },
     Gain {
         name: Option<String>,
@@ -45,14 +54,6 @@ pub enum DspCommand {
         mode: Option<RunMode>,
         #[arg(long)]
         parallelism: Option<u8>,
-    },
-    Exit,
-    Play {
-        name: Option<String>,
-    },
-    RunScript {
-        #[arg(help = "Path to batch JSON file")]
-        file: String,
     },
 }
 

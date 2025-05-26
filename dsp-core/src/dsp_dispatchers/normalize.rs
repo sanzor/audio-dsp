@@ -3,9 +3,7 @@ use crate::{
     state::{SharedState, State},
 };
 use audiolib::audio_transform::AudioTransformMut;
-use dsp_domain::{
-    dsp_command::DspCommand, dsp_command_result::DspCommandResult, envelope::Envelope,
-};
+use dsp_domain::{dsp_command_result::DspCommandResult, envelope::Envelope, message::Message};
 
 pub(crate) struct NormalizeDispatcher {}
 impl CommandDispatch for NormalizeDispatcher {
@@ -13,10 +11,10 @@ impl CommandDispatch for NormalizeDispatcher {
         let mut guard = state.try_write().map_err(|e| e.to_string())?;
         let state = &mut *guard;
         match envelope.command {
-            DspCommand::Normalize {
+            Message::Normalize {
                 name,
                 mode: _,
-                parallelism,
+                parallelism: _,
             } => self.internal_dispatch(name, state),
             _ => Err("err".to_string()),
         }

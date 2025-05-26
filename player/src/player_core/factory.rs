@@ -17,7 +17,7 @@ pub fn spawn_player(
     let (tx, rx) = f();
 
     let _handle = thread::spawn(move || {
-        let mut player = Player::new(PlayerParams { track: track }, sink, rx,None);
+        let mut player = Player::new(PlayerParams { track: track }, sink, rx, None);
         player.run();
     });
     tx

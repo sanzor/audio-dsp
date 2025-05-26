@@ -1,4 +1,4 @@
-use dsp_domain::{dsp_command::DspCommand, dsp_command_result::DspCommandResult, track::TrackInfo};
+use dsp_domain::{dsp_command_result::DspCommandResult, message::Message, track::TrackInfo};
 use rstest::rstest;
 
 use crate::{
@@ -11,7 +11,7 @@ pub fn can_run_load_command() -> Result<(), String> {
     let path = common::test_data("dragons.wav");
     let path_str = path.to_str().ok_or_else(|| "Invalid file".to_string())?;
     let mut processor = CommandProcessor::new(DispatchersProvider::new(), create_shared_state());
-    let command = DspCommand::Load {
+    let command = Message::Load {
         name: Some("dragons.wav".to_string()),
         filename: Some(path_str.to_string()),
     };
@@ -25,7 +25,7 @@ pub fn can_run_info_command() -> Result<(), String> {
     let name = "my-track";
     let mut processor = CommandProcessor::new(DispatchersProvider::new(), create_shared_state());
     load_command(&mut processor, name).unwrap();
-    let info_command = DspCommand::Info {
+    let info_command = Message::Info {
         name: Some(name.to_string()),
     };
     let info_result_str = processor.process_command(info_command)?.output;
@@ -39,7 +39,7 @@ pub fn can_run_list_command() -> Result<(), String> {
     let name = "my-track";
     let mut processor = CommandProcessor::new(DispatchersProvider::new(), create_shared_state());
     load_command(&mut processor, name).unwrap();
-    let info_command = DspCommand::Ls {};
+    let info_command = Message::Ls {};
     let ls_result = processor.process_command(info_command)?.output;
     let track_list: Vec<TrackInfo> = serde_json::from_str(&ls_result).unwrap();
     assert!(track_list.len() == 1);
@@ -53,7 +53,7 @@ pub fn can_run_upload_command() -> Result<(), String> {
     let filename = "dragons2.wav";
     let mut processor = CommandProcessor::new(DispatchersProvider::new(), create_shared_state());
     load_command(&mut processor, name).unwrap();
-    let upload_command = DspCommand::Upload {
+    let upload_command = Message::Upload {
         name: Some(name.to_string()),
         filename: Some(filename.to_string()),
     };
@@ -71,7 +71,7 @@ pub fn can_run_delete_command() -> Result<(), String> {
     let track_list_before_delete = get_track_list(&mut processor)?;
     assert!(track_list_before_delete.len() == 1);
 
-    let delete_command = DspCommand::Delete {
+    let delete_command = Message::Delete {
         name: Some(name.to_string()),
     };
     let delete_command_result = processor.process_command(delete_command)?.output;
@@ -91,7 +91,7 @@ pub fn can_run_copy_command() -> Result<(), String> {
     load_command(&mut processor, name).unwrap();
 
     let copy_result_string = &processor
-        .process_command(DspCommand::Copy {
+        .process_command(Message::Copy {
             name: Some(name.to_string()),
             copy_name: Some(copy_name.to_string()),
         })?
@@ -110,7 +110,7 @@ pub fn can_run_exit_command() -> Result<(), String> {
     let mut command_processor =
         CommandProcessor::new(DispatchersProvider::new(), create_shared_state());
     load_command(&mut command_processor, name).unwrap();
-    let exit_command = DspCommand::Exit {};
+    let exit_command = Message::Exit {};
     let upload_result = command_processor.process_command(exit_command);
     assert!(upload_result.is_err());
     let error = upload_result.unwrap_err();
@@ -121,7 +121,7 @@ pub fn can_run_exit_command() -> Result<(), String> {
 fn load_command(processor: &mut CommandProcessor, name: &str) -> Result<DspCommandResult, String> {
     let path = common::test_data("dragons.wav");
     let path_str = path.to_str().ok_or_else(|| "Invalid file".to_string())?;
-    let command = DspCommand::Load {
+    let command = Message::Load {
         name: Some(name.to_string()),
         filename: Some(path_str.to_string()),
     };
@@ -130,6 +130,6 @@ fn load_command(processor: &mut CommandProcessor, name: &str) -> Result<DspComma
 }
 
 fn get_track_list(processor: &mut CommandProcessor) -> Result<Vec<TrackInfo>, String> {
-    serde_json::from_str(&processor.process_command(DspCommand::Ls {})?.output)
+    serde_json::from_str(&processor.process_command(Message::Ls {})?.output)
         .map_err(|e| e.to_string())
 }

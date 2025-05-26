@@ -1,6 +1,4 @@
-use dsp_domain::{
-    dsp_command::DspCommand, dsp_command_result::DspCommandResult, envelope::Envelope,
-};
+use dsp_domain::{dsp_command_result::DspCommandResult, envelope::Envelope, message::Message};
 
 use crate::{
     command_dispatch::CommandDispatch,
@@ -15,7 +13,7 @@ impl CommandDispatch for RunScriptDispatcher {
         let state = &mut *guard;
 
         match envelope.command {
-            DspCommand::Copy { name, copy_name } => self.internal_dispatch(name, copy_name, state),
+            Message::Copy { name, copy_name } => self.internal_dispatch(name, copy_name, state),
             _ => Err("Could not perform copy".to_owned()),
         }
     }

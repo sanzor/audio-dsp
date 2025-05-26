@@ -1,5 +1,5 @@
 use dsp_core::{api::create_command_processor, command_processor::CommandProcessor};
-use dsp_domain::{dsp_command::DspCommand, dsp_command_result::DspCommandResult};
+use dsp_domain::{dsp_command_result::DspCommandResult, message::Message};
 
 use crate::command_parser::*;
 
@@ -21,7 +21,7 @@ impl Processor {
 
     pub fn process(&mut self, input: &str) -> Result<DspCommandResult, String> {
         let command = self.command_parser.parse_command(input)?;
-        if let DspCommand::Exit = command {
+        if let Message::Exit = command {
             return Ok(DspCommandResult {
                 output: "exit".to_string(),
                 should_exit: true,
@@ -31,7 +31,7 @@ impl Processor {
         result
     }
 
-    pub fn process_command(&mut self, command: DspCommand) -> Result<DspCommandResult, String> {
+    pub fn process_command(&mut self, command: Message) -> Result<DspCommandResult, String> {
         let result = self.command_processor.process_command(command);
         result
     }

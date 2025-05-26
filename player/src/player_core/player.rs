@@ -1,7 +1,10 @@
-use std::{sync::{
-    mpsc::{channel, Receiver, Sender},
-    Arc, Mutex,
-}, time::{Duration, Instant}};
+use std::{
+    sync::{
+        mpsc::{channel, Receiver, Sender},
+        Arc, Mutex,
+    },
+    time::{Duration, Instant},
+};
 
 use audiolib::Channels;
 use dsp_domain::track::Track;
@@ -19,23 +22,22 @@ pub struct Player<S>
 where
     S: AudioSink,
 {
-    
     track: Track,
     state: Arc<Mutex<PlayerState>>,
     sink: S,
     message_receiver: Box<dyn CommandReceiver + Send>,
     self_sender: Sender<PlayerMessage>,
     self_message_receiver: Receiver<PlayerMessage>,
-    throttle:Duration
+    throttle: Duration,
 }
 
 impl<S: AudioSink> Player<S> {
-    const DEFAULT_THROTTLE_MILLIS:u64=100;
+    const DEFAULT_THROTTLE_MILLIS: u64 = 100;
     pub fn new(
         player_params: PlayerParams,
         stream_sink: S,
         message_receiver: Box<dyn CommandReceiver + Send>,
-        throttle:Option<u64>
+        throttle: Option<u64>,
     ) -> Player<S> {
         let (tx, rx) = channel();
         Player {
@@ -43,18 +45,21 @@ impl<S: AudioSink> Player<S> {
             state: Arc::new(Mutex::new(PlayerState {
                 current_state: PlayerStates::Stopped,
                 cursor: 0,
-                frames_written:0
+                frames_written: 0,
             })),
             sink: stream_sink,
             message_receiver,
             self_sender: tx,
             self_message_receiver: rx,
-            throttle:Duration::from_millis(match throttle{ Some(millis)=>millis,None=>Self::DEFAULT_THROTTLE_MILLIS})
+            throttle: Duration::from_millis(match throttle {
+                Some(millis) => millis,
+                None => Self::DEFAULT_THROTTLE_MILLIS,
+            }),
         }
     }
 
     pub fn run(&mut self) -> Result<(), String> {
-        let loop_start=Instant::now();
+        let loop_start = Instant::now();
         loop {
             while let Ok(self_message) = self.self_message_receiver.try_recv() {
                 self.handle_self_message(self_message);
@@ -92,20 +97,21 @@ impl<S: AudioSink> Player<S> {
                     if let Some(frame) = self.get_frame(st.cursor) {
                         self.sink.write_frame(frame)?;
                         st.cursor += 1;
-                        st.frames_written+=1;
+                        st.frames_written += 1;
                     } else {
                         st.current_state = PlayerStates::Stopped;
                         st.cursor = 0;
                     }
                 }
             }
-            let elapsed=loop_start.elapsed();
-            if elapsed<self.throttle{
-                std::thread::sleep(self.throttle-elapsed);
+            let elapsed = loop_start.elapsed();
+            if elapsed < self.throttle {
+                std::thread::sleep(self.throttle - elapsed);
             }
         }
     }
-    #[cfg(test)] pub fn state_ref(&self)->Arc<Mutex<PlayerState>>{
+    #[cfg(test)]
+    pub fn state_ref(&self) -> Arc<Mutex<PlayerState>> {
         Arc::clone(&self.state)
     }
     pub fn query(&self, query: QueryMessage) -> Result<(), String> {

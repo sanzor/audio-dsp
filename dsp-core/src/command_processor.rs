@@ -1,6 +1,4 @@
-use dsp_domain::{
-    dsp_command::DspCommand, dsp_command_result::DspCommandResult, envelope::Envelope,
-};
+use dsp_domain::{dsp_command_result::DspCommandResult, envelope::Envelope, message::Message};
 
 use crate::{
     command_dispatch::CommandDispatch,
@@ -33,7 +31,7 @@ impl CommandProcessor {
         }
     }
 
-    pub fn process_command(&mut self, input: DspCommand) -> Result<DspCommandResult, String> {
+    pub fn process_command(&mut self, input: Message) -> Result<DspCommandResult, String> {
         let dispatcher_name = self.get_dispatcher_name(&input);
         let dispatcher = self
             .dispatch_provider
@@ -49,30 +47,33 @@ impl CommandProcessor {
         result
     }
 
-    fn get_dispatcher_name(&self, command: &DspCommand) -> &'static str {
+    fn get_dispatcher_name(&self, command: &Message) -> &'static str {
         match command {
-            DspCommand::Copy { name, copy_name } => "copy",
-            DspCommand::Exit => "exit",
-            DspCommand::HighPass { name, cutoff } => "high_pass",
-            DspCommand::LowPass { name, cutoff } => "low_pass",
-            DspCommand::Delete { name } => "delete",
-            DspCommand::Info { name } => "info",
-            DspCommand::Load { name, filename } => "load",
-            DspCommand::Ls => "ls",
-            DspCommand::Gain {
-                name,
-                gain,
-                mode,
+            Message::Copy {
+                name: _,
+                copy_name: _,
+            } => "copy",
+            Message::Exit => "exit",
+            Message::HighPass { name: _, cutoff: _ } => "high_pass",
+            Message::LowPass { name, cutoff } => "low_pass",
+            Message::Delete { name } => "delete",
+            Message::Info { name } => "info",
+            Message::Load { name, filename } => "load",
+            Message::Ls => "ls",
+            Message::Gain {
+                name: _,
+                gain: _,
+                mode: _,
                 parallelism,
             } => "gain",
-            DspCommand::Normalize {
+            Message::Normalize {
                 name: _,
                 mode,
                 parallelism,
             } => "normalize",
-            DspCommand::Upload { name, filename } => "upload",
-            DspCommand::Play { name } => "play",
-            DspCommand::RunScript { file } => "run-script",
+            Message::Upload { name, filename } => "upload",
+            Message::Play { name } => "play",
+            Message::RunScript { file } => "run-script",
         }
     }
 }

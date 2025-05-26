@@ -1,6 +1,4 @@
-use dsp_domain::{
-    dsp_command::DspCommand, dsp_command_result::DspCommandResult, envelope::Envelope,
-};
+use dsp_domain::{dsp_command_result::DspCommandResult, envelope::Envelope, message::Message};
 
 use crate::{
     command_dispatch::CommandDispatch,
@@ -13,7 +11,7 @@ impl CommandDispatch for ListDispatcher {
         let guard = state.try_read().map_err(|e| e.to_string())?;
         let state = &*guard;
         let result = match envelope.command {
-            DspCommand::Ls => self.internal_dispatch(state),
+            Message::Ls => self.internal_dispatch(state),
             _ => Err("".to_owned()),
         };
         return result;
