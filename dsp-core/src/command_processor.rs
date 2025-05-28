@@ -73,6 +73,8 @@ impl CommandProcessor {
             } => "normalize",
             Message::Upload { name, filename } => "upload",
             Message::Play { name } => "play",
+            Message::Stop { id }=>"stop",
+            Message::Pause { id }=>"pause"
             Message::RunScript { file } => "run-script",
         }
     }

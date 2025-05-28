@@ -320,6 +320,7 @@ version = "0.1.0"
 dependencies = [
  "audiolib",
  "dsp-domain",
+ "player",
  "rstest",
  "serde",
  "serde_json",

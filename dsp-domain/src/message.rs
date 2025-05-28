@@ -55,6 +55,12 @@ pub enum Message {
         #[arg(long)]
         parallelism: Option<u8>,
     },
+    Stop {
+        id: Option<String>,
+    },
+    Pause {
+        id: Option<String>,
+    },
 }
 
 impl Display for DspCommandResult {

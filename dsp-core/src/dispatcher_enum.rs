@@ -8,6 +8,7 @@ use crate::crud_dispatchers::{
 use crate::dsp_dispatchers::{
     GainDispatcher, HighPassDispatcher, LowPassDispatcher, NormalizeDispatcher,
 };
+use crate::player_dispatchers::{PauseDispatcher, PlayDispatcher, StopDispatcher};
 use crate::state::SharedState;
 
 pub(crate) enum DispatcherEnum {
@@ -22,6 +23,10 @@ pub(crate) enum DispatcherEnum {
     LowPass(LowPassDispatcher),
     HighPass(HighPassDispatcher),
     RunScript(RunScriptDispatcher),
+    Play(PlayDispatcher),
+    Pause(PauseDispatcher),
+    Stop(StopDispatcher),
+    
 }
 
 impl CommandDispatch for DispatcherEnum {
@@ -39,6 +44,10 @@ impl CommandDispatch for DispatcherEnum {
             DispatcherEnum::HighPass(handler) => handler.dispatch(envelope, state),
             DispatcherEnum::LowPass(handler) => handler.dispatch(envelope, state),
             DispatcherEnum::RunScript(handler) => handler.dispatch(envelope, state),
+
+            DispatcherEnum::Play(handler)=>handler.dispatch(envelope, state),
+            DispatcherEnum::Pause(handler)=>handler.dispatch(envelope, state),
+            DispatcherEnum::Pause(handler)=>handler.dispatch(envelope, state)
         }
     }
 }

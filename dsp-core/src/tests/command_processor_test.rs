@@ -3,14 +3,14 @@ use rstest::rstest;
 
 use crate::{
     command_processor::CommandProcessor, command_processor_test::common,
-    dispatchers_provider::DispatchersProvider, state::create_shared_state,
+    dispatchers_provider::DispatchersProvider, state::create_state,
 };
 
 #[rstest]
 pub fn can_run_load_command() -> Result<(), String> {
     let path = common::test_data("dragons.wav");
     let path_str = path.to_str().ok_or_else(|| "Invalid file".to_string())?;
-    let mut processor = CommandProcessor::new(DispatchersProvider::new(), create_shared_state());
+    let mut processor = CommandProcessor::new(DispatchersProvider::new(), create_state());
     let command = Message::Load {
         name: Some("dragons.wav".to_string()),
         filename: Some(path_str.to_string()),
@@ -23,7 +23,7 @@ pub fn can_run_load_command() -> Result<(), String> {
 #[rstest]
 pub fn can_run_info_command() -> Result<(), String> {
     let name = "my-track";
-    let mut processor = CommandProcessor::new(DispatchersProvider::new(), create_shared_state());
+    let mut processor = CommandProcessor::new(DispatchersProvider::new(), create_state());
     load_command(&mut processor, name).unwrap();
     let info_command = Message::Info {
         name: Some(name.to_string()),
@@ -37,7 +37,7 @@ pub fn can_run_info_command() -> Result<(), String> {
 #[rstest]
 pub fn can_run_list_command() -> Result<(), String> {
     let name = "my-track";
-    let mut processor = CommandProcessor::new(DispatchersProvider::new(), create_shared_state());
+    let mut processor = CommandProcessor::new(DispatchersProvider::new(), create_state());
     load_command(&mut processor, name).unwrap();
     let info_command = Message::Ls {};
     let ls_result = processor.process_command(info_command)?.output;
@@ -51,7 +51,7 @@ pub fn can_run_list_command() -> Result<(), String> {
 pub fn can_run_upload_command() -> Result<(), String> {
     let name = "my-track";
     let filename = "dragons2.wav";
-    let mut processor = CommandProcessor::new(DispatchersProvider::new(), create_shared_state());
+    let mut processor = CommandProcessor::new(DispatchersProvider::new(), create_state());
     load_command(&mut processor, name).unwrap();
     let upload_command = Message::Upload {
         name: Some(name.to_string()),
@@ -65,7 +65,7 @@ pub fn can_run_upload_command() -> Result<(), String> {
 #[rstest]
 pub fn can_run_delete_command() -> Result<(), String> {
     let name = "my-track";
-    let mut processor = CommandProcessor::new(DispatchersProvider::new(), create_shared_state());
+    let mut processor = CommandProcessor::new(DispatchersProvider::new(), create_state());
     load_command(&mut processor, name).unwrap();
 
     let track_list_before_delete = get_track_list(&mut processor)?;
@@ -87,7 +87,7 @@ pub fn can_run_delete_command() -> Result<(), String> {
 pub fn can_run_copy_command() -> Result<(), String> {
     let name = "my-track";
     let copy_name = "my-track2";
-    let mut processor = CommandProcessor::new(DispatchersProvider::new(), create_shared_state());
+    let mut processor = CommandProcessor::new(DispatchersProvider::new(), create_state());
     load_command(&mut processor, name).unwrap();
 
     let copy_result_string = &processor
@@ -108,7 +108,7 @@ pub fn can_run_copy_command() -> Result<(), String> {
 pub fn can_run_exit_command() -> Result<(), String> {
     let name = "my-track";
     let mut command_processor =
-        CommandProcessor::new(DispatchersProvider::new(), create_shared_state());
+        CommandProcessor::new(DispatchersProvider::new(), create_state());
     load_command(&mut command_processor, name).unwrap();
     let exit_command = Message::Exit {};
     let upload_result = command_processor.process_command(exit_command);

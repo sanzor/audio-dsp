@@ -4,18 +4,23 @@ use std::{
 };
 
 use dsp_domain::track::{self, Track, TrackInfo, TrackRef, TrackRefMut};
+use player::player_ref::PlayerRef;
 
-pub type SharedState = Arc<RwLock<State>>;
+use crate::{player_registry::local_player_registry::LocalPlayerRegistry, user_registry::{user_registry::UserRegistry, LocalUserRegistry}};
+
+pub type SharedState = Arc<State>;
 pub(crate) struct State {
-    tracks: HashMap<String, Track>,
+    tracks: Arc<dyn UserRegistry>,
+    player_refs: Arc<dyn PlayerRef>,
 }
 pub fn create_shared_state() -> SharedState {
-    Arc::new(RwLock::new(State::new()))
+    Arc::new(State::new())
 }
 impl State {
     pub fn new() -> State {
         State {
-            tracks: HashMap::new(),
+            tracks: Arc::new(LocalUserRegistry::new()),
+            player_refs:Arc::new(LocalPlayerRegistry::new())
         }
     }
     pub fn get_track_info(&self, name: &str) -> Option<TrackInfo> {
@@ -49,6 +54,16 @@ impl State {
     pub fn upsert_track(&mut self, track: Track) -> Result<(), String> {
         let track_name = track.info.name.clone();
         self.tracks.insert(track_name, track);
+        Ok(())
+    }
+
+    pub fn upsert_player_ref(&mut self,player_ref:Box<impl PlayerRef+'static>)->Result<(),String>{
+        self.player_refs.insert(player_ref.id().to_string(),player_ref);
+        Ok(())
+    }
+
+    pub fn get_player_ref(&mut self,id:String)->Result<(),String>{
+        self.player_refs.get(id.as_ref()).ok_or_else(||"Could not find id");
         Ok(())
     }
 }

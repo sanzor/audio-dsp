@@ -5,6 +5,7 @@ use crate::player_command::PlayerMessage;
 use super::player_ref::PlayerRef;
 
 pub struct LocalPlayerRef {
+    pub id: String,
     pub tx: Sender<PlayerMessage>,
 }
 
@@ -13,5 +14,9 @@ impl PlayerRef for LocalPlayerRef {
         self.tx
             .send(message)
             .map_err(|_| "Disconnected".to_string())
+    }
+
+    fn id(&self) -> &str {
+        self.id.as_str()
     }
 }

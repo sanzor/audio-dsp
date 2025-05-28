@@ -95,7 +95,7 @@ impl<S: AudioSink> Player<S> {
                 PlayerStates::Paused | PlayerStates::Stopped => {}
                 PlayerStates::Playing => {
                     if let Some(frame) = self.get_frame(st.cursor) {
-                        self.sink.write_frame(frame)?;
+                        self.sink.write_frame(&frame)?;
                         st.cursor += 1;
                         st.frames_written += 1;
                     } else {

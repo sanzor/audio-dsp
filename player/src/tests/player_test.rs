@@ -26,12 +26,16 @@ use crate::player_test::test_sink::TestSink;
 
 #[rstest]
 fn can_run_and_change_state() -> Result<(), String> {
+    let id = "some_id";
     let player_throttle = 50;
     let track = make_track_from_samples(vec![1.0, 2.0, 3.0], Channels::Mono);
     let player_params = PlayerParams { track: track };
     let (message_tx, message_rx) = channel::<PlayerMessage>();
 
-    let player_handle = LocalPlayerRef { tx: message_tx };
+    let player_handle = LocalPlayerRef {
+        tx: message_tx,
+        id: id.to_string(),
+    };
     let written = Arc::new(Mutex::new(vec![]));
     let audio_sink = TestSink {
         written: written.clone(),
@@ -55,6 +59,7 @@ fn can_run_and_change_state() -> Result<(), String> {
 
 #[rstest]
 fn can_run_and_and_write_to_sink() -> Result<(), String> {
+    let id = "some_id".to_string();
     let player_throttle = 50;
     let track = make_track_from_samples(vec![1.0, 2.0, 3.0], Channels::Mono);
     let player_params = PlayerParams {
@@ -62,7 +67,10 @@ fn can_run_and_and_write_to_sink() -> Result<(), String> {
     };
     let (message_tx, message_rx) = channel::<PlayerMessage>();
 
-    let player_handle = LocalPlayerRef { tx: message_tx };
+    let player_handle = LocalPlayerRef {
+        tx: message_tx,
+        id: id,
+    };
     let written = Arc::new(Mutex::new(vec![]));
     let audio_sink = TestSink {
         written: written.clone(),
@@ -95,6 +103,7 @@ fn can_run_and_and_write_to_sink() -> Result<(), String> {
 
 #[rstest]
 fn can_stop_after_frames_written() -> Result<(), String> {
+    let id = "some_id".to_string();
     let player_throttle = 50;
     let track = make_track_from_samples(vec![1.0, 2.0, 3.0], Channels::Mono);
     let (message_tx, message_rx) = channel();
@@ -118,7 +127,10 @@ fn can_stop_after_frames_written() -> Result<(), String> {
     let _thread_handle = thread::spawn(move || {
         let _ = player.run();
     });
-    let player_handle = LocalPlayerRef { tx: message_tx };
+    let player_handle = LocalPlayerRef {
+        tx: message_tx,
+        id: id,
+    };
     let _ = send_command(&player_handle, PlayerCommand::Play);
 
     do_until(
@@ -135,6 +147,7 @@ fn can_stop_after_frames_written() -> Result<(), String> {
 
 #[rstest]
 fn can_pause() -> Result<(), String> {
+    let id = "some_id".to_string();
     let player_throttle = 50;
     let track = make_track_from_samples(vec![1.0, 2.0], Channels::Mono);
     let (message_tx, message_rx) = channel();
@@ -158,7 +171,10 @@ fn can_pause() -> Result<(), String> {
     let _thread_handle = thread::spawn(move || {
         let _ = player.run();
     });
-    let player_handle = LocalPlayerRef { tx: message_tx };
+    let player_handle = LocalPlayerRef {
+        tx: message_tx,
+        id: id,
+    };
     let _ = send_command(&player_handle, PlayerCommand::Play);
     let _ = send_command(&player_handle, PlayerCommand::Pause);
     do_until(
@@ -169,14 +185,14 @@ fn can_pause() -> Result<(), String> {
     Ok(())
 }
 
-#[rstest]
-pub fn can_run_cpal()->Result<(),String>{
-    let host=cpal::default_host();
-    let device=host.default_output_device()?;
-    let devices=host.devices().map_err(|e|e.to_string())?;
-    device.build_output_stream(device.default_output_config(), data_callback, error_callback, timeout)
-    Ok(())
-}
+// #[rstest]
+// pub fn can_run_cpal()->Result<(),String>{
+//     let host=cpal::default_host();
+//     let device=host.default_output_device()?;
+//     let devices=host.devices().map_err(|e|e.to_string())?;
+//     device.build_output_stream(device.default_output_config(), data_callback, error_callback, timeout);
+//     Ok(())
+// }
 fn do_until<T>(retriever: impl Fn() -> T, predicate: impl Fn(&T) -> bool, throttle: u64) -> T {
     let start = Instant::now();
     let timeout = Duration::from_secs(20);

@@ -7,9 +7,9 @@ pub struct TestSink {
 }
 
 impl AudioSink for TestSink {
-    fn write_frame(&mut self, frame: AudioFrame) -> Result<(), String> {
+    fn write_frame(&mut self, frame: &AudioFrame) -> Result<(), String> {
         let collection = &mut *self.written.try_lock().map_err(|e| e.to_string())?;
-        collection.push(frame);
+        collection.push(frame.clone());
         Ok(())
     }
 }
