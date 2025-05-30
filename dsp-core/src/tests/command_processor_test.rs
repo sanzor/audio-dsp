@@ -7,6 +7,7 @@ use crate::{
 };
 
 #[rstest]
+#[actix_rt::test]
 pub async fn can_run_load_command() -> Result<(), String> {
     let user_name = "some_user";
     let path = common::test_data("dragons.wav");
@@ -23,6 +24,7 @@ pub async fn can_run_load_command() -> Result<(), String> {
 }
 
 #[rstest]
+#[actix_rt::test]
 pub async fn can_run_info_command() -> Result<(), String> {
     let user_name = "some_user";
     let track_name = "my-track";
@@ -39,6 +41,7 @@ pub async fn can_run_info_command() -> Result<(), String> {
 }
 
 #[rstest]
+#[actix_rt::test]
 pub async fn can_run_list_command() -> Result<(), String> {
     let name = "my-track";
 
@@ -55,6 +58,7 @@ pub async fn can_run_list_command() -> Result<(), String> {
 }
 
 #[rstest]
+#[actix_rt::test]
 pub async fn can_run_upload_command() -> Result<(), String> {
     let user_name = "my-my_user";
     let track_name = "my-track";
@@ -72,6 +76,7 @@ pub async fn can_run_upload_command() -> Result<(), String> {
 }
 
 #[rstest]
+#[actix_rt::test]
 pub async fn can_run_delete_command() -> Result<(), String> {
     let name = "my-track";
     let user_name = "my-my_user";
@@ -95,6 +100,7 @@ pub async fn can_run_delete_command() -> Result<(), String> {
 }
 
 #[rstest]
+#[actix_rt::test]
 pub async fn can_run_copy_command() -> Result<(), String> {
     let user_name = "my-my_user";
     let name = "my-track";
@@ -119,6 +125,7 @@ pub async fn can_run_copy_command() -> Result<(), String> {
 }
 
 #[rstest]
+#[actix_rt::test]
 pub async fn can_run_exit_command() -> Result<(), String> {
     let user_name = "my-track";
     let track_name = "my-track";
