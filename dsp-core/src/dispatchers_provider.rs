@@ -50,11 +50,8 @@ impl DispatchersProvider {
             "run-script".to_string(),
             DispatcherEnum::RunScript(RunScriptDispatcher {}),
         );
-         hash_map.insert(
-            "play".to_string(),
-            DispatcherEnum::Play(PlayDispatcher {}),
-        );
-           hash_map.insert(
+        hash_map.insert("play".to_string(), DispatcherEnum::Play(PlayDispatcher {}));
+        hash_map.insert(
             "pause".to_string(),
             DispatcherEnum::RunScript(RunScriptDispatcher {}),
         );

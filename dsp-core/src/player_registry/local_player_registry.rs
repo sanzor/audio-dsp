@@ -1,32 +1,36 @@
 use std::{collections::HashMap, sync::Mutex};
 
-use player::player_ref::PlayerRef;
+use async_trait::async_trait;
+use player::player_ref::AudioPlayerRef;
 
-use super::player_registry::PlayerRegistry;
+use super::player_registry::AudioPlayerRegistry;
 
-pub struct LocalPlayerRegistry{
-    players:Mutex<HashMap<String,Box<dyn PlayerRef>>>
-}
-impl PlayerRegistry for LocalPlayerRegistry{
-    fn upsert(&self,id:String,player:Box<dyn player::player_ref::PlayerRef>)->Result<(),String> {
-        todo!()
-    }
-
-    fn get_player_by_id(&self,id:String)->Option<Box<dyn player::player_ref::PlayerRef>> {
-        todo!()
-    }
-
-    fn get_all_ids(&self)->Vec<String> {
-        todo!()
-    }
-
-    fn remove(&self,id:String)->Option<Box<dyn player::player_ref::PlayerRef>> {
-        todo!()
-    }
+pub struct LocalAudioPlayerRegistry {
+    players: Mutex<HashMap<String, Box<dyn AudioPlayerRef>>>,
 }
 
-impl LocalPlayerRegistry{
-    pub fn new()->LocalPlayerRegistry{
-        LocalPlayerRegistry { players: Mutex::new(HashMap::new()) }
+#[async_trait]
+impl AudioPlayerRegistry for LocalAudioPlayerRegistry {
+    async fn upsert(&self, id: String, player: Box<dyn AudioPlayerRef>) -> Result<(), String> {
+        todo!()
+    }
+    async fn get_by_id(&self, id: String) -> Option<Box<dyn AudioPlayerRef>> {
+        todo!()
+    }
+
+    async fn get_all_ids(&self) -> Vec<String> {
+        todo!()
+    }
+
+    async fn remove(&self, id: String) -> Option<Box<dyn AudioPlayerRef>> {
+        todo!()
+    }
+}
+
+impl LocalAudioPlayerRegistry {
+    pub fn new() -> LocalAudioPlayerRegistry {
+        LocalAudioPlayerRegistry {
+            players: Mutex::new(HashMap::new()),
+        }
     }
 }

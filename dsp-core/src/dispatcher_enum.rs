@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use dsp_domain::{dsp_command_result::DspCommandResult, envelope::Envelope};
 
 use crate::command_dispatch::CommandDispatch;
@@ -26,28 +27,31 @@ pub(crate) enum DispatcherEnum {
     Play(PlayDispatcher),
     Pause(PauseDispatcher),
     Stop(StopDispatcher),
-    
 }
-
+#[async_trait]
 impl CommandDispatch for DispatcherEnum {
-    fn dispatch(&self, envelope: Envelope, state: SharedState) -> Result<DspCommandResult, String> {
+    async fn dispatch(
+        &self,
+        envelope: Envelope,
+        state: SharedState,
+    ) -> Result<DspCommandResult, String> {
         match self {
-            DispatcherEnum::Load(handler) => handler.dispatch(envelope, state),
-            DispatcherEnum::Info(handler) => handler.dispatch(envelope, state),
-            DispatcherEnum::List(handler) => handler.dispatch(envelope, state),
-            DispatcherEnum::Upload(handler) => handler.dispatch(envelope, state),
-            DispatcherEnum::Copy(handler) => handler.dispatch(envelope, state),
-            DispatcherEnum::Delete(handler) => handler.dispatch(envelope, state),
+            DispatcherEnum::Load(handler) => handler.dispatch(envelope, state).await,
+            DispatcherEnum::Info(handler) => handler.dispatch(envelope, state).await,
+            DispatcherEnum::List(handler) => handler.dispatch(envelope, state).await,
+            DispatcherEnum::Upload(handler) => handler.dispatch(envelope, state).await,
+            DispatcherEnum::Copy(handler) => handler.dispatch(envelope, state).await,
+            DispatcherEnum::Delete(handler) => handler.dispatch(envelope, state).await,
 
-            DispatcherEnum::Gain(handler) => handler.dispatch(envelope, state),
-            DispatcherEnum::Normalize(handler) => handler.dispatch(envelope, state),
-            DispatcherEnum::HighPass(handler) => handler.dispatch(envelope, state),
-            DispatcherEnum::LowPass(handler) => handler.dispatch(envelope, state),
-            DispatcherEnum::RunScript(handler) => handler.dispatch(envelope, state),
+            DispatcherEnum::Gain(handler) => handler.dispatch(envelope, state).await,
+            DispatcherEnum::Normalize(handler) => handler.dispatch(envelope, state).await,
+            DispatcherEnum::HighPass(handler) => handler.dispatch(envelope, state).await,
+            DispatcherEnum::LowPass(handler) => handler.dispatch(envelope, state).await,
+            DispatcherEnum::RunScript(handler) => handler.dispatch(envelope, state).await,
 
-            DispatcherEnum::Play(handler)=>handler.dispatch(envelope, state),
-            DispatcherEnum::Pause(handler)=>handler.dispatch(envelope, state),
-            DispatcherEnum::Pause(handler)=>handler.dispatch(envelope, state)
+            DispatcherEnum::Play(handler) => handler.dispatch(envelope, state).await,
+            DispatcherEnum::Pause(handler) => handler.dispatch(envelope, state).await,
+            DispatcherEnum::Stop(handler) => handler.dispatch(envelope, state).await,
         }
     }
 }

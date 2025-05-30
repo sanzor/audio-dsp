@@ -1,24 +1,39 @@
+use async_trait::async_trait;
 use audiolib::audio_parse;
 use dsp_domain::{dsp_command_result::DspCommandResult, envelope::Envelope, message::Message};
 
 use std::{path::PathBuf, str::FromStr};
 
-use crate::{
-    command_dispatch::CommandDispatch,
-    state::{SharedState, State},
-};
+use crate::{command_dispatch::CommandDispatch, state::SharedState};
 pub(crate) struct UploadDispatcher {}
 
+#[async_trait]
+impl CommandDispatch for UploadDispatcher {
+    async fn dispatch(
+        &self,
+        envelope: Envelope,
+        state: SharedState,
+    ) -> Result<DspCommandResult, String> {
+        match envelope.command {
+            Message::Upload { track_name, filename } => {
+                self.internal_dispatch(name, filename, state).await
+            }
+            _ => Err("".to_owned()),
+        }
+    }
+}
+
 impl UploadDispatcher {
-    fn internal_dispatch(
+    async fn internal_dispatch(
         &self,
         name: Option<String>,
         filename: Option<String>,
-        state: &State,
+        state: SharedState,
     ) -> Result<DspCommandResult, String> {
         let name = name.ok_or_else(|| "Invalid name to upload track")?;
         let track_ref = state
             .get_track_ref(&name)
+            .await
             .ok_or_else(|| "Could not find track_ref")?;
         let file_path_str = filename.unwrap_or_else(|| name.clone());
         let path = PathBuf::from_str(&file_path_str).map_err(|err| err.to_string())?;
@@ -30,17 +45,5 @@ impl UploadDispatcher {
             ),
             should_exit: false,
         })
-    }
-}
-
-impl CommandDispatch for UploadDispatcher {
-    fn dispatch(&self, envelope: Envelope, state: SharedState) -> Result<DspCommandResult, String> {
-        let mut guard = state.try_write().map_err(|e| e.to_string())?;
-        let state = &mut *guard;
-
-        match envelope.command {
-            Message::Upload { name, filename } => self.internal_dispatch(name, filename, state),
-            _ => Err("".to_owned()),
-        }
     }
 }

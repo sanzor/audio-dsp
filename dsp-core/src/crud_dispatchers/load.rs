@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use async_trait::async_trait;
 use dsp_domain::{
     dsp_command_result::DspCommandResult,
     envelope::Envelope,
@@ -13,25 +14,26 @@ use crate::{
 };
 
 pub(crate) struct LoadDispatcher {}
-
+#[async_trait]
 impl CommandDispatch for LoadDispatcher {
-    fn dispatch(&self, envelope: Envelope, state: SharedState) -> Result<DspCommandResult, String> {
-        let mut guard = state.try_write().map_err(|e| e.to_string())?;
-        let state = &mut *guard;
-
+    async fn dispatch(
+        &self,
+        envelope: Envelope,
+        state: SharedState,
+    ) -> Result<DspCommandResult, String> {
         match envelope.command {
-            Message::Load { name, filename } => self.internal_dispatch(name, filename, state),
+            Message::Load { track_name, filename } => self.internal_dispatch(name, filename, state).await,
             _ => Err("".to_owned()),
         }
     }
 }
 
 impl LoadDispatcher {
-    fn internal_dispatch(
+    async fn internal_dispatch(
         &self,
         name: Option<String>,
         filename: Option<String>,
-        state: &mut State,
+        state: SharedState,
     ) -> Result<DspCommandResult, String> {
         let filename = filename.ok_or_else(|| "Invalid file name".to_string())?;
         let filepath = PathBuf::from(&filename);
@@ -43,7 +45,7 @@ impl LoadDispatcher {
             data: audio_buffer,
         };
 
-        state.upsert_track(new_track)?;
+        state.upsert_track(new_track).await?;
 
         Ok(DspCommandResult {
             output: format!("Loaded track '{}' from '{}'", name, filepath.display()),

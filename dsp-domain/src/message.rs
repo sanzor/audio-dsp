@@ -7,22 +7,27 @@ use crate::dsp_command_result::DspCommandResult;
 #[derive(clap::Subcommand, Debug, Serialize, Deserialize)]
 pub enum Message {
     Load {
-        name: Option<String>,
+        user_name: Option<String>,
+        track_name: Option<String>,
         filename: Option<String>,
     },
     Upload {
-        name: Option<String>,
+        user_name: Option<String>,
+        track_name: Option<String>,
         filename: Option<String>,
     },
     Delete {
-        name: Option<String>,
+        user_name: Option<String>,
+        track_name: Option<String>,
     },
     Ls,
     Info {
-        name: Option<String>,
+        user_name: Option<String>,
+        track_name: Option<String>,
     },
     Copy {
-        name: Option<String>,
+        user_name: Option<String>,
+        track_name: Option<String>,
         copy_name: Option<String>,
     },
 
@@ -31,26 +36,31 @@ pub enum Message {
         name: Option<String>,
     },
     RunScript {
+         user_name: Option<String>,
         #[arg(help = "Path to batch JSON file")]
         file: String,
     },
     Gain {
-        name: Option<String>,
+        user_name: Option<String>,
+        track_name: Option<String>,
         gain: f32,
         mode: Option<RunMode>,
         #[arg(long)]
         parallelism: Option<u8>,
     },
     LowPass {
-        name: Option<String>,
+        user_name: Option<String>,
+        track_name: Option<String>,
         cutoff: f32,
     },
     HighPass {
-        name: Option<String>,
+        user_name: Option<String>,
+        track_name: Option<String>,
         cutoff: f32,
     },
     Normalize {
-        name: Option<String>,
+        user_name: Option<String>,
+        track_name: Option<String>,
         mode: Option<RunMode>,
         #[arg(long)]
         parallelism: Option<u8>,

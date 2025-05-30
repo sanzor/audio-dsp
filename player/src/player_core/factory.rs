@@ -4,7 +4,7 @@ use dsp_domain::track::Track;
 
 use crate::{
     audio_sink::AudioSink, command_receiver::CommandReceiver, player_params::PlayerParams,
-    player_ref::PlayerRef,
+    player_ref::AudioPlayerRef,
 };
 
 use super::Player;
@@ -12,8 +12,8 @@ use super::Player;
 pub fn spawn_player(
     track: Track,
     sink: impl AudioSink + Send + Sync + 'static,
-    f: impl Fn() -> (Box<dyn PlayerRef + Send>, Box<dyn CommandReceiver + Send>),
-) -> Box<dyn PlayerRef> {
+    f: impl Fn() -> (Box<dyn AudioPlayerRef + Send>, Box<dyn CommandReceiver + Send>),
+) -> Box<dyn AudioPlayerRef> {
     let (tx, rx) = f();
 
     let _handle = thread::spawn(move || {

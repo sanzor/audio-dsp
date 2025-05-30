@@ -21,7 +21,7 @@ use crate::player_core::player_states::PlayerStates;
 use crate::player_core::Player;
 use crate::player_params::PlayerParams;
 use crate::player_ref::local_player_ref::LocalPlayerRef;
-use crate::player_ref::PlayerRef;
+use crate::player_ref::AudioPlayerRef;
 use crate::player_test::test_sink::TestSink;
 
 #[rstest]
@@ -239,13 +239,14 @@ fn get_state(query_result: QueryResult) -> Result<PlayerState, String> {
     }
 }
 
-fn send_command(sender: &impl PlayerRef, command: PlayerCommand) -> Result<(), String> {
+async fn send_command(sender: &impl AudioPlayerRef, command: PlayerCommand) -> Result<(), String> {
     sender
         .send_message(PlayerMessage::Command { command: command })
+        .await
         .map_err(|e| format!("Failed to send command {:?}", e))
 }
 
-fn query_state(handle: &impl PlayerRef) -> Result<PlayerState, String> {
+fn query_state(handle: &impl AudioPlayerRef) -> Result<PlayerState, String> {
     let (send_back_tx, rx) = channel();
     let _ = handle.send_message(PlayerMessage::Query {
         query: QueryMessage::GetState {

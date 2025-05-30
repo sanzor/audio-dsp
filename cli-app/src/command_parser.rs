@@ -29,11 +29,11 @@ impl CommandParser {
         match value {
             [filename, name] => Ok(Message::Load {
                 filename: Some(filename.to_string()),
-                name: Some(name.to_string()),
+                track_name: Some(name.to_string()),
             }),
             [filename] => Ok(Message::Load {
                 filename: Some(filename.to_string()),
-                name: Some(filename.to_string()),
+                track_name: Some(filename.to_string()),
             }),
             _ => Err("Invalid load command".to_owned()),
         }
@@ -42,11 +42,11 @@ impl CommandParser {
         match value {
             [filename, name] => Ok(Message::Upload {
                 filename: Some(filename.to_string()),
-                name: Some(name.to_string()),
+                track_name: Some(name.to_string()),
             }),
             [name] => Ok(Message::Upload {
                 filename: Some(name.to_string()),
-                name: Some(name.to_string()),
+                track_name: Some(name.to_string()),
             }),
             _ => Err("Invalid save command".to_owned()),
         }
@@ -55,7 +55,7 @@ impl CommandParser {
     fn parse_unload(&self, value: &[&str]) -> Result<Message, String> {
         match value {
             [name] => Ok(Message::Delete {
-                name: Some(name.to_string()),
+                track_name: Some(name.to_string()),
             }),
             _ => Err("Invalid unload command".to_owned()),
         }
@@ -64,7 +64,7 @@ impl CommandParser {
     fn parse_info(&self, value: &[&str]) -> Result<Message, String> {
         match value {
             [name] => Ok(Message::Info {
-                name: Some(name.to_string()),
+                track_name: Some(name.to_string()),
             }),
             _ => Err("Invalid info command".to_owned()),
         }
@@ -80,7 +80,7 @@ impl CommandParser {
             [name, factor] => factor
                 .parse::<f32>()
                 .map(|f| Message::Gain {
-                    name: Some(name.to_string()),
+                    track_name: Some(name.to_string()),
                     gain: f,
                     mode: Some(RunMode::Simple),
                     parallelism: None,
@@ -92,7 +92,7 @@ impl CommandParser {
     fn parse_normalize(&self, value: &[&str]) -> Result<Message, String> {
         match value {
             [name] => Ok(Message::Normalize {
-                name: Some(name.to_string()),
+                track_name: Some(name.to_string()),
                 mode: Some(RunMode::Simple),
                 parallelism: None,
             }),
@@ -104,7 +104,7 @@ impl CommandParser {
             [cutoff, name] => cutoff
                 .parse::<f32>()
                 .map(|f| Message::LowPass {
-                    name: Some(name.to_string()),
+                    track_name: Some(name.to_string()),
                     cutoff: f,
                 })
                 .map_err(|e| e.to_string()),
@@ -116,7 +116,7 @@ impl CommandParser {
             [cutoff, name] => cutoff
                 .parse::<f32>()
                 .map(|f| Message::HighPass {
-                    name: Some(name.to_string()),
+                    track_name: Some(name.to_string()),
                     cutoff: f,
                 })
                 .map_err(|e| e.to_string()),

@@ -1,35 +1,38 @@
-use crate::{
-    command_dispatch::CommandDispatch,
-    state::{SharedState, State},
-};
+use crate::{command_dispatch::CommandDispatch, state::SharedState};
+use async_trait::async_trait;
 use audiolib::audio_transform::AudioTransformMut;
 use dsp_domain::{dsp_command_result::DspCommandResult, envelope::Envelope, message::Message};
 
 pub(crate) struct NormalizeDispatcher {}
+
+#[async_trait]
 impl CommandDispatch for NormalizeDispatcher {
-    fn dispatch(&self, envelope: Envelope, state: SharedState) -> Result<DspCommandResult, String> {
-        let mut guard = state.try_write().map_err(|e| e.to_string())?;
-        let state = &mut *guard;
+    async fn dispatch(
+        &self,
+        envelope: Envelope,
+        state: SharedState,
+    ) -> Result<DspCommandResult, String> {
         match envelope.command {
             Message::Normalize {
-                name,
+                track_name,
                 mode: _,
                 parallelism: _,
-            } => self.internal_dispatch(name, state),
+            } => self.internal_dispatch(name, state).await,
             _ => Err("err".to_string()),
         }
     }
 }
 
 impl NormalizeDispatcher {
-    fn internal_dispatch(
+    async fn internal_dispatch(
         &self,
         name: Option<String>,
-        state: &mut State,
+        state: SharedState,
     ) -> Result<DspCommandResult, String> {
         let name = name.ok_or("Invalid name for track to perform normalize on")?;
         let track_ref = state
             .get_track_ref_mut(&name)
+            .await
             .ok_or_else(|| "Could not find track ref")?;
         let _ = track_ref.inner.data.normalize_mut();
         Ok(DspCommandResult {

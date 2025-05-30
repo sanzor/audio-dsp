@@ -1,6 +1,8 @@
-use crate::player_command::PlayerMessage;
+use async_trait::async_trait;
 
-pub trait PlayerRef: Send + Sync {
-    fn id(&self) -> &str;
-    fn send_message(&self, message: PlayerMessage) -> Result<(), String>;
+use crate::player_command::PlayerMessage;
+#[async_trait]
+pub trait AudioPlayerRef: Send + Sync {
+    async fn id(&self) -> String;
+    async fn send_message(&self, message: PlayerMessage) -> Result<(), String>;
 }

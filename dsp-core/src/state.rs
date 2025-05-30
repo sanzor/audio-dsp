@@ -1,69 +1,90 @@
-use std::{
-    collections::HashMap,
-    sync::{Arc, RwLock},
+use std::sync::Arc;
+
+use dsp_domain::{
+    track::{Track, TrackInfo, TrackRef, TrackRefMut},
 };
+use player::player_ref::AudioPlayerRef;
 
-use dsp_domain::track::{self, Track, TrackInfo, TrackRef, TrackRefMut};
-use player::player_ref::PlayerRef;
-
-use crate::{player_registry::local_player_registry::LocalPlayerRegistry, user_registry::{user_registry::UserRegistry, LocalUserRegistry}};
+use crate::{
+    player_registry::{local_player_registry::LocalAudioPlayerRegistry, player_registry::AudioPlayerRegistry},
+    user_registry::{user_registry::UserRegistry, LocalUserRegistry},
+};
 
 pub type SharedState = Arc<State>;
 pub(crate) struct State {
-    tracks: Arc<dyn UserRegistry>,
-    player_refs: Arc<dyn PlayerRef>,
+    user_registry: Arc<dyn UserRegistry>,
+    audio_player_registry: Arc<dyn AudioPlayerRegistry>,
 }
 pub fn create_shared_state() -> SharedState {
     Arc::new(State::new())
 }
+
 impl State {
     pub fn new() -> State {
         State {
-            tracks: Arc::new(LocalUserRegistry::new()),
-            player_refs:Arc::new(LocalPlayerRegistry::new())
+            user_registry: Arc::new(LocalUserRegistry::new()),
+            audio_player_registry: Arc::new(LocalAudioPlayerRegistry::new()),
         }
     }
-    pub fn get_track_info(&self, name: &str) -> Option<TrackInfo> {
-        self.tracks.get(name).map(|t| t.info.clone())
+    pub async fn get_track_info(
+        &self,
+        user_name: &str,
+        track_name: &str,
+    ) -> Result<TrackInfo, String> {
+        let info = self
+            .user_registry
+            .get_user_track_info(user_name, track_name)
+            .await;
+        info
     }
 
-    pub fn get_track_ref(&self, name: &str) -> Option<TrackRef> {
-        self.tracks.get(name).map(|tr| TrackRef { inner: tr })
+    pub async fn get_track_ref(&self, user_name: &str,track_name:&str) -> Result<TrackRef,String> {
+        self.user_registry
+            .get_track_ref(user_name, track_name)
+            .await
     }
 
-    pub fn get_track_ref_mut(&mut self, name: &str) -> Option<TrackRefMut> {
-        self.tracks
-            .get_mut(name)
-            .map(|track_mut| TrackRefMut { inner: track_mut })
+    pub async fn get_track_ref_mut(&self, user_name: &str,track_name:&str) -> Result<TrackRefMut,String> {
+        self.user_registry
+             .get_track_ref_mut(user_name, track_name)
+             .await
+            
     }
 
-    pub fn get_track_copy(&self, name: &str) -> Option<Track> {
-        self.tracks.get(name).map(|t| t.clone())
+    pub async fn get_track_copy(&self, user_name: &str,track_name:&str) -> Result<Track,String> {
+        self.user_registry.get_track_copy(user_name,track_name).await
     }
-    pub fn tracks(&self) -> Vec<TrackInfo> {
-        self.tracks.values().map(|t| t.info.clone()).collect()
+    pub async fn tracks(&self,user_name:&str) -> Vec<TrackInfo> {
+        self.user_registry
+            .get_tracks_for_user(user_name).await
+            
     }
 
-    pub fn delete_track(&mut self, name: &str) -> Result<(), String> {
-        let result = match self.tracks.remove(name) {
-            Some(deleted_track) => Ok(()),
+    pub async fn delete_track(&self, name: &str) -> Result<(), String> {
+        let result = match self.user_registry.remove(name).await {
+            Some(_) => Ok(()),
             None => Err("Could not find key".to_string()),
         };
         return result;
     }
-    pub fn upsert_track(&mut self, track: Track) -> Result<(), String> {
-        let track_name = track.info.name.clone();
-        self.tracks.insert(track_name, track);
+    pub async fn upsert_track(&self,user_name:&str,track: Track) -> Result<(), String> {
+        
+        self.user_registry.add_track(user_name,track).await
+    }
+
+    pub async fn upsert_player_ref(
+        &self,
+        player_ref: Box<impl AudioPlayerRef + 'static>,
+    ) -> Result<(), String> {
+        self.audio_player_registry
+            .insert(player_ref.id().to_string(), player_ref);
         Ok(())
     }
 
-    pub fn upsert_player_ref(&mut self,player_ref:Box<impl PlayerRef+'static>)->Result<(),String>{
-        self.player_refs.insert(player_ref.id().to_string(),player_ref);
-        Ok(())
-    }
-
-    pub fn get_player_ref(&mut self,id:String)->Result<(),String>{
-        self.player_refs.get(id.as_ref()).ok_or_else(||"Could not find id");
+    pub fn get_player_ref(&self, id: String) -> Result<(), String> {
+        self.audio_player_registry
+            .get(id.as_ref())
+            .ok_or_else(|| "Could not find id");
         Ok(())
     }
 }

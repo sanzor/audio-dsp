@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use dsp_domain::{dsp_command_result::DspCommandResult, envelope::Envelope, message::Message};
 
 use crate::{
@@ -7,28 +8,33 @@ use crate::{
 
 pub(crate) struct RunScriptDispatcher {}
 
+#[async_trait]
 impl CommandDispatch for RunScriptDispatcher {
-    fn dispatch(&self, envelope: Envelope, state: SharedState) -> Result<DspCommandResult, String> {
-        let mut guard = state.try_write().map_err(|e| e.to_string())?;
-        let state = &mut *guard;
-
+    async fn dispatch(
+        &self,
+        envelope: Envelope,
+        state: SharedState,
+    ) -> Result<DspCommandResult, String> {
         match envelope.command {
-            Message::Copy { name, copy_name } => self.internal_dispatch(name, copy_name, state),
+            Message::Copy { track_name, copy_name } => {
+                self.internal_dispatch(name, copy_name, state).await
+            }
             _ => Err("Could not perform copy".to_owned()),
         }
     }
 }
 
 impl RunScriptDispatcher {
-    fn internal_dispatch(
+    async fn internal_dispatch(
         &self,
         name: Option<String>,
         copy_name: Option<String>,
-        state: &mut State,
+        state: SharedState,
     ) -> Result<DspCommandResult, String> {
         let fname = name.ok_or("Invalid name for copy")?;
         let mut new_track = state
             .get_track_copy(&fname.clone())
+            .await
             .ok_or("Could not find track")?;
 
         let copy_name = copy_name.unwrap_or_else(|| new_track.info.name.clone() + "v2");
