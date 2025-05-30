@@ -11,7 +11,9 @@ impl CommandDispatch for PauseDispatcher {
         state: crate::state::SharedState,
     ) -> Result<dsp_domain::dsp_command_result::DspCommandResult, String> {
         match envelope.command {
-            Message::Pause { id } => self.internal_dispatch(state, id).await,
+            Message::Pause { user_id, track_id } => {
+                self.internal_dispatch(user_id, track_id, state).await
+            }
             _ => Err("Invalid pause command".to_string()),
         }
     }
@@ -19,10 +21,11 @@ impl CommandDispatch for PauseDispatcher {
 impl PauseDispatcher {
     async fn internal_dispatch(
         &self,
+        user_id: Option<String>,
+        track_id: Option<String>,
         state: SharedState,
-        id: Option<String>,
     ) -> Result<DspCommandResult, String> {
-        let name = id.ok_or_else(|| "invalid name".to_string())?;
+        let name = track_id.ok_or_else(|| "invalid name".to_string())?;
         Err("".into())
     }
 }

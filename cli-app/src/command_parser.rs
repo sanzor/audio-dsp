@@ -27,11 +27,13 @@ impl CommandParser {
     }
     fn parse_load(&self, value: &[&str]) -> Result<Message, String> {
         match value {
-            [filename, name] => Ok(Message::Load {
+            [user_name, filename, track_name] => Ok(Message::Load {
+                user_name: Some(user_name.to_string()),
                 filename: Some(filename.to_string()),
-                track_name: Some(name.to_string()),
+                track_name: Some(track_name.to_string()),
             }),
-            [filename] => Ok(Message::Load {
+            [user_name, filename] => Ok(Message::Load {
+                user_name: Some(user_name.to_string()),
                 filename: Some(filename.to_string()),
                 track_name: Some(filename.to_string()),
             }),
@@ -40,13 +42,15 @@ impl CommandParser {
     }
     fn parse_upload(&self, value: &[&str]) -> Result<Message, String> {
         match value {
-            [filename, name] => Ok(Message::Upload {
+            [user_name, filename, track_name] => Ok(Message::Upload {
+                user_name: Some(user_name.to_string()),
                 filename: Some(filename.to_string()),
-                track_name: Some(name.to_string()),
+                track_name: Some(track_name.to_string()),
             }),
-            [name] => Ok(Message::Upload {
-                filename: Some(name.to_string()),
-                track_name: Some(name.to_string()),
+            [user_name, track_name] => Ok(Message::Upload {
+                user_name: Some(user_name.to_string()),
+                filename: Some(track_name.to_string()),
+                track_name: Some(track_name.to_string()),
             }),
             _ => Err("Invalid save command".to_owned()),
         }
@@ -54,8 +58,9 @@ impl CommandParser {
 
     fn parse_unload(&self, value: &[&str]) -> Result<Message, String> {
         match value {
-            [name] => Ok(Message::Delete {
-                track_name: Some(name.to_string()),
+            [user_name, track_name] => Ok(Message::Delete {
+                user_name: Some(user_name.to_string()),
+                track_name: Some(track_name.to_string()),
             }),
             _ => Err("Invalid unload command".to_owned()),
         }
@@ -63,24 +68,30 @@ impl CommandParser {
 
     fn parse_info(&self, value: &[&str]) -> Result<Message, String> {
         match value {
-            [name] => Ok(Message::Info {
-                track_name: Some(name.to_string()),
+            [user_name, track_name] => Ok(Message::Info {
+                user_name: Some(user_name.to_string()),
+                track_name: Some(track_name.to_string()),
             }),
             _ => Err("Invalid info command".to_owned()),
         }
     }
 
     fn parse_ls(&self, value: &[&str]) -> Result<Message, String> {
-        let _ = value;
-        Ok(Message::Ls)
+        match value {
+            [user_name] => Ok(Message::Ls {
+                user_name: Some(user_name.to_string()),
+            }),
+            _ => Err("".to_string()),
+        }
     }
 
     fn parse_gain(&self, value: &[&str]) -> Result<Message, String> {
         match value {
-            [name, factor] => factor
+            [user_name, track_name, factor] => factor
                 .parse::<f32>()
                 .map(|f| Message::Gain {
-                    track_name: Some(name.to_string()),
+                    user_name: Some(user_name.to_string()),
+                    track_name: Some(track_name.to_string()),
                     gain: f,
                     mode: Some(RunMode::Simple),
                     parallelism: None,
@@ -91,8 +102,9 @@ impl CommandParser {
     }
     fn parse_normalize(&self, value: &[&str]) -> Result<Message, String> {
         match value {
-            [name] => Ok(Message::Normalize {
-                track_name: Some(name.to_string()),
+            [user_name, track_name] => Ok(Message::Normalize {
+                user_name: Some(user_name.to_string()),
+                track_name: Some(track_name.to_string()),
                 mode: Some(RunMode::Simple),
                 parallelism: None,
             }),
@@ -101,10 +113,11 @@ impl CommandParser {
     }
     fn parse_low_pass(&self, value: &[&str]) -> Result<Message, String> {
         match value {
-            [cutoff, name] => cutoff
+            [user_name, cutoff, track_name] => cutoff
                 .parse::<f32>()
                 .map(|f| Message::LowPass {
-                    track_name: Some(name.to_string()),
+                    user_name: Some(user_name.to_string()),
+                    track_name: Some(track_name.to_string()),
                     cutoff: f,
                 })
                 .map_err(|e| e.to_string()),
@@ -113,9 +126,10 @@ impl CommandParser {
     }
     fn parse_high_pass(&self, value: &[&str]) -> Result<Message, String> {
         match value {
-            [cutoff, name] => cutoff
+            [user_name, cutoff, name] => cutoff
                 .parse::<f32>()
                 .map(|f| Message::HighPass {
+                    user_name: Some(user_name.to_string()),
                     track_name: Some(name.to_string()),
                     cutoff: f,
                 })
@@ -126,8 +140,9 @@ impl CommandParser {
 
     fn parse_play(&self, value: &[&str]) -> Result<Message, String> {
         match value {
-            [name] => Ok(Message::Play {
-                name: Some(name.to_string()),
+            [user_name, track_name] => Ok(Message::Play {
+                user_id: Some(user_name.to_string()),
+                track_id: Some(track_name.to_string()),
             }),
             _ => Err("Invalid run command".to_string()),
         }
@@ -135,7 +150,8 @@ impl CommandParser {
 
     fn parse_run_script(&self, value: &[&str]) -> Result<Message, String> {
         match value {
-            [file] => Ok(Message::RunScript {
+            [user_id, file] => Ok(Message::RunScript {
+                user_name: Some(user_id.to_string()),
                 file: file.to_string(),
             }),
             _ => Err("Invalid run command".to_string()),

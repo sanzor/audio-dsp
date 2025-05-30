@@ -4,26 +4,27 @@ use clap::Parser;
 use cli_app::{args::Args, processor::Processor};
 use dsp_domain::dsp_command_result::DspCommandResult;
 
-fn main() -> Result<(), String> {
+#[tokio::main]
+async fn main() -> Result<(), String> {
     let mut processor = Processor::create_processor();
     let init_args = Args::parse();
 
     if let Some(command) = init_args.command {
-        let result = processor.process_command(command)?;
+        let result = processor.process_command(command).await?;
         let json = serde_json::to_string_pretty(&result.output).map_err(|e| e.to_string())?;
         println!("{json}");
         Ok(())
     } else {
-        run_repl(&mut processor)?;
+        run_repl(&mut processor).await?;
         Ok(())
     }
 }
 
-fn run_repl(processor: &mut Processor) -> Result<(), String> {
+async fn run_repl(processor: &mut Processor) -> Result<(), String> {
     loop {
         let user_input = read_line();
 
-        match processor.process(user_input.as_str()) {
+        match processor.process(user_input.as_str()).await {
             Ok(DspCommandResult {
                 should_exit: true,
                 output: _,

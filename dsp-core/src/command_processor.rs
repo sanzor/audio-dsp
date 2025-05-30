@@ -52,7 +52,7 @@ impl CommandProcessor {
     fn get_dispatcher_name(&self, command: &Message) -> &'static str {
         match command {
             Message::Copy { .. } => "copy",
-            Message::Exit => "exit",
+            Message::Exit { .. } => "exit",
             Message::HighPass { .. } => "high_pass",
             Message::LowPass { .. } => "low_pass",
             Message::Delete { .. } => "delete",

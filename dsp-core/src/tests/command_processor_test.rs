@@ -1,6 +1,5 @@
 use dsp_domain::{dsp_command_result::DspCommandResult, message::Message, track::TrackInfo, user};
 use rstest::rstest;
-use serde_json::to_string;
 
 use crate::{
     command_processor::CommandProcessor, command_processor_test::common,
@@ -121,11 +120,16 @@ pub async fn can_run_copy_command() -> Result<(), String> {
 
 #[rstest]
 pub async fn can_run_exit_command() -> Result<(), String> {
-    let name = "my-track";
+    let user_name = "my-track";
+    let track_name = "my-track";
     let mut command_processor =
         CommandProcessor::new(DispatchersProvider::new(), create_shared_state());
-    load_command(&mut command_processor, name).await.unwrap();
-    let exit_command = Message::Exit {};
+    load_command(&mut command_processor, track_name)
+        .await
+        .unwrap();
+    let exit_command = Message::Exit {
+        user_name: Some(user_name.to_string()),
+    };
     let upload_result = command_processor.process_command(exit_command).await;
     assert!(upload_result.is_err());
     let error = upload_result.unwrap_err();

@@ -13,7 +13,10 @@ impl CommandDispatch for PlayDispatcher {
         state: SharedState,
     ) -> Result<dsp_domain::dsp_command_result::DspCommandResult, String> {
         match envelope.command {
-            Message::Play { name: name } => self.internal_dispatch(name, state).await,
+            Message::Play {
+                user_id: user_id,
+                track_id: track_id,
+            } => self.internal_dispatch(user_id, track_id, state).await,
             _ => Err("".to_string()),
         }
     }
@@ -21,7 +24,8 @@ impl CommandDispatch for PlayDispatcher {
 impl PlayDispatcher {
     async fn internal_dispatch(
         &self,
-        name: Option<String>,
+        user_id: Option<String>,
+        track_id: Option<String>,
         state: SharedState,
     ) -> Result<DspCommandResult, String> {
         todo!()

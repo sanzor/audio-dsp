@@ -19,20 +19,20 @@ impl Processor {
         }
     }
 
-    pub fn process(&mut self, input: &str) -> Result<DspCommandResult, String> {
+    pub async fn process(&mut self, input: &str) -> Result<DspCommandResult, String> {
         let command = self.command_parser.parse_command(input)?;
-        if let Message::Exit = command {
+        if let Message::Exit { user_name } = command {
             return Ok(DspCommandResult {
                 output: "exit".to_string(),
                 should_exit: true,
             });
         }
-        let result = self.command_processor.process_command(command);
+        let result = self.command_processor.process_command(command).await;
         result
     }
 
-    pub fn process_command(&mut self, command: Message) -> Result<DspCommandResult, String> {
-        let result = self.command_processor.process_command(command);
+    pub async fn process_command(&mut self, command: Message) -> Result<DspCommandResult, String> {
+        let result = self.command_processor.process_command(command).await;
         result
     }
 }

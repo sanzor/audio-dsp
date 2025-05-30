@@ -78,7 +78,10 @@ impl State {
         &self,
         player_ref: Box<impl AudioPlayerRef>,
     ) -> Result<(), String> {
-        let v=self.audio_player_registry.upsert(&player_ref.id(), player_ref).await;
+        let v = self
+            .audio_player_registry
+            .upsert(&player_ref.id(), player_ref)
+            .await;
         v
     }
 

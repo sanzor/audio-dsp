@@ -33,9 +33,12 @@ pub enum Message {
         copy_name: Option<String>,
     },
 
-    Exit,
+    Exit {
+        user_name: Option<String>,
+    },
     Play {
-        name: Option<String>,
+        user_id: Option<String>,
+        track_id: Option<String>,
     },
     RunScript {
         user_name: Option<String>,
@@ -68,10 +71,12 @@ pub enum Message {
         parallelism: Option<u8>,
     },
     Stop {
-        id: Option<String>,
+        user_id: Option<String>,
+        track_id: Option<String>,
     },
     Pause {
-        id: Option<String>,
+        user_id: Option<String>,
+        track_id: Option<String>,
     },
 }
 

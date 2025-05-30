@@ -13,7 +13,7 @@ impl CommandDispatch for StopDispatcher {
         state: Arc<State>,
     ) -> Result<dsp_domain::dsp_command_result::DspCommandResult, String> {
         match envelope.command {
-            Message::Stop { id } => self.internal_dispatch(id, state),
+            Message::Stop { user_id, track_id } => self.internal_dispatch(user_id, track_id, state),
             _ => Err("Invalid stop message".to_string()),
         }
     }
@@ -21,7 +21,8 @@ impl CommandDispatch for StopDispatcher {
 impl StopDispatcher {
     fn internal_dispatch(
         &self,
-        id: Option<String>,
+        user_id: Option<String>,
+        track_id: Option<String>,
         state: Arc<State>,
     ) -> Result<DspCommandResult, String> {
         Err("is".into())
