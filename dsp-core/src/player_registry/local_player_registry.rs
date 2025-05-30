@@ -11,10 +11,10 @@ pub struct LocalAudioPlayerRegistry {
 
 #[async_trait]
 impl AudioPlayerRegistry for LocalAudioPlayerRegistry {
-    async fn upsert(&self, id: String, player: Box<dyn AudioPlayerRef>) -> Result<(), String> {
+    async fn upsert(&self, id: &str, player: Box<dyn AudioPlayerRef>) -> Result<(), String> {
         todo!()
     }
-    async fn get_by_id(&self, id: String) -> Option<Box<dyn AudioPlayerRef>> {
+    async fn get_by_id(&self, id:  &str) -> Result<Box<dyn AudioPlayerRef>,String> {
         todo!()
     }
 
@@ -22,7 +22,7 @@ impl AudioPlayerRegistry for LocalAudioPlayerRegistry {
         todo!()
     }
 
-    async fn remove(&self, id: String) -> Option<Box<dyn AudioPlayerRef>> {
+    async fn remove(&self, id:  &str) -> Result<Box<dyn AudioPlayerRef>,String> {
         todo!()
     }
 }
