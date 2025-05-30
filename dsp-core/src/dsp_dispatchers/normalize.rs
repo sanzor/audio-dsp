@@ -14,10 +14,11 @@ impl CommandDispatch for NormalizeDispatcher {
     ) -> Result<DspCommandResult, String> {
         match envelope.command {
             Message::Normalize {
+                user_name,
                 track_name,
                 mode: _,
                 parallelism: _,
-            } => self.internal_dispatch(name, state).await,
+            } => self.internal_dispatch(user_name, track_name, state).await,
             _ => Err("err".to_string()),
         }
     }
@@ -26,17 +27,16 @@ impl CommandDispatch for NormalizeDispatcher {
 impl NormalizeDispatcher {
     async fn internal_dispatch(
         &self,
-        name: Option<String>,
+        user_name: Option<String>,
+        track_name: Option<String>,
         state: SharedState,
     ) -> Result<DspCommandResult, String> {
-        let name = name.ok_or("Invalid name for track to perform normalize on")?;
-        let track_ref = state
-            .get_track_ref_mut(&name)
-            .await
-            .ok_or_else(|| "Could not find track ref")?;
+        let user_name = user_name.ok_or("Invalid name for user to perform normalize on")?;
+        let track_name = track_name.ok_or("Invalid name for track to perform normalize on")?;
+        let track_ref = state.get_track_ref_mut(&user_name, &track_name).await?;
         let _ = track_ref.inner.data.normalize_mut();
         Ok(DspCommandResult {
-            output: format!("Normalize track {} succesful", name),
+            output: format!("Normalize track {} succesful", track_name),
             should_exit: false,
         })
     }

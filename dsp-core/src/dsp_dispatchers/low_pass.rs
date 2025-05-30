@@ -13,7 +13,14 @@ impl CommandDispatch for LowPassDispatcher {
         state: SharedState,
     ) -> Result<DspCommandResult, String> {
         match envelope.command {
-            Message::LowPass { track_name, cutoff } => self.internal_dispatch(name, cutoff, state).await,
+            Message::LowPass {
+                user_name,
+                track_name,
+                cutoff,
+            } => {
+                self.internal_dispatch(user_name, track_name, cutoff, state)
+                    .await
+            }
             _ => Err("err".to_string()),
         }
     }
@@ -22,18 +29,17 @@ impl CommandDispatch for LowPassDispatcher {
 impl LowPassDispatcher {
     async fn internal_dispatch(
         &self,
-        name: Option<String>,
+        user_name: Option<String>,
+        track_name: Option<String>,
         cutoff: f32,
         state: SharedState,
     ) -> Result<DspCommandResult, String> {
-        let name = name.ok_or("Invalid name for track to low_pass on")?;
-        let track_ref = state
-            .get_track_ref_mut(&name)
-            .await
-            .ok_or_else(|| "Could not find track ref")?;
+        let user_name = user_name.ok_or("Invalid name for user to high_pass on")?;
+        let track_name = track_name.ok_or("Invalid name for track to high_pass on")?;
+        let track_ref = state.get_track_ref_mut(&user_name, &track_name).await?;
         let _ = track_ref.inner.data.low_pass_mut(cutoff);
         Ok(DspCommandResult {
-            output: format!("Normalize track {} succesful", name),
+            output: format!("Normalize track {} succesful", track_name),
             should_exit: false,
         })
     }

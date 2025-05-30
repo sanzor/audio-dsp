@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
-use dsp_domain::{
-    track::{Track, TrackInfo, TrackRef, TrackRefMut},
-};
+use dsp_domain::track::{Track, TrackInfo, TrackRef, TrackRefMut};
 use player::player_ref::AudioPlayerRef;
 
 use crate::{
-    player_registry::{local_player_registry::LocalAudioPlayerRegistry, player_registry::AudioPlayerRegistry},
+    player_registry::{
+        local_player_registry::LocalAudioPlayerRegistry, player_registry::AudioPlayerRegistry,
+    },
     user_registry::{user_registry::UserRegistry, LocalUserRegistry},
 };
 
@@ -38,53 +38,51 @@ impl State {
         info
     }
 
-    pub async fn get_track_ref(&self, user_name: &str,track_name:&str) -> Result<TrackRef,String> {
+    pub async fn get_track_ref(
+        &self,
+        user_name: &str,
+        track_name: &str,
+    ) -> Result<TrackRef, String> {
         self.user_registry
             .get_track_ref(user_name, track_name)
             .await
     }
 
-    pub async fn get_track_ref_mut(&self, user_name: &str,track_name:&str) -> Result<TrackRefMut,String> {
-        self.user_registry
-             .get_track_ref_mut(user_name, track_name)
-             .await
-            
-    }
-
-    pub async fn get_track_copy(&self, user_name: &str,track_name:&str) -> Result<Track,String> {
-        self.user_registry.get_track_copy(user_name,track_name).await
-    }
-    pub async fn tracks(&self,user_name:&str) -> Vec<TrackInfo> {
-        self.user_registry
-            .get_tracks_for_user(user_name).await
-            
-    }
-
-    pub async fn delete_track(&self, name: &str) -> Result<(), String> {
-        let result = match self.user_registry.remove(name).await {
-            Some(_) => Ok(()),
-            None => Err("Could not find key".to_string()),
-        };
-        return result;
-    }
-    pub async fn upsert_track(&self,user_name:&str,track: Track) -> Result<(), String> {
-        
-        self.user_registry.add_track(user_name,track).await
-    }
-
-    pub async fn upsert_player_ref(
+    pub async fn get_track_ref_mut(
         &self,
-        player_ref: Box<impl AudioPlayerRef + 'static>,
-    ) -> Result<(), String> {
-        self.audio_player_registry
-            .insert(player_ref.id().to_string(), player_ref);
-        Ok(())
+        user_name: &str,
+        track_name: &str,
+    ) -> Result<TrackRefMut, String> {
+        self.user_registry
+            .get_track_ref_mut(user_name, track_name)
+            .await
     }
 
-    pub fn get_player_ref(&self, id: String) -> Result<(), String> {
-        self.audio_player_registry
-            .get(id.as_ref())
-            .ok_or_else(|| "Could not find id");
-        Ok(())
+    pub async fn get_track_copy(&self, user_name: &str, track_name: &str) -> Result<Track, String> {
+        self.user_registry
+            .get_track_copy(user_name, track_name)
+            .await
+    }
+    pub async fn get_tracks_for_user(&self, user_name: &str) -> Vec<TrackInfo> {
+        self.user_registry.get_tracks_for_user(user_name).await
+    }
+
+    pub async fn delete_track(&self, user_id: &str, track_name: &str) -> Result<(), String> {
+        self.user_registry.delete_track(user_id, track_name).await
+    }
+    pub async fn upsert_track(&self, user_name: &str, track: Track) -> Result<(), String> {
+        self.user_registry.add_track(user_name, track).await
+    }
+
+    pub async fn upsert_audio_player_ref(
+        &self,
+        player_ref: Box<impl AudioPlayerRef>,
+    ) -> Result<(), String> {
+        let v=self.audio_player_registry.upsert(&player_ref.id(), player_ref).await;
+        v
+    }
+
+    pub async fn get_audio_player_ref(&self, id: &str) -> Result<Box<dyn AudioPlayerRef>, String> {
+        self.audio_player_registry.get_by_id(&(id.as_ref())).await
     }
 }

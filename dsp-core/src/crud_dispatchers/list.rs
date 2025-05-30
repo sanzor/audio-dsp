@@ -16,7 +16,7 @@ impl CommandDispatch for ListDispatcher {
         state: SharedState,
     ) -> Result<DspCommandResult, String> {
         let result = match envelope.command {
-            Message::Ls => self.internal_dispatch(&state).await,
+            Message::Ls { user_name } => self.internal_dispatch(user_name, &state).await,
             _ => Err("".to_owned()),
         };
         return result;
@@ -24,8 +24,13 @@ impl CommandDispatch for ListDispatcher {
 }
 
 impl ListDispatcher {
-    async fn internal_dispatch(&self, state: &State) -> Result<DspCommandResult, String> {
-        let tracks = state.tracks().await;
+    async fn internal_dispatch(
+        &self,
+        user_name: Option<String>,
+        state: &State,
+    ) -> Result<DspCommandResult, String> {
+        let user_name = user_name.ok_or_else(|| "Invalid user_name")?;
+        let tracks = state.get_tracks_for_user(&user_name).await;
         Ok(DspCommandResult {
             output: serde_json::to_string_pretty(&tracks).unwrap(),
             should_exit: false,

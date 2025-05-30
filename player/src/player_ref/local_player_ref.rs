@@ -18,7 +18,7 @@ impl AudioPlayerRef for LocalPlayerRef {
     //         .map_err(|_| "Disconnected".to_string())
     // }
 
-    async fn id(&self) -> String {
+    fn id(&self) -> String {
         self.id.clone()
     }
 

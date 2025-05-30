@@ -14,11 +14,7 @@ pub struct LocalUserRegistry {
 
 #[async_trait]
 impl UserRegistry for LocalUserRegistry {
-    async fn upsert(
-        &self,
-        id: &str,
-        player: dsp_domain::domain_user::DomainUser,
-    ) -> Result<(), String> {
+    async fn upsert_user(&self, user: dsp_domain::domain_user::DomainUser) -> Result<(), String> {
         todo!()
     }
 
@@ -30,7 +26,7 @@ impl UserRegistry for LocalUserRegistry {
         todo!()
     }
 
-    async fn remove(&self, id: &str) -> Option<dsp_domain::domain_user::DomainUser> {
+    async fn remove_user(&self, id: &str) -> Option<dsp_domain::domain_user::DomainUser> {
         todo!()
     }
 
@@ -63,7 +59,7 @@ impl UserRegistry for LocalUserRegistry {
         todo!()
     }
 
-     async fn get_track_copy(&self, user_id: &str, track_name: &str) -> Result<Track, String> {
+    async fn get_track_copy(&self, user_id: &str, track_name: &str) -> Result<Track, String> {
         todo!()
     }
 }

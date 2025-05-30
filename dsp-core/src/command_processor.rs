@@ -58,7 +58,7 @@ impl CommandProcessor {
             Message::Delete { .. } => "delete",
             Message::Info { .. } => "info",
             Message::Load { .. } => "load",
-            Message::Ls => "ls",
+            Message::Ls { .. } => "ls",
             Message::Gain { .. } => "gain",
             Message::Normalize { .. } => "normalize",
             Message::Upload { .. } => "upload",

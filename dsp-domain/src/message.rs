@@ -20,7 +20,9 @@ pub enum Message {
         user_name: Option<String>,
         track_name: Option<String>,
     },
-    Ls,
+    Ls {
+        user_name: Option<String>,
+    },
     Info {
         user_name: Option<String>,
         track_name: Option<String>,
@@ -36,7 +38,7 @@ pub enum Message {
         name: Option<String>,
     },
     RunScript {
-         user_name: Option<String>,
+        user_name: Option<String>,
         #[arg(help = "Path to batch JSON file")]
         file: String,
     },

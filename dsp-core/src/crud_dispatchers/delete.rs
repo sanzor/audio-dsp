@@ -1,6 +1,8 @@
 use crate::{command_dispatch::CommandDispatch, state::SharedState};
 use async_trait::async_trait;
-use dsp_domain::{dsp_command_result::DspCommandResult, envelope::Envelope, message::Message};
+use dsp_domain::{
+    dsp_command_result::DspCommandResult, envelope::Envelope, message::Message, user,
+};
 pub(crate) struct DeleteDispatcher {}
 
 #[async_trait]
@@ -11,7 +13,10 @@ impl CommandDispatch for DeleteDispatcher {
         state: SharedState,
     ) -> Result<DspCommandResult, String> {
         match envelope.command {
-            Message::Delete { track_name } => self.internal_dispatch(name, state).await,
+            Message::Delete {
+                user_name,
+                track_name,
+            } => self.internal_dispatch(user_name, track_name, state).await,
             _ => Err("".to_string()),
         }
     }
@@ -19,11 +24,13 @@ impl CommandDispatch for DeleteDispatcher {
 impl DeleteDispatcher {
     async fn internal_dispatch(
         &self,
-        name: Option<String>,
+        user_name: Option<String>,
+        track_name: Option<String>,
         state: SharedState,
     ) -> Result<DspCommandResult, String> {
-        let name = name.ok_or_else(|| "Invalid name for deleted track".to_string())?;
-        let _ = state.delete_track(&name).await?;
+        let user_name = user_name.ok_or_else(|| "Invalid name for deleted track".to_string())?;
+        let name = track_name.ok_or_else(|| "Invalid name for deleted track".to_string())?;
+        let _ = state.delete_track(&user_name, &name).await?;
         Ok(DspCommandResult {
             output: format!("Delete track {} succesful", &name),
             should_exit: false,

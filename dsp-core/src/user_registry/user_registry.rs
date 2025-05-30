@@ -6,10 +6,10 @@ use dsp_domain::{
 
 #[async_trait]
 pub trait UserRegistry: Send + Sync {
-    async fn upsert(&self, id: &str, player: DomainUser) -> Result<(), String>;
+    async fn upsert_user(&self, user: DomainUser) -> Result<(), String>;
     async fn get_user_by_id(&self, id: &str) -> Option<DomainUser>;
     async fn get_all_users(&self) -> Vec<DomainUser>;
-    async fn remove(&self, id: &str) -> Option<DomainUser>;
+    async fn remove_user(&self, id: &str) -> Option<DomainUser>;
 
     async fn add_track(&self, user_id: &str, track: Track) -> Result<(), String>;
     async fn get_track_copy(&self, user_id: &str, track_name: &str) -> Result<Track, String>;

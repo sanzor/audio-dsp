@@ -12,7 +12,10 @@ use super::Player;
 pub fn spawn_player(
     track: Track,
     sink: impl AudioSink + Send + Sync + 'static,
-    f: impl Fn() -> (Box<dyn AudioPlayerRef + Send>, Box<dyn CommandReceiver + Send>),
+    f: impl Fn() -> (
+        Box<dyn AudioPlayerRef + Send>,
+        Box<dyn CommandReceiver + Send>,
+    ),
 ) -> Box<dyn AudioPlayerRef> {
     let (tx, rx) = f();
 
