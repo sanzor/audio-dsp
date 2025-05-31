@@ -1,4 +1,4 @@
-use dsp_domain::{dsp_command_result::DspCommandResult, message::Message, track::TrackInfo, user};
+use dsp_domain::{message_result::MessageResult, message::Message, track::TrackInfo, user};
 use rstest::rstest;
 
 use crate::{
@@ -147,7 +147,7 @@ pub async fn can_run_exit_command() -> Result<(), String> {
 async fn load_command(
     processor: &mut CommandProcessor,
     name: &str,
-) -> Result<DspCommandResult, String> {
+) -> Result<MessageResult, String> {
     let user_name = "my-my_user";
     let path = common::test_data("dragons.wav");
     let path_str = path.to_str().ok_or_else(|| "Invalid file".to_string())?;

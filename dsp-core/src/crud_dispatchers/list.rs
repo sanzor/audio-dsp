@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use dsp_domain::{dsp_command_result::DspCommandResult, envelope::Envelope, message::Message};
+use dsp_domain::{message_result::MessageResult, envelope::Envelope, message::Message};
 
 use crate::{
     command_dispatch::CommandDispatch,
@@ -14,7 +14,7 @@ impl CommandDispatch for ListDispatcher {
         &self,
         envelope: Envelope,
         state: SharedState,
-    ) -> Result<DspCommandResult, String> {
+    ) -> Result<MessageResult, String> {
         let result = match envelope.command {
             Message::Ls { user_name } => self.internal_dispatch(user_name, &state).await,
             _ => Err("".to_owned()),
@@ -28,10 +28,10 @@ impl ListDispatcher {
         &self,
         user_name: Option<String>,
         state: &State,
-    ) -> Result<DspCommandResult, String> {
+    ) -> Result<MessageResult, String> {
         let user_name = user_name.ok_or_else(|| "Invalid user_name")?;
         let tracks = state.get_tracks_for_user(&user_name).await;
-        Ok(DspCommandResult {
+        Ok(MessageResult {
             output: serde_json::to_string_pretty(&tracks).unwrap(),
             should_exit: false,
         })

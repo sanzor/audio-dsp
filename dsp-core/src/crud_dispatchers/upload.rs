@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use audiolib::audio_parse;
-use dsp_domain::{dsp_command_result::DspCommandResult, envelope::Envelope, message::Message};
+use dsp_domain::{message_result::MessageResult, envelope::Envelope, message::Message};
 
 use std::{path::PathBuf, str::FromStr};
 
@@ -13,7 +13,7 @@ impl CommandDispatch for UploadDispatcher {
         &self,
         envelope: Envelope,
         state: SharedState,
-    ) -> Result<DspCommandResult, String> {
+    ) -> Result<MessageResult, String> {
         match envelope.command {
             Message::Upload {
                 user_name,
@@ -35,14 +35,14 @@ impl UploadDispatcher {
         track_name: Option<String>,
         filename: Option<String>,
         state: SharedState,
-    ) -> Result<DspCommandResult, String> {
+    ) -> Result<MessageResult, String> {
         let track_name = track_name.ok_or_else(|| "Invalid name to upload track")?;
         let user_name = user_name.ok_or_else(|| "Invalid name to upload track")?;
         let track_ref = state.get_track_ref(&user_name, &track_name).await?;
         let file_path_str = filename.unwrap_or_else(|| track_name.clone());
         let path = PathBuf::from_str(&file_path_str).map_err(|err| err.to_string())?;
         let _ = audio_parse::write_wav_file(&track_ref.inner.data, &path)?;
-        Ok(DspCommandResult {
+        Ok(MessageResult {
             output: format!(
                 "Upload file successfully: {}",
                 path.to_str().ok_or("invalid path")?.to_string()

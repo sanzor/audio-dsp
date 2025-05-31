@@ -1,8 +1,8 @@
 use std::sync::mpsc::Sender;
 
-use crate::{dsp_command_result::DspCommandResult, message::Message};
+use crate::{message_result::MessageResult, message::Message};
 
-pub struct Caller(Sender<DspCommandResult>);
+pub struct Caller(Sender<MessageResult>);
 pub struct Envelope {
     pub command: Message,
     pub from: Option<Caller>,

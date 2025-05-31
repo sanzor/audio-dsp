@@ -1,5 +1,5 @@
 use dsp_core::{api::create_command_processor, command_processor::CommandProcessor};
-use dsp_domain::{dsp_command_result::DspCommandResult, message::Message};
+use dsp_domain::{message_result::MessageResult, message::Message};
 
 use crate::command_parser::*;
 
@@ -19,10 +19,10 @@ impl Processor {
         }
     }
 
-    pub async fn process(&mut self, input: &str) -> Result<DspCommandResult, String> {
+    pub async fn process(&mut self, input: &str) -> Result<MessageResult, String> {
         let command = self.command_parser.parse_command(input)?;
         if let Message::Exit { user_name } = command {
-            return Ok(DspCommandResult {
+            return Ok(MessageResult {
                 output: "exit".to_string(),
                 should_exit: true,
             });
@@ -31,7 +31,7 @@ impl Processor {
         result
     }
 
-    pub async fn process_command(&mut self, command: Message) -> Result<DspCommandResult, String> {
+    pub async fn process_command(&mut self, command: Message) -> Result<MessageResult, String> {
         let result = self.command_processor.process_command(command).await;
         result
     }

@@ -1,6 +1,6 @@
 use crate::{command_dispatch::CommandDispatch, state::SharedState};
 use async_trait::async_trait;
-use dsp_domain::{dsp_command_result::DspCommandResult, message::Message};
+use dsp_domain::{message_result::MessageResult, message::Message};
 pub(crate) struct PauseDispatcher {}
 
 #[async_trait]
@@ -9,7 +9,7 @@ impl CommandDispatch for PauseDispatcher {
         &self,
         envelope: dsp_domain::envelope::Envelope,
         state: crate::state::SharedState,
-    ) -> Result<dsp_domain::dsp_command_result::DspCommandResult, String> {
+    ) -> Result<dsp_domain::message_result::MessageResult, String> {
         match envelope.command {
             Message::Pause { user_id, track_id } => {
                 self.internal_dispatch(user_id, track_id, state).await
@@ -24,7 +24,7 @@ impl PauseDispatcher {
         user_id: Option<String>,
         track_id: Option<String>,
         state: SharedState,
-    ) -> Result<DspCommandResult, String> {
+    ) -> Result<MessageResult, String> {
         let name = track_id.ok_or_else(|| "invalid name".to_string())?;
         Err("".into())
     }

@@ -2,7 +2,7 @@ use std::io::Write;
 
 use clap::Parser;
 use cli_app::{args::Args, processor::Processor};
-use dsp_domain::dsp_command_result::DspCommandResult;
+use dsp_domain::message_result::MessageResult;
 
 #[tokio::main]
 async fn main() -> Result<(), String> {
@@ -25,7 +25,7 @@ async fn run_repl(processor: &mut Processor) -> Result<(), String> {
         let user_input = read_line();
 
         match processor.process(user_input.as_str()).await {
-            Ok(DspCommandResult {
+            Ok(MessageResult {
                 should_exit: true,
                 output: _,
             }) => break,

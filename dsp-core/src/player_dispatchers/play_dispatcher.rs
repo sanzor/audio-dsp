@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use dsp_domain::{dsp_command_result::DspCommandResult, envelope::Envelope, message::Message};
+use dsp_domain::{message_result::MessageResult, envelope::Envelope, message::Message};
 
 use crate::{command_dispatch::CommandDispatch, state::SharedState};
 
@@ -11,7 +11,7 @@ impl CommandDispatch for PlayDispatcher {
         &self,
         envelope: Envelope,
         state: SharedState,
-    ) -> Result<dsp_domain::dsp_command_result::DspCommandResult, String> {
+    ) -> Result<dsp_domain::message_result::MessageResult, String> {
         match envelope.command {
             Message::Play {
                 user_id: user_id,
@@ -27,7 +27,7 @@ impl PlayDispatcher {
         user_id: Option<String>,
         track_id: Option<String>,
         state: SharedState,
-    ) -> Result<DspCommandResult, String> {
+    ) -> Result<MessageResult, String> {
         todo!()
     }
 }

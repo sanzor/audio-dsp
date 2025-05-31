@@ -1,4 +1,4 @@
-use dsp_domain::{dsp_command_result::DspCommandResult, envelope::Envelope, message::Message};
+use dsp_domain::{message_result::MessageResult, envelope::Envelope, message::Message};
 
 use crate::{
     command_dispatch::CommandDispatch,
@@ -31,23 +31,23 @@ impl CommandProcessor {
         }
     }
 
-    pub async fn process_command(&mut self, input: Message) -> Result<DspCommandResult, String> {
-        let dispatcher_name = self.get_dispatcher_name(&input);
-        let dispatcher = self
-            .dispatch_provider
-            .get_dispatcher_by_name(dispatcher_name)
-            .ok_or_else(|| "Could not find dispatcher".to_string())?;
-        let result = dispatcher
-            .dispatch(
-                Envelope {
-                    command: input,
-                    from: None,
-                },
-                self.state.clone(),
-            )
-            .await;
-        result
-    }
+        pub async fn process_command(&mut self, input: Message) -> Result<MessageResult, String> {
+            let dispatcher_name = self.get_dispatcher_name(&input);
+            let dispatcher = self
+                .dispatch_provider
+                .get_dispatcher_by_name(dispatcher_name)
+                .ok_or_else(|| "Could not find dispatcher".to_string())?;
+            let result = dispatcher
+                .dispatch(
+                    Envelope {
+                        command: input,
+                        from: None,
+                    },
+                    self.state.clone(),
+                )
+                .await;
+            result
+        }
 
     fn get_dispatcher_name(&self, command: &Message) -> &'static str {
         match command {

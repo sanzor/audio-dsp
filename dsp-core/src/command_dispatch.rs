@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use dsp_domain::{dsp_command_result::DspCommandResult, envelope::Envelope};
+use dsp_domain::{message_result::MessageResult, envelope::Envelope};
 
 use crate::state::{SharedState, State};
 
@@ -9,5 +9,5 @@ pub(crate) trait CommandDispatch {
         &self,
         envelope: Envelope,
         state: SharedState,
-    ) -> Result<DspCommandResult, String>;
+    ) -> Result<MessageResult, String>;
 }

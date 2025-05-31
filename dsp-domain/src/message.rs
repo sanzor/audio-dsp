@@ -3,7 +3,7 @@ use std::fmt::Display;
 use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 
-use crate::dsp_command_result::DspCommandResult;
+use crate::message_result::MessageResult;
 #[derive(clap::Subcommand, Debug, Serialize, Deserialize)]
 pub enum Message {
     Load {
@@ -80,7 +80,7 @@ pub enum Message {
     },
 }
 
-impl Display for DspCommandResult {
+impl Display for MessageResult {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}{}", 1, 2)
     }
