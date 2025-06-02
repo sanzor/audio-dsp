@@ -1,4 +1,5 @@
-use actix::{Actor, AsyncContext, Context};
+use actix::{Actor, Context, Handler};
+use dsp_domain::dsp_message::DspMessage;
 
 use crate::dispatcher_enum::DispatcherEnum;
 
@@ -10,18 +11,18 @@ struct AudioPlayerActor{
 
 impl Actor for AudioPlayerActor{
     type Context=Context<Self>;
-    fn started(&mut self,_ctx:&mut Self::Context){
-        let v=self.state
-    }
-    
     fn stopped(&mut self, ctx: &mut Self::Context) {
         
     }
-    fn handle(&mut self,msg:
-    
-    )
 
-    
+}
+
+impl Handler<DspMessage> for AudioPlayerActor{
+    type Result=ResponseFuture
+
+    fn handle(&mut self, msg: DspMessage, ctx: &mut Self::Context) -> Self::Result {
+        todo!()
+    }
 }
 
 fn start(){

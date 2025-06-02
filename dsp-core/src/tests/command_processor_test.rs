@@ -1,4 +1,4 @@
-use dsp_domain::{message_result::MessageResult, message::Message, track::TrackInfo, user};
+use dsp_domain::{dsp_message_result::DspMessageResult, dsp_message::DspMessage, track::TrackInfo, user};
 use rstest::rstest;
 
 use crate::{
@@ -13,7 +13,7 @@ pub async fn can_run_load_command() -> Result<(), String> {
     let path = common::test_data("dragons.wav");
     let path_str = path.to_str().ok_or_else(|| "Invalid file".to_string())?;
     let mut processor = CommandProcessor::new(DispatchersProvider::new(), create_shared_state());
-    let command = Message::Load {
+    let command = DspMessage::Load {
         user_name: Some(user_name.to_string()),
         track_name: Some("dragons.wav".to_string()),
         filename: Some(path_str.to_string()),
@@ -30,7 +30,7 @@ pub async fn can_run_info_command() -> Result<(), String> {
     let track_name = "my-track";
     let mut processor = CommandProcessor::new(DispatchersProvider::new(), create_shared_state());
     load_command(&mut processor, track_name).await?;
-    let info_command = Message::Info {
+    let info_command = DspMessage::Info {
         user_name: Some(user_name.to_string()),
         track_name: Some(track_name.to_string()),
     };
@@ -47,7 +47,7 @@ pub async fn can_run_list_command() -> Result<(), String> {
 
     let mut processor = CommandProcessor::new(DispatchersProvider::new(), create_shared_state());
     load_command(&mut processor, name).await?;
-    let info_command = Message::Ls {
+    let info_command = DspMessage::Ls {
         user_name: Some(name.to_string()),
     };
     let ls_result = processor.process_command(info_command).await?.output;
@@ -65,7 +65,7 @@ pub async fn can_run_upload_command() -> Result<(), String> {
     let filename = "dragons2.wav";
     let mut processor = CommandProcessor::new(DispatchersProvider::new(), create_shared_state());
     let c = load_command(&mut processor, track_name).await?;
-    let upload_command = Message::Upload {
+    let upload_command = DspMessage::Upload {
         user_name: Some(user_name.to_string()),
         track_name: Some(track_name.to_string()),
         filename: Some(filename.to_string()),
@@ -86,7 +86,7 @@ pub async fn can_run_delete_command() -> Result<(), String> {
     let track_list_before_delete = get_track_list(&mut processor, &user_name).await?;
     assert!(track_list_before_delete.len() == 1);
 
-    let delete_command = Message::Delete {
+    let delete_command = DspMessage::Delete {
         user_name: Some(user_name.to_string()),
         track_name: Some(name.to_string()),
     };
@@ -109,7 +109,7 @@ pub async fn can_run_copy_command() -> Result<(), String> {
     load_command(&mut processor, name).await?;
 
     let copy_result_string = &processor
-        .process_command(Message::Copy {
+        .process_command(DspMessage::Copy {
             user_name: Some(user_name.to_string()),
             track_name: Some(name.to_string()),
             copy_name: Some(copy_name.to_string()),
@@ -134,7 +134,7 @@ pub async fn can_run_exit_command() -> Result<(), String> {
     load_command(&mut command_processor, track_name)
         .await
         .unwrap();
-    let exit_command = Message::Exit {
+    let exit_command = DspMessage::Exit {
         user_name: Some(user_name.to_string()),
     };
     let upload_result = command_processor.process_command(exit_command).await;
@@ -147,11 +147,11 @@ pub async fn can_run_exit_command() -> Result<(), String> {
 async fn load_command(
     processor: &mut CommandProcessor,
     name: &str,
-) -> Result<MessageResult, String> {
+) -> Result<DspMessageResult, String> {
     let user_name = "my-my_user";
     let path = common::test_data("dragons.wav");
     let path_str = path.to_str().ok_or_else(|| "Invalid file".to_string())?;
-    let command = Message::Load {
+    let command = DspMessage::Load {
         user_name: Some(user_name.to_string()),
         track_name: Some(name.to_string()),
         filename: Some(path_str.to_string()),
@@ -166,7 +166,7 @@ async fn get_track_list(
 ) -> Result<Vec<TrackInfo>, String> {
     serde_json::from_str(
         &processor
-            .process_command(Message::Ls {
+            .process_command(DspMessage::Ls {
                 user_name: Some(user_name.to_string()),
             })
             .await?

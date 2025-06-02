@@ -1,4 +1,4 @@
-use dsp_domain::{message_result::MessageResult, envelope::Envelope, message::Message};
+use dsp_domain::{dsp_message_result::DspMessageResult, envelope::Envelope, dsp_message::DspMessage};
 
 use crate::{
     command_dispatch::CommandDispatch,
@@ -31,7 +31,7 @@ impl CommandProcessor {
         }
     }
 
-        pub async fn process_command(&mut self, input: Message) -> Result<MessageResult, String> {
+        pub async fn process_command(&mut self, input: DspMessage) -> Result<DspMessageResult, String> {
             let dispatcher_name = self.get_dispatcher_name(&input);
             let dispatcher = self
                 .dispatch_provider
@@ -49,23 +49,23 @@ impl CommandProcessor {
             result
         }
 
-    fn get_dispatcher_name(&self, command: &Message) -> &'static str {
+    fn get_dispatcher_name(&self, command: &DspMessage) -> &'static str {
         match command {
-            Message::Copy { .. } => "copy",
-            Message::Exit { .. } => "exit",
-            Message::HighPass { .. } => "high_pass",
-            Message::LowPass { .. } => "low_pass",
-            Message::Delete { .. } => "delete",
-            Message::Info { .. } => "info",
-            Message::Load { .. } => "load",
-            Message::Ls { .. } => "ls",
-            Message::Gain { .. } => "gain",
-            Message::Normalize { .. } => "normalize",
-            Message::Upload { .. } => "upload",
-            Message::Play { .. } => "play",
-            Message::Stop { .. } => "stop",
-            Message::Pause { .. } => "pause",
-            Message::RunScript { .. } => "run-script",
+            DspMessage::Copy { .. } => "copy",
+            DspMessage::Exit { .. } => "exit",
+            DspMessage::HighPass { .. } => "high_pass",
+            DspMessage::LowPass { .. } => "low_pass",
+            DspMessage::Delete { .. } => "delete",
+            DspMessage::Info { .. } => "info",
+            DspMessage::Load { .. } => "load",
+            DspMessage::Ls { .. } => "ls",
+            DspMessage::Gain { .. } => "gain",
+            DspMessage::Normalize { .. } => "normalize",
+            DspMessage::Upload { .. } => "upload",
+            DspMessage::Play { .. } => "play",
+            DspMessage::Stop { .. } => "stop",
+            DspMessage::Pause { .. } => "pause",
+            DspMessage::RunScript { .. } => "run-script",
         }
     }
 }

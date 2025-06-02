@@ -1,11 +1,13 @@
 use std::fmt::Display;
 
+use actix::Message;
 use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 
-use crate::message_result::MessageResult;
-#[derive(clap::Subcommand, Debug, Serialize, Deserialize)]
-pub enum Message {
+use crate::dsp_message_result::DspMessageResult;
+#[derive(clap::Subcommand, Debug, Serialize, Deserialize,Message)]
+#[rtype(result="DspMessageResult")]
+pub enum DspMessage {
     Load {
         user_name: Option<String>,
         track_name: Option<String>,
@@ -80,7 +82,7 @@ pub enum Message {
     },
 }
 
-impl Display for MessageResult {
+impl Display for DspMessageResult {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}{}", 1, 2)
     }

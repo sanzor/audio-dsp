@@ -5,7 +5,7 @@ use dsp_domain::track::Track;
 
 pub struct UserActorState{
     pub tracks:HashMap<String,Track>,
-    pub players:HashMap<String,Addr<AudioPlayerActorState>>
+    pub players:HashMap<String,Addr<UserActorState>>
 }
 
 impl UserActorState{

@@ -2,9 +2,9 @@ use std::path::PathBuf;
 
 use async_trait::async_trait;
 use dsp_domain::{
-    message_result::MessageResult,
+    dsp_message_result::DspMessageResult,
     envelope::Envelope,
-    message::Message,
+    dsp_message::DspMessage,
     track::{Track, TrackInfo},
 };
 
@@ -17,9 +17,9 @@ impl CommandDispatch for LoadDispatcher {
         &self,
         envelope: Envelope,
         state: SharedState,
-    ) -> Result<MessageResult, String> {
+    ) -> Result<DspMessageResult, String> {
         match envelope.command {
-            Message::Load {
+            DspMessage::Load {
                 user_name,
                 track_name,
                 filename,
@@ -39,7 +39,7 @@ impl LoadDispatcher {
         track_name: Option<String>,
         filename: Option<String>,
         state: SharedState,
-    ) -> Result<MessageResult, String> {
+    ) -> Result<DspMessageResult, String> {
         let filename = filename.ok_or_else(|| "Invalid file name".to_string())?;
         let filepath = PathBuf::from(&filename);
         let track_name = track_name.unwrap_or_else(|| filename.clone());
@@ -55,7 +55,7 @@ impl LoadDispatcher {
 
         state.upsert_track(&user_name, new_track).await?;
 
-        Ok(MessageResult {
+        Ok(DspMessageResult {
             output: format!(
                 "Loaded track '{}' from '{}'",
                 track_name,

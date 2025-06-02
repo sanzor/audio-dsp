@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use dsp_domain::{message_result::MessageResult, envelope::Envelope};
+use dsp_domain::{dsp_message_result::DspMessageResult, envelope::Envelope};
 
 use crate::command_dispatch::CommandDispatch;
 use crate::crud_dispatchers::{
@@ -34,7 +34,7 @@ impl CommandDispatch for DispatcherEnum {
         &self,
         envelope: Envelope,
         state: SharedState,
-    ) -> Result<MessageResult, String> {
+    ) -> Result<DspMessageResult, String> {
         match self {
             DispatcherEnum::Load(handler) => handler.dispatch(envelope, state).await,
             DispatcherEnum::Info(handler) => handler.dispatch(envelope, state).await,
