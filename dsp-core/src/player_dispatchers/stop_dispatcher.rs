@@ -7,7 +7,7 @@ pub(crate) struct StopDispatcher {}
 
 #[async_trait]
 impl CommandDispatch for StopDispatcher {
-    async fn dispatch(
+    async fn dispatch_mut(
         &self,
         envelope: dsp_domain::envelope::Envelope,
         state: Arc<State>,

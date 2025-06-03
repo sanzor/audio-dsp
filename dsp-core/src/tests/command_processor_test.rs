@@ -3,7 +3,7 @@ use rstest::rstest;
 
 use crate::{
     command_processor::CommandProcessor, command_processor_test::common,
-    dispatchers_provider::DispatchersProvider, state::create_shared_state,
+    dispatchers_provider::DispatchersProvider, state::create_state,
 };
 
 #[rstest]
@@ -12,7 +12,7 @@ pub async fn can_run_load_command() -> Result<(), String> {
     let user_name = "some_user";
     let path = common::test_data("dragons.wav");
     let path_str = path.to_str().ok_or_else(|| "Invalid file".to_string())?;
-    let mut processor = CommandProcessor::new(DispatchersProvider::new(), create_shared_state());
+    let mut processor = CommandProcessor::new(DispatchersProvider::new(), create_state());
     let command = DspMessage::Load {
         user_name: Some(user_name.to_string()),
         track_name: Some("dragons.wav".to_string()),
@@ -28,7 +28,7 @@ pub async fn can_run_load_command() -> Result<(), String> {
 pub async fn can_run_info_command() -> Result<(), String> {
     let user_name = "some_user";
     let track_name = "my-track";
-    let mut processor = CommandProcessor::new(DispatchersProvider::new(), create_shared_state());
+    let mut processor = CommandProcessor::new(DispatchersProvider::new(), create_state());
     load_command(&mut processor, track_name).await?;
     let info_command = DspMessage::Info {
         user_name: Some(user_name.to_string()),
@@ -45,7 +45,7 @@ pub async fn can_run_info_command() -> Result<(), String> {
 pub async fn can_run_list_command() -> Result<(), String> {
     let name = "my-track";
 
-    let mut processor = CommandProcessor::new(DispatchersProvider::new(), create_shared_state());
+    let mut processor = CommandProcessor::new(DispatchersProvider::new(), create_state());
     load_command(&mut processor, name).await?;
     let info_command = DspMessage::Ls {
         user_name: Some(name.to_string()),
@@ -63,7 +63,7 @@ pub async fn can_run_upload_command() -> Result<(), String> {
     let user_name = "my-my_user";
     let track_name = "my-track";
     let filename = "dragons2.wav";
-    let mut processor = CommandProcessor::new(DispatchersProvider::new(), create_shared_state());
+    let mut processor = CommandProcessor::new(DispatchersProvider::new(), create_state());
     let c = load_command(&mut processor, track_name).await?;
     let upload_command = DspMessage::Upload {
         user_name: Some(user_name.to_string()),
@@ -80,7 +80,7 @@ pub async fn can_run_upload_command() -> Result<(), String> {
 pub async fn can_run_delete_command() -> Result<(), String> {
     let name = "my-track";
     let user_name = "my-my_user";
-    let mut processor = CommandProcessor::new(DispatchersProvider::new(), create_shared_state());
+    let mut processor = CommandProcessor::new(DispatchersProvider::new(), create_state());
     load_command(&mut processor, name).await?;
 
     let track_list_before_delete = get_track_list(&mut processor, &user_name).await?;
@@ -105,7 +105,7 @@ pub async fn can_run_copy_command() -> Result<(), String> {
     let user_name = "my-my_user";
     let name = "my-track";
     let copy_name = "my-track2";
-    let mut processor = CommandProcessor::new(DispatchersProvider::new(), create_shared_state());
+    let mut processor = CommandProcessor::new(DispatchersProvider::new(), create_state());
     load_command(&mut processor, name).await?;
 
     let copy_result_string = &processor
@@ -130,7 +130,7 @@ pub async fn can_run_exit_command() -> Result<(), String> {
     let user_name = "my-track";
     let track_name = "my-track";
     let mut command_processor =
-        CommandProcessor::new(DispatchersProvider::new(), create_shared_state());
+        CommandProcessor::new(DispatchersProvider::new(), create_state());
     load_command(&mut command_processor, track_name)
         .await
         .unwrap();

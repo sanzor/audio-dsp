@@ -9,10 +9,10 @@ pub(crate) struct GainDispatcher {}
 
 #[async_trait]
 impl CommandDispatch for GainDispatcher {
-    async fn dispatch(
+    async fn dispatch_mut(
         &self,
         envelope: Envelope,
-        state: SharedState,
+        state: &mut SharedState,
     ) -> Result<DspMessageResult, String> {
         match envelope.command {
             DspMessage::Gain {
@@ -36,7 +36,7 @@ impl GainDispatcher {
         user_name: Option<String>,
         track_name: Option<String>,
         cutoff: f32,
-        state: SharedState,
+        state: &mut SharedState,
     ) -> Result<DspMessageResult, String> {
         let user_name = user_name.ok_or("Invalid name for user to perform gain on")?;
         let track_name = track_name.ok_or("Invalid name for track to perform gain on")?;

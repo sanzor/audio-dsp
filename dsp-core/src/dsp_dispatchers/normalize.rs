@@ -7,10 +7,10 @@ pub(crate) struct NormalizeDispatcher {}
 
 #[async_trait]
 impl CommandDispatch for NormalizeDispatcher {
-    async fn dispatch(
+    async fn dispatch_mut(
         &self,
         envelope: Envelope,
-        state: SharedState,
+        state: &mut SharedState,
     ) -> Result<DspMessageResult, String> {
         match envelope.command {
             DspMessage::Normalize {
@@ -29,7 +29,7 @@ impl NormalizeDispatcher {
         &self,
         user_name: Option<String>,
         track_name: Option<String>,
-        state: SharedState,
+        state: &mut SharedState,
     ) -> Result<DspMessageResult, String> {
         let user_name = user_name.ok_or("Invalid name for user to perform normalize on")?;
         let track_name = track_name.ok_or("Invalid name for track to perform normalize on")?;

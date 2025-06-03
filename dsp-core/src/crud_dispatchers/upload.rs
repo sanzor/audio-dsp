@@ -9,10 +9,10 @@ pub(crate) struct UploadDispatcher {}
 
 #[async_trait]
 impl CommandDispatch for UploadDispatcher {
-    async fn dispatch(
+    async fn dispatch_mut(
         &self,
         envelope: Envelope,
-        state: SharedState,
+        state: &mut SharedState,
     ) -> Result<DspMessageResult, String> {
         match envelope.command {
             DspMessage::Upload {
@@ -34,7 +34,7 @@ impl UploadDispatcher {
         user_name: Option<String>,
         track_name: Option<String>,
         filename: Option<String>,
-        state: SharedState,
+        state: &mut SharedState,
     ) -> Result<DspMessageResult, String> {
         let track_name = track_name.ok_or_else(|| "Invalid name to upload track")?;
         let user_name = user_name.ok_or_else(|| "Invalid name to upload track")?;

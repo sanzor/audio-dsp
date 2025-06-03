@@ -10,13 +10,13 @@ pub(crate) struct ListDispatcher {}
 
 #[async_trait]
 impl CommandDispatch for ListDispatcher {
-    async fn dispatch(
+    async fn dispatch_mut(
         &self,
         envelope: Envelope,
-        state: SharedState,
+        state: &mut SharedState,
     ) -> Result<DspMessageResult, String> {
         let result = match envelope.command {
-            DspMessage::Ls { user_name } => self.internal_dispatch(user_name, &state).await,
+            DspMessage::Ls { user_name } => self.internal_dispatch(user_name,state).await,
             _ => Err("".to_owned()),
         };
         return result;
@@ -27,7 +27,7 @@ impl ListDispatcher {
     async fn internal_dispatch(
         &self,
         user_name: Option<String>,
-        state: &State,
+        state: &mut SharedState,
     ) -> Result<DspMessageResult, String> {
         let user_name = user_name.ok_or_else(|| "Invalid user_name")?;
         let tracks = state.get_tracks_for_user(&user_name).await;

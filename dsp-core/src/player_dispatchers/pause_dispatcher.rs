@@ -5,7 +5,7 @@ pub(crate) struct PauseDispatcher {}
 
 #[async_trait]
 impl CommandDispatch for PauseDispatcher {
-    async fn dispatch(
+    async fn dispatch_mut(
         &self,
         envelope: dsp_domain::envelope::Envelope,
         state: crate::state::SharedState,

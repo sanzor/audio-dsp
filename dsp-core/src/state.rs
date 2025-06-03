@@ -1,29 +1,27 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
+use actix::Addr;
 use dsp_domain::track::{Track, TrackInfo, TrackRef, TrackRefMut};
 use player::player_ref::AudioPlayerRef;
 
-use crate::{
-    player_registry::{
-        local_player_registry::LocalAudioPlayerRegistry, player_registry::AudioPlayerRegistry,
-    },
-    user_registry::{user_registry::UserRegistry, LocalUserRegistry},
-};
+use crate::
+    actors::audio_player_actor::AudioPlayerActor
+;
 
-pub type SharedState = Arc<State>;
+pub type SharedState=State;
 pub(crate) struct State {
-    user_registry: Arc<dyn UserRegistry>,
-    audio_player_registry: Arc<dyn AudioPlayerRegistry>,
+    pub tracks:HashMap<String,Track>,
+    pub players:HashMap<String,Addr<AudioPlayerActor>>
 }
-pub fn create_shared_state() -> SharedState {
-    Arc::new(State::new())
+pub fn create_state() -> State {
+   State::new()
 }
 
 impl State {
     pub fn new() -> State {
         State {
-            user_registry: Arc::new(LocalUserRegistry::new()),
-            audio_player_registry: Arc::new(LocalAudioPlayerRegistry::new()),
+            tracks:HashMap::new(),
+            players:HashMap::new()
         }
     }
     pub async fn get_track_info(

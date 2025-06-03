@@ -7,10 +7,10 @@ pub(crate) struct DeleteDispatcher {}
 
 #[async_trait]
 impl CommandDispatch for DeleteDispatcher {
-    async fn dispatch(
+    async fn dispatch_mut(
         &self,
         envelope: Envelope,
-        state: SharedState,
+        state: &mut SharedState,
     ) -> Result<DspMessageResult, String> {
         match envelope.command {
             DspMessage::Delete {
@@ -26,7 +26,7 @@ impl DeleteDispatcher {
         &self,
         user_name: Option<String>,
         track_name: Option<String>,
-        state: SharedState,
+        state: &mut SharedState,
     ) -> Result<DspMessageResult, String> {
         let user_name = user_name.ok_or_else(|| "Invalid name for deleted track".to_string())?;
         let name = track_name.ok_or_else(|| "Invalid name for deleted track".to_string())?;

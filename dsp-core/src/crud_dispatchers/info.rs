@@ -7,10 +7,10 @@ pub(crate) struct InfoDispatcher {}
 
 #[async_trait]
 impl CommandDispatch for InfoDispatcher {
-    async fn dispatch(
+    async fn dispatch_mut(
         &self,
         envelope: Envelope,
-        state: SharedState,
+        state: &mut SharedState,
     ) -> Result<DspMessageResult, String> {
         match envelope.command {
             DspMessage::Info {
@@ -20,6 +20,8 @@ impl CommandDispatch for InfoDispatcher {
             _ => Err("".to_owned()),
         }
     }
+
+
 }
 
 impl InfoDispatcher {
@@ -27,7 +29,7 @@ impl InfoDispatcher {
         &self,
         user_name: Option<String>,
         track_name: Option<String>,
-        state: SharedState,
+        state: &mut SharedState,
     ) -> Result<DspMessageResult, String> {
         let track_name = track_name.ok_or_else(|| "Invalid name")?;
         let user_name = user_name.ok_or_else(|| "Invalid user name")?;

@@ -10,10 +10,10 @@ pub(crate) struct RunScriptDispatcher {}
 
 #[async_trait]
 impl CommandDispatch for RunScriptDispatcher {
-    async fn dispatch(
+    async fn dispatch_mut(
         &self,
         envelope: Envelope,
-        state: SharedState,
+        state: &mut SharedState,
     ) -> Result<DspMessageResult, String> {
         match envelope.command {
             DspMessage::Copy {
@@ -35,7 +35,7 @@ impl RunScriptDispatcher {
         user_name: Option<String>,
         name: Option<String>,
         copy_name: Option<String>,
-        state: SharedState,
+        state: &mut SharedState,
     ) -> Result<DspMessageResult, String> {
         let track_name = name.ok_or("Invalid name for copy")?;
         let user_name = user_name.ok_or("Invalid name for copy")?;

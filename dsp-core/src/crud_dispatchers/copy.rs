@@ -6,10 +6,10 @@ use crate::{command_dispatch::CommandDispatch, state::SharedState};
 pub(crate) struct CopyDispatcher {}
 #[async_trait]
 impl CommandDispatch for CopyDispatcher {
-    async fn dispatch(
+    async fn dispatch_mut(
         &self,
         envelope: Envelope,
-        state: SharedState,
+        state: &mut SharedState,
     ) -> Result<DspMessageResult, String> {
         match envelope.command {
             DspMessage::Copy {
@@ -31,7 +31,7 @@ impl CopyDispatcher {
         user_name: Option<String>,
         track_name: Option<String>,
         copy_name: Option<String>,
-        state: SharedState,
+        state: &mut SharedState,
     ) -> Result<DspMessageResult, String> {
         let track_name = track_name.ok_or("Invalid track_name for copy")?;
         let user_name = user_name.ok_or("Invalid name for copy")?;

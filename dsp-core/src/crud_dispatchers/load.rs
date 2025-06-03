@@ -8,15 +8,15 @@ use dsp_domain::{
     track::{Track, TrackInfo},
 };
 
-use crate::{command_dispatch::CommandDispatch, state::SharedState};
+use crate::{actors::user_actor::user_actor_state::UserActorState, command_dispatch::CommandDispatch, state::SharedState};
 
 pub(crate) struct LoadDispatcher {}
 #[async_trait]
 impl CommandDispatch for LoadDispatcher {
-    async fn dispatch(
+    async fn dispatch_mut(
         &self,
         envelope: Envelope,
-        state: SharedState,
+        state:&mut SharedState,
     ) -> Result<DspMessageResult, String> {
         match envelope.command {
             DspMessage::Load {
@@ -38,7 +38,7 @@ impl LoadDispatcher {
         user_name: Option<String>,
         track_name: Option<String>,
         filename: Option<String>,
-        state: SharedState,
+        state:&mut UserActorState,
     ) -> Result<DspMessageResult, String> {
         let filename = filename.ok_or_else(|| "Invalid file name".to_string())?;
         let filepath = PathBuf::from(&filename);

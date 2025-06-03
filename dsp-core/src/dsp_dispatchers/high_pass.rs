@@ -6,10 +6,10 @@ pub(crate) struct HighPassDispatcher {}
 
 #[async_trait]
 impl CommandDispatch for HighPassDispatcher {
-    async fn dispatch(
+    async fn dispatch_mut(
         &self,
         envelope: Envelope,
-        state: SharedState,
+        state: &mut SharedState,
     ) -> Result<DspMessageResult, String> {
         match envelope.command {
             DspMessage::HighPass {
@@ -31,7 +31,7 @@ impl HighPassDispatcher {
         user_name: Option<String>,
         track_name: Option<String>,
         cutoff: f32,
-        state: SharedState,
+        state: &mut SharedState,
     ) -> Result<DspMessageResult, String> {
         let user_name = user_name.ok_or("Invalid name for user to high_pass on")?;
         let track_name = track_name.ok_or("Invalid name for track to high_pass on")?;

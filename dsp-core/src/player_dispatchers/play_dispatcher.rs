@@ -7,7 +7,7 @@ pub(crate) struct PlayDispatcher {}
 
 #[async_trait]
 impl CommandDispatch for PlayDispatcher {
-    async fn dispatch(
+    async fn dispatch_mut(
         &self,
         envelope: Envelope,
         state: SharedState,
