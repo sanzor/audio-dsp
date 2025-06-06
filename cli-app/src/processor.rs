@@ -1,5 +1,5 @@
 use dsp_core::{api::create_command_processor, command_processor::CommandProcessor};
-use dsp_domain::{dsp_message_result::DspMessageResult, dsp_message::DspMessage};
+use dsp_domain::{dsp_message::DspMessage, dsp_message_result::DspMessageResult};
 
 use crate::command_parser::*;
 
@@ -31,7 +31,10 @@ impl Processor {
         result
     }
 
-    pub async fn process_command(&mut self, command: DspMessage) -> Result<DspMessageResult, String> {
+    pub async fn process_command(
+        &mut self,
+        command: DspMessage,
+    ) -> Result<DspMessageResult, String> {
         let result = self.command_processor.process_command(command).await;
         result
     }

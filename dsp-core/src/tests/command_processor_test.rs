@@ -1,4 +1,6 @@
-use dsp_domain::{dsp_message_result::DspMessageResult, dsp_message::DspMessage, track::TrackInfo, user};
+use dsp_domain::{
+    dsp_message::DspMessage, dsp_message_result::DspMessageResult, track::TrackInfo, user,
+};
 use rstest::rstest;
 
 use crate::{
@@ -129,8 +131,7 @@ pub async fn can_run_copy_command() -> Result<(), String> {
 pub async fn can_run_exit_command() -> Result<(), String> {
     let user_name = "my-track";
     let track_name = "my-track";
-    let mut command_processor =
-        CommandProcessor::new(DispatchersProvider::new(), create_state());
+    let mut command_processor = CommandProcessor::new(DispatchersProvider::new(), create_state());
     load_command(&mut command_processor, track_name)
         .await
         .unwrap();

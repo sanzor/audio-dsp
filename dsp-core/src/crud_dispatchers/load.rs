@@ -1,22 +1,28 @@
-use std::path::PathBuf;
+use std::{
+    path::PathBuf,
+    sync::{Arc, Mutex},
+};
 
 use async_trait::async_trait;
 use dsp_domain::{
+    dsp_message::DspMessage,
     dsp_message_result::DspMessageResult,
     envelope::Envelope,
-    dsp_message::DspMessage,
     track::{Track, TrackInfo},
 };
 
-use crate::{actors::user_actor::user_actor_state::UserActorState, command_dispatch::CommandDispatch, state::SharedState};
+use crate::{
+    actors::user_actor::user_actor_state::UserActorState, command_dispatch::CommandDispatch,
+    state::SharedState,
+};
 
 pub(crate) struct LoadDispatcher {}
 #[async_trait]
 impl CommandDispatch for LoadDispatcher {
-    async fn dispatch_mut(
+    async fn dispatch(
         &self,
         envelope: Envelope,
-        state:&mut SharedState,
+        state: Arc<Mutex<SharedState>>,
     ) -> Result<DspMessageResult, String> {
         match envelope.command {
             DspMessage::Load {
@@ -38,7 +44,7 @@ impl LoadDispatcher {
         user_name: Option<String>,
         track_name: Option<String>,
         filename: Option<String>,
-        state:&mut UserActorState,
+        state: Arc<Mutex<SharedState>>,
     ) -> Result<DspMessageResult, String> {
         let filename = filename.ok_or_else(|| "Invalid file name".to_string())?;
         let filepath = PathBuf::from(&filename);

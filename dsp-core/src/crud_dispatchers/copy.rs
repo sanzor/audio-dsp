@@ -1,15 +1,19 @@
+use std::sync::{Arc, Mutex};
+
 use async_trait::async_trait;
-use dsp_domain::{dsp_message_result::DspMessageResult, envelope::Envelope, dsp_message::DspMessage};
+use dsp_domain::{
+    dsp_message::DspMessage, dsp_message_result::DspMessageResult, envelope::Envelope,
+};
 
 use crate::{command_dispatch::CommandDispatch, state::SharedState};
 
 pub(crate) struct CopyDispatcher {}
 #[async_trait]
 impl CommandDispatch for CopyDispatcher {
-    async fn dispatch_mut(
+    async fn dispatch(
         &self,
         envelope: Envelope,
-        state: &mut SharedState,
+        state: Arc<Mutex<SharedState>>,
     ) -> Result<DspMessageResult, String> {
         match envelope.command {
             DspMessage::Copy {
@@ -31,7 +35,7 @@ impl CopyDispatcher {
         user_name: Option<String>,
         track_name: Option<String>,
         copy_name: Option<String>,
-        state: &mut SharedState,
+        state: Arc<Mutex<SharedState>>,
     ) -> Result<DspMessageResult, String> {
         let track_name = track_name.ok_or("Invalid track_name for copy")?;
         let user_name = user_name.ok_or("Invalid name for copy")?;

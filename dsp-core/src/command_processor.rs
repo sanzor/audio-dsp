@@ -1,7 +1,12 @@
-use dsp_domain::{dsp_message_result::DspMessageResult, envelope::Envelope, dsp_message::DspMessage};
+use std::sync::{Arc, Mutex};
+
+use dsp_domain::{
+    dsp_message::DspMessage, dsp_message_result::DspMessageResult, envelope::Envelope,
+};
 
 use crate::{
-    actors::user_actor::user_actor_state::UserActorState, command_dispatch::CommandDispatch, dispatchers_provider::DispatchersProvider, state::{create_state, SharedState}
+    command_dispatch::CommandDispatch, dispatchers_provider::DispatchersProvider,
+    state::SharedState,
 };
 
 pub struct CommandProcessorConfig {
@@ -14,34 +19,34 @@ pub struct CommandProcessor {
 impl CommandProcessor {
     pub fn create_processor() -> CommandProcessor {
         CommandProcessor {
-            dispatch_provider: DispatchersProvider::new()
+            dispatch_provider: DispatchersProvider::new(),
         }
     }
-    pub(crate) fn new(
-        dispatch_provider: DispatchersProvider,
-    ) -> CommandProcessor {
-        CommandProcessor {
-            dispatch_provider
-        }
+    pub(crate) fn new(dispatch_provider: DispatchersProvider) -> CommandProcessor {
+        CommandProcessor { dispatch_provider }
     }
 
-        pub async fn process_command(&mut self, input: DspMessage,state:&mut SharedState) -> Result<DspMessageResult, String> {
-            let dispatcher_name = self.get_dispatcher_name(&input);
-            let dispatcher = self
-                .dispatch_provider
-                .get_dispatcher_by_name(dispatcher_name)
-                .ok_or_else(|| "Could not find dispatcher".to_string())?;
-            let result = dispatcher
-                .dispatch_mut(
-                    Envelope {
-                        command: input,
-                        from: None,
-                    },
-                    state
-                )
-                .await;
-            result
-        }
+    pub async fn process_command(
+        &self,
+        input: DspMessage,
+        state: Arc<Mutex<SharedState>>,
+    ) -> Result<DspMessageResult, String> {
+        let dispatcher_name = self.get_dispatcher_name(&input);
+        let dispatcher = self
+            .dispatch_provider
+            .get_dispatcher_by_name(dispatcher_name)
+            .ok_or_else(|| "Could not find dispatcher".to_string())?;
+        let result = dispatcher
+            .dispatch(
+                Envelope {
+                    command: input,
+                    from: None,
+                },
+                state,
+            )
+            .await;
+        result
+    }
 
     fn get_dispatcher_name(&self, command: &DspMessage) -> &'static str {
         match command {

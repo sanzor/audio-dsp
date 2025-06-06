@@ -1,5 +1,9 @@
+use std::sync::{Arc, Mutex};
+
 use async_trait::async_trait;
-use dsp_domain::{dsp_message_result::DspMessageResult, envelope::Envelope, dsp_message::DspMessage};
+use dsp_domain::{
+    dsp_message::DspMessage, dsp_message_result::DspMessageResult, envelope::Envelope,
+};
 
 use crate::{command_dispatch::CommandDispatch, state::SharedState};
 
@@ -7,10 +11,10 @@ pub(crate) struct InfoDispatcher {}
 
 #[async_trait]
 impl CommandDispatch for InfoDispatcher {
-    async fn dispatch_mut(
+    async fn dispatch(
         &self,
         envelope: Envelope,
-        state: &mut SharedState,
+        state: Arc<Mutex<SharedState>>,
     ) -> Result<DspMessageResult, String> {
         match envelope.command {
             DspMessage::Info {
@@ -20,8 +24,6 @@ impl CommandDispatch for InfoDispatcher {
             _ => Err("".to_owned()),
         }
     }
-
-
 }
 
 impl InfoDispatcher {

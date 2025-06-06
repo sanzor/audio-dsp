@@ -1,5 +1,9 @@
+use std::sync::{Arc, Mutex};
+
 use async_trait::async_trait;
-use dsp_domain::{dsp_message_result::DspMessageResult, envelope::Envelope, dsp_message::DspMessage};
+use dsp_domain::{
+    dsp_message::DspMessage, dsp_message_result::DspMessageResult, envelope::Envelope,
+};
 
 use crate::{
     command_dispatch::CommandDispatch,
@@ -10,10 +14,10 @@ pub(crate) struct RunScriptDispatcher {}
 
 #[async_trait]
 impl CommandDispatch for RunScriptDispatcher {
-    async fn dispatch_mut(
+    async fn dispatch(
         &self,
         envelope: Envelope,
-        state: &mut SharedState,
+        state: Arc<Mutex<SharedState>>,
     ) -> Result<DspMessageResult, String> {
         match envelope.command {
             DspMessage::Copy {
@@ -35,7 +39,7 @@ impl RunScriptDispatcher {
         user_name: Option<String>,
         name: Option<String>,
         copy_name: Option<String>,
-        state: &mut SharedState,
+        state: Arc<Mutex<SharedState>>,
     ) -> Result<DspMessageResult, String> {
         let track_name = name.ok_or("Invalid name for copy")?;
         let user_name = user_name.ok_or("Invalid name for copy")?;

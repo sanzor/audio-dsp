@@ -1,5 +1,9 @@
+use std::sync::{Arc, Mutex};
+
 use async_trait::async_trait;
-use dsp_domain::{dsp_message_result::DspMessageResult, envelope::Envelope, dsp_message::DspMessage};
+use dsp_domain::{
+    dsp_message::DspMessage, dsp_message_result::DspMessageResult, envelope::Envelope,
+};
 
 use crate::{command_dispatch::CommandDispatch, state::SharedState};
 
@@ -7,10 +11,10 @@ pub(crate) struct PlayDispatcher {}
 
 #[async_trait]
 impl CommandDispatch for PlayDispatcher {
-    async fn dispatch_mut(
+    async fn dispatch(
         &self,
         envelope: Envelope,
-        state: SharedState,
+        state: Arc<Mutex<SharedState>>,
     ) -> Result<dsp_domain::dsp_message_result::DspMessageResult, String> {
         match envelope.command {
             DspMessage::Play {
@@ -26,7 +30,7 @@ impl PlayDispatcher {
         &self,
         user_id: Option<String>,
         track_id: Option<String>,
-        state: SharedState,
+        state: Arc<Mutex<SharedState>>,
     ) -> Result<DspMessageResult, String> {
         todo!()
     }

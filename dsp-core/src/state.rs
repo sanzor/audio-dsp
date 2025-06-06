@@ -1,49 +1,47 @@
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
 
 use actix::Addr;
 use dsp_domain::track::{Track, TrackInfo, TrackRef, TrackRefMut};
 use player::player_ref::AudioPlayerRef;
 
-use crate::
-    actors::audio_player_actor::AudioPlayerActor
-;
+use crate::actors::audio_player_actor::AudioPlayerActor;
 
-pub type SharedState=State;
+pub type SharedState = State;
 pub(crate) struct State {
-    pub tracks:HashMap<String,Track>,
-    pub players:HashMap<String,Addr<AudioPlayerActor>>
+    pub tracks: HashMap<String, Track>,
+    pub players: HashMap<String, Addr<AudioPlayerActor>>,
 }
 pub fn create_state() -> State {
-   State::new()
+    State::new()
 }
 
 impl State {
     pub fn new() -> State {
         State {
-            tracks:HashMap::new(),
-            players:HashMap::new()
+            tracks: HashMap::new(),
+            players: HashMap::new(),
         }
     }
     pub async fn get_track_info(
         &self,
-        user_name: &str,
         track_name: &str,
     ) -> Result<TrackInfo, String> {
         let info = self
-            .user_registry
-            .get_user_track_info(user_name, track_name)
-            .await;
+            .tracks
+            .get(track_name)
+            .ok_or_else(|| "err".to_string())
+            .map(|track| track.info.clone());
+
         info
     }
 
     pub async fn get_track_ref(
         &self,
-        user_name: &str,
         track_name: &str,
     ) -> Result<TrackRef, String> {
-        self.user_registry
-            .get_track_ref(user_name, track_name)
-            .await
+            self.tracks.get(track_name).ok_or_else(|| "".into())
+            .map(|track| TrackRef{inner:track})
+            
     }
 
     pub async fn get_track_ref_mut(

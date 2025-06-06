@@ -1,18 +1,24 @@
 use async_trait::async_trait;
 use audiolib::audio_parse;
-use dsp_domain::{dsp_message_result::DspMessageResult, envelope::Envelope, dsp_message::DspMessage};
+use dsp_domain::{
+    dsp_message::DspMessage, dsp_message_result::DspMessageResult, envelope::Envelope,
+};
 
-use std::{path::PathBuf, str::FromStr};
+use std::{
+    path::PathBuf,
+    str::FromStr,
+    sync::{Arc, Mutex},
+};
 
 use crate::{command_dispatch::CommandDispatch, state::SharedState};
 pub(crate) struct UploadDispatcher {}
 
 #[async_trait]
 impl CommandDispatch for UploadDispatcher {
-    async fn dispatch_mut(
+    async fn dispatch(
         &self,
         envelope: Envelope,
-        state: &mut SharedState,
+        state: Arc<Mutex<SharedState>>,
     ) -> Result<DspMessageResult, String> {
         match envelope.command {
             DspMessage::Upload {
@@ -34,7 +40,7 @@ impl UploadDispatcher {
         user_name: Option<String>,
         track_name: Option<String>,
         filename: Option<String>,
-        state: &mut SharedState,
+        state: Arc<Mutex<SharedState>>,
     ) -> Result<DspMessageResult, String> {
         let track_name = track_name.ok_or_else(|| "Invalid name to upload track")?;
         let user_name = user_name.ok_or_else(|| "Invalid name to upload track")?;

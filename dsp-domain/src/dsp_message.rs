@@ -5,7 +5,7 @@ use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 
 use crate::dsp_message_result::DspMessageResult;
-#[derive(clap::Subcommand, Debug, Serialize, Deserialize,Message)]
+#[derive(clap::Subcommand, Debug, Serialize, Deserialize, Message)]
 #[rtype(result = "Result<DspMessageResult, String>")]
 pub enum DspMessage {
     Load {
