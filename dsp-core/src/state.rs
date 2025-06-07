@@ -66,9 +66,10 @@ impl State {
             .map(|v| ())
     }
     pub async fn upsert_track(&mut self, track: Track) -> Result<(), String> {
-        self.tracks
-            .insert(track.info.name.clone(), track)
-            .ok_or_else(|| "could not insert".into())
-            .map(|_| ())
+        match self.tracks.insert(track.info.name.clone(), track){
+            None=> Ok(()),
+            Some(_)=>Err("Key already exists".into())
+        }
+       
     }
 }
