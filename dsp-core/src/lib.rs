@@ -12,5 +12,3 @@ pub(crate) mod player_dispatchers;
 pub(crate) mod player_registry;
 pub mod state;
 pub(crate) mod user_registry;
-
-pub mod actors;
