@@ -1,11 +1,11 @@
-use std::sync::{Arc, Mutex};
-
 use crate::{command_dispatch::CommandDispatch, state::SharedState};
 use async_trait::async_trait;
 use audiolib::audio_transform::AudioTransformMut;
 use dsp_domain::{
     dsp_message::DspMessage, dsp_message_result::DspMessageResult, envelope::Envelope, user,
 };
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 pub(crate) struct GainDispatcher {}
 
@@ -42,8 +42,8 @@ impl GainDispatcher {
     ) -> Result<DspMessageResult, String> {
         let user_name = user_name.ok_or("Invalid name for user to perform gain on")?;
         let track_name = track_name.ok_or("Invalid name for track to perform gain on")?;
-
-        let track_ref = state.get_track_ref_mut(&user_name, &track_name).await?;
+        let mut state_guard = state.lock().await;
+        let track_ref = state_guard.get_track_ref_mut(&track_name).await?;
         let _ = track_ref.inner.data.gain_mut(cutoff);
         Ok(DspMessageResult {
             output: format!("Updated gain for track {} succesful", track_name),

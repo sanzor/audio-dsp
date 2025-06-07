@@ -1,18 +1,18 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use actix::Addr;
 use dsp_domain::track::{Track, TrackInfo, TrackRef, TrackRefMut};
-use player::player_ref::AudioPlayerRef;
+use tokio::sync::Mutex;
 
 use crate::actors::audio_player_actor::AudioPlayerActor;
 
 pub type SharedState = State;
-pub(crate) struct State {
+pub struct State {
     pub tracks: HashMap<String, Track>,
     pub players: HashMap<String, Addr<AudioPlayerActor>>,
 }
-pub fn create_state() -> State {
-    State::new()
+pub fn create_state() -> Arc<Mutex<SharedState>> {
+    Arc::new(Mutex::new(State::new()))
 }
 
 impl State {
@@ -22,10 +22,7 @@ impl State {
             players: HashMap::new(),
         }
     }
-    pub async fn get_track_info(
-        &self,
-        track_name: &str,
-    ) -> Result<TrackInfo, String> {
+    pub async fn get_track_info(&self, track_name: &str) -> Result<TrackInfo, String> {
         let info = self
             .tracks
             .get(track_name)
@@ -35,53 +32,43 @@ impl State {
         info
     }
 
-    pub async fn get_track_ref(
-        &self,
-        track_name: &str,
-    ) -> Result<TrackRef, String> {
-            self.tracks.get(track_name).ok_or_else(|| "".into())
-            .map(|track| TrackRef{inner:track})
-            
+    pub async fn get_track_ref(&self, track_name: &str) -> Result<TrackRef, String> {
+        self.tracks
+            .get(track_name)
+            .ok_or_else(|| "".into())
+            .map(|track| TrackRef { inner: track })
     }
 
-    pub async fn get_track_ref_mut(
-        &self,
-        user_name: &str,
-        track_name: &str,
-    ) -> Result<TrackRefMut, String> {
-        self.user_registry
-            .get_track_ref_mut(user_name, track_name)
-            .await
+    pub async fn get_track_ref_mut(&mut self, track_name: &str) -> Result<TrackRefMut, String> {
+        self.tracks
+            .get_mut(track_name)
+            .ok_or_else(|| "".into())
+            .map(|track| TrackRefMut { inner: track })
     }
 
-    pub async fn get_track_copy(&self, user_name: &str, track_name: &str) -> Result<Track, String> {
-        self.user_registry
-            .get_track_copy(user_name, track_name)
-            .await
+    pub async fn get_track_copy(&self, track_name: &str) -> Result<Track, String> {
+        self.tracks
+            .get(track_name)
+            .ok_or_else(|| "".into())
+            .map(|track| track.clone())
     }
-    pub async fn get_tracks_for_user(&self, user_name: &str) -> Vec<TrackInfo> {
-        self.user_registry.get_tracks_for_user(user_name).await
-    }
-
-    pub async fn delete_track(&self, user_id: &str, track_name: &str) -> Result<(), String> {
-        self.user_registry.delete_track(user_id, track_name).await
-    }
-    pub async fn upsert_track(&self, user_name: &str, track: Track) -> Result<(), String> {
-        self.user_registry.add_track(user_name, track).await
+    pub async fn get_all_tracks(&self) -> Vec<TrackInfo> {
+        self.tracks
+            .iter()
+            .map(|(_, track)| track.info.clone())
+            .collect()
     }
 
-    pub async fn upsert_audio_player_ref(
-        &self,
-        player_ref: Box<impl AudioPlayerRef>,
-    ) -> Result<(), String> {
-        let v = self
-            .audio_player_registry
-            .upsert(&player_ref.id(), player_ref)
-            .await;
-        v
+    pub async fn delete_track(&mut self, track_name: &str) -> Result<(), String> {
+        self.tracks
+            .remove(track_name)
+            .ok_or_else(|| "could not find key".into())
+            .map(|v| ())
     }
-
-    pub async fn get_audio_player_ref(&self, id: &str) -> Result<Box<dyn AudioPlayerRef>, String> {
-        self.audio_player_registry.get_by_id(&(id.as_ref())).await
+    pub async fn upsert_track(&mut self, track: Track) -> Result<(), String> {
+        self.tracks
+            .insert(track.info.name.clone(), track)
+            .ok_or_else(|| "could not insert".into())
+            .map(|_| ())
     }
 }

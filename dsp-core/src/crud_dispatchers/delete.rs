@@ -1,10 +1,10 @@
-use std::sync::{Arc, Mutex};
-
 use crate::{command_dispatch::CommandDispatch, state::SharedState};
 use async_trait::async_trait;
 use dsp_domain::{
     dsp_message::DspMessage, dsp_message_result::DspMessageResult, envelope::Envelope, user,
 };
+use std::sync::Arc;
+use tokio::sync::Mutex;
 pub(crate) struct DeleteDispatcher {}
 
 #[async_trait]
@@ -32,7 +32,8 @@ impl DeleteDispatcher {
     ) -> Result<DspMessageResult, String> {
         let user_name = user_name.ok_or_else(|| "Invalid name for deleted track".to_string())?;
         let name = track_name.ok_or_else(|| "Invalid name for deleted track".to_string())?;
-        let _ = state.delete_track(&user_name, &name).await?;
+        let mut state_guard = state.lock().await;
+        let _ = state_guard.delete_track(&name).await?;
         Ok(DspMessageResult {
             output: format!("Delete track {} succesful", &name),
             should_exit: false,

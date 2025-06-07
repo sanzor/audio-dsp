@@ -1,8 +1,3 @@
-use std::{
-    path::PathBuf,
-    sync::{Arc, Mutex},
-};
-
 use async_trait::async_trait;
 use dsp_domain::{
     dsp_message::DspMessage,
@@ -10,11 +5,10 @@ use dsp_domain::{
     envelope::Envelope,
     track::{Track, TrackInfo},
 };
+use std::{path::PathBuf, sync::Arc};
+use tokio::sync::Mutex;
 
-use crate::{
-    actors::user_actor::user_actor_state::UserActorState, command_dispatch::CommandDispatch,
-    state::SharedState,
-};
+use crate::{command_dispatch::CommandDispatch, state::SharedState};
 
 pub(crate) struct LoadDispatcher {}
 #[async_trait]
@@ -58,8 +52,8 @@ impl LoadDispatcher {
             },
             data: audio_buffer,
         };
-
-        state.upsert_track(&user_name, new_track).await?;
+        let mut state_guard = state.lock().await;
+        state_guard.upsert_track(new_track).await?;
 
         Ok(DspMessageResult {
             output: format!(

@@ -1,9 +1,9 @@
-use std::sync::{Arc, Mutex};
-
 use async_trait::async_trait;
 use dsp_domain::{
     dsp_message::DspMessage, dsp_message_result::DspMessageResult, envelope::Envelope,
 };
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 use crate::{command_dispatch::CommandDispatch, state::SharedState};
 
@@ -39,11 +39,12 @@ impl CopyDispatcher {
     ) -> Result<DspMessageResult, String> {
         let track_name = track_name.ok_or("Invalid track_name for copy")?;
         let user_name = user_name.ok_or("Invalid name for copy")?;
-        let mut new_track = state.get_track_copy(&user_name, &track_name).await?;
+        let mut state_guard = state.lock().await;
+        let mut new_track = state_guard.get_track_copy(&track_name).await?;
 
         let copy_name = copy_name.unwrap_or_else(|| new_track.info.name.clone() + "v2");
         new_track.info.name = copy_name.clone();
-        let _ = state.upsert_track(&user_name, new_track).await?;
+        let _ = state_guard.upsert_track(new_track).await?;
         Ok(DspMessageResult {
             output: format!("Copied successfully track:{} to {}", track_name, copy_name),
 

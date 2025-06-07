@@ -1,7 +1,7 @@
-use std::sync::{Arc, Mutex};
-
 use async_trait::async_trait;
 use dsp_domain::{dsp_message_result::DspMessageResult, envelope::Envelope};
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 use crate::state::SharedState;
 

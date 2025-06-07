@@ -1,9 +1,9 @@
-use std::sync::{Arc, Mutex};
-
 use async_trait::async_trait;
 use dsp_domain::{
     dsp_message::DspMessage, dsp_message_result::DspMessageResult, envelope::Envelope,
 };
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 use crate::{
     command_dispatch::CommandDispatch,
@@ -34,7 +34,8 @@ impl ListDispatcher {
         state: Arc<Mutex<SharedState>>,
     ) -> Result<DspMessageResult, String> {
         let user_name = user_name.ok_or_else(|| "Invalid user_name")?;
-        let tracks = state.get_tracks_for_user(&user_name).await;
+        let mut state_guard = state.lock().await;
+        let tracks = state_guard.get_all_tracks().await;
         Ok(DspMessageResult {
             output: serde_json::to_string_pretty(&tracks).unwrap(),
             should_exit: false,

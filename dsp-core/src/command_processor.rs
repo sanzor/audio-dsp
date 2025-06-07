@@ -1,8 +1,8 @@
-use std::sync::{Arc, Mutex};
-
 use dsp_domain::{
     dsp_message::DspMessage, dsp_message_result::DspMessageResult, envelope::Envelope,
 };
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 use crate::{
     command_dispatch::CommandDispatch, dispatchers_provider::DispatchersProvider,

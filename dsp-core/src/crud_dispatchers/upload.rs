@@ -3,12 +3,9 @@ use audiolib::audio_parse;
 use dsp_domain::{
     dsp_message::DspMessage, dsp_message_result::DspMessageResult, envelope::Envelope,
 };
+use tokio::sync::Mutex;
 
-use std::{
-    path::PathBuf,
-    str::FromStr,
-    sync::{Arc, Mutex},
-};
+use std::{path::PathBuf, str::FromStr, sync::Arc};
 
 use crate::{command_dispatch::CommandDispatch, state::SharedState};
 pub(crate) struct UploadDispatcher {}
@@ -44,7 +41,8 @@ impl UploadDispatcher {
     ) -> Result<DspMessageResult, String> {
         let track_name = track_name.ok_or_else(|| "Invalid name to upload track")?;
         let user_name = user_name.ok_or_else(|| "Invalid name to upload track")?;
-        let track_ref = state.get_track_ref(&user_name, &track_name).await?;
+        let state_guard = state.lock().await;
+        let track_ref = state_guard.get_track_ref(&track_name).await?;
         let file_path_str = filename.unwrap_or_else(|| track_name.clone());
         let path = PathBuf::from_str(&file_path_str).map_err(|err| err.to_string())?;
         let _ = audio_parse::write_wav_file(&track_ref.inner.data, &path)?;

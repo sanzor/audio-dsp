@@ -1,9 +1,9 @@
-use std::sync::{Arc, Mutex};
-
 use async_trait::async_trait;
 use dsp_domain::{
     dsp_message::DspMessage, dsp_message_result::DspMessageResult, envelope::Envelope,
 };
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 use crate::{command_dispatch::CommandDispatch, state::SharedState};
 
@@ -31,12 +31,13 @@ impl InfoDispatcher {
         &self,
         user_name: Option<String>,
         track_name: Option<String>,
-        state: &mut SharedState,
+        state: Arc<Mutex<SharedState>>,
     ) -> Result<DspMessageResult, String> {
         let track_name = track_name.ok_or_else(|| "Invalid name")?;
         let user_name = user_name.ok_or_else(|| "Invalid user name")?;
-        let track_info = state
-            .get_track_info(&user_name, &track_name)
+        let mut state_guard = state.lock().await;
+        let track_info = state_guard
+            .get_track_info(&track_name)
             .await
             .map_err(|e| format!("Could not find track info for {}", e))?;
         Ok(DspMessageResult {

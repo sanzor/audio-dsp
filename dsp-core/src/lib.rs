@@ -10,7 +10,7 @@ pub(crate) mod dispatchers_provider;
 pub(crate) mod dsp_dispatchers;
 pub(crate) mod player_dispatchers;
 pub(crate) mod player_registry;
-pub(crate) mod state;
+pub mod state;
 pub(crate) mod user_registry;
 
 pub mod actors;
