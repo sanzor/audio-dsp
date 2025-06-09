@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use dsp_domain::{dsp_message::DspMessage, dsp_message_result::DspMessageResult};
 use std::sync::Arc;
 use tokio::sync::Mutex;
-pub(crate) struct PauseDispatcher {}
+pub struct PauseDispatcher {}
 
 #[async_trait]
 impl CommandDispatch for PauseDispatcher {

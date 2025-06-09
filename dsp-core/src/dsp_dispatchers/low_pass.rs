@@ -7,7 +7,7 @@ use dsp_domain::{
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-pub(crate) struct LowPassDispatcher {}
+pub struct LowPassDispatcher {}
 
 #[async_trait]
 impl CommandDispatch for LowPassDispatcher {

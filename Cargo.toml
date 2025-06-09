@@ -2,7 +2,7 @@
 members=[
     "audiolib",
     "dsp-domain",
-    "dsp-api",
     "dsp-core",
     "player",
-    "cli-app"]
+    "cli-app",
+    "dsp-actors"]

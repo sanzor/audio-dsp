@@ -13,7 +13,7 @@ use dsp_domain::{dsp_message_result::DspMessageResult, envelope::Envelope};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-pub(crate) enum DispatcherEnum {
+pub enum DispatcherEnum {
     Load(LoadDispatcher),
     Info(InfoDispatcher),
     List(ListDispatcher),

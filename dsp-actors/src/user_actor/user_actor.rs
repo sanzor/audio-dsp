@@ -1,15 +1,14 @@
-use std::sync::Arc;
+use std:: sync::Arc;
+use dsp_core::{command_processor::CommandProcessor, state::SharedState};
 use tokio::sync::Mutex;
 
 use actix::{Actor, Context, Handler, ResponseFuture};
 
 use dsp_domain::{dsp_message::DspMessage, dsp_message_result::DspMessageResult};
 
-use crate::{command_processor::CommandProcessor, state::SharedState};
-
 struct UserActor {
     processor: Arc<CommandProcessor>,
-    pub state: Arc<Mutex<SharedState>>,
+    state: Arc<Mutex<SharedState>>,
 }
 
 impl Actor for UserActor {

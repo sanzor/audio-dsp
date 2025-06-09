@@ -10,7 +10,7 @@ use crate::{
     state::{SharedState, State},
 };
 
-pub(crate) struct ListDispatcher {}
+pub struct ListDispatcher {}
 
 #[async_trait]
 impl CommandDispatch for ListDispatcher {

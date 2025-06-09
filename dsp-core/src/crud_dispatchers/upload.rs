@@ -8,7 +8,7 @@ use tokio::sync::Mutex;
 use std::{path::PathBuf, str::FromStr, sync::Arc};
 
 use crate::{command_dispatch::CommandDispatch, state::SharedState};
-pub(crate) struct UploadDispatcher {}
+pub struct UploadDispatcher {}
 
 #[async_trait]
 impl CommandDispatch for UploadDispatcher {

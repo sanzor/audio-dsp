@@ -2,10 +2,9 @@ use maplit::hashmap;
 use std::{collections::HashMap, sync::Arc};
 
 fn create_state(
-    players: HashMap<String, Addr<AudioPlayerActor>>,
     tracks: HashMap<String, Track>,
 ) -> Arc<Mutex<SharedState>> {
-    Arc::new(Mutex::new(SharedState { players, tracks }))
+    Arc::new(Mutex::new(SharedState {  tracks }))
 }
 
 use actix::Addr;
@@ -18,8 +17,7 @@ use dsp_domain::{
 use rstest::rstest;
 use tokio::sync::Mutex;
 
-use crate::{
-    actors::audio_player_actor::AudioPlayerActor, command_processor::CommandProcessor,
+use crate::{ command_processor::CommandProcessor,
     command_processor_test::common, dispatchers_provider::DispatchersProvider, state::SharedState,
 };
 
@@ -30,7 +28,7 @@ pub async fn can_run_load_command() -> Result<(), String> {
     let path = common::test_data("dragons.wav");
     let path_str = path.to_str().ok_or_else(|| "Invalid file".to_string())?;
 
-    let state = create_state(hashmap! {}, hashmap! {});
+    let state = create_state(hashmap! {});
     let processor = CommandProcessor::new(DispatchersProvider::new());
     let command = DspMessage::Load {
         user_name: Some(user_name.to_string()),
@@ -47,7 +45,7 @@ pub async fn can_run_load_command() -> Result<(), String> {
 pub async fn can_run_info_command() -> Result<(), String> {
     let user_name = "some_user";
     let track_name = "my-track";
-    let state = create_state(hashmap! {}, hashmap! {});
+    let state = create_state(hashmap! {});
     let mut processor = CommandProcessor::new(DispatchersProvider::new());
     load_command(&mut processor, track_name, Arc::clone(&state)).await?;
     let info_command = DspMessage::Info {
@@ -64,7 +62,7 @@ pub async fn can_run_info_command() -> Result<(), String> {
 #[actix_rt::test]
 pub async fn can_run_list_command() -> Result<(), String> {
     let name = "my-track";
-    let state = create_state(hashmap! {}, hashmap! {});
+    let state = create_state(hashmap! {});
     let mut processor = CommandProcessor::new(DispatchersProvider::new());
     load_command(&mut processor, name, Arc::clone(&state)).await?;
     let info_command = DspMessage::Ls {
@@ -85,7 +83,7 @@ pub async fn can_run_upload_command() -> Result<(), String> {
     let track_name = "my-track";
     let filename = "dragons2.wav";
     let mut processor = CommandProcessor::new(DispatchersProvider::new());
-    let state = create_state(hashmap! {}, hashmap! {});
+    let state = create_state(hashmap! {});
     let c = load_command(&mut processor, track_name, Arc::clone(&state)).await?;
     let upload_command = DspMessage::Upload {
         user_name: Some(user_name.to_string()),
@@ -105,7 +103,7 @@ pub async fn can_run_upload_command() -> Result<(), String> {
 pub async fn can_run_delete_command() -> Result<(), String> {
     let name = "my-track";
     let user_name = "my-my_user";
-    let state = create_state(hashmap! {}, hashmap! {});
+    let state = create_state(hashmap! {});
     let mut processor = CommandProcessor::new(DispatchersProvider::new());
     load_command(&mut processor, name, Arc::clone(&state)).await?;
 
@@ -136,7 +134,7 @@ pub async fn can_run_copy_command() -> Result<(), String> {
     let name = "my-track";
     let copy_name = "my-track2";
     let mut processor = CommandProcessor::new(DispatchersProvider::new());
-    let state = create_state(hashmap! {}, hashmap! {});
+    let state = create_state(hashmap! {});
     load_command(&mut processor, name, Arc::clone(&state)).await?;
 
     let copy_result_string = &processor
@@ -165,7 +163,7 @@ pub async fn can_run_exit_command() -> Result<(), String> {
     let user_name = "my-track";
     let track_name = "my-track";
     let mut command_processor = CommandProcessor::new(DispatchersProvider::new());
-    let state = create_state(hashmap! {}, hashmap! {});
+    let state = create_state(hashmap! {});
     load_command(&mut command_processor, track_name, Arc::clone(&state))
         .await
         .unwrap();

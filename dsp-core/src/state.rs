@@ -1,15 +1,10 @@
 use std::{collections::HashMap, sync::Arc};
-
-use actix::Addr;
 use dsp_domain::track::{Track, TrackInfo, TrackRef, TrackRefMut};
 use tokio::sync::Mutex;
 
-use crate::actors::audio_player_actor::AudioPlayerActor;
-
 pub type SharedState = State;
 pub struct State {
-    pub tracks: HashMap<String, Track>,
-    pub players: HashMap<String, Addr<AudioPlayerActor>>,
+    pub tracks: HashMap<String, Track>
 }
 pub fn create_state() -> Arc<Mutex<SharedState>> {
     Arc::new(Mutex::new(State::new()))
@@ -18,8 +13,7 @@ pub fn create_state() -> Arc<Mutex<SharedState>> {
 impl State {
     pub fn new() -> State {
         State {
-            tracks: HashMap::new(),
-            players: HashMap::new(),
+            tracks: HashMap::new()
         }
     }
     pub async fn get_track_info(&self, track_name: &str) -> Result<TrackInfo, String> {

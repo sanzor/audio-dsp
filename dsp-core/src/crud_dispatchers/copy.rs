@@ -7,7 +7,7 @@ use tokio::sync::Mutex;
 
 use crate::{command_dispatch::CommandDispatch, state::SharedState};
 
-pub(crate) struct CopyDispatcher {}
+pub struct CopyDispatcher {}
 #[async_trait]
 impl CommandDispatch for CopyDispatcher {
     async fn dispatch(

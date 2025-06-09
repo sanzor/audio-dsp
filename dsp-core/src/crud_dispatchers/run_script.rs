@@ -10,7 +10,7 @@ use crate::{
     state::{SharedState, State},
 };
 
-pub(crate) struct RunScriptDispatcher {}
+pub struct RunScriptDispatcher {}
 
 #[async_trait]
 impl CommandDispatch for RunScriptDispatcher {
