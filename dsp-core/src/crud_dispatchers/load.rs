@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use dsp_domain::{
     dsp_message::DspMessage,
-    dsp_message_result::DspMessageResult,
+    tracks_message_result::TracksMessageResult,
     envelope::Envelope,
     track::{Track, TrackInfo},
 };
@@ -17,7 +17,7 @@ impl CommandDispatch for LoadDispatcher {
         &self,
         envelope: Envelope,
         state: Arc<Mutex<SharedState>>,
-    ) -> Result<DspMessageResult, String> {
+    ) -> Result<TracksMessageResult, String> {
         match envelope.command {
             DspMessage::Load {
                 user_name,
@@ -39,7 +39,7 @@ impl LoadDispatcher {
         track_name: Option<String>,
         filename: Option<String>,
         state: Arc<Mutex<SharedState>>,
-    ) -> Result<DspMessageResult, String> {
+    ) -> Result<TracksMessageResult, String> {
         let filename = filename.ok_or_else(|| "Invalid file name".to_string())?;
         let filepath = PathBuf::from(&filename);
         let track_name = track_name.unwrap_or_else(|| filename.clone());
@@ -55,7 +55,7 @@ impl LoadDispatcher {
         let mut state_guard = state.lock().await;
         state_guard.upsert_track(new_track).await?;
 
-        Ok(DspMessageResult {
+        Ok(TracksMessageResult {
             output: format!(
                 "Loaded track '{}' from '{}'",
                 track_name,

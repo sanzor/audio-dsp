@@ -1,24 +1,23 @@
 use maplit::hashmap;
 use std::{collections::HashMap, sync::Arc};
 
-fn create_state(
-    tracks: HashMap<String, Track>,
-) -> Arc<Mutex<SharedState>> {
-    Arc::new(Mutex::new(SharedState {  tracks }))
+fn create_state(tracks: HashMap<String, Track>) -> Arc<Mutex<SharedState>> {
+    Arc::new(Mutex::new(SharedState { tracks }))
 }
 
 use actix::Addr;
 use dsp_domain::{
     dsp_message::DspMessage,
-    dsp_message_result::DspMessageResult,
+    tracks_message_result::TracksMessageResult,
     track::{Track, TrackInfo},
     user,
 };
 use rstest::rstest;
 use tokio::sync::Mutex;
 
-use crate::{ command_processor::CommandProcessor,
-    command_processor_test::common, dispatchers_provider::DispatchersProvider, state::SharedState,
+use crate::{
+    command_processor::CommandProcessor, command_processor_test::common,
+    dispatchers_provider::DispatchersProvider, state::SharedState,
 };
 
 #[rstest]
@@ -35,7 +34,7 @@ pub async fn can_run_load_command() -> Result<(), String> {
         track_name: Some("dragons.wav".to_string()),
         filename: Some(path_str.to_string()),
     };
-    let _result = processor.process_command(command, state).await?;
+    let _result = processor.process_crud_command(command, state).await?;
     assert!(_result.output.contains("Loaded"));
     Ok(())
 }
@@ -52,7 +51,7 @@ pub async fn can_run_info_command() -> Result<(), String> {
         user_name: Some(user_name.to_string()),
         track_name: Some(track_name.to_string()),
     };
-    let info_result_str = processor.process_command(info_command, state).await?.output;
+    let info_result_str = processor.process_crud_command(info_command, state).await?.output;
     let info: TrackInfo = serde_json::from_str(&info_result_str).unwrap();
     assert!(info.name == track_name);
     Ok(())
@@ -69,7 +68,7 @@ pub async fn can_run_list_command() -> Result<(), String> {
         user_name: Some(name.to_string()),
     };
 
-    let ls_result = processor.process_command(info_command, state).await?.output;
+    let ls_result = processor.process_crud_command(info_command, state).await?.output;
     let track_list: Vec<TrackInfo> = serde_json::from_str(&ls_result).unwrap();
     assert!(track_list.len() == 1);
     assert!(track_list[0].name == name);
@@ -91,7 +90,7 @@ pub async fn can_run_upload_command() -> Result<(), String> {
         filename: Some(filename.to_string()),
     };
     let upload_result = processor
-        .process_command(upload_command, state)
+        .process_crud_command(upload_command, state)
         .await?
         .output;
     assert!(upload_result.contains("successfully"));
@@ -116,7 +115,7 @@ pub async fn can_run_delete_command() -> Result<(), String> {
         track_name: Some(name.to_string()),
     };
     let delete_command_result = processor
-        .process_command(delete_command, Arc::clone(&state))
+        .process_crud_command(delete_command, Arc::clone(&state))
         .await?;
     assert!(delete_command_result.output.contains("succesful"));
 
@@ -138,7 +137,7 @@ pub async fn can_run_copy_command() -> Result<(), String> {
     load_command(&mut processor, name, Arc::clone(&state)).await?;
 
     let copy_result_string = &processor
-        .process_command(
+        .process_crud_command(
             DspMessage::Copy {
                 user_name: Some(user_name.to_string()),
                 track_name: Some(name.to_string()),
@@ -171,7 +170,7 @@ pub async fn can_run_exit_command() -> Result<(), String> {
         user_name: Some(user_name.to_string()),
     };
     let upload_result = command_processor
-        .process_command(exit_command, Arc::clone(&state))
+        .process_crud_command(exit_command, Arc::clone(&state))
         .await;
     assert!(upload_result.is_err());
     let error = upload_result.unwrap_err();
@@ -183,7 +182,7 @@ async fn load_command(
     processor: &mut CommandProcessor,
     name: &str,
     state: Arc<Mutex<SharedState>>,
-) -> Result<DspMessageResult, String> {
+) -> Result<TracksMessageResult, String> {
     let user_name = "my-my_user";
     let path = common::test_data("dragons.wav");
     let path_str = path.to_str().ok_or_else(|| "Invalid file".to_string())?;
@@ -192,7 +191,7 @@ async fn load_command(
         track_name: Some(name.to_string()),
         filename: Some(path_str.to_string()),
     };
-    let _result = processor.process_command(command, state).await;
+    let _result = processor.process_crud_command(command, state).await;
     _result
 }
 
@@ -203,7 +202,7 @@ async fn get_track_list(
 ) -> Result<Vec<TrackInfo>, String> {
     serde_json::from_str(
         &processor
-            .process_command(
+            .process_crud_command(
                 DspMessage::Ls {
                     user_name: Some(user_name.to_string()),
                 },

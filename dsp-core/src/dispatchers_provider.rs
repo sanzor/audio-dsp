@@ -1,7 +1,6 @@
 use crate::crud_dispatchers::*;
 use crate::dispatcher_enum::DispatcherEnum;
 use crate::dsp_dispatchers::*;
-use crate::player_dispatchers::PlayDispatcher;
 use std::collections::HashMap;
 
 pub(crate) struct DispatchersProvider {
@@ -48,11 +47,6 @@ impl DispatchersProvider {
         );
         hash_map.insert(
             "run-script".to_string(),
-            DispatcherEnum::RunScript(RunScriptDispatcher {}),
-        );
-        hash_map.insert("play".to_string(), DispatcherEnum::Play(PlayDispatcher {}));
-        hash_map.insert(
-            "pause".to_string(),
             DispatcherEnum::RunScript(RunScriptDispatcher {}),
         );
     }

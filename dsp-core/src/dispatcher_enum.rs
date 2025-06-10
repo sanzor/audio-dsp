@@ -6,10 +6,9 @@ use crate::crud_dispatchers::{
 use crate::dsp_dispatchers::{
     GainDispatcher, HighPassDispatcher, LowPassDispatcher, NormalizeDispatcher,
 };
-use crate::player_dispatchers::{PauseDispatcher, PlayDispatcher, StopDispatcher};
 use crate::state::SharedState;
 use async_trait::async_trait;
-use dsp_domain::{dsp_message_result::DspMessageResult, envelope::Envelope};
+use dsp_domain::{tracks_message_result::TracksMessageResult, envelope::Envelope};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -25,9 +24,6 @@ pub enum DispatcherEnum {
     LowPass(LowPassDispatcher),
     HighPass(HighPassDispatcher),
     RunScript(RunScriptDispatcher),
-    Play(PlayDispatcher),
-    Pause(PauseDispatcher),
-    Stop(StopDispatcher),
 }
 #[async_trait]
 impl CommandDispatch for DispatcherEnum {
@@ -35,7 +31,7 @@ impl CommandDispatch for DispatcherEnum {
         &self,
         envelope: Envelope,
         state: Arc<Mutex<SharedState>>,
-    ) -> Result<DspMessageResult, String> {
+    ) -> Result<TracksMessageResult, String> {
         match self {
             DispatcherEnum::Load(handler) => handler.dispatch(envelope, state).await,
             DispatcherEnum::Info(handler) => handler.dispatch(envelope, state).await,
@@ -49,10 +45,6 @@ impl CommandDispatch for DispatcherEnum {
             DispatcherEnum::HighPass(handler) => handler.dispatch(envelope, state).await,
             DispatcherEnum::LowPass(handler) => handler.dispatch(envelope, state).await,
             DispatcherEnum::RunScript(handler) => handler.dispatch(envelope, state).await,
-
-            DispatcherEnum::Play(handler) => handler.dispatch(envelope, state).await,
-            DispatcherEnum::Pause(handler) => handler.dispatch(envelope, state).await,
-            DispatcherEnum::Stop(handler) => handler.dispatch(envelope, state).await,
         }
     }
 }

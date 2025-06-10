@@ -1,8 +1,6 @@
 use actix::{Actor, Context, Handler, ResponseFuture};
 use dsp_core::DispatcherEnum;
 
-
-
 use crate::{AudioPlayerMessage, AudioPlayerResult};
 
 use super::audio_player_actor_state::AudioPlayerActorState;

@@ -1,6 +1,4 @@
-use dsp_domain::{
-    dsp_message::DspMessage, dsp_message_result::DspMessageResult, envelope::Envelope,
-};
+use dsp_domain::{audio_player_message::AudioPlayerMessage, dsp_message::DspMessage, envelope::Envelope, tracks_message_result::TracksMessageResult};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -26,11 +24,11 @@ impl CommandProcessor {
         CommandProcessor { dispatch_provider }
     }
 
-    pub async fn process_command(
+    pub async fn process_crud_command(
         &self,
         input: DspMessage,
         state: Arc<Mutex<SharedState>>,
-    ) -> Result<DspMessageResult, String> {
+    ) -> Result<TracksMessageResult, String> {
         let dispatcher_name = self.get_dispatcher_name(&input);
         let dispatcher = self
             .dispatch_provider
@@ -48,6 +46,8 @@ impl CommandProcessor {
         result
     }
 
+
+
     fn get_dispatcher_name(&self, command: &DspMessage) -> &'static str {
         match command {
             DspMessage::Copy { .. } => "copy",
@@ -61,9 +61,6 @@ impl CommandProcessor {
             DspMessage::Gain { .. } => "gain",
             DspMessage::Normalize { .. } => "normalize",
             DspMessage::Upload { .. } => "upload",
-            DspMessage::Play { .. } => "play",
-            DspMessage::Stop { .. } => "stop",
-            DspMessage::Pause { .. } => "pause",
             DspMessage::RunScript { .. } => "run-script",
         }
     }

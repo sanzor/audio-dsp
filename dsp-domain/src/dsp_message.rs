@@ -4,9 +4,9 @@ use actix::Message;
 use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 
-use crate::dsp_message_result::DspMessageResult;
+use crate::tracks_message_result::TracksMessageResult;
 #[derive(clap::Subcommand, Debug, Serialize, Deserialize, Message)]
-#[rtype(result = "Result<DspMessageResult, String>")]
+#[rtype(result = "Result<TracksMessageResult, String>")]
 pub enum DspMessage {
     Load {
         user_name: Option<String>,
@@ -38,10 +38,6 @@ pub enum DspMessage {
     Exit {
         user_name: Option<String>,
     },
-    Play {
-        user_id: Option<String>,
-        track_id: Option<String>,
-    },
     RunScript {
         user_name: Option<String>,
         #[arg(help = "Path to batch JSON file")]
@@ -72,17 +68,9 @@ pub enum DspMessage {
         #[arg(long)]
         parallelism: Option<u8>,
     },
-    Stop {
-        user_id: Option<String>,
-        track_id: Option<String>,
-    },
-    Pause {
-        user_id: Option<String>,
-        track_id: Option<String>,
-    },
 }
 
-impl Display for DspMessageResult {
+impl Display for TracksMessageResult {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}{}", 1, 2)
     }

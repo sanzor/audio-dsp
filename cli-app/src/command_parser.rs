@@ -1,8 +1,11 @@
-use dsp_domain::dsp_message::{DspMessage, RunMode};
+use dsp_domain::{
+    audio_player_message::AudioPlayerMessage,
+    dsp_message::{DspMessage, RunMode},
+};
 pub(crate) struct CommandParser {}
 
 impl CommandParser {
-    pub(crate) fn parse_command(&self, input: &str) -> Result<DspMessage, String> {
+    pub(crate) fn parse_crud_command(&self, input: &str) -> Result<DspMessage, String> {
         let parts: Vec<&str> = input.trim().split_whitespace().collect();
         if parts.len() < 1 {
             return Err("No command provided".to_string());
@@ -19,8 +22,23 @@ impl CommandParser {
             Some("normalize") => self.parse_normalize(payload),
             Some("low_pass") => self.parse_low_pass(payload),
             Some("high_pass") => self.parse_high_pass(payload),
-            Some("play") => self.parse_play(payload),
             Some("run-script") => self.parse_run_script(payload),
+            _ => Err("Could not process comand".to_string()),
+        };
+        rez
+    }
+
+    pub(crate) fn parse_player_command(&self, input: &str) -> Result<AudioPlayerMessage, String> {
+        let parts: Vec<&str> = input.trim().split_whitespace().collect();
+        if parts.len() < 1 {
+            return Err("No command provided".to_string());
+        }
+        let command = parts.get(0).map(|v| v.to_ascii_lowercase());
+        let payload = &parts[1..];
+        let rez = match command.as_deref() {
+            Some("play") => self.parse_play(payload),
+            Some("pause") => self.parse_pause(payload),
+            Some("stop") => self.parse_stop(payload),
             _ => Err("Could not process comand".to_string()),
         };
         rez
@@ -138,10 +156,26 @@ impl CommandParser {
         }
     }
 
-    fn parse_play(&self, value: &[&str]) -> Result<DspMessage, String> {
+    fn parse_play(&self, value: &[&str]) -> Result<AudioPlayerMessage, String> {
         match value {
-            [user_name, track_name] => Ok(DspMessage::Play {
-                user_id: Some(user_name.to_string()),
+            [track_name] => Ok(AudioPlayerMessage::Play {
+                track_id: Some(track_name.to_string()),
+            }),
+            _ => Err("Invalid run command".to_string()),
+        }
+    }
+
+    fn parse_pause(&self, value: &[&str]) -> Result<AudioPlayerMessage, String> {
+        match value {
+            [user_name, track_name] => Ok(AudioPlayerMessage::Pause {
+                track_id: Some(track_name.to_string()),
+            }),
+            _ => Err("Invalid run command".to_string()),
+        }
+    }
+    fn parse_stop(&self, value: &[&str]) -> Result<AudioPlayerMessage, String> {
+        match value {
+            [user_name, track_name] => Ok(AudioPlayerMessage::Stop {
                 track_id: Some(track_name.to_string()),
             }),
             _ => Err("Invalid run command".to_string()),

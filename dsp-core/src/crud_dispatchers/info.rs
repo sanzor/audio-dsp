@@ -1,7 +1,5 @@
 use async_trait::async_trait;
-use dsp_domain::{
-    dsp_message::DspMessage, dsp_message_result::DspMessageResult, envelope::Envelope,
-};
+use dsp_domain::{dsp_message::DspMessage, tracks_message_result::TracksMessageResult, envelope::Envelope};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -15,7 +13,7 @@ impl CommandDispatch for InfoDispatcher {
         &self,
         envelope: Envelope,
         state: Arc<Mutex<SharedState>>,
-    ) -> Result<DspMessageResult, String> {
+    ) -> Result<TracksMessageResult, String> {
         match envelope.command {
             DspMessage::Info {
                 track_name,
@@ -32,7 +30,7 @@ impl InfoDispatcher {
         user_name: Option<String>,
         track_name: Option<String>,
         state: Arc<Mutex<SharedState>>,
-    ) -> Result<DspMessageResult, String> {
+    ) -> Result<TracksMessageResult, String> {
         let track_name = track_name.ok_or_else(|| "Invalid name")?;
         let user_name = user_name.ok_or_else(|| "Invalid user name")?;
         let mut state_guard = state.lock().await;
@@ -40,7 +38,7 @@ impl InfoDispatcher {
             .get_track_info(&track_name)
             .await
             .map_err(|e| format!("Could not find track info for {}", e))?;
-        Ok(DspMessageResult {
+        Ok(TracksMessageResult {
             output: serde_json::to_string_pretty(&track_info).unwrap(),
             should_exit: false,
         })

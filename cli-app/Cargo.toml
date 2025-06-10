@@ -7,7 +7,9 @@ edition="2021"
 audiolib={path="../audiolib"}
 dsp-core={path="../dsp-core"}
 dsp-domain={path="../dsp-domain"}
+dsp-actors={path = "../dsp-actors"}
 clap = { version = "4.4", features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+actix="0.13"

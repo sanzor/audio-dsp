@@ -1,19 +1,19 @@
-use std::{collections::HashMap, sync::Arc};
 use dsp_domain::track::{Track, TrackInfo, TrackRef, TrackRefMut};
+use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
 
-pub type SharedState = State;
-pub struct State {
-    pub tracks: HashMap<String, Track>
+pub type SharedState = TrackState;
+pub struct TrackState {
+    pub tracks: HashMap<String, Track>,
 }
 pub fn create_state() -> Arc<Mutex<SharedState>> {
-    Arc::new(Mutex::new(State::new()))
+    Arc::new(Mutex::new(TrackState::new()))
 }
 
-impl State {
-    pub fn new() -> State {
-        State {
-            tracks: HashMap::new()
+impl TrackState {
+    pub fn new() -> TrackState {
+        TrackState {
+            tracks: HashMap::new(),
         }
     }
     pub async fn get_track_info(&self, track_name: &str) -> Result<TrackInfo, String> {
@@ -60,10 +60,9 @@ impl State {
             .map(|v| ())
     }
     pub async fn upsert_track(&mut self, track: Track) -> Result<(), String> {
-        match self.tracks.insert(track.info.name.clone(), track){
-            None=> Ok(()),
-            Some(_)=>Err("Key already exists".into())
+        match self.tracks.insert(track.info.name.clone(), track) {
+            None => Ok(()),
+            Some(_) => Err("Key already exists".into()),
         }
-       
     }
 }
