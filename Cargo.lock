@@ -584,9 +584,12 @@ dependencies = [
  "actix-rt",
  "async-std",
  "async-trait",
+ "audiolib",
  "dsp-core",
  "dsp-domain",
  "rstest",
+ "serde",
+ "serde_json",
  "tokio",
 ]
 

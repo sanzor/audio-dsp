@@ -21,11 +21,14 @@ pub struct UserActor {
 
 impl Actor for UserActor {
     type Context = Context<Self>;
-    
 }
-impl UserActor{
-    pub fn new(processor:Arc<CommandProcessor>,tracks:Tracks,players:Players)->UserActor{
-        UserActor { processor: processor, track_state: tracks, players: players }
+impl UserActor {
+    pub fn new(processor: Arc<CommandProcessor>, tracks: Tracks, players: Players) -> UserActor {
+        UserActor {
+            processor: processor,
+            track_state: tracks,
+            players: players,
+        }
     }
 }
 
@@ -46,7 +49,6 @@ impl Handler<AudioPlayerMessage> for UserActor {
     type Result = ResponseFuture<Result<AudioPlayerMessageResult, String>>;
     fn handle(&mut self, msg: AudioPlayerMessage, ctx: &mut Self::Context) -> Self::Result {
         let players = Arc::clone(&self.players);
-        let proc = Arc::clone(&self.processor);
         let tracks = Arc::clone(&self.track_state);
         Box::pin(async move {
             match msg {

@@ -1,3 +1,4 @@
+use audiolib::{audio_buffer::AudioBuffer, Channels};
 use maplit::hashmap;
 use std::{collections::HashMap, sync::Arc};
 
@@ -5,12 +6,10 @@ fn create_state(tracks: HashMap<String, Track>) -> Arc<Mutex<SharedState>> {
     Arc::new(Mutex::new(SharedState { tracks }))
 }
 
-use actix::Addr;
 use dsp_domain::{
     dsp_message::DspMessage,
     track::{Track, TrackInfo},
     tracks_message_result::TracksMessageResult,
-    user,
 };
 use rstest::rstest;
 use tokio::sync::Mutex;
@@ -36,6 +35,33 @@ pub async fn can_run_load_command() -> Result<(), String> {
     };
     let _result = processor.process_crud_command(command, state).await?;
     assert!(_result.output.contains("Loaded"));
+    Ok(())
+}
+
+#[rstest]
+#[actix_rt::test]
+pub async fn can_run_insert_command() -> Result<(), String> {
+    let user_name = "some_user".to_string();
+    let track_name = "some_track".to_string();
+    let state = create_state(hashmap! {});
+    let processor = CommandProcessor::new(DispatchersProvider::new());
+    let samples = vec![1.1_f32; 500];
+    let sample_rate = 1_f32;
+    let track = Track {
+        info: TrackInfo { name: track_name },
+        data: AudioBuffer {
+            channels: Channels::Mono,
+            samples: samples,
+            sample_rate: sample_rate,
+        },
+    };
+    let command = DspMessage::Insert {
+        user_name: Some(user_name),
+        track_payload: Some(serde_json::to_string(&track).unwrap()),
+    };
+    let _result = processor.process_crud_command(command, state).await?;
+    assert!(_result.output.contains("Inserted"));
+
     Ok(())
 }
 
