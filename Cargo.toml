@@ -5,4 +5,5 @@ members=[
     "dsp-core",
     "player",
     "cli-app",
-    "dsp-actors"]
+    "dsp-actors",
+    "dsp-api"]
