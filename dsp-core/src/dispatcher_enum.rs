@@ -1,19 +1,20 @@
 use crate::command_dispatch::CommandDispatch;
 use crate::crud_dispatchers::{
-    CopyDispatcher, DeleteDispatcher, InfoDispatcher, ListDispatcher, LoadDispatcher,
-    RunScriptDispatcher, UploadDispatcher,
+    CopyDispatcher, DeleteDispatcher, InfoDispatcher, InsertDispatcher, ListDispatcher,
+    LoadDispatcher, RunScriptDispatcher, UploadDispatcher,
 };
 use crate::dsp_dispatchers::{
     GainDispatcher, HighPassDispatcher, LowPassDispatcher, NormalizeDispatcher,
 };
 use crate::state::SharedState;
 use async_trait::async_trait;
-use dsp_domain::{tracks_message_result::TracksMessageResult, envelope::Envelope};
+use dsp_domain::{envelope::Envelope, tracks_message_result::TracksMessageResult};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
 pub enum DispatcherEnum {
     Load(LoadDispatcher),
+    Insert(InsertDispatcher),
     Info(InfoDispatcher),
     List(ListDispatcher),
     Upload(UploadDispatcher),
@@ -34,6 +35,7 @@ impl CommandDispatch for DispatcherEnum {
     ) -> Result<TracksMessageResult, String> {
         match self {
             DispatcherEnum::Load(handler) => handler.dispatch(envelope, state).await,
+            DispatcherEnum::Insert(handler) => handler.dispatch(envelope, state).await,
             DispatcherEnum::Info(handler) => handler.dispatch(envelope, state).await,
             DispatcherEnum::List(handler) => handler.dispatch(envelope, state).await,
             DispatcherEnum::Upload(handler) => handler.dispatch(envelope, state).await,

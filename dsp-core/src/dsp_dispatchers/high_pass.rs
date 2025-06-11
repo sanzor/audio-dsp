@@ -1,7 +1,9 @@
 use crate::{command_dispatch::CommandDispatch, state::SharedState};
 use async_trait::async_trait;
 use audiolib::audio_transform::AudioTransformMut;
-use dsp_domain::{dsp_message::DspMessage, tracks_message_result::TracksMessageResult, envelope::Envelope};
+use dsp_domain::{
+    dsp_message::DspMessage, envelope::Envelope, tracks_message_result::TracksMessageResult,
+};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 pub struct HighPassDispatcher {}

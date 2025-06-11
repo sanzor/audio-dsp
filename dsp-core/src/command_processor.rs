@@ -1,4 +1,6 @@
-use dsp_domain::{audio_player_message::AudioPlayerMessage, dsp_message::DspMessage, envelope::Envelope, tracks_message_result::TracksMessageResult};
+use dsp_domain::{
+    dsp_message::DspMessage, envelope::Envelope, tracks_message_result::TracksMessageResult,
+};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -46,8 +48,6 @@ impl CommandProcessor {
         result
     }
 
-
-
     fn get_dispatcher_name(&self, command: &DspMessage) -> &'static str {
         match command {
             DspMessage::Copy { .. } => "copy",
@@ -57,6 +57,7 @@ impl CommandProcessor {
             DspMessage::Delete { .. } => "delete",
             DspMessage::Info { .. } => "info",
             DspMessage::Load { .. } => "load",
+            DspMessage::Insert { .. } => "insert",
             DspMessage::Ls { .. } => "ls",
             DspMessage::Gain { .. } => "gain",
             DspMessage::Normalize { .. } => "normalize",

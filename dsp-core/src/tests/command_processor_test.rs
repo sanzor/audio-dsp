@@ -8,8 +8,8 @@ fn create_state(tracks: HashMap<String, Track>) -> Arc<Mutex<SharedState>> {
 use actix::Addr;
 use dsp_domain::{
     dsp_message::DspMessage,
-    tracks_message_result::TracksMessageResult,
     track::{Track, TrackInfo},
+    tracks_message_result::TracksMessageResult,
     user,
 };
 use rstest::rstest;
@@ -51,7 +51,10 @@ pub async fn can_run_info_command() -> Result<(), String> {
         user_name: Some(user_name.to_string()),
         track_name: Some(track_name.to_string()),
     };
-    let info_result_str = processor.process_crud_command(info_command, state).await?.output;
+    let info_result_str = processor
+        .process_crud_command(info_command, state)
+        .await?
+        .output;
     let info: TrackInfo = serde_json::from_str(&info_result_str).unwrap();
     assert!(info.name == track_name);
     Ok(())
@@ -68,7 +71,10 @@ pub async fn can_run_list_command() -> Result<(), String> {
         user_name: Some(name.to_string()),
     };
 
-    let ls_result = processor.process_crud_command(info_command, state).await?.output;
+    let ls_result = processor
+        .process_crud_command(info_command, state)
+        .await?
+        .output;
     let track_list: Vec<TrackInfo> = serde_json::from_str(&ls_result).unwrap();
     assert!(track_list.len() == 1);
     assert!(track_list[0].name == name);

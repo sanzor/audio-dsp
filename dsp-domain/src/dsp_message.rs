@@ -4,7 +4,7 @@ use actix::Message;
 use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 
-use crate::tracks_message_result::TracksMessageResult;
+use crate::{track::Track, tracks_message_result::TracksMessageResult};
 #[derive(clap::Subcommand, Debug, Serialize, Deserialize, Message)]
 #[rtype(result = "Result<TracksMessageResult, String>")]
 pub enum DspMessage {
@@ -12,6 +12,10 @@ pub enum DspMessage {
         user_name: Option<String>,
         track_name: Option<String>,
         filename: Option<String>,
+    },
+    Insert {
+        user_name: Option<String>,
+        track_payload: Option<String>,
     },
     Upload {
         user_name: Option<String>,

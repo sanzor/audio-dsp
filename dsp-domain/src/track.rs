@@ -1,7 +1,7 @@
 use audiolib::audio_buffer::AudioBuffer;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Track {
     pub info: TrackInfo,
     pub data: AudioBuffer,

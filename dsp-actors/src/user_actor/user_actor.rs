@@ -21,6 +21,12 @@ pub struct UserActor {
 
 impl Actor for UserActor {
     type Context = Context<Self>;
+    
+}
+impl UserActor{
+    pub fn new(processor:Arc<CommandProcessor>,tracks:Tracks,players:Players)->UserActor{
+        UserActor { processor: processor, track_state: tracks, players: players }
+    }
 }
 
 impl Handler<DspMessage> for UserActor {

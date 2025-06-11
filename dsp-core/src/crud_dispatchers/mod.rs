@@ -18,3 +18,6 @@ pub(crate) use info::InfoDispatcher;
 
 pub(crate) mod upload;
 pub(crate) use upload::UploadDispatcher;
+
+pub(crate) mod insert;
+pub(crate) use insert::InsertDispatcher;
