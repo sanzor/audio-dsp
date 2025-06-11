@@ -40,6 +40,34 @@ async fn can_run_insert()->Result<(),String> {
 }
 
 #[actix::test]
+async fn can_run_copy()->Result<(),String> {
+    let user_name = "some_user".to_string();
+    let track_name = "some_track".to_string();
+    let copy_track_name="some_other_track".to_string();
+    let samples = vec![1.1_f32; 500];
+    let sample_rate = 1_f32;
+    let track = Track {
+        info: TrackInfo { name: track_name.clone() },
+        data: AudioBuffer {
+            channels: Channels::Mono,
+            samples: samples,
+            sample_rate: sample_rate,
+        },
+    };
+    let addr = create_actor().start();
+    let _=insert_command(&addr, &user_name, track).await?;
+    let after_insert_list=list_command(&addr,  &user_name.clone()).await?;
+    assert_eq!(after_insert_list.len(),1);
+
+    let copy_command=DspMessage::Copy { user_name: Some(user_name.clone()), track_name: Some(track_name), copy_name: Some(copy_track_name) };
+    let copy_result=addr.send(copy_command).await.map_err(|e| e.to_string())??;
+    assert!(copy_result.output.contains("Copied"));
+    let after_copy_list=list_command(&addr,  &user_name).await?;
+    assert_eq!(after_copy_list.len(),2);
+    Ok(())
+}
+
+#[actix::test]
 async fn can_run_list()->Result<(),String> {
     let user_name = "some_user".to_string();
     let track_name = "some_track".to_string();
