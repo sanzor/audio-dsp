@@ -1,9 +1,9 @@
 use audiolib::{audio_buffer::AudioBuffer, Channels};
 use maplit::hashmap;
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
 
-fn create_state(tracks: HashMap<String, Track>) -> Arc<Mutex<SharedState>> {
-    Arc::new(Mutex::new(SharedState { tracks }))
+fn create_state(tracks: HashMap<String, Track>) -> TracksState {
+    TracksState { tracks }
 }
 
 use dsp_domain::{
@@ -12,11 +12,10 @@ use dsp_domain::{
     tracks_message_result::TracksMessageResult,
 };
 use rstest::rstest;
-use tokio::sync::Mutex;
 
 use crate::{
     command_processor::CommandProcessor, command_processor_test::common,
-    dispatchers_provider::DispatchersProvider, state::SharedState,
+    dispatchers_provider::DispatchersProvider, state::TracksState,
 };
 
 #[rstest]
@@ -26,14 +25,14 @@ pub async fn can_run_load_command() -> Result<(), String> {
     let path = common::test_data("dragons.wav");
     let path_str = path.to_str().ok_or_else(|| "Invalid file".to_string())?;
 
-    let state = create_state(hashmap! {});
+    let mut state = create_state(hashmap! {});
     let processor = CommandProcessor::new(DispatchersProvider::new());
     let command = DspMessage::Load {
         user_name: Some(user_name.to_string()),
         track_name: Some("dragons.wav".to_string()),
         filename: Some(path_str.to_string()),
     };
-    let _result = processor.process_crud_command(command, state).await?;
+    let _result = processor.process_crud_command(command, &mut state).await?;
     assert!(_result.output.contains("Loaded"));
     Ok(())
 }
@@ -43,7 +42,7 @@ pub async fn can_run_load_command() -> Result<(), String> {
 pub async fn can_run_insert_command() -> Result<(), String> {
     let user_name = "some_user".to_string();
     let track_name = "some_track".to_string();
-    let state = create_state(hashmap! {});
+    let mut state = create_state(hashmap! {});
     let processor = CommandProcessor::new(DispatchersProvider::new());
     let samples = vec![1.1_f32; 500];
     let sample_rate = 1_f32;
@@ -59,7 +58,7 @@ pub async fn can_run_insert_command() -> Result<(), String> {
         user_name: Some(user_name),
         track_payload: Some(serde_json::to_string(&track).unwrap()),
     };
-    let _result = processor.process_crud_command(command, state).await?;
+    let _result = processor.process_crud_command(command, &mut state).await?;
     assert!(_result.output.contains("Inserted"));
 
     Ok(())
@@ -70,15 +69,15 @@ pub async fn can_run_insert_command() -> Result<(), String> {
 pub async fn can_run_info_command() -> Result<(), String> {
     let user_name = "some_user";
     let track_name = "my-track";
-    let state = create_state(hashmap! {});
+    let mut state = create_state(hashmap! {});
     let mut processor = CommandProcessor::new(DispatchersProvider::new());
-    load_command(&mut processor, track_name, Arc::clone(&state)).await?;
+    load_command(&mut processor, track_name, &mut state).await?;
     let info_command = DspMessage::Info {
         user_name: Some(user_name.to_string()),
         track_name: Some(track_name.to_string()),
     };
     let info_result_str = processor
-        .process_crud_command(info_command, state)
+        .process_crud_command(info_command, &mut state)
         .await?
         .output;
     let info: TrackInfo = serde_json::from_str(&info_result_str).unwrap();
@@ -90,15 +89,15 @@ pub async fn can_run_info_command() -> Result<(), String> {
 #[actix_rt::test]
 pub async fn can_run_list_command() -> Result<(), String> {
     let name = "my-track";
-    let state = create_state(hashmap! {});
+    let mut state = create_state(hashmap! {});
     let mut processor = CommandProcessor::new(DispatchersProvider::new());
-    load_command(&mut processor, name, Arc::clone(&state)).await?;
+    load_command(&mut processor, name, &mut state).await?;
     let info_command = DspMessage::Ls {
         user_name: Some(name.to_string()),
     };
 
     let ls_result = processor
-        .process_crud_command(info_command, state)
+        .process_crud_command(info_command, &mut state)
         .await?
         .output;
     let track_list: Vec<TrackInfo> = serde_json::from_str(&ls_result).unwrap();
@@ -114,15 +113,15 @@ pub async fn can_run_upload_command() -> Result<(), String> {
     let track_name = "my-track";
     let filename = "dragons2.wav";
     let mut processor = CommandProcessor::new(DispatchersProvider::new());
-    let state = create_state(hashmap! {});
-    let c = load_command(&mut processor, track_name, Arc::clone(&state)).await?;
+    let mut state = create_state(hashmap! {});
+    let c = load_command(&mut processor, track_name, &mut state).await?;
     let upload_command = DspMessage::Upload {
         user_name: Some(user_name.to_string()),
         track_name: Some(track_name.to_string()),
         filename: Some(filename.to_string()),
     };
     let upload_result = processor
-        .process_crud_command(upload_command, state)
+        .process_crud_command(upload_command, &mut state)
         .await?
         .output;
     assert!(upload_result.contains("successfully"));
@@ -134,12 +133,12 @@ pub async fn can_run_upload_command() -> Result<(), String> {
 pub async fn can_run_delete_command() -> Result<(), String> {
     let name = "my-track";
     let user_name = "my-my_user";
-    let state = create_state(hashmap! {});
+    let mut state = create_state(hashmap! {});
     let mut processor = CommandProcessor::new(DispatchersProvider::new());
-    load_command(&mut processor, name, Arc::clone(&state)).await?;
+    load_command(&mut processor, name, &mut state).await?;
 
     let track_list_before_delete =
-        get_track_list(&mut processor, &user_name, Arc::clone(&state)).await?;
+        get_track_list(&mut processor, &user_name, &mut state).await?;
     assert!(track_list_before_delete.len() == 1);
 
     let delete_command = DspMessage::Delete {
@@ -147,12 +146,12 @@ pub async fn can_run_delete_command() -> Result<(), String> {
         track_name: Some(name.to_string()),
     };
     let delete_command_result = processor
-        .process_crud_command(delete_command, Arc::clone(&state))
+        .process_crud_command(delete_command, &mut state)
         .await?;
     assert!(delete_command_result.output.contains("succesful"));
 
     let track_list_after_delete =
-        get_track_list(&mut processor, &user_name, Arc::clone(&state)).await?;
+        get_track_list(&mut processor, &user_name, &mut state).await?;
     assert!(track_list_after_delete.len() == 0);
 
     Ok(())
@@ -165,8 +164,8 @@ pub async fn can_run_copy_command() -> Result<(), String> {
     let name = "my-track";
     let copy_name = "my-track2";
     let mut processor = CommandProcessor::new(DispatchersProvider::new());
-    let state = create_state(hashmap! {});
-    load_command(&mut processor, name, Arc::clone(&state)).await?;
+    let mut state = create_state(hashmap! {});
+    load_command(&mut processor, name,&mut state).await?;
 
     let copy_result_string = &processor
         .process_crud_command(
@@ -175,15 +174,15 @@ pub async fn can_run_copy_command() -> Result<(), String> {
                 track_name: Some(name.to_string()),
                 copy_name: Some(copy_name.to_string()),
             },
-            Arc::clone(&state),
+            &mut state,
         )
         .await?
         .output;
     assert!(copy_result_string.contains("Copied successfully"));
     let track_list_after_copy =
-        get_track_list(&mut processor, &user_name, Arc::clone(&state)).await?;
+        get_track_list(&mut processor, &user_name, &mut state).await?;
     assert!(track_list_after_copy.len() == 2);
-    assert!(track_list_after_copy[1].name == copy_name);
+    assert!(track_list_after_copy.iter().any(|c|c.name==copy_name));
 
     Ok(())
 }
@@ -194,15 +193,15 @@ pub async fn can_run_exit_command() -> Result<(), String> {
     let user_name = "my-track";
     let track_name = "my-track";
     let mut command_processor = CommandProcessor::new(DispatchersProvider::new());
-    let state = create_state(hashmap! {});
-    load_command(&mut command_processor, track_name, Arc::clone(&state))
+    let mut state = create_state(hashmap! {});
+    load_command(&mut command_processor, track_name, &mut state)
         .await
         .unwrap();
     let exit_command = DspMessage::Exit {
         user_name: Some(user_name.to_string()),
     };
     let upload_result = command_processor
-        .process_crud_command(exit_command, Arc::clone(&state))
+        .process_crud_command(exit_command, &mut state)
         .await;
     assert!(upload_result.is_err());
     let error = upload_result.unwrap_err();
@@ -213,7 +212,7 @@ pub async fn can_run_exit_command() -> Result<(), String> {
 async fn load_command(
     processor: &mut CommandProcessor,
     name: &str,
-    state: Arc<Mutex<SharedState>>,
+    state: &mut TracksState,
 ) -> Result<TracksMessageResult, String> {
     let user_name = "my-my_user";
     let path = common::test_data("dragons.wav");
@@ -230,7 +229,7 @@ async fn load_command(
 async fn get_track_list(
     processor: &mut CommandProcessor,
     user_name: &str,
-    state: Arc<Mutex<SharedState>>,
+    state: &mut TracksState,
 ) -> Result<Vec<TrackInfo>, String> {
     serde_json::from_str(
         &processor

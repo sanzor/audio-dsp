@@ -1,12 +1,10 @@
 use std::fmt::Display;
 
-use actix::Message;
 use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 
-use crate::{track::Track, tracks_message_result::TracksMessageResult};
-#[derive(clap::Subcommand, Debug, Serialize, Deserialize, Message)]
-#[rtype(result = "Result<TracksMessageResult, String>")]
+use crate::tracks_message_result::TracksMessageResult;
+#[derive(clap::Subcommand, Debug, Serialize, Deserialize)]
 pub enum DspMessage {
     Load {
         user_name: Option<String>,

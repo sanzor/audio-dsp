@@ -1,16 +1,14 @@
 use dsp_domain::{
     dsp_message::DspMessage, envelope::Envelope, tracks_message_result::TracksMessageResult,
 };
-use std::sync::Arc;
-use tokio::sync::Mutex;
 
 use crate::{
     command_dispatch::CommandDispatch, dispatchers_provider::DispatchersProvider,
-    state::SharedState,
+    state::TracksState,
 };
 
 pub struct CommandProcessorConfig {
-    pub(crate) state: Option<SharedState>,
+    pub(crate) state: Option<TracksState>,
 }
 pub struct CommandProcessor {
     dispatch_provider: DispatchersProvider,
@@ -29,7 +27,7 @@ impl CommandProcessor {
     pub async fn process_crud_command(
         &self,
         input: DspMessage,
-        state: Arc<Mutex<SharedState>>,
+        state: &mut TracksState,
     ) -> Result<TracksMessageResult, String> {
         let dispatcher_name = self.get_dispatcher_name(&input);
         let dispatcher = self

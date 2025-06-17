@@ -6,7 +6,7 @@ use dsp_domain::{
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use crate::{command_dispatch::CommandDispatch, state::SharedState};
+use crate::{command_dispatch::CommandDispatch, state::TracksState};
 
 pub struct InsertDispatcher {}
 #[async_trait]
@@ -14,7 +14,7 @@ impl CommandDispatch for InsertDispatcher {
     async fn dispatch(
         &self,
         envelope: Envelope,
-        state: Arc<Mutex<SharedState>>,
+        state: &mut TracksState,
     ) -> Result<TracksMessageResult, String> {
         match envelope.command {
             DspMessage::Insert {
@@ -34,14 +34,14 @@ impl InsertDispatcher {
         &self,
         user_name: Option<String>,
         track_payload: Option<String>,
-        state: Arc<Mutex<SharedState>>,
+        state: &mut TracksState,
     ) -> Result<TracksMessageResult, String> {
         let track_payload = track_payload.ok_or_else(|| "invalid payload".to_string())?;
         let track: Track = serde_json::from_str(&track_payload).unwrap();
         let user_name = user_name.ok_or_else(|| "invalid name".to_string())?;
 
-        let mut state_guard = state.lock().await;
-        state_guard.upsert_track(track).await?;
+        
+        state.upsert_track(track).await?;
 
         Ok(TracksMessageResult {
             output: format!("Inserted track"),

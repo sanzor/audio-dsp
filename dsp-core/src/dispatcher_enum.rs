@@ -6,7 +6,7 @@ use crate::crud_dispatchers::{
 use crate::dsp_dispatchers::{
     GainDispatcher, HighPassDispatcher, LowPassDispatcher, NormalizeDispatcher,
 };
-use crate::state::SharedState;
+use crate::state::TracksState;
 use async_trait::async_trait;
 use dsp_domain::{envelope::Envelope, tracks_message_result::TracksMessageResult};
 use std::sync::Arc;
@@ -31,7 +31,7 @@ impl CommandDispatch for DispatcherEnum {
     async fn dispatch(
         &self,
         envelope: Envelope,
-        state: Arc<Mutex<SharedState>>,
+        state: &mut TracksState,
     ) -> Result<TracksMessageResult, String> {
         match self {
             DispatcherEnum::Load(handler) => handler.dispatch(envelope, state).await,

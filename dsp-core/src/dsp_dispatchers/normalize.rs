@@ -1,4 +1,4 @@
-use crate::{command_dispatch::CommandDispatch, state::SharedState};
+use crate::{command_dispatch::CommandDispatch, state::TracksState};
 use async_trait::async_trait;
 use audiolib::audio_transform::AudioTransformMut;
 use dsp_domain::{
@@ -14,7 +14,7 @@ impl CommandDispatch for NormalizeDispatcher {
     async fn dispatch(
         &self,
         envelope: Envelope,
-        state: Arc<Mutex<SharedState>>,
+        state: &mut TracksState,
     ) -> Result<TracksMessageResult, String> {
         match envelope.command {
             DspMessage::Normalize {
@@ -32,10 +32,10 @@ impl NormalizeDispatcher {
     async fn internal_dispatch(
         &self,
         track_name: Option<String>,
-        state: Arc<Mutex<SharedState>>,
+        state: &mut TracksState,
     ) -> Result<TracksMessageResult, String> {
         let track_name = track_name.ok_or("Invalid name for track to perform normalize on")?;
-        let state = &mut *state.lock().await;
+       
         let mut_ref = state.get_track_ref_mut(track_name.as_str()).await?;
         mut_ref.inner.data.normalize_mut();
         Ok(TracksMessageResult {

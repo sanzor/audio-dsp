@@ -3,10 +3,8 @@ pub mod user_actor;
 #[cfg(test)]
 #[path = "tests/mod.rs"]
 pub mod user_actor_test;
-use actix::Message;
 
-#[derive(Debug, Message)]
-#[rtype(result = "Result<AudioPlayerResult,String>")]
+#[derive(Debug)]
 pub enum AudioPlayerMessage {
     Play,
     Pause,

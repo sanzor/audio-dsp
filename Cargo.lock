@@ -655,12 +655,12 @@ checksum = "f46ad14479a25103f283c0f10005961cf086d8dc42205bb44c46ac563475dca6"
 name = "cli-app"
 version = "0.1.0"
 dependencies = [
- "actix",
  "audiolib",
  "clap",
  "dsp-actors",
  "dsp-core",
  "dsp-domain",
+ "kameo",
  "serde",
  "serde_json",
  "tokio",
@@ -913,7 +913,6 @@ dependencies = [
 name = "dsp-domain"
 version = "0.1.0"
 dependencies = [
- "actix",
  "audiolib",
  "clap",
  "kameo",

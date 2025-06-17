@@ -7,7 +7,7 @@ use tokio::sync::Mutex;
 
 use crate::{
     command_dispatch::CommandDispatch,
-    state::{SharedState, TrackState},
+    state::{TracksState, TrackState},
 };
 
 pub struct ListDispatcher {}
@@ -17,7 +17,7 @@ impl CommandDispatch for ListDispatcher {
     async fn dispatch(
         &self,
         envelope: Envelope,
-        state: Arc<Mutex<SharedState>>,
+        state: &mut TracksState,
     ) -> Result<TracksMessageResult, String> {
         let result = match envelope.command {
             DspMessage::Ls { user_name } => self.internal_dispatch(user_name, state).await,
@@ -31,11 +31,11 @@ impl ListDispatcher {
     async fn internal_dispatch(
         &self,
         user_name: Option<String>,
-        state: Arc<Mutex<SharedState>>,
+        state: &mut TracksState,
     ) -> Result<TracksMessageResult, String> {
         let user_name = user_name.ok_or_else(|| "Invalid user_name")?;
-        let mut state_guard = state.lock().await;
-        let tracks = state_guard.get_all_tracks().await;
+       
+        let tracks = state.get_all_tracks().await;
         Ok(TracksMessageResult {
             output: serde_json::to_string_pretty(&tracks).unwrap(),
             should_exit: false,

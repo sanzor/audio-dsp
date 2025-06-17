@@ -5,7 +5,7 @@ use dsp_domain::{
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use crate::{command_dispatch::CommandDispatch, state::SharedState};
+use crate::{command_dispatch::CommandDispatch, state::TracksState};
 
 pub struct InfoDispatcher {}
 
@@ -14,7 +14,7 @@ impl CommandDispatch for InfoDispatcher {
     async fn dispatch(
         &self,
         envelope: Envelope,
-        state: Arc<Mutex<SharedState>>,
+        state: &mut TracksState,
     ) -> Result<TracksMessageResult, String> {
         match envelope.command {
             DspMessage::Info {
@@ -31,12 +31,12 @@ impl InfoDispatcher {
         &self,
         user_name: Option<String>,
         track_name: Option<String>,
-        state: Arc<Mutex<SharedState>>,
+        state: &mut TracksState,
     ) -> Result<TracksMessageResult, String> {
         let track_name = track_name.ok_or_else(|| "Invalid name")?;
         let user_name = user_name.ok_or_else(|| "Invalid user name")?;
-        let mut state_guard = state.lock().await;
-        let track_info = state_guard
+       
+        let track_info = state
             .get_track_info(&track_name)
             .await
             .map_err(|e| format!("Could not find track info for {}", e))?;

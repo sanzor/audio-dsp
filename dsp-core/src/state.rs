@@ -2,14 +2,10 @@ use dsp_domain::track::{Track, TrackInfo, TrackRef, TrackRefMut};
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
 
-pub type SharedState = TrackState;
+pub type TracksState = TrackState;
 pub struct TrackState {
     pub tracks: HashMap<String, Track>,
 }
-pub fn create_state() -> Arc<Mutex<SharedState>> {
-    Arc::new(Mutex::new(TrackState::new()))
-}
-
 impl TrackState {
     pub fn new() -> TrackState {
         TrackState {

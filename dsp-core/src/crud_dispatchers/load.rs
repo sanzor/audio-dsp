@@ -8,7 +8,7 @@ use dsp_domain::{
 use std::{path::PathBuf, sync::Arc};
 use tokio::sync::Mutex;
 
-use crate::{command_dispatch::CommandDispatch, state::SharedState};
+use crate::{command_dispatch::CommandDispatch, state::TracksState};
 
 pub struct LoadDispatcher {}
 #[async_trait]
@@ -16,7 +16,7 @@ impl CommandDispatch for LoadDispatcher {
     async fn dispatch(
         &self,
         envelope: Envelope,
-        state: Arc<Mutex<SharedState>>,
+        state: &mut TracksState,
     ) -> Result<TracksMessageResult, String> {
         match envelope.command {
             DspMessage::Load {
@@ -38,7 +38,7 @@ impl LoadDispatcher {
         user_name: Option<String>,
         track_name: Option<String>,
         filename: Option<String>,
-        state: Arc<Mutex<SharedState>>,
+        state: &mut TracksState,
     ) -> Result<TracksMessageResult, String> {
         let filename = filename.ok_or_else(|| "Invalid file name".to_string())?;
         let filepath = PathBuf::from(&filename);
@@ -52,8 +52,8 @@ impl LoadDispatcher {
             },
             data: audio_buffer,
         };
-        let mut state_guard = state.lock().await;
-        state_guard.upsert_track(new_track).await?;
+       
+        state.upsert_track(new_track).await?;
 
         Ok(TracksMessageResult {
             output: format!(
