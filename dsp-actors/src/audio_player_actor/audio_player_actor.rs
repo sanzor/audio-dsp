@@ -3,7 +3,7 @@ use dsp_domain::audio_player_message_result::AudioPlayerMessageResult;
 use dsp_domain::track::Track;
 use kameo::{message::{Context, Message}, Actor};
 use player::audio_sink::AudioSink;
-use crate::AudioPlayerMessage;
+use crate::{audio_player_actor::audio_player_actor_params::AudioPlayerActorParams, AudioPlayerMessage};
 
 enum AudioPlayerState {
     Paused,
@@ -12,7 +12,7 @@ enum AudioPlayerState {
 #[derive(Actor)]
 #[actor(name="AudioPlayerActor")]
 pub struct AudioPlayerActor {
-    sink: Box<dyn AudioSink + Send + Sync + 'static>,
+    sink: Box<dyn AudioSink + Send  + 'static>,
     state: AudioPlayerState,
     cursor: usize,
     track: Track,
@@ -42,6 +42,9 @@ impl Message<AudioPlayerMessage> for AudioPlayerActor {
     }
 }
 impl AudioPlayerActor{
+    pub fn new(params:AudioPlayerActorParams)->AudioPlayerActor{
+        AudioPlayerActor { sink: params.sink, state: AudioPlayerState::Paused, cursor: params.cursor, track: params.track }
+    }
     pub async fn handle_play(&mut self) -> Result<AudioPlayerMessageResult, String> {
         if matches!(self.state,AudioPlayerState::Paused){
             self.state=AudioPlayerState::Playing

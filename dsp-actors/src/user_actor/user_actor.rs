@@ -1,9 +1,7 @@
 use dsp_core::{command_processor::CommandProcessor, state::TracksState};
-use kameo::{actor::ActorRef, prelude::{Context, Message}, Actor};
+use kameo::{actor::ActorRef, prelude::{Context, Message}, spawn, Actor};
+use player::audio_sink::cpal_sink::CpalSink;
 use std::{collections::HashMap};
-
-
-
 
 use dsp_domain::{
     audio_player_message::AudioPlayerMessage,
@@ -11,7 +9,7 @@ use dsp_domain::{
     tracks_message_result::TracksMessageResult,
 };
 
-use crate::audio_player_actor::audio_player_actor::AudioPlayerActor;
+use crate::audio_player_actor::{audio_player_actor::AudioPlayerActor, audio_player_actor_params::AudioPlayerActorParams};
 
 type Players = HashMap<String, ActorRef<AudioPlayerActor>>;
 
@@ -70,6 +68,9 @@ impl UserActor {
     ) -> Result<AudioPlayerMessageResult, String> {
         let track_id = track_id.ok_or_else(|| "invalid id".to_string())?;
         let track_ref = self.track_state.get_track_ref(&track_id).await?;
+        let sink=CpalSink::new()?;
+        let params=AudioPlayerActorParams{track:track_ref.inner.clone(),cursor:0,sink:sink};
+        let player_actor=spawn(AudioPlayerActor::new(params));
         todo!()
     }
     pub async fn handle_pause(
