@@ -1,8 +1,12 @@
 
+use std::time::Duration;
+
+use actix::ActorContext;
 use dsp_domain::audio_player_message_result::AudioPlayerMessageResult;
 use dsp_domain::track::Track;
 use kameo::{message::{Context, Message}, Actor};
 use player::audio_sink::AudioSink;
+use tokio::time::Interval;
 use crate::{audio_player_actor::audio_player_actor_params::AudioPlayerActorParams, AudioPlayerMessage};
 
 enum AudioPlayerState {
@@ -43,7 +47,19 @@ impl Message<AudioPlayerMessage> for AudioPlayerActor {
 }
 impl AudioPlayerActor{
     pub fn new(params:AudioPlayerActorParams)->AudioPlayerActor{
+        
+     
         AudioPlayerActor { sink: params.sink, state: AudioPlayerState::Paused, cursor: params.cursor, track: params.track }
+    }
+
+    fn start_streaming_task(ctx:&mut ActorContext<Self>){
+            let interval=tokio::time::interval(Duration::from_millis(200));
+            let task=tokio::task::spawn(async move{
+            loop{
+                interval.tick().await;
+                
+            }
+        });
     }
     pub async fn handle_play(&mut self) -> Result<AudioPlayerMessageResult, String> {
         if matches!(self.state,AudioPlayerState::Paused){

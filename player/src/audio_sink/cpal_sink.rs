@@ -72,3 +72,5 @@ impl AudioSink for CpalSink {
         Ok(())
     }
 }
+unsafe impl Send for CpalSink{  
+}

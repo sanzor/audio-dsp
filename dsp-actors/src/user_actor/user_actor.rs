@@ -68,7 +68,7 @@ impl UserActor {
     ) -> Result<AudioPlayerMessageResult, String> {
         let track_id = track_id.ok_or_else(|| "invalid id".to_string())?;
         let track_ref = self.track_state.get_track_ref(&track_id).await?;
-        let sink=CpalSink::new()?;
+        let sink=Box::new(CpalSink::new()?);
         let params=AudioPlayerActorParams{track:track_ref.inner.clone(),cursor:0,sink:sink};
         let player_actor=spawn(AudioPlayerActor::new(params));
         todo!()
