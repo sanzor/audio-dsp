@@ -40,7 +40,6 @@ impl InsertDispatcher {
         let track: Track = serde_json::from_str(&track_payload).unwrap();
         let user_name = user_name.ok_or_else(|| "invalid name".to_string())?;
 
-        
         state.upsert_track(track).await?;
 
         Ok(TracksMessageResult {

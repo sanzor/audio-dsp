@@ -15,17 +15,16 @@ fn create_actor() -> ActorRef<UserActor> {
     let processor = CommandProcessor::create_processor();
     let tracks = TracksState::new();
     let players = HashMap::new();
-    let actor=  spawn(UserActor::new(processor, tracks, players));
-    let g=kameo::registry::ActorRegistry::new();
+    let actor = spawn(UserActor::new(processor, tracks, players));
+    let g = kameo::registry::ActorRegistry::new();
 
     actor
 }
-#[actix::test]
+#[tokio::test]
 async fn can_run_insert() -> Result<(), String> {
-    
     let user_name = "some_user".to_string();
     let track_name = "some_track".to_string();
-    
+
     let samples = vec![1.1_f32; 500];
     let sample_rate = 1_f32;
     let track = Track {
@@ -48,7 +47,7 @@ async fn can_run_insert() -> Result<(), String> {
     Ok(())
 }
 
-#[actix::test]
+#[tokio::test]
 async fn can_run_copy() -> Result<(), String> {
     let user_name = "some_user".to_string();
     let track_name = "some_track".to_string();
@@ -82,7 +81,7 @@ async fn can_run_copy() -> Result<(), String> {
     Ok(())
 }
 
-#[actix::test]
+#[tokio::test]
 async fn can_run_list() -> Result<(), String> {
     let user_name = "some_user".to_string();
     let track_name = "some_track".to_string();
@@ -120,7 +119,10 @@ async fn insert_command(
     rez
 }
 
-async fn list_command(addr: &ActorRef<UserActor>, user_name: &str) -> Result<Vec<TrackInfo>, String> {
+async fn list_command(
+    addr: &ActorRef<UserActor>,
+    user_name: &str,
+) -> Result<Vec<TrackInfo>, String> {
     let command = DspMessage::Ls {
         user_name: Some(user_name.to_string()),
     };

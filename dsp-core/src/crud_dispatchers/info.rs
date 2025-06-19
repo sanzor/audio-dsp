@@ -35,7 +35,7 @@ impl InfoDispatcher {
     ) -> Result<TracksMessageResult, String> {
         let track_name = track_name.ok_or_else(|| "Invalid name")?;
         let user_name = user_name.ok_or_else(|| "Invalid user name")?;
-       
+
         let track_info = state
             .get_track_info(&track_name)
             .await

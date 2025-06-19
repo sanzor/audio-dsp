@@ -40,7 +40,7 @@ impl GainDispatcher {
     ) -> Result<TracksMessageResult, String> {
         let user_name = user_name.ok_or("Invalid name for user to perform gain on")?;
         let track_name = track_name.ok_or("Invalid name for track to perform gain on")?;
-       
+
         let track_ref = state.get_track_ref_mut(&track_name).await?;
         let _ = track_ref.inner.data.gain_mut(cutoff);
         Ok(TracksMessageResult {

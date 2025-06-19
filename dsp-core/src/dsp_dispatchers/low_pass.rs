@@ -40,7 +40,7 @@ impl LowPassDispatcher {
     ) -> Result<TracksMessageResult, String> {
         let user_name = user_name.ok_or("Invalid name for user to high_pass on")?;
         let track_name = track_name.ok_or("Invalid name for track to high_pass on")?;
-       
+
         let track_ref = state.get_track_ref_mut(track_name.as_str()).await?;
         let _ = track_ref.inner.data.low_pass_mut(cutoff);
         Ok(TracksMessageResult {

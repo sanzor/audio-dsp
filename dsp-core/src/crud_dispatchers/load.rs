@@ -52,7 +52,7 @@ impl LoadDispatcher {
             },
             data: audio_buffer,
         };
-       
+
         state.upsert_track(new_track).await?;
 
         Ok(TracksMessageResult {

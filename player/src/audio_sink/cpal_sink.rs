@@ -1,6 +1,8 @@
 use core::panic;
 use std::{
     collections::VecDeque,
+    future::Future,
+    pin::Pin,
     sync::{Arc, Mutex},
     time::Duration,
 };
@@ -64,13 +66,18 @@ impl CpalSink {
         stream
     }
 }
-
+#[async_trait::async_trait]
 impl AudioSink for CpalSink {
-    fn write_frame(&mut self, frame: &crate::AudioFrame) -> Result<(), String> {
-        let mut buf = self.buffer.lock().map_err(|e| e.to_string())?;
-        buf.extend(frame);
-        Ok(())
+    fn write_frame<'a>(
+        &'a mut self,
+        frame: &'a crate::AudioFrame,
+    ) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>> {
+        Box::pin(async move {
+            let mut buf = self.buffer.lock().map_err(|e| e.to_string())?;
+            buf.extend(frame);
+            Ok(())
+        })
     }
 }
-unsafe impl Send for CpalSink{  
-}
+unsafe impl Send for CpalSink {}
+unsafe impl Sync for CpalSink {}

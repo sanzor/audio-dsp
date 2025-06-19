@@ -1,10 +1,17 @@
+use std::{future::Future, pin::Pin};
+
 use super::AudioSink;
 
 pub struct StdSink {}
-
+#[async_trait::async_trait]
 impl AudioSink for StdSink {
-    fn write_frame(&mut self, frame: &crate::AudioFrame) -> Result<(), String> {
-        println!("{:?}", frame);
-        Ok(())
+    fn write_frame<'a>(
+        &'a mut self,
+        frame: &'a crate::AudioFrame,
+    ) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>> {
+        Box::pin(async move {
+            println!("{:?}", frame);
+            Ok(())
+        })
     }
 }

@@ -33,7 +33,7 @@ impl NormalizeDispatcher {
         state: &mut TracksState,
     ) -> Result<TracksMessageResult, String> {
         let track_name = track_name.ok_or("Invalid name for track to perform normalize on")?;
-       
+
         let mut_ref = state.get_track_ref_mut(track_name.as_str()).await?;
         mut_ref.inner.data.normalize_mut();
         Ok(TracksMessageResult {

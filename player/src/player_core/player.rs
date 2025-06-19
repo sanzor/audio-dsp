@@ -58,7 +58,7 @@ impl<S: AudioSink> Player<S> {
         }
     }
 
-    pub fn run(&mut self) -> Result<(), String> {
+    pub async fn run(&mut self) -> Result<(), String> {
         let loop_start = Instant::now();
         loop {
             while let Ok(self_message) = self.self_message_receiver.try_recv() {
@@ -95,7 +95,7 @@ impl<S: AudioSink> Player<S> {
                 PlayerStates::Paused | PlayerStates::Stopped => {}
                 PlayerStates::Playing => {
                     if let Some(frame) = self.get_frame(st.cursor) {
-                        self.sink.write_frame(&frame)?;
+                        self.sink.write_frame(&frame).await?;
                         st.cursor += 1;
                         st.frames_written += 1;
                     } else {

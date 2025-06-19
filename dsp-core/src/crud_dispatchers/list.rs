@@ -7,7 +7,7 @@ use tokio::sync::Mutex;
 
 use crate::{
     command_dispatch::CommandDispatch,
-    state::{TracksState, TrackState},
+    state::{TrackState, TracksState},
 };
 
 pub struct ListDispatcher {}
@@ -34,7 +34,7 @@ impl ListDispatcher {
         state: &mut TracksState,
     ) -> Result<TracksMessageResult, String> {
         let user_name = user_name.ok_or_else(|| "Invalid user_name")?;
-       
+
         let tracks = state.get_all_tracks().await;
         Ok(TracksMessageResult {
             output: serde_json::to_string_pretty(&tracks).unwrap(),

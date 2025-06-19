@@ -40,7 +40,7 @@ impl UploadDispatcher {
     ) -> Result<TracksMessageResult, String> {
         let track_name = track_name.ok_or_else(|| "Invalid name to upload track")?;
         let user_name = user_name.ok_or_else(|| "Invalid name to upload track")?;
-        
+
         let track_ref = state.get_track_ref(&track_name).await?;
         let file_path_str = filename.unwrap_or_else(|| track_name.clone());
         let path = PathBuf::from_str(&file_path_str).map_err(|err| err.to_string())?;

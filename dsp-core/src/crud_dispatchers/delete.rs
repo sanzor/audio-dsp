@@ -30,7 +30,7 @@ impl DeleteDispatcher {
     ) -> Result<TracksMessageResult, String> {
         let user_name = user_name.ok_or_else(|| "Invalid name for deleted track".to_string())?;
         let name = track_name.ok_or_else(|| "Invalid name for deleted track".to_string())?;
-        
+
         let _ = state.delete_track(&name).await?;
         Ok(TracksMessageResult {
             output: format!("Delete track {} succesful", &name),

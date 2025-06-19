@@ -7,7 +7,7 @@ use tokio::sync::Mutex;
 
 use crate::{
     command_dispatch::CommandDispatch,
-    state::{TracksState, TrackState},
+    state::{TrackState, TracksState},
 };
 
 pub struct RunScriptDispatcher {}
@@ -43,7 +43,7 @@ impl RunScriptDispatcher {
     ) -> Result<TracksMessageResult, String> {
         let track_name = name.ok_or("Invalid name for copy")?;
         let user_name = user_name.ok_or("Invalid name for copy")?;
-        
+
         let mut new_track = state.get_track_copy(&track_name.clone()).await?;
 
         let copy_name = copy_name.unwrap_or_else(|| new_track.info.name.clone() + "v2");

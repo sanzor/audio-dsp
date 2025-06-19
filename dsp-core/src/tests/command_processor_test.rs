@@ -137,8 +137,7 @@ pub async fn can_run_delete_command() -> Result<(), String> {
     let mut processor = CommandProcessor::new(DispatchersProvider::new());
     load_command(&mut processor, name, &mut state).await?;
 
-    let track_list_before_delete =
-        get_track_list(&mut processor, &user_name, &mut state).await?;
+    let track_list_before_delete = get_track_list(&mut processor, &user_name, &mut state).await?;
     assert!(track_list_before_delete.len() == 1);
 
     let delete_command = DspMessage::Delete {
@@ -150,8 +149,7 @@ pub async fn can_run_delete_command() -> Result<(), String> {
         .await?;
     assert!(delete_command_result.output.contains("succesful"));
 
-    let track_list_after_delete =
-        get_track_list(&mut processor, &user_name, &mut state).await?;
+    let track_list_after_delete = get_track_list(&mut processor, &user_name, &mut state).await?;
     assert!(track_list_after_delete.len() == 0);
 
     Ok(())
@@ -165,7 +163,7 @@ pub async fn can_run_copy_command() -> Result<(), String> {
     let copy_name = "my-track2";
     let mut processor = CommandProcessor::new(DispatchersProvider::new());
     let mut state = create_state(hashmap! {});
-    load_command(&mut processor, name,&mut state).await?;
+    load_command(&mut processor, name, &mut state).await?;
 
     let copy_result_string = &processor
         .process_crud_command(
@@ -179,10 +177,9 @@ pub async fn can_run_copy_command() -> Result<(), String> {
         .await?
         .output;
     assert!(copy_result_string.contains("Copied successfully"));
-    let track_list_after_copy =
-        get_track_list(&mut processor, &user_name, &mut state).await?;
+    let track_list_after_copy = get_track_list(&mut processor, &user_name, &mut state).await?;
     assert!(track_list_after_copy.len() == 2);
-    assert!(track_list_after_copy.iter().any(|c|c.name==copy_name));
+    assert!(track_list_after_copy.iter().any(|c| c.name == copy_name));
 
     Ok(())
 }
