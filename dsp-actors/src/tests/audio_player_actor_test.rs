@@ -135,6 +135,26 @@ async fn test_cursor_still_moves_after_pause()->Result<(),String>{
     Ok(())
 }
 
+#[tokio::test]
+async fn test_state_is_paused_at_end()->Result<(),String>{
+    let track= make_track_from_samples(vec![1_f32;2], Channels::Mono);
+    let track_len=track.data.samples.len();
+    let written=Arc::new(Mutex::new(vec![]));
+    let sink=Box::new(TestSink{written:Arc::clone(&written)});
+    let actor_ref=create_actor(track,sink);
+    let _=actor_ref.tell(AudioPlayerMessage::Play{}).await;
+    loop{
+        tokio::time::sleep(Duration::from_millis(3)).await;
+        let state_query_result=get_state(&actor_ref).await?;
+        if state_query_result.written==track_len{
+            assert!(matches!(state_query_result.state,AudioPlayerState::Paused));
+            assert!(matches!(state_query_result.cursor,0));
+            break;
+        }
+    }
+    Ok(())
+}
+
 fn create_actor(track:Track,sink:Box<dyn AudioSink+Send+Sync+'static>) -> ActorRef<AudioPlayerActor> {
     let audio_player_actor_params=AudioPlayerActorParams{sink:sink,track:track,cursor:0};
     let audio_player_actor = spawn(AudioPlayerActor::new(audio_player_actor_params));

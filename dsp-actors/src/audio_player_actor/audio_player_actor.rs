@@ -91,7 +91,7 @@ impl Message<StateRequest> for AudioPlayerActor{
         msg: StateRequest,
         ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
-        Ok((StateReply { cursor: self.cursor, state: self.state.clone() }))
+        Ok((StateReply { cursor: self.cursor, state: self.state.clone() ,written:self.frames_written}))
     }
 }
 impl AudioPlayerActor {
