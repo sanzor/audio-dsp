@@ -71,6 +71,9 @@ impl Message<PlayFrame> for AudioPlayerActor {
         msg: PlayFrame,
         ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
+         if !matches!(self.state, AudioPlayerState::Playing) {
+            return Ok(()); // 🛑 Don't write frames if not playing
+        }
         if let Some(frame) = self.get_frame(self.cursor) {
             self.sink.write_frame(&frame).await?;
             self.cursor += 1;

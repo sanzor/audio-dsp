@@ -64,6 +64,7 @@ impl Message<AudioPlayerMessage> for UserActor {
             AudioPlayerMessage::Play { track_id } => self.handle_play(track_id).await,
             AudioPlayerMessage::Pause { track_id } => self.handle_pause(track_id).await,
             AudioPlayerMessage::Stop { track_id } => self.handle_stop(track_id).await,
+            AudioPlayerMessage::State=>self.handle_state(track_id).await
         };
         c
     }
@@ -74,15 +75,11 @@ impl UserActor {
         track_id: Option<String>,
     ) -> Result<AudioPlayerMessageResult, String> {
         let track_id = track_id.ok_or_else(|| "invalid id".to_string())?;
-        let track_ref = self.track_state.get_track_ref(&track_id).await?;
-        let sink = Box::new(CpalSink::new()?);
-        let params = AudioPlayerActorParams {
-            track: track_ref.inner.clone(),
-            cursor: 0,
-            sink: sink,
-        };
-        let player_actor = spawn(AudioPlayerActor::new(params));
-        todo!()
+        let player=self.players.get(&track_id);
+        match player.cloned(){
+            None=>self.handle_new_player(&track_id).await,
+            Some(p)=>self.handle_play_existing_player(&p).await
+        }
     }
     pub async fn handle_pause(
         &mut self,
@@ -98,6 +95,31 @@ impl UserActor {
     ) -> Result<AudioPlayerMessageResult, String> {
         let track_id = track_id.ok_or_else(|| "invalid id".to_string())?;
         let track_ref = self.track_state.get_track_ref(&track_id).await?;
+        todo!()
+    }
+    pub async fn handle_get_state(&mut self,track_id:Option<String>)->Result<AudioPlayerMessageResult, String>{
+        let track_id = track_id.ok_or_else(|| "invalid id".to_string())?;
+        let player=self.players.get(&track_id);
+        match player.cloned(){
+            None=>Err("no such player exists".to_string()),
+            Some(p)=>{
+                p.ask(AudioPlayerMessage::State{}).await
+            }
+        }
+    }
+
+    async fn handle_new_player(&mut self,track_id:&str)->Result<AudioPlayerMessageResult,String>{
+        let track_ref = self.track_state.get_track_ref(track_id).await?;
+        let sink = Box::new(CpalSink::new()?);
+        let params = AudioPlayerActorParams {
+            track: track_ref.inner.clone(),
+            cursor: 0,
+            sink: sink,
+        };
+        let player_actor = spawn(AudioPlayerActor::new(params));
+        todo!();
+    }
+    async fn handle_play_existing_player(&mut self,player_ref:&ActorRef<AudioPlayerActor>)->Result<AudioPlayerMessageResult,String>{
         todo!()
     }
 }
