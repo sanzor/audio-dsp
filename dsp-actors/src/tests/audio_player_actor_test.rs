@@ -16,7 +16,7 @@ use tokio::sync::Mutex;
 use crate::audio_player_actor::audio_player_actor::AudioPlayerState;
 use crate::user_actor_test::utils::create_user_actor;
 use crate::user_actor_test::utils::get_player_actor_state;
-use crate::AudioPlayerMessage;
+use crate::AudioPlayerInternalMessage;
 struct TestSink{
      pub written: Arc<Mutex<Vec<AudioFrame>>>,
 }
@@ -61,7 +61,7 @@ async fn test_can_write()->Result<(),String>{
     let written=Arc::new(Mutex::new(vec![]));
     let sink=Box::new(TestSink{written:Arc::clone(&written)});
     let audio_player_actor=create_user_actor(track,sink);
-    let _=audio_player_actor.tell(AudioPlayerMessage::Play{}).await;
+    let _=audio_player_actor.tell(AudioPlayerInternalMessage::Play{}).await;
     tokio::time::sleep(Duration::from_secs(10)).await;
     let val=& *written.lock().await;
     assert!(val.len()>0);
@@ -75,11 +75,11 @@ async fn test_can_pause()->Result<(),String>{
     let written=Arc::new(Mutex::new(vec![]));
     let sink=Box::new(TestSink{written:Arc::clone(&written)});
     let actor_ref=create_user_actor(track,sink);
-    let _=actor_ref.tell(AudioPlayerMessage::Play{}).await;
+    let _=actor_ref.tell(AudioPlayerInternalMessage::Play{}).await;
     tokio::time::sleep(Duration::from_secs(1)).await;
     let state_query_result=get_player_actor_state(&actor_ref).await?;
     assert!(matches!(state_query_result.state,AudioPlayerState::Playing)==true);
-    let _=actor_ref.tell(AudioPlayerMessage::Pause{}).await;
+    let _=actor_ref.tell(AudioPlayerInternalMessage::Pause{}).await;
     tokio::time::sleep(Duration::from_millis(1)).await;
     let state_query_result=get_player_actor_state(&actor_ref).await?;
     tokio::time::sleep(Duration::from_secs(1)).await;
@@ -93,16 +93,16 @@ async fn test_can_pause_and_resume()->Result<(),String>{
     let written=Arc::new(Mutex::new(vec![]));
     let sink=Box::new(TestSink{written:Arc::clone(&written)});
     let actor_ref=create_user_actor(track,sink);
-    let _=actor_ref.tell(AudioPlayerMessage::Play{}).await;
+    let _=actor_ref.tell(AudioPlayerInternalMessage::Play{}).await;
     tokio::time::sleep(Duration::from_secs(1)).await;
     let state_query_result=get_player_actor_state(&actor_ref).await?;
     assert!(matches!(state_query_result.state,AudioPlayerState::Playing)==true);
-    let _=actor_ref.tell(AudioPlayerMessage::Pause{}).await;
+    let _=actor_ref.tell(AudioPlayerInternalMessage::Pause{}).await;
     tokio::time::sleep(Duration::from_millis(1)).await;
     let state_query_result=get_player_actor_state(&actor_ref).await?;
     tokio::time::sleep(Duration::from_secs(1)).await;
     assert!(matches!(state_query_result.state,AudioPlayerState::Paused)==true);
-    let _=actor_ref.tell(AudioPlayerMessage::Play{}).await;
+    let _=actor_ref.tell(AudioPlayerInternalMessage::Play{}).await;
     tokio::time::sleep(Duration::from_secs(1)).await;
     let state_query_result=get_player_actor_state(&actor_ref).await?;
     assert!(matches!(state_query_result.state,AudioPlayerState::Playing)==true);
@@ -115,16 +115,16 @@ async fn test_cursor_still_moves_after_pause()->Result<(),String>{
     let written=Arc::new(Mutex::new(vec![]));
     let sink=Box::new(TestSink{written:Arc::clone(&written)});
     let actor_ref=create_user_actor(track,sink);
-    let _=actor_ref.tell(AudioPlayerMessage::Play{}).await;
+    let _=actor_ref.tell(AudioPlayerInternalMessage::Play{}).await;
     tokio::time::sleep(Duration::from_secs(3)).await;
-    let _=actor_ref.tell(AudioPlayerMessage::Pause{}).await;
+    let _=actor_ref.tell(AudioPlayerInternalMessage::Pause{}).await;
     tokio::time::sleep(Duration::from_millis(1)).await;
     let state_query_result=get_player_actor_state(&actor_ref).await?;
     let cursor_after_pause=state_query_result.cursor;
     tokio::time::sleep(Duration::from_secs(1)).await;
-    let _=actor_ref.tell(AudioPlayerMessage::Play{}).await;
+    let _=actor_ref.tell(AudioPlayerInternalMessage::Play{}).await;
     tokio::time::sleep(Duration::from_secs(3)).await;
-    let _=actor_ref.tell(AudioPlayerMessage::Pause{}).await;
+    let _=actor_ref.tell(AudioPlayerInternalMessage::Pause{}).await;
     tokio::time::sleep(Duration::from_millis(1)).await;
     let state_query_result=get_player_actor_state(&actor_ref).await?;
     let cursor_after_second_pause=state_query_result.cursor;
@@ -139,7 +139,7 @@ async fn test_state_is_paused_at_end()->Result<(),String>{
     let written=Arc::new(Mutex::new(vec![]));
     let sink=Box::new(TestSink{written:Arc::clone(&written)});
     let actor_ref=create_user_actor(track,sink);
-    let _=actor_ref.tell(AudioPlayerMessage::Play{}).await;
+    let _=actor_ref.tell(AudioPlayerInternalMessage::Play{}).await;
     loop{
         tokio::time::sleep(Duration::from_millis(3)).await;
         let state_query_result=get_player_actor_state(&actor_ref).await?;
@@ -161,7 +161,7 @@ async fn test_can_seek_while_paused()->Result<(),String>{
     let written=Arc::new(Mutex::new(vec![]));
     let sink=Box::new(TestSink{written:Arc::clone(&written)});
     let actor_ref=create_user_actor(track,sink);
-    let _=actor_ref.tell(AudioPlayerMessage::Seek { position: seek_position as u32}).await;
+    let _=actor_ref.tell(AudioPlayerInternalMessage::Seek { position: seek_position as u32}).await;
     let state=get_player_actor_state(&actor_ref).await?;
     assert!(state.cursor==seek_position);
     assert!(matches!(state.state,AudioPlayerState::Paused));
@@ -178,8 +178,8 @@ async fn test_pauses_when_seek()->Result<(),String>{
     let written=Arc::new(Mutex::new(vec![]));
     let sink=Box::new(TestSink{written:Arc::clone(&written)});
     let actor_ref=create_user_actor(track,sink);
-    let _=actor_ref.tell(AudioPlayerMessage::Play{}).await;
-    let _=actor_ref.tell(AudioPlayerMessage::Seek { position: seek_position as u32}).await;
+    let _=actor_ref.tell(AudioPlayerInternalMessage::Play{}).await;
+    let _=actor_ref.tell(AudioPlayerInternalMessage::Seek { position: seek_position as u32}).await;
     let state=get_player_actor_state(&actor_ref).await?;
     assert!(state.cursor==seek_position);
     assert!(matches!(state.state,AudioPlayerState::Paused));

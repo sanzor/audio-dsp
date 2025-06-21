@@ -5,10 +5,10 @@ pub mod user_actor;
 pub mod user_actor_test;
 
 #[derive(Debug)]
-pub enum AudioPlayerMessage {
+pub enum AudioPlayerInternalMessage {
     Play,
     Pause,
     Seek { position: u32 },
-    Stop,
+    Stop
 }
 pub struct AudioPlayerResult {}

@@ -1,6 +1,7 @@
 use kameo::Reply;
+use serde::{Deserialize, Serialize};
 
-#[derive(Reply)]
+#[derive(Reply,Serialize,Deserialize)]
 pub struct AudioPlayerMessageResult {
     pub output: String,
     pub should_exit: bool,

@@ -1,6 +1,8 @@
-use crate::audio_player_actor::audio_player_actor::AudioPlayerState;
+use serde::{Deserialize, Serialize};
 
-pub struct StateReply{
+use crate::audio_player_actor::audio_player_actor::AudioPlayerState;
+#[derive(Serialize,Deserialize)]
+pub struct AudioPlayerActorStateResult{
     pub cursor:usize,
     pub written:usize,
     pub state:AudioPlayerState

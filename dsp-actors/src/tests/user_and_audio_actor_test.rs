@@ -5,7 +5,7 @@ use dsp_core::{command_processor::CommandProcessor, state::TracksState};
 use dsp_domain::{audio_player_message::AudioPlayerMessage, dsp_message::DspMessage, track::{Track, TrackInfo}};
 use kameo::{actor::ActorRef, spawn};
 
-use crate::user_actor::user_actor::UserActor;
+use crate::{audio_player_actor::{audio_player_actor::AudioPlayerState, state_reply::AudioPlayerActorStateResult}, user_actor::user_actor::UserActor};
 
 fn create_user_actor() -> ActorRef<UserActor> {
     let processor = CommandProcessor::create_processor();
@@ -28,9 +28,11 @@ async fn can_create_player_and_play() -> Result<(), String> {
             .await.map_err(|e|e.to_string());
     let play=user_actor
             .tell( AudioPlayerMessage::Play { track_id: Some(track_name.to_string()) }).await;
+    let state=get_state(&user_actor, track_name).await?;
+    assert!(matches!(state.state,AudioPlayerState::Playing));
 
     
-    Ok(());
+    Ok(())
 }
 
 fn sample_track(track_name:&str)->Track{
@@ -48,4 +50,10 @@ fn sample_track(track_name:&str)->Track{
 }
 fn to_string(track:&Track)->String{
     serde_json::to_string(track).unwrap()
+}
+
+async fn get_state(user_actor:&ActorRef<UserActor>,track_id:&str)->Result<AudioPlayerActorStateResult,String>{
+    let rez=user_actor.ask(AudioPlayerMessage::State { track_id: Some(track_id.to_string()) }).await.map_err(|e|e.to_string())?;
+    let state:AudioPlayerActorStateResult=serde_json::from_str(&rez.output).unwrap();
+    Ok(state)
 }

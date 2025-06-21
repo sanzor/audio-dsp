@@ -7,9 +7,9 @@ use kameo::{
 use player::audio_sink::cpal_sink::CpalSink;
 use std::collections::HashMap;
 
-use crate::audio_player_actor::{
-    audio_player_actor::AudioPlayerActor, audio_player_actor_params::AudioPlayerActorParams,
-};
+use crate::{audio_player_actor::{
+    audio_player_actor::AudioPlayerActor, audio_player_actor_params::AudioPlayerActorParams, state_request::StateRequest,
+}, user_actor::get_state_result::GetStateResult};
 use dsp_domain::{
     audio_player_message::AudioPlayerMessage,
     audio_player_message_result::AudioPlayerMessageResult, dsp_message::DspMessage,
@@ -64,7 +64,7 @@ impl Message<AudioPlayerMessage> for UserActor {
             AudioPlayerMessage::Play { track_id } => self.handle_play(track_id).await,
             AudioPlayerMessage::Pause { track_id } => self.handle_pause(track_id).await,
             AudioPlayerMessage::Stop { track_id } => self.handle_stop(track_id).await,
-            AudioPlayerMessage::State=>self.handle_state(track_id).await
+            AudioPlayerMessage::State{track_id}=>self.handle_get_player_state(track_id).await
         };
         c
     }
@@ -97,15 +97,24 @@ impl UserActor {
         let track_ref = self.track_state.get_track_ref(&track_id).await?;
         todo!()
     }
-    pub async fn handle_get_state(&mut self,track_id:Option<String>)->Result<AudioPlayerMessageResult, String>{
+    pub async fn handle_get_player_state(&mut self,track_id:Option<String>)->Result<AudioPlayerMessageResult, String>{
         let track_id = track_id.ok_or_else(|| "invalid id".to_string())?;
         let player=self.players.get(&track_id);
         match player.cloned(){
             None=>Err("no such player exists".to_string()),
             Some(p)=>{
-                p.ask(AudioPlayerMessage::State{}).await
+                let x=p.ask(StateRequest{}).await.map_err(|e|e.to_string())?;
+                Ok(AudioPlayerMessageResult{output:serde_json::to_string(&x).unwrap(),should_exit:false})
             }
         }
+    }
+
+    pub async fn handle_get_state(&mut self)->Result<GetStateResult,String>{
+        
+        let players=self.players.iter().map(|a,b|self.handle_get_player_state(track_id))
+    }
+    pub async handle_get_player_state(&mut self,track_id:&str)->Result<AudioPlayerActorStateResult,String>{
+
     }
 
     async fn handle_new_player(&mut self,track_id:&str)->Result<AudioPlayerMessageResult,String>{
@@ -117,7 +126,7 @@ impl UserActor {
             sink: sink,
         };
         let player_actor = spawn(AudioPlayerActor::new(params));
-        todo!();
+        self.players.insert(k, v)
     }
     async fn handle_play_existing_player(&mut self,player_ref:&ActorRef<AudioPlayerActor>)->Result<AudioPlayerMessageResult,String>{
         todo!()
