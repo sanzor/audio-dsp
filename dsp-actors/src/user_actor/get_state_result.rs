@@ -5,6 +5,6 @@ use dsp_domain::track::TrackInfo;
 use crate::audio_player_actor::state_reply::AudioPlayerActorStateResult;
 
 pub struct GetStateResult{
-    tracks:HashMap<String,TrackInfo>,
-    players:HashMap<String,AudioPlayerActorStateResult>
+    pub tracks:HashMap<String,TrackInfo>,
+    pub players:HashMap<String,AudioPlayerActorStateResult>
 }

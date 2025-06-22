@@ -5,15 +5,13 @@ use kameo::{
     spawn, Actor,
 };
 use player::audio_sink::cpal_sink::CpalSink;
-use std::collections::HashMap;
+use std::{collections::HashMap, hash::Hash};
 
 use crate::{audio_player_actor::{
     audio_player_actor::AudioPlayerActor, audio_player_actor_params::AudioPlayerActorParams, state_request::StateRequest,
 }, user_actor::get_state_result::GetStateResult};
 use dsp_domain::{
-    audio_player_message::AudioPlayerMessage,
-    audio_player_message_result::AudioPlayerMessageResult, dsp_message::DspMessage,
-    tracks_message_result::TracksMessageResult,
+    audio_player_message::AudioPlayerMessage, audio_player_message_result::AudioPlayerMessageResult, dsp_message::DspMessage, track::TrackInfo, tracks_message_result::TracksMessageResult, user::User
 };
 
 type Players = HashMap<String, ActorRef<AudioPlayerActor>>;
@@ -64,11 +62,14 @@ impl Message<AudioPlayerMessage> for UserActor {
             AudioPlayerMessage::Play { track_id } => self.handle_play(track_id).await,
             AudioPlayerMessage::Pause { track_id } => self.handle_pause(track_id).await,
             AudioPlayerMessage::Stop { track_id } => self.handle_stop(track_id).await,
-            AudioPlayerMessage::State{track_id}=>self.handle_get_player_state(track_id).await
+            AudioPlayerMessage::State{track_id}=>{
+                self.handle_get_player_state(track_id).await
+            }
         };
         c
     }
 }
+
 impl UserActor {
     pub async fn handle_play(
         &mut self,
@@ -97,7 +98,7 @@ impl UserActor {
         let track_ref = self.track_state.get_track_ref(&track_id).await?;
         todo!()
     }
-    pub async fn handle_get_player_state(&mut self,track_id:Option<String>)->Result<AudioPlayerMessageResult, String>{
+    pub async fn handle_get_player_state(& self,track_id:Option<String>)->Result<AudioPlayerMessageResult, String>{
         let track_id = track_id.ok_or_else(|| "invalid id".to_string())?;
         let player=self.players.get(&track_id);
         match player.cloned(){
@@ -110,12 +111,24 @@ impl UserActor {
     }
 
     pub async fn handle_get_state(&mut self)->Result<GetStateResult,String>{
+        let mut player_list:HashMap<String, AudioPlayerActorStateResult>=HashMap::new();
+        let mut track_list:HashMap<String,TrackInfo>=HashMap::new();
+        for (key,player_ref) in self.players.iter(){
+            let player_state=self.handle_get_player_state(Some(key.into())).await?;
+            player_list.insert(key.into(),player_state);
+        }
+        for (key, track) in self.track_state.tracks.iter(){
+            track_list.insert(key.into(), track.info.clone());
+        }
         
-        let players=self.players.iter().map(|a,b|self.handle_get_player_state(track_id))
+        Ok(GetStateResult{players:player_list,tracks:track_list})
     }
+    
     pub async handle_get_player_state(&mut self,track_id:&str)->Result<AudioPlayerActorStateResult,String>{
 
     }
+
+
 
     async fn handle_new_player(&mut self,track_id:&str)->Result<AudioPlayerMessageResult,String>{
         let track_ref = self.track_state.get_track_ref(track_id).await?;
