@@ -1,22 +1,17 @@
-use crate::{
-    audio_player_actor::{audio_player_actor_params::AudioPlayerActorParams, state_reply::AudioPlayerActorStateResult, state_request::StateRequest}, AudioPlayerInternalMessage,
-};
+use crate::audio_player_actor::audio_player_actor_params::AudioPlayerActorParams;
 use audiolib::Channels;
-use dsp_domain::audio_player_message_result::AudioPlayerMessageResult;
+use dsp_domain::actors::{
+    player_command::PlayerCommand, player_command_result::PlayerCommandResult,
+    player_state::AudioPlayerState, player_state_query::PlayerStateQuery,
+    player_state_query_result::PlayerStateQueryResult,
+};
 use dsp_domain::track::Track;
 use kameo::{
     actor::ActorRef,
     message::{Context, Message},
 };
 use player::{audio_sink::AudioSink, AudioFrame};
-use serde::{Deserialize, Serialize};
 use std::time::Duration;
-
-#[derive(Clone,Serialize,Deserialize)]
-pub enum AudioPlayerState {
-    Paused,
-    Playing,
-}
 
 pub struct AudioPlayerActor {
     sink: Box<dyn AudioSink + Send + Sync>,
@@ -36,30 +31,30 @@ impl kameo::Actor for AudioPlayerActor {
     }
 }
 struct PlayFrame {}
-impl Message<AudioPlayerInternalMessage> for AudioPlayerActor {
-    type Reply = Result<AudioPlayerMessageResult, String>;
+impl Message<PlayerCommand> for AudioPlayerActor {
+    type Reply = Result<PlayerCommandResult, String>;
 
     async fn handle(
         &mut self,
-        msg: AudioPlayerInternalMessage,
+        msg: PlayerCommand,
         ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
         match msg {
-            AudioPlayerInternalMessage::Play => self.handle_play().await,
-            AudioPlayerInternalMessage::Pause => self.handle_pause().await,
-            AudioPlayerInternalMessage::Stop => {
+            PlayerCommand::Play => self.handle_play().await,
+            PlayerCommand::Pause => self.handle_pause().await,
+            PlayerCommand::Stop => {
                 let v = ctx
                     .actor_ref()
                     .stop_gracefully()
                     .await
-                    .map(|_| AudioPlayerMessageResult {
+                    .map(|_| PlayerCommandResult {
                         output: "".to_string(),
                         should_exit: true,
                     })
                     .map_err(|x| x.to_string());
                 v
             }
-            AudioPlayerInternalMessage::Seek { position } => self.handle_seek(position).await,
+            PlayerCommand::Seek { position } => self.handle_seek(position).await,
         }
     }
 }
@@ -72,8 +67,8 @@ impl Message<PlayFrame> for AudioPlayerActor {
         msg: PlayFrame,
         ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
-         if !matches!(self.state, AudioPlayerState::Playing) {
-            return Ok(()); // 🛑 Don't write frames if not playing
+        if !matches!(self.state, AudioPlayerState::Playing) {
+            return Ok(()); //
         }
         if let Some(frame) = self.get_frame(self.cursor) {
             self.sink.write_frame(&frame).await?;
@@ -87,15 +82,19 @@ impl Message<PlayFrame> for AudioPlayerActor {
         }
     }
 }
-impl Message<StateRequest> for AudioPlayerActor{
-    type Reply=Result<AudioPlayerActorStateResult,String>;
+impl Message<PlayerStateQuery> for AudioPlayerActor {
+    type Reply = Result<PlayerStateQueryResult, String>;
 
     async fn handle(
         &mut self,
-        msg: StateRequest,
+        msg: PlayerStateQuery,
         ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
-        Ok((AudioPlayerActorStateResult { cursor: self.cursor, state: self.state.clone() ,written:self.frames_written}))
+        Ok((PlayerStateQueryResult {
+            cursor: self.cursor,
+            state: self.state.clone(),
+            written: self.frames_written,
+        }))
     }
 }
 impl AudioPlayerActor {
@@ -118,31 +117,31 @@ impl AudioPlayerActor {
             }
         });
     }
-    pub async fn handle_play(&mut self) -> Result<AudioPlayerMessageResult, String> {
+    pub async fn handle_play(&mut self) -> Result<PlayerCommandResult, String> {
         if matches!(self.state, AudioPlayerState::Paused) {
             self.state = AudioPlayerState::Playing
         }
-        Ok(AudioPlayerMessageResult {
+        Ok(PlayerCommandResult {
             output: "".to_string(),
             should_exit: false,
         })
     }
-    pub async fn handle_pause(&mut self) -> Result<AudioPlayerMessageResult, String> {
+    pub async fn handle_pause(&mut self) -> Result<PlayerCommandResult, String> {
         if matches!(self.state, AudioPlayerState::Playing) {
             self.state = AudioPlayerState::Paused
         }
-        Ok(AudioPlayerMessageResult {
+        Ok(PlayerCommandResult {
             output: "".to_string(),
             should_exit: false,
         })
     }
-    pub async fn handle_seek(&mut self, position: u32) -> Result<AudioPlayerMessageResult, String> {
+    pub async fn handle_seek(&mut self, position: u32) -> Result<PlayerCommandResult, String> {
         if matches!(self.state, AudioPlayerState::Playing) {
             self.state = AudioPlayerState::Paused
         }
         self.cursor = position as usize;
         self.state = AudioPlayerState::Paused;
-        Ok(AudioPlayerMessageResult {
+        Ok(PlayerCommandResult {
             output: "".to_string(),
             should_exit: false,
         })

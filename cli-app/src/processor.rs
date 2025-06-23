@@ -1,15 +1,14 @@
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
 
 use dsp_actors::user_actor::user_actor::UserActor;
 
 use dsp_core::{
     api::create_command_processor, command_processor::CommandProcessor, state::TrackState,
 };
-use dsp_domain::{
-    audio_player_message::AudioPlayerMessage,
-    audio_player_message_result::AudioPlayerMessageResult, dsp_message::DspMessage,
-    tracks_message_result::TracksMessageResult,
-};
+use dsp_domain::actors::user_player_command::UserPlayerCommand;
+use dsp_domain::actors::user_player_command_result::UserPlayerCommandResult;
+use dsp_domain::dsp_message::DspMessage;
+use dsp_domain::tracks_message_result::TracksMessageResult;
 use kameo::actor::spawn;
 use kameo::actor::ActorRef;
 
@@ -57,8 +56,8 @@ impl Processor {
     pub async fn process_player_command(
         &mut self,
         input: &str,
-    ) -> Result<AudioPlayerMessageResult, String> {
-        let command: AudioPlayerMessage = self.command_parser.parse_player_command(input)?;
+    ) -> Result<UserPlayerCommandResult, String> {
+        let command: UserPlayerCommand = self.command_parser.parse_player_command(input)?;
         let result = self
             .user_actor
             .ask(command)

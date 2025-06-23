@@ -9,6 +9,6 @@ pub enum AudioPlayerInternalMessage {
     Play,
     Pause,
     Seek { position: u32 },
-    Stop
+    Stop,
 }
 pub struct AudioPlayerResult {}

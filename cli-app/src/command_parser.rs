@@ -1,5 +1,5 @@
 use dsp_domain::{
-    audio_player_message::AudioPlayerMessage,
+    actors::user_player_command::UserPlayerCommand,
     dsp_message::{DspMessage, RunMode},
 };
 pub(crate) struct CommandParser {}
@@ -28,7 +28,7 @@ impl CommandParser {
         rez
     }
 
-    pub(crate) fn parse_player_command(&self, input: &str) -> Result<AudioPlayerMessage, String> {
+    pub(crate) fn parse_player_command(&self, input: &str) -> Result<UserPlayerCommand, String> {
         let parts: Vec<&str> = input.trim().split_whitespace().collect();
         if parts.len() < 1 {
             return Err("No command provided".to_string());
@@ -156,26 +156,27 @@ impl CommandParser {
         }
     }
 
-    fn parse_play(&self, value: &[&str]) -> Result<AudioPlayerMessage, String> {
+    fn parse_play(&self, value: &[&str]) -> Result<UserPlayerCommand, String> {
         match value {
-            [track_name] => Ok(AudioPlayerMessage::Play {
+            [track_name] => Ok(UserPlayerCommand::Play {
                 track_id: Some(track_name.to_string()),
             }),
             _ => Err("Invalid run command".to_string()),
         }
     }
 
-    fn parse_pause(&self, value: &[&str]) -> Result<AudioPlayerMessage, String> {
+    fn parse_pause(&self, value: &[&str]) -> Result<UserPlayerCommand, String> {
         match value {
-            [user_name, track_name] => Ok(AudioPlayerMessage::Pause {
+            [user_name, track_name] => Ok(UserPlayerCommand::Pause {
                 track_id: Some(track_name.to_string()),
             }),
+
             _ => Err("Invalid run command".to_string()),
         }
     }
-    fn parse_stop(&self, value: &[&str]) -> Result<AudioPlayerMessage, String> {
+    fn parse_stop(&self, value: &[&str]) -> Result<UserPlayerCommand, String> {
         match value {
-            [user_name, track_name] => Ok(AudioPlayerMessage::Stop {
+            [user_name, track_name] => Ok(UserPlayerCommand::Stop {
                 track_id: Some(track_name.to_string()),
             }),
             _ => Err("Invalid run command".to_string()),
