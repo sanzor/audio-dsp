@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use audiolib::audio_parse;
-use dsp_domain::{
+use domain::{
     dsp_message::DspMessage, envelope::Envelope, tracks_message_result::TracksMessageResult,
 };
 

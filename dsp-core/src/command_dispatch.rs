@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use dsp_domain::{envelope::Envelope, tracks_message_result::TracksMessageResult};
+use domain::{envelope::Envelope, tracks_message_result::TracksMessageResult};
 
 use crate::state::TracksState;
 

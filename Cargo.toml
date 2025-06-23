@@ -1,9 +1,9 @@
 [workspace]
 members=[
     "audiolib",
-    "dsp-domain",
+    "domain",
     "dsp-core",
     "player",
     "cli-app",
-    "dsp-actors",
-    "dsp-api"]
+    "actors",
+    "api"]

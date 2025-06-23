@@ -1,4 +1,4 @@
-use dsp_domain::{
+use domain::{
     actors::user_player_command::UserPlayerCommand,
     dsp_message::{DspMessage, RunMode},
 };

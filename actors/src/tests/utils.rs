@@ -1,4 +1,4 @@
-use dsp_domain::{
+use domain::{
     actors::{
         player_state_query::PlayerStateQuery, player_state_query_result::PlayerStateQueryResult,
     },

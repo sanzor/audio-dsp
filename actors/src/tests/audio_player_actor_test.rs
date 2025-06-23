@@ -5,10 +5,10 @@ use std::time::Duration;
 
 use audiolib::audio_buffer::AudioBuffer;
 use audiolib::Channels;
-use dsp_domain::actors::player_command::PlayerCommand;
-use dsp_domain::actors::player_state::AudioPlayerState;
-use dsp_domain::track::Track;
-use dsp_domain::track::TrackInfo;
+use domain::actors::player_command::PlayerCommand;
+use domain::actors::player_state::AudioPlayerState;
+use domain::track::Track;
+use domain::track::TrackInfo;
 
 use player::audio_sink::AudioSink;
 use player::AudioFrame;

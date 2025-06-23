@@ -1,11 +1,11 @@
 [package]
-name="dsp-actors"
+name="actors"
 version="0.1.0"
 edition = "2021"
 
 [dependencies]
 dsp-core={path="../dsp-core"}
-dsp-domain={path="../dsp-domain"}
+domain={path="../domain"}
 player={path="../player"}
 audiolib={path="../audiolib"}
 rstest="0.25"

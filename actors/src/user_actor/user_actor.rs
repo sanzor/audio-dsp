@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use crate::audio_player_actor::{
     audio_player_actor::AudioPlayerActor, audio_player_actor_params::AudioPlayerActorParams,
 };
-use dsp_domain::{
+use domain::{
     actors::{
         player_command::PlayerCommand, player_state_query::PlayerStateQuery,
         player_state_query_result::PlayerStateQueryResult, user_player_command::UserPlayerCommand,

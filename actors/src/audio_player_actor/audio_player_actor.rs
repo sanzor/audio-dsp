@@ -1,11 +1,11 @@
 use crate::audio_player_actor::audio_player_actor_params::AudioPlayerActorParams;
 use audiolib::Channels;
-use dsp_domain::actors::{
+use domain::actors::{
     player_command::PlayerCommand, player_command_result::PlayerCommandResult,
     player_state::AudioPlayerState, player_state_query::PlayerStateQuery,
     player_state_query_result::PlayerStateQueryResult,
 };
-use dsp_domain::track::Track;
+use domain::track::Track;
 use kameo::{
     actor::ActorRef,
     message::{Context, Message},

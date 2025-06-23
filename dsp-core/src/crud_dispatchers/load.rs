@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use dsp_domain::{
+use domain::{
     dsp_message::DspMessage,
     envelope::Envelope,
     track::{Track, TrackInfo},

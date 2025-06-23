@@ -1,4 +1,4 @@
-use dsp_domain::track::{Track, TrackInfo, TrackRef, TrackRefMut};
+use domain::track::{Track, TrackInfo, TrackRef, TrackRefMut};
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
 

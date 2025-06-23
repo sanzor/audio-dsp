@@ -1,8 +1,7 @@
 use std::collections::HashMap;
 
 use audiolib::{audio_buffer::AudioBuffer, Channels};
-use dsp_core::{command_processor::CommandProcessor, state::TracksState};
-use dsp_domain::{
+use domain::{
     actors::{
         player_state::AudioPlayerState, user_player_command::UserPlayerCommand,
         user_player_state_query::UserPlayerStateQuery,
@@ -11,6 +10,7 @@ use dsp_domain::{
     dsp_message::DspMessage,
     track::{Track, TrackInfo},
 };
+use dsp_core::{command_processor::CommandProcessor, state::TracksState};
 use kameo::{actor::ActorRef, spawn};
 
 use crate::user_actor::user_actor::UserActor;
@@ -49,7 +49,10 @@ async fn can_create_player_and_play() -> Result<(), String> {
     assert!(play.is_ok());
     let user_actor_state_result = get_state(&user_actor, track_name).await;
     assert!(user_actor_state_result.is_ok());
-    assert!(matches!(user_actor_state_result?.state, AudioPlayerState::Playing));
+    assert!(matches!(
+        user_actor_state_result?.state,
+        AudioPlayerState::Playing
+    ));
 
     Ok(())
 }

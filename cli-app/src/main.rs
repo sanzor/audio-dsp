@@ -1,6 +1,6 @@
 use clap::Parser;
 use cli_app::{args::Args, processor::Processor};
-use dsp_domain::tracks_message_result::TracksMessageResult;
+use domain::tracks_message_result::TracksMessageResult;
 
 #[tokio::main]
 async fn main() -> Result<(), String> {

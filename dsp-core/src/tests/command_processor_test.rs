@@ -6,7 +6,7 @@ fn create_state(tracks: HashMap<String, Track>) -> TracksState {
     TracksState { tracks }
 }
 
-use dsp_domain::{
+use domain::{
     dsp_message::DspMessage,
     track::{Track, TrackInfo},
     tracks_message_result::TracksMessageResult,

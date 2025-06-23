@@ -1,6 +1,6 @@
 use crate::{command_dispatch::CommandDispatch, state::TracksState};
 use async_trait::async_trait;
-use dsp_domain::{
+use domain::{
     dsp_message::DspMessage, envelope::Envelope, tracks_message_result::TracksMessageResult, user,
 };
 pub struct DeleteDispatcher {}

@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-dsp-domain={path="../dsp-domain"}
+domain={path="../domain"}
 audiolib={path = "../audiolib"}
 rstest="0.25"
 cpal = "0.16.0"

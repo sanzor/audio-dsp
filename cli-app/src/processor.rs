@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 
-use dsp_actors::user_actor::user_actor::UserActor;
+use actors::user_actor::user_actor::UserActor;
 
+use domain::actors::user_player_command::UserPlayerCommand;
+use domain::actors::user_player_command_result::UserPlayerCommandResult;
+use domain::dsp_message::DspMessage;
+use domain::tracks_message_result::TracksMessageResult;
 use dsp_core::{
     api::create_command_processor, command_processor::CommandProcessor, state::TrackState,
 };
-use dsp_domain::actors::user_player_command::UserPlayerCommand;
-use dsp_domain::actors::user_player_command_result::UserPlayerCommandResult;
-use dsp_domain::dsp_message::DspMessage;
-use dsp_domain::tracks_message_result::TracksMessageResult;
 use kameo::actor::spawn;
 use kameo::actor::ActorRef;
 

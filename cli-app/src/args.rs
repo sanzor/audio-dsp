@@ -1,4 +1,4 @@
-use dsp_domain::dsp_message::DspMessage;
+use domain::dsp_message::DspMessage;
 
 #[derive(clap::Parser)]
 #[command(author, version, about, long_about = None)]

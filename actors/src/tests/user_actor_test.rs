@@ -2,12 +2,12 @@ use std::collections::HashMap;
 
 use crate::user_actor::user_actor::UserActor;
 use audiolib::{self, audio_buffer::AudioBuffer, Channels};
-use dsp_core::{command_processor::CommandProcessor, state::TracksState};
-use dsp_domain::{
+use domain::{
     dsp_message::DspMessage,
     track::{Track, TrackInfo},
     tracks_message_result::TracksMessageResult,
 };
+use dsp_core::{command_processor::CommandProcessor, state::TracksState};
 use kameo::actor::spawn;
 use kameo::actor::ActorRef;
 

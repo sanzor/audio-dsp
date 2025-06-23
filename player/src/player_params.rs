@@ -1,4 +1,4 @@
-use dsp_domain::track::Track;
+use domain::track::Track;
 pub struct PlayerParams {
     pub track: Track,
 }
