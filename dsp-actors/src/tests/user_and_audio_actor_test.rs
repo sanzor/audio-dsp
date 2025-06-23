@@ -47,8 +47,9 @@ async fn can_create_player_and_play() -> Result<(), String> {
         })
         .await;
     assert!(play.is_ok());
-    let state = get_state(&user_actor, track_name).await?;
-    assert!(matches!(state.state, AudioPlayerState::Playing));
+    let user_actor_state_result = get_state(&user_actor, track_name).await;
+    assert!(user_actor_state_result.is_ok());
+    assert!(matches!(user_actor_state_result?.state, AudioPlayerState::Playing));
 
     Ok(())
 }

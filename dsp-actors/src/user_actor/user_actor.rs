@@ -12,12 +12,12 @@ use crate::audio_player_actor::{
 };
 use dsp_domain::{
     actors::{
-        player_state_query::PlayerStateQuery, player_state_query_result::PlayerStateQueryResult,
-        user_player_command::UserPlayerCommand,
+        player_command::PlayerCommand, player_state_query::PlayerStateQuery,
+        player_state_query_result::PlayerStateQueryResult, user_player_command::UserPlayerCommand,
         user_player_command_result::UserPlayerCommandResult,
         user_player_state_query::UserPlayerStateQuery,
         user_player_state_query_result::UserPlayerStateQueryResult,
-        user_state_query_result::UserStateQueryResult,
+        user_state_query::UserStateQuery, user_state_query_result::UserStateQueryResult,
     },
     dsp_message::DspMessage,
     track::TrackInfo,
@@ -95,46 +95,14 @@ impl Message<UserPlayerStateQuery> for UserActor {
         })
     }
 }
-impl UserActor {
-    pub async fn handle_play(
-        &mut self,
-        track_id: Option<String>,
-    ) -> Result<UserPlayerCommandResult, String> {
-        let track_id = track_id.ok_or_else(|| "invalid id".to_string())?;
-        let player = self.players.get(&track_id);
-        match player.cloned() {
-            None => self.handle_new_player(&track_id).await,
-            Some(p) => self.handle_play_existing_player(&p).await,
-        }
-    }
-    async fn handle_pause(
-        &mut self,
-        track_id: Option<String>,
-    ) -> Result<UserPlayerCommandResult, String> {
-        let track_id = track_id.ok_or_else(|| "invalid id".to_string())?;
-        let track_ref = self.track_state.get_track_ref(&track_id).await?;
-        todo!()
-    }
-    async fn handle_stop(
-        &mut self,
-        track_id: Option<String>,
-    ) -> Result<UserPlayerCommandResult, String> {
-        let track_id = track_id.ok_or_else(|| "invalid id".to_string())?;
-        let track_ref = self.track_state.get_track_ref(&track_id).await?;
-        todo!()
-    }
+impl Message<UserStateQuery> for UserActor {
+    type Reply = Result<UserStateQueryResult, String>;
 
-    async fn handle_seek(
+    async fn handle(
         &mut self,
-        track_id: Option<String>,
-        position: u32,
-    ) -> Result<UserPlayerCommandResult, String> {
-        let track_id = track_id.ok_or_else(|| "invalid id".to_string())?;
-        let track_ref = self.track_state.get_track_ref(&track_id).await?;
-        todo!()
-    }
-
-    async fn handle_get_state(&mut self) -> Result<UserStateQueryResult, String> {
+        msg: UserStateQuery,
+        ctx: &mut Context<Self, Self::Reply>,
+    ) -> Self::Reply {
         let mut player_list: HashMap<String, PlayerStateQueryResult> = HashMap::new();
         let mut track_list: HashMap<String, TrackInfo> = HashMap::new();
 
@@ -151,12 +119,76 @@ impl UserActor {
             tracks: track_list,
         })
     }
+}
+impl UserActor {
+    pub async fn handle_play(
+        &mut self,
+        track_id: Option<String>,
+    ) -> Result<UserPlayerCommandResult, String> {
+        let track_id = track_id.ok_or_else(|| "invalid id".to_string())?;
+        let player = self.players.get(&track_id);
+        match player.cloned() {
+            None => self.handle_play_new_player(&track_id).await,
+            Some(p) => self.handle_play_existing_player(&p).await,
+        }
+    }
+    async fn handle_pause(
+        &mut self,
+        track_id: Option<String>,
+    ) -> Result<UserPlayerCommandResult, String> {
+        let track_id = track_id.ok_or_else(|| "invalid id".to_string())?;
+        if let Some(player) = self.players.get(&track_id) {
+            player.tell(PlayerCommand::Pause {}).await.unwrap();
+            Ok(UserPlayerCommandResult {
+                should_exit: false,
+                output: "Paused player".into(),
+            })
+        } else {
+            Err("Could not find player".into())
+        }
+    }
+    async fn handle_stop(
+        &mut self,
+        track_id: Option<String>,
+    ) -> Result<UserPlayerCommandResult, String> {
+        let track_id = track_id.ok_or_else(|| "invalid id".to_string())?;
+        if let Some(player) = self.players.get(&track_id) {
+            player.tell(PlayerCommand::Stop {}).await.unwrap();
+            Ok(UserPlayerCommandResult {
+                should_exit: false,
+                output: "Paused stopped".into(),
+            })
+        } else {
+            Err("Could not find player".into())
+        }
+    }
+
+    async fn handle_seek(
+        &mut self,
+        track_id: Option<String>,
+        position: u32,
+    ) -> Result<UserPlayerCommandResult, String> {
+        let track_id = track_id.ok_or_else(|| "invalid id".to_string())?;
+        if let Some(player) = self.players.get(&track_id) {
+            player
+                .tell(PlayerCommand::Seek { position: position })
+                .await
+                .unwrap();
+            Ok(UserPlayerCommandResult {
+                should_exit: false,
+                output: "Player moved at position".into(),
+            })
+        } else {
+            Err("Could not find player".into())
+        }
+    }
 
     pub async fn handle_get_player_state(
         &self,
         track_id: Option<String>,
     ) -> Result<PlayerStateQueryResult, String> {
         let track_id = track_id.ok_or_else(|| "invalid id".to_string())?;
+        dbg!("got here");
         let player = self.players.get(&track_id);
         match player.cloned() {
             None => Err("no such player exists".to_string()),
@@ -170,7 +202,7 @@ impl UserActor {
         }
     }
 
-    async fn handle_new_player(
+    async fn handle_play_new_player(
         &mut self,
         track_id: &str,
     ) -> Result<UserPlayerCommandResult, String> {
@@ -182,6 +214,7 @@ impl UserActor {
             sink: sink,
         };
         let player_actor = spawn(AudioPlayerActor::new(params));
+        let play_result = player_actor.tell(PlayerCommand::Play {}).await.unwrap();
         if let Some(x) = self.players.insert(track_id.to_string(), player_actor) {
             Ok(UserPlayerCommandResult {
                 should_exit: false,
@@ -195,6 +228,13 @@ impl UserActor {
         &mut self,
         player_ref: &ActorRef<AudioPlayerActor>,
     ) -> Result<UserPlayerCommandResult, String> {
-        todo!()
+        if player_ref.tell(PlayerCommand::Play {}).await.is_err() {
+            Err("Could not start player".into())
+        } else {
+            Ok(UserPlayerCommandResult {
+                should_exit: false,
+                output: "Started player".into(),
+            })
+        }
     }
 }

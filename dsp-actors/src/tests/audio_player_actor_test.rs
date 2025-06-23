@@ -155,14 +155,14 @@ async fn test_state_is_paused_at_end() -> Result<(), String> {
     loop {
         tokio::time::sleep(Duration::from_millis(3)).await;
         let state_query_result = get_player_actor_state(&actor_ref).await?;
-        if state_query_result.written == track_len && matches!(state_query_result.state,AudioPlayerState::Paused){
-            // assert!(matches!(state_query_result.state, AudioPlayerState::Paused));
-            // assert!(matches!(state_query_result.cursor, 0));
+        if state_query_result.written == track_len
+            && matches!(state_query_result.state, AudioPlayerState::Paused)
+        {
             break;
         }
     }
     let state_query_result = get_player_actor_state(&actor_ref).await?;
-    assert!(matches!(state_query_result.state,AudioPlayerState::Paused));
+    assert!(matches!(state_query_result.state, AudioPlayerState::Paused));
     Ok(())
 }
 
