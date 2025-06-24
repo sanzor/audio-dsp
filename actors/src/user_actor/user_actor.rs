@@ -154,6 +154,10 @@ impl UserActor {
         let track_id = track_id.ok_or_else(|| "invalid id".to_string())?;
         if let Some(player) = self.players.get(&track_id) {
             player.tell(PlayerCommand::Stop {}).await.unwrap();
+            let removed_player=self.players.remove(&track_id);
+            if let Some(pl)=removed_player{
+                drop(pl);
+            }
             Ok(UserPlayerCommandResult {
                 should_exit: false,
                 output: "Paused stopped".into(),
@@ -191,7 +195,7 @@ impl UserActor {
         dbg!("got here");
         let player = self.players.get(&track_id);
         match player.cloned() {
-            None => Err("no such player exists".to_string()),
+            None => Err("Player does not exist".to_string()),
             Some(p) => {
                 let x = p
                     .ask(PlayerStateQuery {})
@@ -216,12 +220,13 @@ impl UserActor {
         let player_actor = spawn(AudioPlayerActor::new(params));
         let play_result = player_actor.tell(PlayerCommand::Play {}).await.unwrap();
         if let Some(x) = self.players.insert(track_id.to_string(), player_actor) {
-            Ok(UserPlayerCommandResult {
-                should_exit: false,
-                output: "Inserted".into(),
-            })
-        } else {
             Err("Could not insert ".into())
+           
+        } else {
+             Ok(UserPlayerCommandResult {
+                should_exit: false,
+                output: "Inserted succesfully ".into(),
+            })
         }
     }
     async fn handle_play_existing_player(
