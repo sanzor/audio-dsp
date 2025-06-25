@@ -154,8 +154,8 @@ impl UserActor {
         let track_id = track_id.ok_or_else(|| "invalid id".to_string())?;
         if let Some(player) = self.players.get(&track_id) {
             player.tell(PlayerCommand::Stop {}).await.unwrap();
-            let removed_player=self.players.remove(&track_id);
-            if let Some(pl)=removed_player{
+            let removed_player = self.players.remove(&track_id);
+            if let Some(pl) = removed_player {
                 drop(pl);
             }
             Ok(UserPlayerCommandResult {
@@ -221,9 +221,8 @@ impl UserActor {
         let play_result = player_actor.tell(PlayerCommand::Play {}).await.unwrap();
         if let Some(x) = self.players.insert(track_id.to_string(), player_actor) {
             Err("Could not insert ".into())
-           
         } else {
-             Ok(UserPlayerCommandResult {
+            Ok(UserPlayerCommandResult {
                 should_exit: false,
                 output: "Inserted succesfully ".into(),
             })

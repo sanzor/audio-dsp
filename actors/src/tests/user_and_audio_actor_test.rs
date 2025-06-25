@@ -5,7 +5,8 @@ use domain::{
     actors::{
         player_state::AudioPlayerState, user_player_command::UserPlayerCommand,
         user_player_state_query::UserPlayerStateQuery,
-        user_player_state_query_result::UserPlayerStateQueryResult, user_state_query::UserStateQuery, user_state_query_result::UserStateQueryResult,
+        user_player_state_query_result::UserPlayerStateQueryResult,
+        user_state_query::UserStateQuery, user_state_query_result::UserStateQueryResult,
     },
     dsp_message::DspMessage,
     track::{Track, TrackInfo},
@@ -57,7 +58,7 @@ async fn can_create_player_and_play() -> Result<(), String> {
 }
 
 #[tokio::test]
-async fn can_play_on_existing_player()->Result<(),String>{
+async fn can_play_on_existing_player() -> Result<(), String> {
     let track_name = "some_track";
     let track = sample_track(track_name);
     let user_name = "my_user".to_string();
@@ -78,13 +79,19 @@ async fn can_play_on_existing_player()->Result<(),String>{
         })
         .await;
     let user_actor_state_result = get_user_state(&user_actor).await?;
+    assert!(matches!(user_actor_state_result.players.len(), 1));
     assert!(matches!(
-        user_actor_state_result.players.len(),
-        1
+        user_actor_state_result
+            .players
+            .get(track_name)
+            .unwrap()
+            .state,
+        AudioPlayerState::Playing
     ));
-    assert!(matches!(user_actor_state_result.players.get(track_name).unwrap().state,AudioPlayerState::Playing));
     let pause = user_actor
-        .tell(UserPlayerCommand::Pause { track_id:Some(track_name.to_string())})
+        .tell(UserPlayerCommand::Pause {
+            track_id: Some(track_name.to_string()),
+        })
         .await;
     let play_again = user_actor
         .tell(UserPlayerCommand::Play {
@@ -92,7 +99,7 @@ async fn can_play_on_existing_player()->Result<(),String>{
         })
         .await;
     let user_actor_state_result = get_user_state(&user_actor).await?;
-    assert_eq!(user_actor_state_result.players.len(),1);
+    assert_eq!(user_actor_state_result.players.len(), 1);
     Ok(())
 }
 
@@ -124,17 +131,17 @@ async fn can_create_player_and_stop() -> Result<(), String> {
         user_actor_state_result?.state,
         AudioPlayerState::Playing
     ));
-     let play = user_actor
+    let play = user_actor
         .tell(UserPlayerCommand::Stop {
             track_id: Some(track_name.to_string()),
         })
         .await;
 
-    let state=get_player_state(&user_actor, track_name).await;
+    let state = get_player_state(&user_actor, track_name).await;
     assert!(state.is_err());
     assert!(state.unwrap_err().contains("Player does not exist"));
-    let deleted=get_user_state(&user_actor).await?;
-    assert!(deleted.players.len()==0);
+    let deleted = get_user_state(&user_actor).await?;
+    assert!(deleted.players.len() == 0);
     Ok(())
 }
 
@@ -170,13 +177,9 @@ async fn get_player_state(
 
     Ok(rez)
 }
-async fn get_user_state(
-    user_actor: &ActorRef<UserActor>
-) -> Result<UserStateQueryResult, String> {
+async fn get_user_state(user_actor: &ActorRef<UserActor>) -> Result<UserStateQueryResult, String> {
     let rez = user_actor
-        .ask(UserStateQuery {
-            
-        })
+        .ask(UserStateQuery {})
         .await
         .map_err(|e| e.to_string())?;
 
