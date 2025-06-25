@@ -29,23 +29,22 @@ pub struct PlayRequest{
     pub track_name:Option<String>
 }
 #[post("/play")]
-async fn play(body: web::Json<PlayRequest>,app_state:web::Data<AppData>)->Result<HttpResponse>{
+async fn play(body: web::Json<PlayRequest>,app_state:web::Data<AppData>)->Result<HttpResponse,actix_web::Error>{
     let player_message=body.into_inner();
-    if(player_message.user_name.is_none()){
-        return Ok(HttpResponse::BadRequest().body("Invalid user"))
-    }
-    let user=player_message.user_name.unwrap();
-    let user_ref=app_state.user_map.lock().await.get(&user);
-    if(user_ref.is_none()){
-        return Ok(HttpResponse::NotFound().body("Could not find user"))
-    }
-    if(body.track_name.is_none()){
-        return Ok(HttpResponse::BadRequest().body("Invalid track name"))
-    }
-    let track_name=body.track_name.unwrap();
+
+    let user=player_message.user_name.ok_or_else(||HttpResponse::BadRequest().body("Invalid user"))?;
+    let user_addr={
+        let guard=app_state.user_map.lock().await;
+            guard
+                .get(&user)
+                .cloned()
+                .ok_or_else(||HttpResponse::NotFound()
+                .body("Could not find user"))
+    };
+    let track_name=player_message.track_name.ok_or_else(||HttpResponse::BadRequest().body("Invalid track name"))?;
     
-    let user=user_ref.unwrap().tell(UserPlayerCommand::Play { track_id: Some(track_name)}).await;
-    todo!()
+    let user=user_addr.unwrap().tell(UserPlayerCommand::Play { track_id: Some(track_name)}).await;
+    Ok(user)
 }
 
 
