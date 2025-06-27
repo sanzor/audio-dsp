@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::user_actor::user_actor::UserActor;
+use crate::user_actor::user_actor::{UserActor, UserActorParams};
 use audiolib::{self, audio_buffer::AudioBuffer, Channels};
 use domain::{
     dsp_message::DspMessage,
@@ -10,12 +10,14 @@ use domain::{
 use dsp_core::{command_processor::CommandProcessor, state::TracksState};
 use kameo::actor::spawn;
 use kameo::actor::ActorRef;
+use ulid::Ulid;
 
-fn create_actor() -> ActorRef<UserActor> {
+fn create_actor(id:Ulid) -> ActorRef<UserActor> {
     let processor = CommandProcessor::create_processor();
     let tracks = TracksState::new();
     let players = HashMap::new();
-    let actor = spawn(UserActor::new(processor, tracks, players));
+    let actor_params=UserActorParams{id:id.to_string(),,players:players,track_state:tracks,processor:processor};
+    let actor = spawn(UserActor::new(actor_params));
     let g = kameo::registry::ActorRegistry::new();
 
     actor
@@ -24,7 +26,7 @@ fn create_actor() -> ActorRef<UserActor> {
 async fn can_run_insert() -> Result<(), String> {
     let user_name = "some_user".to_string();
     let track_name = "some_track".to_string();
-
+    let id=Ulid::new();
     let samples = vec![1.1_f32; 500];
     let sample_rate = 1_f32;
     let track = Track {
@@ -39,7 +41,7 @@ async fn can_run_insert() -> Result<(), String> {
         user_name: Some(user_name),
         track_payload: Some(serde_json::to_string(&track).unwrap()),
     };
-    let addr = create_actor();
+    let addr = create_actor(id);
     let rez = addr.ask(command).await.map_err(|e| e.to_string())?;
 
     assert!(rez.output.contains("Inserted"));
@@ -64,8 +66,9 @@ async fn can_run_copy() -> Result<(), String> {
             sample_rate: sample_rate,
         },
     };
-    let addr = create_actor();
-    let _ = insert_command(&addr, &user_name, track).await?;
+    let id=Ulid::new();
+    let addr = create_actor(id);
+    let _ = insert_track_command(&addr, &user_name, track).await?;
     let after_insert_list = list_command(&addr, &user_name.clone()).await?;
     assert_eq!(after_insert_list.len(), 1);
 
@@ -95,10 +98,11 @@ async fn can_run_list() -> Result<(), String> {
             sample_rate: sample_rate,
         },
     };
-    let addr = create_actor();
+    let id=Ulid::new();
+    let addr = create_actor(id);
     let initial_list = list_command(&addr, &user_name.clone()).await?;
     assert_eq!(initial_list.len(), 0);
-    let insert_result = insert_command(&addr, &user_name, track).await?;
+    let insert_result = insert_track_command(&addr, &user_name, track).await?;
 
     assert!(insert_result.output.contains("Inserted"));
     let after_list = list_command(&addr, &user_name.clone()).await?;
@@ -106,7 +110,7 @@ async fn can_run_list() -> Result<(), String> {
     Ok(())
 }
 
-async fn insert_command(
+async fn insert_track_command(
     addr: &ActorRef<UserActor>,
     user_name: &str,
     track: Track,

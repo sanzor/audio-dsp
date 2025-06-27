@@ -5,7 +5,7 @@ use kameo::{
     spawn, Actor,
 };
 use player::audio_sink::cpal_sink::CpalSink;
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use crate::audio_player_actor::{
     audio_player_actor::AudioPlayerActor, audio_player_actor_params::AudioPlayerActorParams,
@@ -29,17 +29,27 @@ type Players = HashMap<String, ActorRef<AudioPlayerActor>>;
 #[derive(Actor)]
 #[actor(name = "UserActor")]
 pub struct UserActor {
-    processor: CommandProcessor,
+    id:String,
+    name:String,
+    processor: Arc<CommandProcessor>,
     track_state: TracksState,
     players: Players,
 }
-
+pub struct UserActorParams{
+    pub id:String,
+    pub name:String,
+    pub processor: Arc<CommandProcessor>,
+    pub track_state: TracksState,
+    pub players: Players,
+}
 impl UserActor {
-    pub fn new(processor: CommandProcessor, tracks: TracksState, players: Players) -> UserActor {
+    pub fn new(actor_params:UserActorParams) -> UserActor {
         UserActor {
-            processor: processor,
-            track_state: tracks,
-            players: players,
+            id:actor_params.id,
+            name:actor_params.name,
+            processor: actor_params.processor,
+            track_state: actor_params.track_state,
+            players: actor_params.players,
         }
     }
 }

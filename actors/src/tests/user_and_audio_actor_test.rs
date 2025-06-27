@@ -13,14 +13,21 @@ use domain::{
 };
 use dsp_core::{command_processor::CommandProcessor, state::TracksState};
 use kameo::{actor::ActorRef, spawn};
+use ulid::Ulid;
 
-use crate::user_actor::user_actor::UserActor;
+use crate::user_actor::user_actor::{UserActor, UserActorParams};
 
-fn create_user_actor() -> ActorRef<UserActor> {
+fn create_user_actor(id:Ulid) -> ActorRef<UserActor> {
     let processor = CommandProcessor::create_processor();
     let tracks = TracksState::new();
     let players = HashMap::new();
-    let actor = spawn(UserActor::new(processor, tracks, players));
+    let actor_params=UserActorParams{
+        id:id.to_string(),
+        players:players,
+        track_state:tracks,
+        processor:processor
+    };
+    let actor = spawn(UserActor::new(actor_params));
     let g = kameo::registry::ActorRegistry::new();
 
     actor
@@ -31,7 +38,8 @@ async fn can_create_player_and_play() -> Result<(), String> {
     let track_name = "some_track";
     let track = sample_track(track_name);
     let user_name = "my_user".to_string();
-    let user_actor = create_user_actor();
+    let id=Ulid::new();
+    let user_actor = create_user_actor(id);
     let insert_result = user_actor
         .ask(DspMessage::Insert {
             user_name: Some(user_name),
@@ -62,7 +70,8 @@ async fn can_play_on_existing_player() -> Result<(), String> {
     let track_name = "some_track";
     let track = sample_track(track_name);
     let user_name = "my_user".to_string();
-    let user_actor = create_user_actor();
+    let id=Ulid::new();
+    let user_actor = create_user_actor(id);
     let insert_result = user_actor
         .ask(DspMessage::Insert {
             user_name: Some(user_name),
@@ -108,7 +117,8 @@ async fn can_create_player_and_stop() -> Result<(), String> {
     let track_name = "some_track";
     let track = sample_track(track_name);
     let user_name = "my_user".to_string();
-    let user_actor = create_user_actor();
+    let id=Ulid::new();
+    let user_actor = create_user_actor(id);
     let insert_result = user_actor
         .ask(DspMessage::Insert {
             user_name: Some(user_name),

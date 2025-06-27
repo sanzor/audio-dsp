@@ -1,6 +1,7 @@
 use actix_web::{dev::{Service, ServiceRequest, ServiceResponse}, http::Error, test, App};
 use rstest::rstest;
 
+
 use crate::controllers::player_controller;
 #[rstest]
 #[actix_web::test]
@@ -20,6 +21,7 @@ async fn can_pause()->Result<(),String>{
 
 async fn insert(
     user_name:&str,
-    app: &mut impl Service<Request = ServiceRequest, Response = ServiceResponse, Error = Error>){
-    test::call_service(app, req)
+    app: &mut impl Service<ServiceRequest, Response = ServiceResponse, Error = Error>){
+    let req=test::TestRequest::post().uri("/insert").set_json(Cre)
+    let c=test::call_service(app, req).await
 }

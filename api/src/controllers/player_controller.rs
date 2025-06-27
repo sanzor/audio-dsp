@@ -2,7 +2,7 @@ use actix_web::{get, post, web::{self}, HttpResponse, Responder,Result};
 use domain::actors::user_player_command::UserPlayerCommand;
 use serde::Deserialize;
 
-use crate::actor_registry::AppData;
+use crate::app_data::AppData;
 
 
 #[derive(Debug,Deserialize)]

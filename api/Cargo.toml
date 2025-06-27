@@ -16,3 +16,5 @@ rstest="0.25"
 kameo="0.16"
 actors={path = "../actors"}
 domain={path="../domain"}
+dsp-core={path="../dsp-core"}
+ulid="1"
