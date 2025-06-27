@@ -42,7 +42,6 @@ async fn play(body: web::Json<PlayRequest>,app_state:web::Data<AppData>)->HttpRe
             Some(addr)=>addr,
             None=>return HttpResponse::NotFound().body("Could not find user")
         }
-
     };
 
     let track_name=match play_message.track_name{
