@@ -898,6 +898,7 @@ dependencies = [
  "async-trait",
  "domain",
  "kameo",
+ "rstest",
  "serde",
  "serde_json",
  "tokio",

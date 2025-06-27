@@ -29,26 +29,127 @@ pub struct PlayRequest{
     pub track_name:Option<String>
 }
 #[post("/play")]
-async fn play(body: web::Json<PlayRequest>,app_state:web::Data<AppData>)->Result<HttpResponse,actix_web::Error>{
-    let player_message=body.into_inner();
+async fn play(body: web::Json<PlayRequest>,app_state:web::Data<AppData>)->HttpResponse{
+    let play_message=body.into_inner();
 
-    let user=player_message.user_name.ok_or_else(||HttpResponse::BadRequest().body("Invalid user"))?;
+    let user= match play_message.user_name{
+        None=>return HttpResponse::BadRequest().body("Invalid user"),
+        Some(u)=>u
+    };
     let user_addr={
         let guard=app_state.user_map.lock().await;
-            guard
-                .get(&user)
-                .cloned()
-                .ok_or_else(||HttpResponse::NotFound()
-                .body("Could not find user"))
+        match guard.get(&user).cloned(){
+            Some(addr)=>addr,
+            None=>return HttpResponse::NotFound().body("Could not find user")
+        }
+
     };
-    let track_name=player_message.track_name.ok_or_else(||HttpResponse::BadRequest().body("Invalid track name"))?;
+
+    let track_name=match play_message.track_name{
+        Some(track)=>track,
+        None=>return HttpResponse::BadRequest().body("Invalid track name")
+    };
     
-    let user=user_addr.unwrap().tell(UserPlayerCommand::Play { track_id: Some(track_name)}).await;
-    Ok(user)
+    let _=user_addr.tell(UserPlayerCommand::Play { track_id: Some(track_name)}).await;
+    HttpResponse::Ok().finish()
 }
+
+#[derive(Deserialize)]
+pub struct PauseRequest{
+    pub user_name:Option<String>,
+    pub track_name:Option<String>
+}
+#[post("/pause")]
+async fn pause(body: web::Json<PauseRequest>,app_state:web::Data<AppData>)->HttpResponse{
+    let pause_message=body.into_inner();
+
+    let user= match pause_message.user_name{
+        None=>return HttpResponse::BadRequest().body("Invalid user"),
+        Some(u)=>u
+    };
+    let user_addr={
+        let guard=app_state.user_map.lock().await;
+        match guard.get(&user).cloned(){
+            Some(addr)=>addr,
+            None=>return HttpResponse::NotFound().body("Could not find user")
+        }
+
+    };
+
+    let track_name=match pause_message.track_name{
+        Some(track)=>track,
+        None=>return HttpResponse::BadRequest().body("Invalid track name")
+    };
+    
+    let _=user_addr.tell(UserPlayerCommand::Pause { track_id: Some(track_name)}).await;
+    HttpResponse::Ok().finish()
+}
+
+#[derive(Deserialize)]
+pub struct SeekRequest{
+    pub user_name:Option<String>,
+    pub track_name:Option<String>,
+    pub position:u32
+}
+#[post("/seek")]
+async fn seek(body: web::Json<SeekRequest>,app_state:web::Data<AppData>)->HttpResponse{
+    let seek_message=body.into_inner();
+
+    let user= match seek_message.user_name{
+        None=>return HttpResponse::BadRequest().body("Invalid user"),
+        Some(u)=>u
+    };
+    let user_addr={
+        let guard=app_state.user_map.lock().await;
+        match guard.get(&user).cloned(){
+            Some(addr)=>addr,
+            None=>return HttpResponse::NotFound().body("Could not find user")
+        }
+
+    };
+
+    let track_name=match seek_message.track_name{
+        Some(track)=>track,
+        None=>return HttpResponse::BadRequest().body("Invalid track name")
+    };
+    
+    let _=user_addr.tell(UserPlayerCommand::Seek { track_id: Some(track_name), position: seek_message.position}).await;
+    HttpResponse::Ok().finish()
+}
+
+#[post("/stop")]
+async fn stop(body: web::Json<PauseRequest>,app_state:web::Data<AppData>)->HttpResponse{
+    let player_message=body.into_inner();
+
+    let user= match player_message.user_name{
+        None=>return HttpResponse::BadRequest().body("Invalid user"),
+        Some(u)=>u
+    };
+    let user_addr={
+        let guard=app_state.user_map.lock().await;
+        match guard.get(&user).cloned(){
+            Some(addr)=>addr,
+            None=>return HttpResponse::NotFound().body("Could not find user")
+        }
+
+    };
+
+    let track_name=match player_message.track_name{
+        Some(track)=>track,
+        None=>return HttpResponse::BadRequest().body("Invalid track name")
+    };
+    
+    let _=user_addr.tell(UserPlayerCommand::Stop { track_id: Some(track_name)}).await;
+    HttpResponse::Ok().finish()
+}
+
 
 
 pub fn init(cfg:&mut web::ServiceConfig){
     cfg.service(get_player_state)
-       .service(get_user_state);
+       .service(get_user_state)
+       .service(play)
+       .service(pause)
+       .service(seek)
+       .service(stop);
 }
