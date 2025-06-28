@@ -1,6 +1,8 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
-use crate::user_actor::user_actor::{UserActor, UserActorParams};
+use crate::user_actor::create_user_actor_params::CreateUserActorParams;
+use crate::user_actor::create_user_data::CreateUserData;
+use crate::user_actor::user_actor::UserActor;
 use audiolib::{self, audio_buffer::AudioBuffer, Channels};
 use domain::{
     dsp_message::DspMessage,
@@ -12,11 +14,20 @@ use kameo::actor::spawn;
 use kameo::actor::ActorRef;
 use ulid::Ulid;
 
-fn create_actor(id:Ulid) -> ActorRef<UserActor> {
-    let processor = CommandProcessor::create_processor();
+fn create_actor(id: Ulid) -> ActorRef<UserActor> {
+    let processor = Arc::new(CommandProcessor::create_processor());
     let tracks = TracksState::new();
     let players = HashMap::new();
-    let actor_params=UserActorParams{id:id.to_string(),,players:players,track_state:tracks,processor:processor};
+    let actor_params = CreateUserActorParams {
+        user_data: CreateUserData {
+            email: id.to_string(),
+            id: id.to_string(),
+            name: id.to_string(),
+        },
+        players: players,
+        tracks,
+        processor: processor,
+    };
     let actor = spawn(UserActor::new(actor_params));
     let g = kameo::registry::ActorRegistry::new();
 
@@ -26,7 +37,7 @@ fn create_actor(id:Ulid) -> ActorRef<UserActor> {
 async fn can_run_insert() -> Result<(), String> {
     let user_name = "some_user".to_string();
     let track_name = "some_track".to_string();
-    let id=Ulid::new();
+    let id = Ulid::new();
     let samples = vec![1.1_f32; 500];
     let sample_rate = 1_f32;
     let track = Track {
@@ -66,7 +77,7 @@ async fn can_run_copy() -> Result<(), String> {
             sample_rate: sample_rate,
         },
     };
-    let id=Ulid::new();
+    let id = Ulid::new();
     let addr = create_actor(id);
     let _ = insert_track_command(&addr, &user_name, track).await?;
     let after_insert_list = list_command(&addr, &user_name.clone()).await?;
@@ -98,7 +109,7 @@ async fn can_run_list() -> Result<(), String> {
             sample_rate: sample_rate,
         },
     };
-    let id=Ulid::new();
+    let id = Ulid::new();
     let addr = create_actor(id);
     let initial_list = list_command(&addr, &user_name.clone()).await?;
     assert_eq!(initial_list.len(), 0);

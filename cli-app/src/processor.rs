@@ -1,18 +1,18 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 
+use actors::user_actor::create_user_data::CreateUserData;
 use actors::user_actor::user_actor::UserActor;
 
+use crate::command_parser::*;
+use actors::user_actor::create_user_actor_params::CreateUserActorParams;
 use domain::actors::user_player_command::UserPlayerCommand;
 use domain::actors::user_player_command_result::UserPlayerCommandResult;
 use domain::dsp_message::DspMessage;
 use domain::tracks_message_result::TracksMessageResult;
-use dsp_core::{
-    api::create_command_processor, command_processor::CommandProcessor, state::TrackState,
-};
+use dsp_core::{api::create_command_processor, command_processor::CommandProcessor, state::Tracks};
 use kameo::actor::spawn;
 use kameo::actor::ActorRef;
-
-use crate::command_parser::*;
 
 pub struct Processor {
     user_actor: ActorRef<UserActor>,
@@ -21,15 +21,22 @@ pub struct Processor {
 
 impl Processor {
     pub fn create_processor() -> Processor {
-        Processor::new(create_command_processor(), CommandParser {})
+        Processor::new(Arc::new(create_command_processor()), CommandParser {})
     }
-    fn new(command_processor: CommandProcessor, command_parser: CommandParser) -> Processor {
+    fn new(command_processor: Arc<CommandProcessor>, command_parser: CommandParser) -> Processor {
+        let dummy_id = "someid".to_string();
         Processor {
-            user_actor: spawn(UserActor::new(
-                command_processor,
-                TrackState::new(),
-                HashMap::new(),
-            )),
+            user_actor: spawn(UserActor::new(CreateUserActorParams {
+                user_data: CreateUserData {
+                    email: dummy_id.clone(),
+                    id: dummy_id.clone(),
+                    name: dummy_id,
+                },
+                processor: command_processor,
+                tracks: Tracks::new(),
+                players: HashMap::new(),
+            })),
+
             command_parser: command_parser,
         }
     }

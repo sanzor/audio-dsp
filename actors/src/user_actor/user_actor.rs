@@ -7,17 +7,22 @@ use kameo::{
 use player::audio_sink::cpal_sink::CpalSink;
 use std::{collections::HashMap, sync::Arc};
 
-use crate::audio_player_actor::{
-    audio_player_actor::AudioPlayerActor, audio_player_actor_params::AudioPlayerActorParams,
+use crate::{
+    audio_player_actor::{
+        audio_player_actor::AudioPlayerActor, audio_player_actor_params::AudioPlayerActorParams,
+    },
+    user_actor::create_user_actor_params::CreateUserActorParams,
 };
 use domain::{
     actors::{
         player_command::PlayerCommand, player_state_query::PlayerStateQuery,
-        player_state_query_result::PlayerStateQueryResult, user_player_command::UserPlayerCommand,
+        player_state_query_result::PlayerStateQueryResult, user_command::UserCommand,
+        user_command_result::UserCommandResult, user_player_command::UserPlayerCommand,
         user_player_command_result::UserPlayerCommandResult,
         user_player_state_query::UserPlayerStateQuery,
         user_player_state_query_result::UserPlayerStateQueryResult,
         user_state_query::UserStateQuery, user_state_query_result::UserStateQueryResult,
+        user_update_params::UserUpdateParams,
     },
     dsp_message::DspMessage,
     track::TrackInfo,
@@ -25,30 +30,25 @@ use domain::{
 };
 
 type Players = HashMap<String, ActorRef<AudioPlayerActor>>;
-
 #[derive(Actor)]
 #[actor(name = "UserActor")]
 pub struct UserActor {
-    id:String,
-    name:String,
+    id: String,
+    name: String,
+    email: String,
     processor: Arc<CommandProcessor>,
     track_state: TracksState,
     players: Players,
 }
-pub struct UserActorParams{
-    pub id:String,
-    pub name:String,
-    pub processor: Arc<CommandProcessor>,
-    pub track_state: TracksState,
-    pub players: Players,
-}
+
 impl UserActor {
-    pub fn new(actor_params:UserActorParams) -> UserActor {
+    pub fn new(actor_params: CreateUserActorParams) -> UserActor {
         UserActor {
-            id:actor_params.id,
-            name:actor_params.name,
+            id: actor_params.user_data.id,
+            email: actor_params.user_data.email,
+            name: actor_params.user_data.name,
             processor: actor_params.processor,
-            track_state: actor_params.track_state,
+            track_state: actor_params.tracks,
             players: actor_params.players,
         }
     }
@@ -68,6 +68,21 @@ impl Message<DspMessage> for UserActor {
             .process_crud_command(msg, &mut self.track_state)
             .await;
         v
+    }
+}
+impl Message<UserCommand> for UserActor {
+    type Reply = Result<UserCommandResult, String>;
+
+    async fn handle(
+        &mut self,
+        msg: UserCommand,
+        ctx: &mut Context<Self, Self::Reply>,
+    ) -> Self::Reply {
+        let c = match msg {
+            UserCommand::Remove => self.handle_delete().await,
+            UserCommand::Update(params) => self.handle_update(params).await,
+        };
+        c
     }
 }
 
@@ -250,5 +265,21 @@ impl UserActor {
                 output: "Started player".into(),
             })
         }
+    }
+
+    async fn handle_delete(&mut self) -> Result<UserCommandResult, String> {
+        Ok(UserCommandResult {
+            output: "deleted successfully".to_string(),
+        })
+    }
+    async fn handle_update(
+        &mut self,
+        update_params: UserUpdateParams,
+    ) -> Result<UserCommandResult, String> {
+        self.email = update_params.email;
+        self.name = update_params.name;
+        Ok(UserCommandResult {
+            output: "updated succesfully".to_string(),
+        })
     }
 }

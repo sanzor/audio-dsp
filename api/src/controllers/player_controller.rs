@@ -16,13 +16,6 @@ async fn get_player_state (path:web::Query<GetPlayerState>)->String{
     format!("Hello")
 }
 
-#[get("/get-user-state/{id}")]
-async fn get_user_state(path:web::Path<String>)->String{
-    let user_id=path.into_inner();
-    "".to_string()
-}
-
-
 #[derive(Deserialize)]
 pub struct PlayRequest{
     pub user_name:Option<String>,
@@ -146,7 +139,6 @@ async fn stop(body: web::Json<PauseRequest>,app_state:web::Data<AppData>)->HttpR
 
 pub fn init(cfg:&mut web::ServiceConfig){
     cfg.service(get_player_state)
-       .service(get_user_state)
        .service(play)
        .service(pause)
        .service(seek)

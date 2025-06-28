@@ -2,13 +2,13 @@ use domain::track::{Track, TrackInfo, TrackRef, TrackRefMut};
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
 
-pub type TracksState = TrackState;
-pub struct TrackState {
+pub type TracksState = Tracks;
+pub struct Tracks {
     pub tracks: HashMap<String, Track>,
 }
-impl TrackState {
-    pub fn new() -> TrackState {
-        TrackState {
+impl Tracks {
+    pub fn new() -> Tracks {
+        Tracks {
             tracks: HashMap::new(),
         }
     }
