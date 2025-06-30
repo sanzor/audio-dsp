@@ -2,10 +2,12 @@ use domain::{
     actors::user_player_command::UserPlayerCommand,
     dsp_message::{DspMessage, RunMode},
 };
+
+use crate::cli_command::CLICommand;
 pub(crate) struct CommandParser {}
 
 impl CommandParser {
-    pub(crate) fn parse_crud_command(&self, input: &str) -> Result<DspMessage, String> {
+    pub(crate) fn parse_crud_command(&self, input: &str) -> Result<CLICommand, String> {
         let parts: Vec<&str> = input.trim().split_whitespace().collect();
         if parts.len() < 1 {
             return Err("No command provided".to_string());
@@ -43,14 +45,14 @@ impl CommandParser {
         };
         rez
     }
-    fn parse_load(&self, value: &[&str]) -> Result<DspMessage, String> {
+    fn parse_load(&self, value: &[&str]) -> Result<CLICommand, String> {
         match value {
-            [user_name, filename, track_name] => Ok(DspMessage::Load {
+            [user_name, filename, track_name] => Ok(CLICommand::Load {
                 user_name: Some(user_name.to_string()),
                 filename: Some(filename.to_string()),
                 track_name: Some(track_name.to_string()),
             }),
-            [user_name, filename] => Ok(DspMessage::Load {
+            [user_name, filename] => Ok(CLICommand::Load {
                 user_name: Some(user_name.to_string()),
                 filename: Some(filename.to_string()),
                 track_name: Some(filename.to_string()),
@@ -58,14 +60,14 @@ impl CommandParser {
             _ => Err("Invalid load command".to_owned()),
         }
     }
-    fn parse_upload(&self, value: &[&str]) -> Result<DspMessage, String> {
+    fn parse_upload(&self, value: &[&str]) -> Result<CLICommand, String> {
         match value {
-            [user_name, filename, track_name] => Ok(DspMessage::Upload {
+            [user_name, filename, track_name] => Ok(CLICommand::Upload {
                 user_name: Some(user_name.to_string()),
                 filename: Some(filename.to_string()),
                 track_name: Some(track_name.to_string()),
             }),
-            [user_name, track_name] => Ok(DspMessage::Upload {
+            [user_name, track_name] => Ok(CLICommand::Upload {
                 user_name: Some(user_name.to_string()),
                 filename: Some(track_name.to_string()),
                 track_name: Some(track_name.to_string()),
@@ -74,9 +76,9 @@ impl CommandParser {
         }
     }
 
-    fn parse_unload(&self, value: &[&str]) -> Result<DspMessage, String> {
+    fn parse_unload(&self, value: &[&str]) -> Result<CLICommand, String> {
         match value {
-            [user_name, track_name] => Ok(DspMessage::Delete {
+            [user_name, track_name] => Ok(CLICommand::Delete {
                 user_name: Some(user_name.to_string()),
                 track_name: Some(track_name.to_string()),
             }),
@@ -84,9 +86,9 @@ impl CommandParser {
         }
     }
 
-    fn parse_info(&self, value: &[&str]) -> Result<DspMessage, String> {
+    fn parse_info(&self, value: &[&str]) -> Result<CLICommand, String> {
         match value {
-            [user_name, track_name] => Ok(DspMessage::Info {
+            [user_name, track_name] => Ok(CLICommand::Info {
                 user_name: Some(user_name.to_string()),
                 track_name: Some(track_name.to_string()),
             }),
@@ -94,20 +96,20 @@ impl CommandParser {
         }
     }
 
-    fn parse_ls(&self, value: &[&str]) -> Result<DspMessage, String> {
+    fn parse_ls(&self, value: &[&str]) -> Result<CLICommand, String> {
         match value {
-            [user_name] => Ok(DspMessage::Ls {
+            [user_name] => Ok(CLICommand::Ls {
                 user_name: Some(user_name.to_string()),
             }),
             _ => Err("".to_string()),
         }
     }
 
-    fn parse_gain(&self, value: &[&str]) -> Result<DspMessage, String> {
+    fn parse_gain(&self, value: &[&str]) -> Result<CLICommand, String> {
         match value {
             [user_name, track_name, factor] => factor
                 .parse::<f32>()
-                .map(|f| DspMessage::Gain {
+                .map(|f| CLICommand::Gain {
                     user_name: Some(user_name.to_string()),
                     track_name: Some(track_name.to_string()),
                     gain: f,
@@ -118,9 +120,9 @@ impl CommandParser {
             _ => Err("Invalid gain command".to_owned()),
         }
     }
-    fn parse_normalize(&self, value: &[&str]) -> Result<DspMessage, String> {
+    fn parse_normalize(&self, value: &[&str]) -> Result<CLICommand, String> {
         match value {
-            [user_name, track_name] => Ok(DspMessage::Normalize {
+            [user_name, track_name] => Ok(CLICommand::Normalize {
                 user_name: Some(user_name.to_string()),
                 track_name: Some(track_name.to_string()),
                 mode: Some(RunMode::Simple),
@@ -129,11 +131,11 @@ impl CommandParser {
             _ => Err("Invalid load command".to_owned()),
         }
     }
-    fn parse_low_pass(&self, value: &[&str]) -> Result<DspMessage, String> {
+    fn parse_low_pass(&self, value: &[&str]) -> Result<CLICommand, String> {
         match value {
             [user_name, cutoff, track_name] => cutoff
                 .parse::<f32>()
-                .map(|f| DspMessage::LowPass {
+                .map(|f| CLICommand::LowPass {
                     user_name: Some(user_name.to_string()),
                     track_name: Some(track_name.to_string()),
                     cutoff: f,
@@ -142,11 +144,11 @@ impl CommandParser {
             _ => Err("Invalid low_pass command".to_owned()),
         }
     }
-    fn parse_high_pass(&self, value: &[&str]) -> Result<DspMessage, String> {
+    fn parse_high_pass(&self, value: &[&str]) -> Result<CLICommand, String> {
         match value {
             [user_name, cutoff, name] => cutoff
                 .parse::<f32>()
-                .map(|f| DspMessage::HighPass {
+                .map(|f| CLICommand::HighPass {
                     user_name: Some(user_name.to_string()),
                     track_name: Some(name.to_string()),
                     cutoff: f,
@@ -183,9 +185,9 @@ impl CommandParser {
         }
     }
 
-    fn parse_run_script(&self, value: &[&str]) -> Result<DspMessage, String> {
+    fn parse_run_script(&self, value: &[&str]) -> Result<CLICommand, String> {
         match value {
-            [user_id, file] => Ok(DspMessage::RunScript {
+            [user_id, file] => Ok(CLICommand::RunScript {
                 user_name: Some(user_id.to_string()),
                 file: file.to_string(),
             }),

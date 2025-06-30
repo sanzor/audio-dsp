@@ -15,14 +15,19 @@ use crate::{
 };
 use domain::{
     actors::{
-        player_command::PlayerCommand, player_state_query::PlayerStateQuery,
-        player_state_query_result::PlayerStateQueryResult, user_command::UserCommand,
-        user_command_result::UserCommandResult, user_player_command::UserPlayerCommand,
-        user_player_command_result::UserPlayerCommandResult,
-        user_player_state_query::UserPlayerStateQuery,
-        user_player_state_query_result::UserPlayerStateQueryResult,
-        user_state_query::UserStateQuery, user_state_query_result::UserStateQueryResult,
-        user_update_params::UserUpdateParams,
+        player_command::PlayerCommand,
+        player_state_query::PlayerStateQuery, 
+        player_state_query_result::PlayerStateQueryResult, 
+        user_command::UserCommand, user_command_result::UserCommandResult, 
+        user_crud_command::UserCrudCommand, 
+        user_crud_command_result::UserCrudCommandResult, 
+        user_player_command::UserPlayerCommand, 
+        user_player_command_result::UserPlayerCommandResult, 
+        user_player_state_query::UserPlayerStateQuery, 
+        user_player_state_query_result::UserPlayerStateQueryResult, 
+        user_state_query::UserStateQuery, 
+        user_state_query_result::UserStateQueryResult, 
+        user_update_params::UserUpdateParams
     },
     dsp_message::DspMessage,
     track::TrackInfo,
@@ -70,6 +75,7 @@ impl Message<DspMessage> for UserActor {
         v
     }
 }
+
 impl Message<UserCommand> for UserActor {
     type Reply = Result<UserCommandResult, String>;
 

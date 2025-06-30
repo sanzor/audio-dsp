@@ -54,7 +54,7 @@ pub async fn can_run_insert_command() -> Result<(), String> {
             sample_rate: sample_rate,
         },
     };
-    let command = DspMessage::Insert {
+    let command = DspMessage::InsertRaw {
         user_name: Some(user_name),
         track_payload: Some(serde_json::to_string(&track).unwrap()),
     };

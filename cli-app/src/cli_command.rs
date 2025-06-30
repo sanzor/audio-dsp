@@ -1,11 +1,8 @@
-use std::fmt::Display;
+use serde::Deserialize;
 
-use clap::ValueEnum;
-use serde::{Deserialize, Serialize};
-
-use crate::{track::Track, tracks_message_result::TracksMessageResult};
-#[derive(Debug, Serialize, Deserialize)]
-pub enum DspMessage {
+use crate::track::Track;
+#[derive(clap::Subcommand, Deserialize,Clone,Debug)]
+pub enum CLICommand {
     Load {
         user_name: Option<String>,
         track_name: Option<String>,
@@ -14,10 +11,6 @@ pub enum DspMessage {
     InsertRaw {
         user_name: Option<String>,
         track_payload: Option<String>,
-    },
-    InsertTrack {
-        user_id: String,
-        track: Track,
     },
     Upload {
         user_name: Option<String>,

@@ -1,10 +1,11 @@
 use std::{collections::HashMap, sync::Arc};
 
-use actix_web::{delete, get, post, web::{self, get, post}, HttpResponse};
-use actors::user_actor::user_actor::{UserActor, CreateUserActorParams, CreateUserData};
+
+use actix_web::{delete, get, post, web::{self, get}, HttpResponse};
+use actors::user_actor::{create_user_actor_params::CreateUserActorParams, create_user_data::CreateUserData, user_actor::UserActor};
 use domain::{actors::{player_state_query_result::PlayerStateQueryResult, user_command::UserCommand, user_state_query::UserStateQuery, user_update_params::UserUpdateParams}, track::TrackInfo};
 use dsp_core::state::Tracks;
-use kameo::spawn;
+use kameo::{actor::ActorRef, spawn};
 use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 use crate::{app_data::AppData};
@@ -44,15 +45,15 @@ pub struct InsertUserResult{
 }
 
 #[post("/create")]
-async fn create(path:web::Json<InsertUserParams>,app_state:web::Data<AppData>)->InsertUserResult{
+async fn create(path:web::Json<InsertUserParams>,app_state:web::Data<AppData>)->HttpResponse{
     let request=path.into_inner();
     let guard=app_state.user_map.lock().await;
     let id = Ulid::new().to_string();
     let actor_params=CreateUserActorParams{
         user_data:CreateUserData{
-            id:id,
-            name:request.user_name,
-            email:request.email
+            id:id.clone(),
+            name:request.user_name.clone(),
+            email:request.email.clone()
         },
         players:HashMap::new(),
         tracks:Tracks::new(),
@@ -60,7 +61,7 @@ async fn create(path:web::Json<InsertUserParams>,app_state:web::Data<AppData>)->
     };
     let user_actor=spawn(UserActor::new(actor_params));
     let mut user_map=app_state.user_map.lock().await;
-    let rez=match user_map.insert(id, user_actor){
+    let rez=match user_map.insert(id.clone(), user_actor){
         None => return HttpResponse::InternalServerError().body("Could not insert new user"),
         Some(u)=>u
     };
@@ -74,14 +75,12 @@ async fn delete(path:web::Path<String>,app_state:web::Data<AppData>)->HttpRespon
     let user_id=path.into_inner();
     let guard=app_state.user_map.lock().await;
 
-    let actor_ref={
-        let mut user_map=app_state.user_map.lock().await;
-        match user_map.get(&user_id){
-            None => return HttpResponse::InternalServerError().body("Could not insert new user"),
-            Some(u)=>u
-        }
+    let user= match get_user_internal(&user_id, &app_state).await{
+        Ok(u)=>u,
+        Err(e) if e.contains("Could not find")=>return HttpResponse::NotFound().body("Could not find user"),
+        _ => return HttpResponse::InternalServerError().body("Could not search user")
     };
-    let result=actor_ref.ask(UserCommand::Remove).await;
+    let result=user.ask(UserCommand::Remove).await;
     HttpResponse::NoContent().body("User deleted")
 }
 
@@ -102,28 +101,27 @@ pub struct UserUpdateResult{
 async fn update(path:web::Json<UpdateUserParams>,app_state:web::Data<AppData>)->HttpResponse{
     let request=path.into_inner();
     let guard=app_state.user_map.lock().await;
-    let user_addr={
-        let guard=app_state.user_map.lock().await;
-        match guard.get(&user).cloned(){
-            Some(addr)=>addr,
-            None=>return HttpResponse::NotFound().body("Could not find user")
-        }
+    let user= match get_user_internal(&request.user_id, &app_state).await{
+        Ok(u)=>u,
+        Err(e) if e.contains("Could not find")=>return HttpResponse::NotFound().body("Could not find user"),
+        _ => return HttpResponse::InternalServerError().body("Could not search user")
     };
-
-    let result=user_addr.ask(
-        UserCommand::Update(UserUpdateParams{id:request.user_id,email:request.email,name:request.email})).await;
+    
+    let result=user.ask(
+        UserCommand::Update(UserUpdateParams{id:request.user_id,email:request.email.clone(),name:request.email})).await;
     HttpResponse::Ok().json("User created")
 }
 
-async fn get_user(user_id:&str,app_state:&AppData)->{
+async fn get_user_internal(user_id:&str,app_state:&AppData)->Result<ActorRef<UserActor>,String>{
      let user_addr={
         let guard=app_state.user_map.lock().await;
-        match guard.get(&user_id).cloned(){
-            Some(addr)=>addr,
-            None=>return HttpResponse::NotFound().body("Could not find user")
+        match guard.get(&user_id.to_string()).cloned(){
+            Some(addr)=>Ok(addr),
+            None=>Err("Could not find user".to_string())
         }
 
     };
+    user_addr
 }
 pub fn init(cfg:&mut web::ServiceConfig){
     cfg

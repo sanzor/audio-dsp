@@ -45,8 +45,8 @@ impl Processor {
         &mut self,
         input: &str,
     ) -> Result<TracksMessageResult, String> {
-        let command: DspMessage = self.command_parser.parse_crud_command(input)?;
-        if let DspMessage::Exit { user_name } = command {
+        let command: CLICommand = self.command_parser.parse_crud_command(input)?;
+        if let CLICommand::Exit { user_name } = command {
             return Ok(TracksMessageResult {
                 output: "exit".to_string(),
                 should_exit: true,

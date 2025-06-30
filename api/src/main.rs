@@ -21,7 +21,7 @@ async fn main() -> std::io::Result<()> {
                 web::scope("/player")
                     .configure(controllers::player_controller::init)
                     .service(web::scope("/user").configure(controllers::user_controller::init))
-                    .service(web::scope("/dsp").configure(controllers::dsp_controller::init)),
+                    .service(web::scope("/dsp").configure(controllers::user_crud_controller::init)),
             )
     })
     .bind(("127.0.0.1", 8080))?

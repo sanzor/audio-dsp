@@ -8,20 +8,20 @@ use tokio::sync::Mutex;
 
 use crate::{command_dispatch::CommandDispatch, state::TracksState};
 
-pub struct InsertDispatcher {}
+pub struct InsertTrackDispatcher {}
 #[async_trait]
-impl CommandDispatch for InsertDispatcher {
+impl CommandDispatch for InsertTrackDispatcher {
     async fn dispatch(
         &self,
         envelope: Envelope,
         state: &mut TracksState,
     ) -> Result<TracksMessageResult, String> {
         match envelope.command {
-            DspMessage::InsertRaw {
-                user_name,
-                track_payload,
+            DspMessage::InsertTrack {
+               track,
+                user_id 
             } => {
-                self.internal_dispatch(user_name, track_payload, state)
+                self.internal_dispatch(track, state)
                     .await
             }
             _ => Err("".to_owned()),
@@ -29,16 +29,12 @@ impl CommandDispatch for InsertDispatcher {
     }
 }
 
-impl InsertDispatcher {
+impl InsertTrackDispatcher {
     async fn internal_dispatch(
         &self,
-        user_name: Option<String>,
-        track_payload: Option<String>,
+        track: Track,
         state: &mut TracksState,
     ) -> Result<TracksMessageResult, String> {
-        let track_payload = track_payload.ok_or_else(|| "invalid payload".to_string())?;
-        let track: Track = serde_json::from_str(&track_payload).unwrap();
-        let user_name = user_name.ok_or_else(|| "invalid name".to_string())?;
 
         state.upsert_track(track).await?;
 

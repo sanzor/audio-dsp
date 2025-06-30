@@ -48,7 +48,7 @@ async fn can_create_player_and_play() -> Result<(), String> {
     let id = Ulid::new();
     let user_actor = create_user_actor(id);
     let insert_result = user_actor
-        .ask(DspMessage::Insert {
+        .ask(DspMessage::InsertRaw {
             user_name: Some(user_name),
             track_payload: Some(to_string(&track)),
         })
@@ -80,7 +80,7 @@ async fn can_play_on_existing_player() -> Result<(), String> {
     let id = Ulid::new();
     let user_actor = create_user_actor(id);
     let insert_result = user_actor
-        .ask(DspMessage::Insert {
+        .ask(DspMessage::InsertRaw {
             user_name: Some(user_name),
             track_payload: Some(to_string(&track)),
         })
@@ -127,7 +127,7 @@ async fn can_create_player_and_stop() -> Result<(), String> {
     let id = Ulid::new();
     let user_actor = create_user_actor(id);
     let insert_result = user_actor
-        .ask(DspMessage::Insert {
+        .ask(DspMessage::InsertRaw {
             user_name: Some(user_name),
             track_payload: Some(to_string(&track)),
         })
