@@ -16,8 +16,16 @@ pub enum DspMessage {
         track_payload: Option<String>,
     },
     InsertTrack {
-        user_id: String,
         track: Track,
+    },
+    RemoveTrack {
+        track: Track,
+    },
+    GetTrack {
+        track_id: String,
+    },
+    GetTrackInfo {
+        track_id: String,
     },
     Upload {
         user_name: Option<String>,
@@ -46,7 +54,6 @@ pub enum DspMessage {
     },
     RunScript {
         user_name: Option<String>,
-        #[arg(help = "Path to batch JSON file")]
         file: String,
     },
     Gain {
@@ -54,7 +61,6 @@ pub enum DspMessage {
         track_name: Option<String>,
         gain: f32,
         mode: Option<RunMode>,
-        #[arg(long)]
         parallelism: Option<u8>,
     },
     LowPass {
