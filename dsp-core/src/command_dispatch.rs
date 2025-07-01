@@ -7,7 +7,7 @@ use crate::state::TracksState;
 pub(crate) trait CommandDispatch {
     async fn dispatch(
         &self,
-        envelope: Envelope,
+        command: Envelope,
         state: &mut TracksState,
     ) -> Result<TracksMessageResult, String>;
 }

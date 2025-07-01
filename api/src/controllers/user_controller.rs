@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use actix_web::{delete, get, post, web::{self, get}, HttpResponse};
 use actors::user_actor::{create_user_actor_params::CreateUserActorParams, create_user_data::CreateUserData, user_actor::UserActor};
-use domain::{actors::{player_state_query_result::PlayerStateQueryResult, user_command::UserCommand, user_state_query::UserStateQuery, user_update_params::UserUpdateParams}, track::TrackInfo};
+use domain::{actors::{player_state_query_result::PlayerStateQueryResult, user_crud_command::UserCrudCommand, user_state_query::UserStateQuery, user_update_params::UserUpdateParams}, track::TrackInfo};
 use dsp_core::state::Tracks;
 use kameo::{actor::ActorRef, spawn};
 use serde::{Deserialize, Serialize};
@@ -80,7 +80,7 @@ async fn delete(path:web::Path<String>,app_state:web::Data<AppData>)->HttpRespon
         Err(e) if e.contains("Could not find")=>return HttpResponse::NotFound().body("Could not find user"),
         _ => return HttpResponse::InternalServerError().body("Could not search user")
     };
-    let result=user.ask(UserCommand::Remove).await;
+    let result=user.ask(UserCrudCommand::Remove).await;
     HttpResponse::NoContent().body("User deleted")
 }
 
@@ -108,7 +108,7 @@ async fn update(path:web::Json<UpdateUserParams>,app_state:web::Data<AppData>)->
     };
     
     let result=user.ask(
-        UserCommand::Update(UserUpdateParams{id:request.user_id,email:request.email.clone(),name:request.email})).await;
+        UserCrudCommand::Update(UserUpdateParams{id:request.user_id,email:request.email.clone(),name:request.email})).await;
     HttpResponse::Ok().json("User created")
 }
 

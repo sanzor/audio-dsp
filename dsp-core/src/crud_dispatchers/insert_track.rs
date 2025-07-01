@@ -1,25 +1,22 @@
 use async_trait::async_trait;
 use domain::{
-    dsp_message::DspMessage, envelope::Envelope, track::Track,
-    tracks_message_result::TracksMessageResult,
+    actors::{user_crud_command::UserCrudCommand, user_crud_command_result::UserCrudCommandResult}, track::Track
 };
-use std::sync::Arc;
-use tokio::sync::Mutex;
 
-use crate::{command_dispatch::CommandDispatch, state::TracksState};
+
+use crate::{crud_dispatchers::crud_command_dispatch::CrudCommandDispatch, state::TracksState};
 
 pub struct InsertTrackDispatcher {}
 #[async_trait]
-impl CommandDispatch for InsertTrackDispatcher {
+impl CrudCommandDispatch for InsertTrackDispatcher {
     async fn dispatch(
         &self,
-        envelope: Envelope,
+        command: UserCrudCommand,
         state: &mut TracksState,
-    ) -> Result<TracksMessageResult, String> {
-        match envelope.command {
-            DspMessage::InsertTrack {
-               track,
-                user_id 
+    ) -> Result<UserCrudCommandResult, String> {
+        match command {
+            UserCrudCommand::InsertTrack {
+               track
             } => {
                 self.internal_dispatch(track, state)
                     .await
@@ -34,13 +31,12 @@ impl InsertTrackDispatcher {
         &self,
         track: Track,
         state: &mut TracksState,
-    ) -> Result<TracksMessageResult, String> {
+    ) -> Result<UserCrudCommandResult, String> {
 
         state.upsert_track(track).await?;
 
-        Ok(TracksMessageResult {
-            output: format!("Inserted track"),
-            should_exit: false,
+        Ok(UserCrudCommandResult {
+            output: format!("Inserted track")
         })
     }
 }

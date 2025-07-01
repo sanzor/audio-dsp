@@ -15,18 +15,6 @@ pub enum DspMessage {
         user_name: Option<String>,
         track_payload: Option<String>,
     },
-    InsertTrack {
-        track: Track,
-    },
-    RemoveTrack {
-        track: Track,
-    },
-    GetTrack {
-        track_id: String,
-    },
-    GetTrackInfo {
-        track_id: String,
-    },
     Upload {
         user_name: Option<String>,
         track_name: Option<String>,
@@ -77,7 +65,6 @@ pub enum DspMessage {
         user_name: Option<String>,
         track_name: Option<String>,
         mode: Option<RunMode>,
-        #[arg(long)]
         parallelism: Option<u8>,
     },
 }
