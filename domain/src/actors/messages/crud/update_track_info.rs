@@ -1,4 +1,4 @@
-pub struct UpdateTrackInfo{
+pub struct UpdateTrackInfoParams{
     track_id:String,
     track_name:String
 }

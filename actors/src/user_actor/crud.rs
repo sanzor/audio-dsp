@@ -1,30 +1,34 @@
-use domain::{actors::{
-    messages::crud::{delete_track::{DeleteTrackParams, DeleteTrackResult}, 
+use std::collections::HashMap;
+
+
+
+use domain::{actors::messages::{crud::{delete_track::{DeleteTrackParams, DeleteTrackResult}, 
     get_track::{GetTrackParams, GetTrackResult}, 
     get_track_info::{GetTrackInfo, GetTrackInfoResult}, 
     insert_track::{InsertTrack, InsertTrackResult}, 
-    update_track_info::UpdateTrackInfoResult}},
+    update_track_info::{UpdateTrackInfoParams, UpdateTrackInfoResult}}, user::get_user_state::{GetUserStateResult, PlayerStateQueryResult}},
          track::{self, Track, TrackInfo}};
+use kameo::prelude::{Context, Message};
 use crate::user_actor::user_actor::UserActor;
 
 #[async_trait::async_trait]
 pub trait CrudOperations{
     async fn handle_insert_track(&mut self,track:Track)->Result<InsertTrackResult,String>;
-    async fn handle_delete(&mut self,track_id:&str)->Result<DeleteTrackResult,String>;
+    async fn handle_delete(&mut self,track_id:String)->Result<DeleteTrackResult,String>;
     async fn handle_update(&mut self,params:UpdateTrackInfoParams)->Result<UpdateTrackInfoResult,String>;
-    async fn get_track(&self,track_id:&str)->Result<Track,String>;
-    async fn get_track_info(&self,track_id:&str)->Result<TrackInfo,String>;
-    async fn get_state(&self)->Result<UserStateQueryResult,String>;
+    async fn get_track(&self,track_id:String)->Result<Track,String>;
+    async fn get_track_info(&self,track_id:String)->Result<TrackInfo,String>;
+    async fn get_state(&self)->Result<GetUserStateResult,String>;
 }
-
+#[async_trait::async_trait]
 impl CrudOperations for UserActor{
     async fn handle_insert_track(&mut self,track:Track)->Result<InsertTrackResult,String> {
         let rez=self.track_state.upsert_track(track).await;
         Ok(InsertTrackResult{})
     }
 
-     async fn handle_delete(&mut self,track_id:&str) {
-        let rez=self.track_state.delete_track(track_id).await;
+     async fn handle_delete(&mut self,track_id:String)->Result<DeleteTrackResult,String> {
+        let rez=self.track_state.delete_track(&track_id).await;
         Ok(DeleteTrackResult{})
     }
 
@@ -32,17 +36,17 @@ impl CrudOperations for UserActor{
         todo!()
     }
 
-    async fn get_track(&self,track_id:&str)->Result<Track,String> {
-       let track=self.track_state.get_track_copy(track_id).await;
+    async fn get_track(&self,track_id:String)->Result<Track,String> {
+       let track=self.track_state.get_track_copy(&track_id).await;
        track
     }
 
-    async fn get_track_info(&self,track_id:&str) {
-        let info=self.track_state.get_track_copy(track_id).await;
-        info
+    async fn get_track_info(&self,track_id:String)->Result<GetTrackInfoResult,String> {
+        let info=self.track_state.get_track_info(&track_id).await?;
+        Ok(GetTrackInfoResult{track_info:info})
     }
     
-    async fn get_state(&self) -> Result<UserStateQueryResult,String> {
+    async fn get_state(&self) -> Result<GetUserStateResult,String> {
         let mut player_list: HashMap<String, PlayerStateQueryResult> = HashMap::new();
         let mut track_list: HashMap<String, TrackInfo> = HashMap::new();
 
@@ -54,7 +58,7 @@ impl CrudOperations for UserActor{
             track_list.insert(key.into(), track.info.clone());
         }
 
-        Ok(UserStateQueryResult {
+        Ok(GetUserStateResult {
             players: player_list,
             tracks: track_list,
         })
@@ -62,7 +66,7 @@ impl CrudOperations for UserActor{
 }
 
 impl Message<InsertTrack> for UserActor {
-    type Reply = Result<UserCrudCommandResult, String>;
+    type Reply = Result<InsertTrackResult, String>;
 
     async fn handle(
         &mut self,
@@ -79,10 +83,10 @@ impl Message<UpdateTrackInfoParams> for UserActor {
 
     async fn handle(
         &mut self,
-        msg: InsertTrack,
+        msg: UpdateTrackInfoParams,
         ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
-        let c=self.handle_update(msg.track).await;
+        let c=self.handle_update(msg).await;
         c
     }
 }
@@ -121,7 +125,7 @@ impl Message<GetTrackParams> for UserActor{
         msg: GetTrackParams,
         ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
-        let c=self.get_track_info(&msg.track_id).await;
+        let c=self.get_track(&msg.track_id).await;
         c
     }
 }

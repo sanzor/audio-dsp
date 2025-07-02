@@ -1,7 +1,9 @@
+use crate::track::TrackInfo;
+
 pub struct GetTrackInfo{
-    track_id:String,
+    pub track_id:String,
 }
 
 pub struct GetTrackInfoResult{
-    
+    pub track_info:TrackInfo
 }
