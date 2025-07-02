@@ -56,7 +56,6 @@ impl CommandProcessor {
             DspMessage::Info { .. } => "info",
             DspMessage::Load { .. } => "load",
             DspMessage::InsertRaw { .. } => "insert",
-            DspMessage::InsertTrack { user_id, track }=>"insert_track",
             DspMessage::Ls { .. } => "ls",
             DspMessage::Gain { .. } => "gain",
             DspMessage::Normalize { .. } => "normalize",

@@ -5,4 +5,3 @@ pub mod envelope;
 pub mod track;
 pub mod tracks_message_result;
 pub mod user;
-pub mod user_query_state_result;

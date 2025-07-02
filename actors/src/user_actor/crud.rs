@@ -1,47 +1,48 @@
-impl Message<UserCrudCommand> for UserActor {
-    type Reply = Result<UserCrudCommandResult, String>;
+use domain::{actors::{
+    messages::crud::{delete_track::{DeleteTrackParams, DeleteTrackResult}, 
+    get_track::{GetTrackParams, GetTrackResult}, 
+    get_track_info::{GetTrackInfo, GetTrackInfoResult}, 
+    insert_track::{InsertTrack, InsertTrackResult}, 
+    update_track_info::UpdateTrackInfoResult}},
+         track::{self, Track, TrackInfo}};
+use crate::user_actor::user_actor::UserActor;
 
-    async fn handle(
-        &mut self,
-        msg: UserCrudCommand,
-        ctx: &mut Context<Self, Self::Reply>,
-    ) -> Self::Reply {
-        let c = match msg {
-            UserCrudCommand::Remove => self.handle_delete().await,
-            UserCrudCommand::Update(params) => self.handle_update(params).await,
-            UserCrudCommand::GetTrack { track_id }=>self.hand
-        };
-        c
-    }
+#[async_trait::async_trait]
+pub trait CrudOperations{
+    async fn handle_insert_track(&mut self,track:Track)->Result<InsertTrackResult,String>;
+    async fn handle_delete(&mut self,track_id:&str)->Result<DeleteTrackResult,String>;
+    async fn handle_update(&mut self,params:UpdateTrackInfoParams)->Result<UpdateTrackInfoResult,String>;
+    async fn get_track(&self,track_id:&str)->Result<Track,String>;
+    async fn get_track_info(&self,track_id:&str)->Result<TrackInfo,String>;
+    async fn get_state(&self)->Result<UserStateQueryResult,String>;
 }
 
-impl UserActor {
-   
-    async fn handle_delete(&mut self) -> Result<UserCrudCommandResult, String> {
-        Ok(UserCrudCommandResult {
-            output: "deleted successfully".to_string(),
-        })
+impl CrudOperations for UserActor{
+    async fn handle_insert_track(&mut self,track:Track)->Result<InsertTrackResult,String> {
+        let rez=self.track_state.upsert_track(track).await;
+        Ok(InsertTrackResult{})
     }
-    async fn handle_update(
-        &mut self,
-        update_params: UserUpdateParams,
-    ) -> Result<UserCrudCommandResult, String> {
-        self.email = update_params.email;
-        self.name = update_params.name;
-        Ok(UserCrudCommandResult {
-            output: "updated succesfully".to_string(),
-        })
+
+     async fn handle_delete(&mut self,track_id:&str) {
+        let rez=self.track_state.delete_track(track_id).await;
+        Ok(DeleteTrackResult{})
     }
-}
 
-impl Message<UserStateQuery> for UserActor {
-    type Reply = Result<UserStateQueryResult, String>;
+     async fn handle_update(&mut self,params:UpdateTrackInfoParams)->Result<UpdateTrackInfoResult,String> {
+        todo!()
+    }
 
-    async fn handle(
-        &mut self,
-        msg: UserStateQuery,
-        ctx: &mut Context<Self, Self::Reply>,
-    ) -> Self::Reply {
+    async fn get_track(&self,track_id:&str)->Result<Track,String> {
+       let track=self.track_state.get_track_copy(track_id).await;
+       track
+    }
+
+    async fn get_track_info(&self,track_id:&str) {
+        let info=self.track_state.get_track_copy(track_id).await;
+        info
+    }
+    
+    async fn get_state(&self) -> Result<UserStateQueryResult,String> {
         let mut player_list: HashMap<String, PlayerStateQueryResult> = HashMap::new();
         let mut track_list: HashMap<String, TrackInfo> = HashMap::new();
 
@@ -57,5 +58,70 @@ impl Message<UserStateQuery> for UserActor {
             players: player_list,
             tracks: track_list,
         })
+    }
+}
+
+impl Message<InsertTrack> for UserActor {
+    type Reply = Result<UserCrudCommandResult, String>;
+
+    async fn handle(
+        &mut self,
+        msg: InsertTrack,
+        ctx: &mut Context<Self, Self::Reply>,
+    ) -> Self::Reply {
+        let c=self.handle_insert_track(msg.track).await;
+        c
+    }
+}
+
+impl Message<UpdateTrackInfoParams> for UserActor {
+    type Reply = Result<UpdateTrackInfoResult, String>;
+
+    async fn handle(
+        &mut self,
+        msg: InsertTrack,
+        ctx: &mut Context<Self, Self::Reply>,
+    ) -> Self::Reply {
+        let c=self.handle_update(msg.track).await;
+        c
+    }
+}
+
+impl Message<DeleteTrackParams> for UserActor{
+    type Reply = Result<DeleteTrackResult, String>;
+
+    async fn handle(
+        &mut self,
+        msg: DeleteTrackParams,
+        ctx: &mut Context<Self, Self::Reply>,
+    ) -> Self::Reply {
+        let c=self.handle_delete(msg.track_id).await;
+        c
+    }
+}
+
+impl Message<GetTrackInfo> for UserActor{
+    type Reply = Result<GetTrackInfoResult, String>;
+
+    async fn handle(
+        &mut self,
+        msg: DeleteTrackParams,
+        ctx: &mut Context<Self, Self::Reply>,
+    ) -> Self::Reply {
+        let c=self.get_track_info(msg.track_id).await;
+        c
+    }
+}
+
+impl Message<GetTrackParams> for UserActor{
+    type Reply = Result<GetTrackResult, String>;
+
+    async fn handle(
+        &mut self,
+        msg: GetTrackParams,
+        ctx: &mut Context<Self, Self::Reply>,
+    ) -> Self::Reply {
+        let c=self.get_track_info(&msg.track_id).await;
+        c
     }
 }
