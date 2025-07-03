@@ -6,7 +6,7 @@ use domain::{actors::messages::{crud::{delete_track::{DeleteTrackParams, DeleteT
     get_track::{GetTrackParams, GetTrackResult}, 
     get_track_info::{GetTrackInfo, GetTrackInfoResult}, 
     insert_track::{InsertTrack, InsertTrackResult}, 
-    update_track_info::{UpdateTrackInfoParams, UpdateTrackInfoResult}}, user::get_user_state::{GetUserStateResult, PlayerStateQueryResult}},
+    update_track_info::{UpdateTrackInfoParams, UpdateTrackInfoResult}}, user::get_user_state::{GetUserState, GetUserStateResult, PlayerStateQueryResult}},
          track::{self, Track, TrackInfo}};
 use kameo::prelude::{Context, Message};
 use crate::user_actor::user_actor::UserActor;
@@ -17,7 +17,7 @@ pub trait CrudOperations{
     async fn handle_delete(&mut self,track_id:String)->Result<DeleteTrackResult,String>;
     async fn handle_update(&mut self,params:UpdateTrackInfoParams)->Result<UpdateTrackInfoResult,String>;
     async fn get_track(&self,track_id:String)->Result<Track,String>;
-    async fn get_track_info(&self,track_id:String)->Result<TrackInfo,String>;
+    async fn get_track_info(&self,track_id:String)->Result<GetTrackInfoResult,String>;
     async fn get_state(&self)->Result<GetUserStateResult,String>;
 }
 #[async_trait::async_trait]
@@ -33,7 +33,7 @@ impl CrudOperations for UserActor{
     }
 
      async fn handle_update(&mut self,params:UpdateTrackInfoParams)->Result<UpdateTrackInfoResult,String> {
-        todo!()
+        let rez=self.track_state.u
     }
 
     async fn get_track(&self,track_id:String)->Result<Track,String> {
@@ -109,7 +109,7 @@ impl Message<GetTrackInfo> for UserActor{
 
     async fn handle(
         &mut self,
-        msg: DeleteTrackParams,
+        msg: GetTrackInfo,
         ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
         let c=self.get_track_info(msg.track_id).await;
@@ -125,7 +125,20 @@ impl Message<GetTrackParams> for UserActor{
         msg: GetTrackParams,
         ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
-        let c=self.get_track(&msg.track_id).await;
+        let c=self.get_track(msg.track_id).await.map(|t|GetTrackResult { track: t });
         c
+    }
+}
+
+impl Message<GetUserState> for UserActor{
+    type Reply=Result<GetUserStateResult,String>;
+
+    async fn handle(
+        &mut self,
+        msg: GetUserState,
+        ctx: &mut Context<Self, Self::Reply>,
+    ) -> Self::Reply {
+        let s=self.get_state().await;
+        s
     }
 }

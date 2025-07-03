@@ -7,7 +7,7 @@ use tokio::sync::Mutex;
 
 use crate::{
     command_dispatch::CommandDispatch,
-    state::{Tracks, TracksState},
+    state::{TrackStoreProvider, TracksState},
 };
 
 pub struct ListDispatcher {}
