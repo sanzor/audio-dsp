@@ -1,6 +1,11 @@
+use kameo::actor::ActorRef;
+
+use crate::audio_player_actor::audio_player_actor::AudioPlayerActor;
+
 #[async_trait::async_trait]
 pub trait PlayersProvider{
-    async fn create(&mut self,track:TrackRef)->Result<CreatePlayerResult,String>;
+    async fn get(&mut self,player_id:String)->Result<ActorRef<AudioPlayerActor,String>>;
+    async fn create(&mut self,player_id:String,track:ActorRef<AudioPlayerActor>)->Result<CreatePlayerResult,String>;
     async fn remove(&mut self,player_id:String)->Result<(),String>;
     async fn play(&mut self,player_id:String)->Result<PlayResult,String>;
     async fn pause(&mut self,player_id:String)->Result<PlayResult,String>;

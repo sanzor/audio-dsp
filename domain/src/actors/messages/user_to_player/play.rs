@@ -1,5 +1,5 @@
 pub struct Play{
-    track_id:String
+    pub player_id:String
 }
 
 pub struct PlayResult{
