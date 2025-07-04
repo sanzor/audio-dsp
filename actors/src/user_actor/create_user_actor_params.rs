@@ -11,6 +11,6 @@ type Players = HashMap<String, ActorRef<AudioPlayerActor>>;
 pub struct CreateUserActorParams {
     pub user_data: CreateUserData,
     pub processor: Arc<CommandProcessor>,
-    pub tracks_provider: Arc<dyn TrackOperations+Send+Sync>,
+    pub tracks_provider: Box<dyn TrackOperations+Send+Sync>,
     pub players: Box<dyn PlayersProvider+Send+Sync>,
 }
