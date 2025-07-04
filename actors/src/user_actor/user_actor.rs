@@ -1,4 +1,4 @@
-use dsp_core::{command_processor::CommandProcessor, state::TracksState};
+use dsp_core::{command_processor::CommandProcessor, state::{TracksProvider, TracksState}};
 use kameo::{
     actor::ActorRef,
     prelude::{Context, Message},
@@ -8,9 +8,9 @@ use std::{collections::HashMap, sync::Arc};
 
 use crate::{
     audio_player_actor::
-        audio_player_actor::AudioPlayerActor
+        audio_player_actor::{AudioPlayerActor, PlayerOperations}
     ,
-    user_actor::create_user_actor_params::CreateUserActorParams,
+    user_actor::{create_user_actor_params::CreateUserActorParams, crud::TrackOperations, players_provider::PlayersProvider},
 };
 use domain::{
     dsp_message::DspMessage,
@@ -25,8 +25,8 @@ pub struct UserActor {
     pub(crate)name: String,
     pub(crate)email: String,
     pub(crate)processor: Arc<CommandProcessor>,
-    pub(crate)track_state: TracksState,
-    pub(crate)players: Players,
+    pub(crate)tracks_provider: Box<dyn TracksProvider+Send+Sync>,
+    pub(crate)players_provider: Box<dyn PlayersProvider+Send+Sync>,
 }
 
 impl UserActor {
@@ -36,25 +36,9 @@ impl UserActor {
             email: actor_params.user_data.email,
             name: actor_params.user_data.name,
             processor: actor_params.processor,
-            track_state: actor_params.tracks,
-            players: actor_params.players,
+            tracks_provider: &actor_params.tracks_provider,
+            players_provider: actor_params.players,
         }
     }
 }
 
-impl Message<DspMessage> for UserActor {
-    type Reply = Result<TracksMessageResult, String>;
-
-    // async move variant
-    async fn handle(
-        &mut self,
-        msg: DspMessage,
-        ctx: &mut Context<Self, Self::Reply>,
-    ) -> Self::Reply {
-        let v = self
-            .processor
-            .process_crud_command(msg, &mut self.track_state)
-            .await;
-        v
-    }
-}

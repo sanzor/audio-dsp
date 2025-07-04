@@ -1,9 +1,8 @@
-use serde::{Deserialize, Serialize};
-
 use crate::actors::player_state::AudioPlayerState;
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct PlayerStateQueryResult {
+pub struct GetPlayerState{ track_id:String}
+
+pub struct GetPlayerStateResult{
     pub cursor: usize,
     pub written: usize,
     pub state: AudioPlayerState,

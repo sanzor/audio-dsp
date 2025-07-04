@@ -4,3 +4,5 @@ pub mod crud;
 pub mod player;
 pub mod user_actor;
 pub mod user;
+pub mod local_player_store;
+pub mod players_provider;

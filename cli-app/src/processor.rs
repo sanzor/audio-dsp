@@ -10,7 +10,7 @@ use domain::actors::user_player_command::UserPlayerCommand;
 use domain::actors::user_player_command_result::UserPlayerCommandResult;
 use domain::dsp_message::DspMessage;
 use domain::tracks_message_result::TracksMessageResult;
-use dsp_core::{api::create_command_processor, command_processor::CommandProcessor, state::TrackStoreProvider};
+use dsp_core::{api::create_command_processor, command_processor::CommandProcessor, state::LocalTrackStoreProvider};
 use kameo::actor::spawn;
 use kameo::actor::ActorRef;
 
@@ -33,7 +33,7 @@ impl Processor {
                     name: dummy_id,
                 },
                 processor: command_processor,
-                tracks: TrackStoreProvider::new(),
+                tracks: LocalTrackStoreProvider::new(),
                 players: HashMap::new(),
             })),
 

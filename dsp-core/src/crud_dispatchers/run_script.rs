@@ -7,7 +7,7 @@ use tokio::sync::Mutex;
 
 use crate::{
     command_dispatch::CommandDispatch,
-    state::{TrackStoreProvider, TracksState},
+    state::{LocalTrackStoreProvider, TracksState},
 };
 
 pub struct RunScriptDispatcher {}

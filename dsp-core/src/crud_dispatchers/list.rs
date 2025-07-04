@@ -2,12 +2,10 @@ use async_trait::async_trait;
 use domain::{
     dsp_message::DspMessage, envelope::Envelope, tracks_message_result::TracksMessageResult,
 };
-use std::sync::Arc;
-use tokio::sync::Mutex;
 
 use crate::{
     command_dispatch::CommandDispatch,
-    state::{TrackStoreProvider, TracksState},
+    state::TracksState,
 };
 
 pub struct ListDispatcher {}

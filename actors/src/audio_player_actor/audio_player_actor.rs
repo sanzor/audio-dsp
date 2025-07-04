@@ -13,6 +13,15 @@ use kameo::{
 use player::{audio_sink::AudioSink, AudioFrame};
 use std::time::Duration;
 
+#[async_trait::async_trait]
+pub trait PlayerOperations{
+    async fn play(&mut self)->Result<PlayResult,String>;
+    async fn pause(&mut self)->Result<PlayResult,String>;
+    async fn stop(&mut self)->Result<PlayResult,String>;
+    async fn seek(&mut self,position:u32)->Result<PlayResult,String>;
+    async fn get_player_state(&self)->Result<GetPlayerStateResult,String>;
+}
+
 pub struct AudioPlayerActor {
     sink: Box<dyn AudioSink + Send + Sync>,
     state: AudioPlayerState,

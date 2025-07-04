@@ -1,13 +1,11 @@
 use domain::track::{Track, TrackInfo, TrackRef, TrackRefMut};
 use std::{collections::HashMap, sync::Arc};
 
-
-pub type TracksState = TrackStoreProvider;
-pub struct TrackStoreProvider {
+pub struct LocalTrackStoreProvider {
     pub tracks: HashMap<String, Track>,
 }
 #[async_trait::async_trait]
-pub trait TrackStoreOperations{
+pub trait TracksProvider{
     async fn get_track_info(&self,track_name:&str)->Result<TrackInfo,String>;
     async fn get_track_ref(&self, track_name: &str) -> Result<TrackRef, String>;
     async fn get_track_ref_mut(&mut self, track_name: &str) -> Result<TrackRefMut, String>;
@@ -18,16 +16,16 @@ pub trait TrackStoreOperations{
     async fn update_track_info(&mut self, track_info:TrackInfo)->Result<(),String>;
 }
 
-impl TrackStoreProvider{
-     pub fn new() -> TrackStoreProvider {
-        TrackStoreProvider {
+impl LocalTrackStoreProvider{
+     pub fn new() -> LocalTrackStoreProvider {
+        LocalTrackStoreProvider {
             tracks: HashMap::new(),
         }
     }
 }
 
 #[async_trait::async_trait]
-impl TrackStoreOperations for TrackStoreProvider {
+impl TracksProvider for LocalTrackStoreProvider {
    
     async fn get_track_info(&self, track_name: &str) -> Result<TrackInfo, String> {
         let info = self
