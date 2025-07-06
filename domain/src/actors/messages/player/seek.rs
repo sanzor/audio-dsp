@@ -1,7 +1,5 @@
-pub struct Seek{
-    pub position:u32
+pub struct Seek {
+    pub position: u32,
 }
 
-pub struct SeekResult{
-    
-}
+pub struct SeekResult {}

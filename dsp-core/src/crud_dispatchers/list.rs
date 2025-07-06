@@ -3,10 +3,7 @@ use domain::{
     dsp_message::DspMessage, envelope::Envelope, tracks_message_result::TracksMessageResult,
 };
 
-use crate::{
-    command_dispatch::CommandDispatch,
-    state::TracksState,
-};
+use crate::{command_dispatch::CommandDispatch, state::TracksState};
 
 pub struct ListDispatcher {}
 

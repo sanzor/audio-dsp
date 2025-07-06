@@ -1,5 +1,5 @@
-pub struct Pause{
-    pub track_id:String
+pub struct Pause {
+    pub track_id: String,
 }
 
-pub struct PauseResult{}
+pub struct PauseResult {}

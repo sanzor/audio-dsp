@@ -1,41 +1,49 @@
+use domain::actors::messages::{
+    crud::{
+        delete_track::{DeleteTrackParams, DeleteTrackResult},
+        get_track::{GetTrackParams, GetTrackResult},
+        get_track_info::{GetTrackInfo, GetTrackInfoResult},
+        insert_track::InsertTrack,
+        update_track_info::UpdateTrackInfoParams,
+    },
+    player::get_player_state::GetPlayerStateResult,
+    user_to_player::get_player_state::{GetPlayerState, GetPlayerStateResult},
+};
 
-use domain::actors::messages::
-    {crud::{delete_track::{DeleteTrackParams, DeleteTrackResult}, get_track::{GetTrackParams, GetTrackResult},
-    get_track_info::{GetTrackInfo, GetTrackInfoResult},
-    insert_track::InsertTrack, update_track_info::UpdateTrackInfoParams}, player::get_player_state::GetPlayerStateResult, user_to_player::get_player_state::{GetPlayerState, GetPlayerStateResult}};
-
+use crate::user_actor::user_actor::UserActor;
 use dsp_core::state::{TracksProvider, TracksState};
 use kameo::prelude::{Context, Message};
-use crate::user_actor::user_actor::UserActor;
-
 
 #[async_trait::async_trait]
-impl TrackOperations for LocalTracksProvider{
-    async fn handle_insert_track(&mut self,track:Track)->Result<InsertTrackResult,String> {
-        let rez=self.track_state.upsert_track(track).await;
-        Ok(InsertTrackResult{})
+impl TrackOperations for LocalTracksProvider {
+    async fn handle_insert_track(&mut self, track: Track) -> Result<InsertTrackResult, String> {
+        let rez = self.track_state.upsert_track(track).await;
+        Ok(InsertTrackResult {})
     }
 
-    async fn handle_delete(&mut self,track_id:String)->Result<DeleteTrackResult,String> {
-        let rez=self.track_state.delete_track(&track_id).await;
-        Ok(DeleteTrackResult{})
+    async fn handle_delete(&mut self, track_id: String) -> Result<DeleteTrackResult, String> {
+        let rez = self.track_state.delete_track(&track_id).await;
+        Ok(DeleteTrackResult {})
     }
 
-    async fn handle_update(&mut self,params:UpdateTrackInfoParams)->Result<UpdateTrackInfoResult,String> {
-        let rez=self.track_state.update_track_info(params.track_info).await;
+    async fn handle_update(
+        &mut self,
+        params: UpdateTrackInfoParams,
+    ) -> Result<UpdateTrackInfoResult, String> {
+        let rez = self.track_state.update_track_info(params.track_info).await;
     }
 
-    async fn get_track(&self,track_id:String)->Result<Track,String> {
-       let track=self.track_state.get_track_copy(&track_id).await;
-       track
+    async fn get_track(&self, track_id: String) -> Result<Track, String> {
+        let track = self.track_state.get_track_copy(&track_id).await;
+        track
     }
 
-    async fn get_track_info(&self,track_id:String)->Result<GetTrackInfoResult,String> {
-        let info=self.track_state.get_track_info(&track_id).await?;
-        Ok(GetTrackInfoResult{track_info:info})
+    async fn get_track_info(&self, track_id: String) -> Result<GetTrackInfoResult, String> {
+        let info = self.track_state.get_track_info(&track_id).await?;
+        Ok(GetTrackInfoResult { track_info: info })
     }
-    
-    async fn get_state(&self) -> Result<GetUserStateResult,String> {
+
+    async fn get_state(&self) -> Result<GetUserStateResult, String> {
         let mut player_list: HashMap<String, PlayerStateQueryResult> = HashMap::new();
         let mut track_list: HashMap<String, TrackInfo> = HashMap::new();
 
@@ -53,8 +61,10 @@ impl TrackOperations for LocalTracksProvider{
         })
     }
 
-    async fn get_player_state(&self,get_params:GetPlayerState)->Result<GetPlayerStateResult,String>{
-
+    async fn get_player_state(
+        &self,
+        get_params: GetPlayerState,
+    ) -> Result<GetPlayerStateResult, String> {
     }
 }
 
@@ -66,7 +76,7 @@ impl Message<InsertTrack> for UserActor {
         msg: InsertTrack,
         ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
-        let c=self.tracks_provider.handle_insert_track(msg.track).await;
+        let c = self.tracks_provider.handle_insert_track(msg.track).await;
         c
     }
 }
@@ -79,12 +89,12 @@ impl Message<UpdateTrackInfoParams> for UserActor {
         msg: UpdateTrackInfoParams,
         ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
-        let c=self.tracks_provider.handle_update(msg).await;
+        let c = self.tracks_provider.handle_update(msg).await;
         c
     }
 }
 
-impl Message<DeleteTrackParams> for UserActor{
+impl Message<DeleteTrackParams> for UserActor {
     type Reply = Result<DeleteTrackResult, String>;
 
     async fn handle(
@@ -92,12 +102,12 @@ impl Message<DeleteTrackParams> for UserActor{
         msg: DeleteTrackParams,
         ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
-        let c=self.tracks_provider.handle_delete(msg.track_id).await;
+        let c = self.tracks_provider.handle_delete(msg.track_id).await;
         c
     }
 }
 
-impl Message<GetTrackInfo> for UserActor{
+impl Message<GetTrackInfo> for UserActor {
     type Reply = Result<GetTrackInfoResult, String>;
 
     async fn handle(
@@ -105,12 +115,12 @@ impl Message<GetTrackInfo> for UserActor{
         msg: GetTrackInfo,
         ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
-        let c=self.tracks_provider.get_track_info(msg.track_id).await;
+        let c = self.tracks_provider.get_track_info(msg.track_id).await;
         c
     }
 }
 
-impl Message<GetTrackParams> for UserActor{
+impl Message<GetTrackParams> for UserActor {
     type Reply = Result<GetTrackResult, String>;
 
     async fn handle(
@@ -118,20 +128,24 @@ impl Message<GetTrackParams> for UserActor{
         msg: GetTrackParams,
         ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
-        let c=self.tracks_provider.get_track(msg.track_id).await.map(|t|GetTrackResult { track: t });
+        let c = self
+            .tracks_provider
+            .get_track(msg.track_id)
+            .await
+            .map(|t| GetTrackResult { track: t });
         c
     }
 }
 
-impl Message<GetPlayerState> for UserActor{
-    type Reply=Result<GetPlayerStateResult,String>;
+impl Message<GetPlayerState> for UserActor {
+    type Reply = Result<GetPlayerStateResult, String>;
 
     async fn handle(
         &mut self,
         msg: GetPlayerState,
         ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
-        let s=self.tracks_provider.GE().await;
+        let s = self.tracks_provider.GE().await;
         s
     }
 }

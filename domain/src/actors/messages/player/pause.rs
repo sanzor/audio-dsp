@@ -1,5 +1,3 @@
-pub struct Pause{
-    
-}
+pub struct Pause {}
 
-pub struct PauseResult{}
+pub struct PauseResult {}

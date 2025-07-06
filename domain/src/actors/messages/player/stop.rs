@@ -1,3 +1,3 @@
-pub struct Stop{}
+pub struct Stop {}
 
-pub struct StopResult{}
+pub struct StopResult {}

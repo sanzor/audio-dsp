@@ -4,9 +4,7 @@ use serde::Serialize;
 
 use crate::{actors::player_state::AudioPlayerState, track::TrackInfo};
 
-pub struct GetUserState{
-
-}
+pub struct GetUserState {}
 
 pub struct GetUserStateResult {
     pub tracks: HashMap<String, TrackInfo>,
@@ -19,4 +17,3 @@ pub struct PlayerStateQueryResult {
     pub written: usize,
     pub state: AudioPlayerState,
 }
-

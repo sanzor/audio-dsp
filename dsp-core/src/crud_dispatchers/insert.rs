@@ -4,7 +4,6 @@ use domain::{
     tracks_message_result::TracksMessageResult,
 };
 
-
 use crate::{command_dispatch::CommandDispatch, state::TracksState};
 
 pub struct InsertDispatcher {}

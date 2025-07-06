@@ -1,3 +1,1 @@
-pub struct CLICommandResult{
-    
-}
+pub struct CLICommandResult {}

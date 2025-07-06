@@ -8,14 +8,14 @@ use kameo::{actor::ActorRef, spawn};
 use player::audio_sink::AudioSink;
 
 use crate::audio_player_actor::{
-    audio_player_actor::AudioPlayerActor, audio_player_actor_params::AudioPlayerActorParams,
+    audio_player_actor::AudioPlayerActor, create_audio_player_actor_params::CreateAudioPlayerActorParams,
 };
 
 pub(crate) fn create_user_actor(
     track: Track,
     sink: Box<dyn AudioSink + Send + Sync + 'static>,
 ) -> ActorRef<AudioPlayerActor> {
-    let audio_player_actor_params = AudioPlayerActorParams {
+    let audio_player_actor_params = CreateAudioPlayerActorParams {
         sink: sink,
         track: track,
         cursor: 0,

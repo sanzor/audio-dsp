@@ -33,7 +33,7 @@ pub struct UpdateTrackParams{
     user_id:String,
     track_info:TrackInfo
 }
-#[post("/update-track")]
+#[post("/update-track-info")]
 async fn add_track(path:web::Json<UpdateTrackParams>,app_state:web::Data<AppData>)->HttpResponse{
     let request=path.into_inner();
     let guard=app_state.user_map.lock().await;

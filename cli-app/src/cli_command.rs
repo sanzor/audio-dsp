@@ -1,7 +1,7 @@
 use serde::Deserialize;
 
 use crate::track::Track;
-#[derive(clap::Subcommand, Deserialize,Clone,Debug)]
+#[derive(clap::Subcommand, Deserialize, Clone, Debug)]
 pub enum CLICommand {
     Load {
         user_name: Option<String>,

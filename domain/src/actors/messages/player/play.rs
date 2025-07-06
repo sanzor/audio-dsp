@@ -1,5 +1,3 @@
-pub struct Play{}
+pub struct Play {}
 
-pub struct PlayResult{
-    
-}
+pub struct PlayResult {}
