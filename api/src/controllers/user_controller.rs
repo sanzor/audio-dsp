@@ -4,7 +4,7 @@ use std::{collections::HashMap, sync::Arc};
 use actix_web::{delete, get, post, web::{self, get}, HttpResponse};
 use actors::user_actor::{create_user_actor_params::CreateUserActorParams, create_user_data::CreateUserData, local_player_provider::LocalPlayerProvider, user_actor::UserActor};
 use domain::{actors::{player_state_query_result::PlayerStateQueryResult, crud_command::CrudCommand, user_state_query::UserStateQuery, user_update_params::UserUpdateParams}, track::TrackInfo};
-use dsp_core::state::LocalTrackStoreProvider;
+use dsp_core::tracks_provider::LocalTrackStoreProvider;
 use kameo::{actor::ActorRef, spawn};
 use serde::{Deserialize, Serialize};
 use ulid::Ulid;
@@ -57,7 +57,6 @@ async fn create(path:web::Json<InsertUserParams>,app_state:web::Data<AppData>)->
         },
         players:Box::new(LocalPlayerProvider::new()),
         tracks_provider:Box::new(LocalTrackStoreProvider::new()),
-        processor: Arc::clone(&app_state.processor)
     };
     let user_actor=spawn(UserActor::new(actor_params));
     let mut user_map=app_state.user_map.lock().await;

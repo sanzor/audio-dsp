@@ -1,6 +1,6 @@
 use actix_web::{post, web::{self, post}, HttpResponse};
 use actors::user_actor::user_actor::UserActor;
-use domain::{actors::crud_command::CrudCommand, dsp_message::DspMessage, track::{Track, TrackInfo}};
+use domain::{actors::{crud_command::CrudCommand, messages::crud::{copy_track::CopyTrack, delete_track::DeleteTrack, get_track::GetTrack, get_track_info::GetTrackInfo, get_tracks::GetTracks, insert_track::InsertTrack, update_track_info::UpdateTrackInfo}}, dsp_message::DspMessage, track::{Track, TrackInfo}};
 use kameo::actor::ActorRef;
 use serde::Deserialize;
 
@@ -11,6 +11,7 @@ pub struct AddTrackParams{
     user_id:String,
     track:Track
 }
+
 #[post("/add-track")]
 async fn add_track(path:web::Json<AddTrackParams>,app_state:web::Data<AppData>)->HttpResponse{
     let request=path.into_inner();
@@ -21,9 +22,32 @@ async fn add_track(path:web::Json<AddTrackParams>,app_state:web::Data<AppData>)-
         Err(e)=>return HttpResponse::NotFound().body("User not found")
     };
 
-    let rez=match user.ask(CrudCommand::InsertTrack { track: request.track }).await{
+    let rez=match user.ask(InsertTrack { track: request.track }).await{
         Ok(smth)=>HttpResponse::Ok().json("track added"),
         Err(e)=>return HttpResponse::InternalServerError().body("Could not insert track")
+    };
+    rez
+}
+
+#[derive(Deserialize)]
+pub struct CopyTrackParams{
+    track_id:String,
+    copy_track_name:String
+}
+
+#[post("/copy-track")]
+async fn copy_track(request_raw:web::Json<CopyTrackParams>,app_state:web::Data<AppData>)->HttpResponse{
+    let request=request_raw.into_inner();
+    let guard=app_state.user_map.lock().await;
+    
+    let user=match get_user_internal(&request.user_id, &app_state).await{
+        Ok(u)=>u,
+        Err(e)=>return HttpResponse::NotFound().body("User not found")
+    };
+    
+    let rez=match user.ask(CopyTrack { track_id:request.track_id,track_copy_name:request.copy_track_name}).await{
+        Ok(smth)=>HttpResponse::Ok().json("track copied"),
+        Err(e) =>return HttpResponse::InternalServerError().body("Could not copy track")
     };
     rez
 }
@@ -34,7 +58,7 @@ pub struct UpdateTrackParams{
     track_info:TrackInfo
 }
 #[post("/update-track-info")]
-async fn add_track(path:web::Json<UpdateTrackParams>,app_state:web::Data<AppData>)->HttpResponse{
+async fn update_track_info(path:web::Json<UpdateTrackParams>,app_state:web::Data<AppData>)->HttpResponse{
     let request=path.into_inner();
     let guard=app_state.user_map.lock().await;
     
@@ -43,7 +67,7 @@ async fn add_track(path:web::Json<UpdateTrackParams>,app_state:web::Data<AppData
         Err(e)=>return HttpResponse::NotFound().body("User not found")
     };
 
-    let rez=match user.ask(CrudCommand::InsertTrack { track: request.track }).await{
+    let rez=match user.ask(UpdateTrackInfo { track_info: request.track_info }).await{
         Ok(smth)=>HttpResponse::Ok().json("track added"),
         Err(e)=>return HttpResponse::InternalServerError().body("Could not insert track")
     };
@@ -65,9 +89,9 @@ async fn remove_track(path:web::Query<RemoveTrackParams>,app_state:web::Data<App
         Err(e)=>return HttpResponse::NotFound().body("User not found")
     };
 
-    let rez=match user.ask(CrudCommand::RemoveTrack {  track_id:request.track_id }).await{
+    let rez=match user.ask(DeleteTrack {  track_id:request.track_id }).await{
         Ok(smth)=>HttpResponse::Ok().json("track added"),
-        Err(e)=>return HttpResponse::InternalServerError().body("Could not insert track")
+        Err(e)=>return HttpResponse::InternalServerError().body("Could not remove track")
     };
     rez
 }
@@ -76,7 +100,7 @@ pub struct GetTrackParams{
     pub user_id:String,
     pub track_id:String
 }
-#[post("/get-track")]
+#[get("/get-track")]
 async fn get_track(query:web::Query<GetTrackParams>,app_state:web::Data<AppData>)->HttpResponse{
     let request=query.into_inner();
     let guard=app_state.user_map.lock().await;
@@ -86,9 +110,26 @@ async fn get_track(query:web::Query<GetTrackParams>,app_state:web::Data<AppData>
         Err(e)=>return HttpResponse::NotFound().body("User not found")
     };
 
-    let rez=match user.ask(CrudCommand::GetTrack { track_id:request.track_id}).await{
+    let rez=match user.ask(GetTrack { track_id:request.track_id}).await{
         Ok(smth)=> HttpResponse::Ok().json(smth),
-        Err(e)=>return HttpResponse::InternalServerError().body("Could not insert track")
+        Err(e)=>return HttpResponse::InternalServerError().body("Could not get track")
+    };
+    rez
+}
+
+#[get("/get-tracks")]
+async fn get_tracks(query:web::Query<GetTrackParams>,app_state:web::Data<AppData>)->HttpResponse{
+    let request=query.into_inner();
+    let guard=app_state.user_map.lock().await;
+    
+    let user=match get_user_internal(&request.user_id, &app_state).await{
+        Ok(u)=>u,
+        Err(e)=>return HttpResponse::NotFound().body("User not found")
+    };
+
+    let rez=match user.ask(GetTracks {}).await{
+        Ok(smth)=> HttpResponse::Ok().json(smth),
+        Err(e)=>return HttpResponse::InternalServerError().body("Could not get tracks")
     };
     rez
 }
@@ -98,7 +139,7 @@ pub struct GetTrackInfoParams{
     pub user_id:String,
     pub track_id:String
 }
-#[post("/get-track-info")]
+#[get("/get-track-info")]
 async fn get_track_info(query:web::Json<GetTrackInfoParams>,app_state:web::Data<AppData>)->HttpResponse{
     let request=query.into_inner();
     let guard=app_state.user_map.lock().await;
@@ -108,9 +149,9 @@ async fn get_track_info(query:web::Json<GetTrackInfoParams>,app_state:web::Data<
         Err(e)=>return HttpResponse::NotFound().body("User not found")
     };
 
-    let rez=match user.ask(CrudCommand::GetTrackInfo { track_id: query.track_id}).await{
+    let rez=match user.ask(GetTrackInfo { track_id: query.track_id}).await{
         Ok(smth)=>HttpResponse::Ok().json(smth),
-        Err(e)=>return HttpResponse::InternalServerError().body("Could not insert track")
+        Err(e)=>return HttpResponse::InternalServerError().body("Could not get track info")
     };
     rez
 }
@@ -127,4 +168,15 @@ async fn get_user_internal(user_id:&str,app_state:&AppData)->Result<ActorRef<Use
 
     };
     user_addr
+}
+
+pub fn init(cfg:&mut web::ServiceConfig){
+    cfg
+       .service(add_track)
+       .service(update_track_info)
+       .service(remove_track)
+       .service(get_track)
+       .service(get_track_info)
+       .service(get_tracks)
+       .service(copy_track);
 }

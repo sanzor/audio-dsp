@@ -1,32 +1,37 @@
 use std::{collections::HashMap, sync::Arc};
 
-use crate::user_actor::create_user_actor_params::CreateUserActorParams;
 use crate::user_actor::create_user_data::CreateUserData;
 use crate::user_actor::user_actor::UserActor;
+use crate::user_actor::{
+    create_user_actor_params::CreateUserActorParams, local_player_provider::LocalPlayerProvider,
+};
 use audiolib::{self, audio_buffer::AudioBuffer, Channels};
 use domain::{
     dsp_message::DspMessage,
     track::{Track, TrackInfo},
     tracks_message_result::TracksMessageResult,
 };
-use dsp_core::{command_processor::CommandProcessor, state::TracksState};
-use kameo::actor::spawn;
+use dsp_core::{
+    command_processor::CommandProcessor,
+    tracks_provider::{LocalTrackStoreProvider, TracksState},
+};
+use kameo;
 use kameo::actor::ActorRef;
 use ulid::Ulid;
 
 fn create_actor(id: Ulid) -> ActorRef<UserActor> {
     let processor = Arc::new(CommandProcessor::create_processor());
     let tracks = TracksState::new();
-    let players = HashMap::new();
+    let tracks_provider = LocalTrackStoreProvider::new();
+    let players_provder = LocalPlayerProvider::new();
     let actor_params = CreateUserActorParams {
         user_data: CreateUserData {
             email: id.to_string(),
             id: id.to_string(),
             name: id.to_string(),
         },
-        players: players,
-        tracks,
-        processor: processor,
+        tracks_provider: tracks_provider,
+        players: players_provder,
     };
     let actor = spawn(UserActor::new(actor_params));
     let g = kameo::registry::ActorRegistry::new();

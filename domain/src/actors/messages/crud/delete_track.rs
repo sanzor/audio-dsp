@@ -1,4 +1,4 @@
-pub struct DeleteTrackParams {
+pub struct DeleteTrack {
     pub track_id: String,
 }
 

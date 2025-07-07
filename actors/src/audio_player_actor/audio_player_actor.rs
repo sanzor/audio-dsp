@@ -18,11 +18,11 @@ use player::{audio_sink::AudioSink, AudioFrame};
 use std::time::Duration;
 
 pub struct AudioPlayerActor {
-    pub(crate)sink: Box<dyn AudioSink + Send + Sync>,
-    pub(crate)state: AudioPlayerState,
-    pub(crate)cursor: usize,
-    pub(crate)frames_written: usize,
-    pub(crate)track: Track,
+    pub(crate) sink: Box<dyn AudioSink + Send + Sync>,
+    pub(crate) state: AudioPlayerState,
+    pub(crate) cursor: usize,
+    pub(crate) frames_written: usize,
+    pub(crate) track: Track,
 }
 impl kameo::Actor for AudioPlayerActor {
     type Error = String;
@@ -33,6 +33,8 @@ impl kameo::Actor for AudioPlayerActor {
         let v = self.start_streaming_task(actor_ref);
         Ok(())
     }
+
+    type Args = Self;
 }
 
 impl AudioPlayerActor {

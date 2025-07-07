@@ -1,6 +1,6 @@
 use dsp_core::{
     command_processor::CommandProcessor,
-    state::{TracksProvider, TracksState},
+    tracks_provider::{TracksProvider, TracksState},
 };
 use kameo::{
     actor::ActorRef,
@@ -10,10 +10,10 @@ use kameo::{
 use std::{collections::HashMap, sync::Arc};
 
 use crate::{
-    audio_player_actor::audio_player_actor::{AudioPlayerActor},
+    audio_player_actor::audio_player_actor::AudioPlayerActor,
     user_actor::{
-        create_user_actor_params::CreateUserActorParams, crud::TrackOperations,
-        players_provider::PlayersProvider,
+        create_user_actor_params::CreateUserActorParams,
+        local_tracks_store_provider::TrackOperations, players_provider::PlayersProvider,
     },
 };
 use domain::{dsp_message::DspMessage, tracks_message_result::TracksMessageResult};

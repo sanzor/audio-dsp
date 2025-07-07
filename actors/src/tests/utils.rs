@@ -8,7 +8,8 @@ use kameo::{actor::ActorRef, spawn};
 use player::audio_sink::AudioSink;
 
 use crate::audio_player_actor::{
-    audio_player_actor::AudioPlayerActor, create_audio_player_actor_params::CreateAudioPlayerActorParams,
+    audio_player_actor::AudioPlayerActor,
+    create_audio_player_actor_params::CreateAudioPlayerActorParams,
 };
 
 pub(crate) fn create_user_actor(

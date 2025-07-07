@@ -10,11 +10,11 @@ async-trait = "0.1"
 async-std = { version = "1", features = ["attributes"] }
 actix-rt = "2"
 actix="0.13"
-actix-session = "0.8"
+actix-session = "0.10.1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 rstest="0.25"
-kameo="0.16"
+kameo="0.17.2"
 actors={path = "../actors"}
 domain={path="../domain"}
 dsp-core={path="../dsp-core"}

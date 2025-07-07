@@ -11,7 +11,7 @@ use domain::{
     dsp_message::DspMessage,
     track::{Track, TrackInfo},
 };
-use dsp_core::{command_processor::CommandProcessor, state::TracksState};
+use dsp_core::{command_processor::CommandProcessor, tracks_provider::TracksState};
 use kameo::{actor::ActorRef, spawn};
 use ulid::Ulid;
 

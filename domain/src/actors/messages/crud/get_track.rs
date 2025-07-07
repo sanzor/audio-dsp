@@ -1,6 +1,6 @@
 use crate::track::Track;
 
-pub struct GetTrackParams {
+pub struct GetTrack {
     pub track_id: String,
 }
 

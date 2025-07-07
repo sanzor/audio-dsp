@@ -1,6 +1,9 @@
 use std::{collections::HashMap, sync::Arc};
 
-use actix_web::{web::{self, service}, App, HttpServer};
+use actix_web::{
+    web::{self, service},
+    App, HttpServer,
+};
 use dsp_api::{
     app_data::AppData,
     controllers::{self, facebook_controller, google_controller, user_controller},
@@ -21,9 +24,16 @@ async fn main() -> std::io::Result<()> {
                 web::scope("/player")
                     .configure(controllers::player_controller::init)
                     .service(web::scope("/user").configure(controllers::user_controller::init))
-                    .service(web::scope("/dsp").configure(controllers::user_crud_controller::init))
-                    .service(web::scope("/auth/google").configure(google_controller::init)
-                    .service(web::scope("/auth/facebook").configure(facebook_controller::init)
+                    .service(
+                        web::scope(
+                            "/tracks
+                    
+                    ",
+                        )
+                        .configure(controllers::tracks_crud_controller::init),
+                    )
+                    .service(web::scope("/auth/google").configure(google_controller::init))
+                    .service(web::scope("/auth/facebook").configure(facebook_controller::init)),
             )
     })
     .bind(("127.0.0.1", 8080))?

@@ -2,14 +2,10 @@ use domain::actors::messages::player::{pause::Pause, play::Play, seek::Seek, sto
 
 use crate::audio_player_actor::audio_player_actor::AudioPlayerActor;
 struct PlayFrame {}
-impl Message<Play> for AudioPlayerActor{
+impl Message<Play> for AudioPlayerActor {
     type Reply;
 
-    async fn handle(
-        &mut self,
-        msg: Play,
-        ctx: &mut Context<Self, Self::Reply>,
-    ) -> Self::Reply {
+    async fn handle(&mut self, msg: Play, ctx: &mut Context<Self, Self::Reply>) -> Self::Reply {
         if matches!(self.state, AudioPlayerState::Paused) {
             self.state = AudioPlayerState::Playing
         }
@@ -20,14 +16,10 @@ impl Message<Play> for AudioPlayerActor{
     }
 }
 
-impl Message<Pause> for AudioPlayerActor{
+impl Message<Pause> for AudioPlayerActor {
     type Reply;
 
-    async fn handle(
-        &mut self,
-        msg: Pause,
-        ctx: &mut Context<Self, Self::Reply>,
-    ) -> Self::Reply {
+    async fn handle(&mut self, msg: Pause, ctx: &mut Context<Self, Self::Reply>) -> Self::Reply {
         if matches!(self.state, AudioPlayerState::Playing) {
             self.state = AudioPlayerState::Paused
         }
@@ -38,14 +30,10 @@ impl Message<Pause> for AudioPlayerActor{
     }
 }
 
-impl Message<Seek> for AudioPlayerActor{
+impl Message<Seek> for AudioPlayerActor {
     type Reply;
 
-    async fn handle(
-        &mut self,
-        msg: Seek,
-        ctx: &mut Context<Self, Self::Reply>,
-    ) -> Self::Reply {
+    async fn handle(&mut self, msg: Seek, ctx: &mut Context<Self, Self::Reply>) -> Self::Reply {
         if matches!(self.state, AudioPlayerState::Playing) {
             self.state = AudioPlayerState::Paused
         }
@@ -58,23 +46,19 @@ impl Message<Seek> for AudioPlayerActor{
     }
 }
 
-impl Message<Stop> for AudioPlayerActor{
+impl Message<Stop> for AudioPlayerActor {
     type Reply;
 
-    async fn handle(
-        &mut self,
-        msg: Stop,
-        ctx: &mut Context<Self, Self::Reply>,
-    ) -> Self::Reply {
+    async fn handle(&mut self, msg: Stop, ctx: &mut Context<Self, Self::Reply>) -> Self::Reply {
         let v = ctx
-                    .actor_ref()
-                    .stop_gracefully()
-                    .await
-                    .map(|_| PlayerCommandResult {
-                        output: "".to_string(),
-                        should_exit: true,
-                    })
-                    .map_err(|x| x.to_string());
+            .actor_ref()
+            .stop_gracefully()
+            .await
+            .map(|_| PlayerCommandResult {
+                output: "".to_string(),
+                should_exit: true,
+            })
+            .map_err(|x| x.to_string());
         v
     }
 }
@@ -103,8 +87,8 @@ impl Message<PlayFrame> for AudioPlayerActor {
     }
 }
 
-impl AudioPlayerActor{
-     pub(crate)fn start_streaming_task(&self, actor_ref: ActorRef<Self>) {
+impl AudioPlayerActor {
+    pub(crate) fn start_streaming_task(&self, actor_ref: ActorRef<Self>) {
         let mut interval = tokio::time::interval(Duration::from_millis(200));
         let task = tokio::task::spawn(async move {
             loop {
@@ -113,7 +97,7 @@ impl AudioPlayerActor{
             }
         });
     }
-   
+
     fn get_frame(&self, cursor: usize) -> Option<AudioFrame> {
         let frame: Option<Vec<f32>> = match self.track.data.channels {
             Channels::Mono => self.track.data.samples.get(cursor).map(|&s| vec![s]),

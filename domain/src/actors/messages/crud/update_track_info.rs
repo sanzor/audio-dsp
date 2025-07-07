@@ -1,6 +1,6 @@
 use crate::track::TrackInfo;
 
-pub struct UpdateTrackInfoParams {
+pub struct UpdateTrackInfo {
     pub track_info: TrackInfo,
 }
 
