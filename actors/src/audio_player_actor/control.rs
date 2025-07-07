@@ -1,37 +1,40 @@
-use domain::actors::messages::player::{pause::Pause, play::Play, seek::Seek, stop::Stop};
+use std::time::Duration;
+
+use audiolib::Channels;
+use domain::actors::{messages::player::{pause::{Pause, PauseResult}, play::{Play, PlayResult}, seek::{Seek, SeekResult}, stop::{Stop, StopResult}}, player_state::AudioPlayerState};
+use kameo::{actor::ActorRef, prelude::{Context, Message}};
+use player::AudioFrame;
 
 use crate::audio_player_actor::audio_player_actor::AudioPlayerActor;
 struct PlayFrame {}
 impl Message<Play> for AudioPlayerActor {
-    type Reply;
+    type Reply=Result<PlayResult,String>;
 
     async fn handle(&mut self, msg: Play, ctx: &mut Context<Self, Self::Reply>) -> Self::Reply {
         if matches!(self.state, AudioPlayerState::Paused) {
             self.state = AudioPlayerState::Playing
         }
-        Ok(PlayerCommandResult {
-            output: "".to_string(),
-            should_exit: false,
+        Ok(PlayResult {
+
         })
     }
 }
 
 impl Message<Pause> for AudioPlayerActor {
-    type Reply;
+    type Reply=Result<PauseResult,String>;
 
     async fn handle(&mut self, msg: Pause, ctx: &mut Context<Self, Self::Reply>) -> Self::Reply {
         if matches!(self.state, AudioPlayerState::Playing) {
             self.state = AudioPlayerState::Paused
         }
-        Ok(PlayerCommandResult {
-            output: "".to_string(),
-            should_exit: false,
+        Ok(PauseResult {
+            
         })
     }
 }
 
 impl Message<Seek> for AudioPlayerActor {
-    type Reply;
+    type Reply=Result<SeekResult,String>;
 
     async fn handle(&mut self, msg: Seek, ctx: &mut Context<Self, Self::Reply>) -> Self::Reply {
         if matches!(self.state, AudioPlayerState::Playing) {
@@ -39,24 +42,21 @@ impl Message<Seek> for AudioPlayerActor {
         }
         self.cursor = msg.position as usize;
         self.state = AudioPlayerState::Paused;
-        Ok(PlayerCommandResult {
-            output: "".to_string(),
-            should_exit: false,
+        Ok(SeekResult {
         })
     }
 }
 
 impl Message<Stop> for AudioPlayerActor {
-    type Reply;
+    type Reply=Result<StopResult,String>;
 
     async fn handle(&mut self, msg: Stop, ctx: &mut Context<Self, Self::Reply>) -> Self::Reply {
         let v = ctx
             .actor_ref()
             .stop_gracefully()
             .await
-            .map(|_| PlayerCommandResult {
-                output: "".to_string(),
-                should_exit: true,
+            .map(|_| StopResult {
+                
             })
             .map_err(|x| x.to_string());
         v

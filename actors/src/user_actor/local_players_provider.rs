@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use kameo::actor::ActorRef;
 
-use crate::audio_player_actor::audio_player_actor::AudioPlayerActor;
+use crate::{audio_player_actor::audio_player_actor::AudioPlayerActor, user_actor::players_provider::PlayersProvider};
 
 
 type Players = HashMap<String, ActorRef<AudioPlayerActor>>;

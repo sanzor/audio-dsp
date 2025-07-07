@@ -1,21 +1,14 @@
 use crate::audio_player_actor::create_audio_player_actor_params::CreateAudioPlayerActorParams;
-use audiolib::Channels;
-use domain::actors::messages::player::pause::Pause;
-use domain::actors::messages::player::play::Play;
-use domain::actors::messages::player::seek::Seek;
-use domain::actors::messages::player::stop::Stop;
+
+
 use domain::actors::{
-    player_command::PlayerCommand, player_command_result::PlayerCommandResult,
-    player_state::AudioPlayerState, player_state_query::PlayerStateQuery,
-    player_state_query_result::PlayerStateQueryResult,
+    
+    player_state::AudioPlayerState
+
 };
 use domain::track::Track;
-use kameo::{
-    actor::ActorRef,
-    message::{Context, Message},
-};
-use player::{audio_sink::AudioSink, AudioFrame};
-use std::time::Duration;
+
+use player::{audio_sink::AudioSink};
 
 pub struct AudioPlayerActor {
     pub(crate) sink: Box<dyn AudioSink + Send + Sync>,

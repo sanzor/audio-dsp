@@ -1,8 +1,10 @@
+use domain::actors::messages::user_to_player::pause::PauseResult;
+use domain::actors::messages::user_to_player::play::PlayResult;
 use domain::actors::messages::user_to_player::{
     get_player_state::GetPlayerState, pause::Pause, play::Play, seek::Seek, stop::Stop,
 };
 use kameo::prelude::{Context, Message};
-use kameo::spawn;
+
 use player::audio_sink::cpal_sink::CpalSink;
 
 use crate::audio_player_actor::audio_player_actor::AudioPlayerActor;
@@ -13,7 +15,7 @@ impl Message<Play> for UserActor {
     type Reply = Result<PlayResult, String>;
 
     async fn handle(&mut self, msg: Play, ctx: &mut Context<Self, Self::Reply>) -> Self::Reply {
-        let player_ref = self.players_provider.get(&msg.player_id).await;
+        let player_ref = self.players_provider.get(msg.player_id).await;
         match player_ref {
             Ok(player) => self.handle_play_existing_player(player_ref).await,
             Err(err) => self.handle_play_new_player(&msg.player_id).await,
@@ -27,7 +29,7 @@ impl Message<Pause> for UserActor {
     async fn handle(&mut self, msg: Pause, ctx: &mut Context<Self, Self::Reply>) -> Self::Reply {
         let track_id = track_id.ok_or_else(|| "invalid id".to_string())?;
         if let Some(player) = self.players_provider.get(&track_id) {
-            player.tell(PlayerCommand::Pause {}).await.unwrap();
+            player.tell(Pause {}).await.unwrap();
             Ok(UserPlayerCommandResult {
                 should_exit: false,
                 output: "Paused player".into(),
