@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use actix_web::{delete, get, post, web::{self, get}, HttpResponse};
 use actors::user_actor::{create_user_actor_params::CreateUserActorParams, create_user_data::CreateUserData, local_players_provider::LocalPlayerProvider, user_actor::UserActor};
-use domain::{actors::{ messages::{player::get_player_state::GetPlayerStateResult, user::{get_user_state::GetUserState, remove_user::RemoveUser}},  user_update_params::UserUpdateParams}, track::TrackInfo};
+use domain::{actors::{ messages::{player::get_player_state::GetPlayerStateResult, user::{get_user_state::GetUserState, remove_user::RemoveUser, update_user::UpdateUser}},  user_update_params::UserUpdateParams}, track::TrackInfo};
 use dsp_core::tracks_provider::LocalTrackStoreProvider;
 use kameo::{actor::ActorRef, Actor};
 use serde::{Deserialize, Serialize};
@@ -101,25 +101,25 @@ pub struct UserUpdateResult{
 #[post("/update")]
 async fn update(path:web::Json<UpdateUserParams>,app_state:web::Data<AppData>)->HttpResponse{
     let request=path.into_inner();
-    let guard=app_state.user_map.lock().await;
     let user= match get_user_internal(&request.user_id, &app_state).await{
         Ok(u)=>u,
         Err(e) if e.contains("Could not find")=>return HttpResponse::NotFound().body("Could not find user"),
         _ => return HttpResponse::InternalServerError().body("Could not search user")
     };
     
-    let result=user.ask(
-        UserUpdateParams{id:request.user_id,email:request.email.clone(),name:request.email}).await;
+    let _=
+    user.ask(
+        UpdateUser{id:request.user_id,email:request.email.clone(),name:request.email}).await;
     HttpResponse::Ok().json("User created")
 }
 
 async fn get_user_internal(user_id:&str,app_state:&AppData)->Result<ActorRef<UserActor>,String>{
-     let user_addr={
-        let guard=app_state.user_map.lock().await;
-        match guard.get(&user_id.to_string()).cloned(){
+    let user_addr={
+    let guard=app_state.user_map.lock().await;
+    match guard.get(&user_id.to_string()).cloned(){
             Some(addr)=>Ok(addr),
             None=>Err("Could not find user".to_string())
-        }
+    }
 
     };
     user_addr

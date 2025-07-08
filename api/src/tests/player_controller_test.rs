@@ -25,5 +25,5 @@ async fn insert(
     track:Track,
     app: &mut impl Service<ServiceRequest, Response = ServiceResponse, Error = Error>){
     let req=test::TestRequest::post().uri("/insert").set_json(AddTrackParams{track:track,user_id:user_name.to_string()});
-    let c=test::call_service(&app, req).await
+    let c=test::call_service(&app, req).await;
 }

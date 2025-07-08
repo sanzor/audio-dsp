@@ -1,5 +1,8 @@
-use actix_web::{web, HttpResponse};
-use oauth2::{basic::BasicClient, AuthUrl, ClientId, ClientSecret, TokenUrl};
+use std::env;
+
+use actix_web::{get, web, HttpResponse};
+use oauth2::{basic::BasicClient, AuthUrl, ClientId, ClientSecret, RedirectUrl, TokenUrl};
+use serde::Deserialize;
 
 #[derive(Deserialize)]
 struct GoogleUserInfo {

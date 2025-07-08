@@ -152,7 +152,7 @@ async fn get_track_info(query:web::Json<GetTrackInfoParams>,app_state:web::Data<
         Err(e)=>return HttpResponse::NotFound().body("User not found")
     };
 
-    let rez=match user.ask(GetTrackInfo { track_id: query.track_id}).await{
+    let rez=match user.ask(GetTrackInfo { track_id: request.track_id}).await{
         Ok(smth)=>HttpResponse::Ok().json(smth),
         Err(e)=>return HttpResponse::InternalServerError().body("Could not get track info")
     };

@@ -3,7 +3,12 @@ use std::sync::Arc;
 use audiolib::{audio_buffer::AudioBuffer, Channels};
 use domain::{
     actors::{
-        messages::{crud::insert_track::InsertTrack, user_to_player::{user_pause::UserPause, user_play::UserPlay}}, player_state::AudioPlayerState, user_player_command::UserPlayerCommand, user_player_state_query::UserPlayerStateQuery, user_player_state_query_result::UserPlayerStateQueryResult, user_state_query::UserStateQuery
+        messages::{crud::insert_track::InsertTrack, 
+        user::get_user_state::{GetUserState, GetUserStateResult},
+        user_to_player::{user_get_player_state::UserGetPlayerState,
+        user_pause::UserPause, user_play::UserPlay}},
+        player_state::AudioPlayerState, 
+        user_player_state_query_result::UserPlayerStateQueryResult
     },
     track::{Track, TrackInfo},
 };
@@ -175,17 +180,17 @@ async fn get_player_state(
     track_id: &str,
 ) -> Result<UserPlayerStateQueryResult, String> {
     let rez = user_actor
-        .ask(UserPlayerStateQuery {
-            track_id: track_id.into(),
+        .ask(UserGetPlayerState {
+          track_id:track_id.into()
         })
         .await
         .map_err(|e| e.to_string())?;
 
-    Ok(rez)
+    Ok(UserPlayerStateQueryResult { cursor: rez.cursor, written: rez.written, state: rez.state })
 }
-async fn get_user_state(user_actor: &ActorRef<UserActor>) -> Result<UserStateQueryResult, String> {
+async fn get_user_state(user_actor: &ActorRef<UserActor>) -> Result<GetUserStateResult, String> {
     let rez = user_actor
-        .ask(UserStateQuery {})
+        .ask(GetUserState {})
         .await
         .map_err(|e| e.to_string())?;
 
