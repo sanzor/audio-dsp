@@ -2,7 +2,10 @@ use std::collections::HashMap;
 
 use domain::track::{Track, TrackInfo, TrackRef, TrackRefMut};
 
-use crate::{get_all_tracks_result::GetAllTrackInfosResult, tracks_provider::{LocalTrackStoreProvider, TracksProvider}};
+use crate::{
+    get_all_tracks_result::GetAllTrackInfosResult,
+    tracks_provider::{LocalTrackStoreProvider, TracksProvider},
+};
 
 impl LocalTrackStoreProvider {
     pub fn new() -> LocalTrackStoreProvider {
@@ -24,11 +27,11 @@ impl TracksProvider for LocalTrackStoreProvider {
         info
     }
     async fn update_track_info(&mut self, track_info: TrackInfo) -> Result<(), String> {
-        let mut track=match self.tracks.remove(&track_info.name){
-            None=>return Err("Could not find track".into()),
-            Some(i)=>i
+        let mut track = match self.tracks.remove(&track_info.name) {
+            None => return Err("Could not find track".into()),
+            Some(i) => i,
         };
-        track.info=track_info;
+        track.info = track_info;
         Ok(())
     }
     async fn get_track_ref(&self, track_name: &str) -> Result<TrackRef, String> {
@@ -51,12 +54,14 @@ impl TracksProvider for LocalTrackStoreProvider {
             .ok_or_else(|| "".into())
             .map(|track| track.clone())
     }
-    async fn get_all_track_infos(&self) -> Result<GetAllTrackInfosResult,String> {
-        let mut hash_map=HashMap::new();
-        for (key,track) in self.tracks.iter(){
+    async fn get_all_track_infos(&self) -> Result<GetAllTrackInfosResult, String> {
+        let mut hash_map = HashMap::new();
+        for (key, track) in self.tracks.iter() {
             hash_map.insert(key.to_string(), track.info.clone());
         }
-        Ok(GetAllTrackInfosResult{track_infos:hash_map})
+        Ok(GetAllTrackInfosResult {
+            track_infos: hash_map,
+        })
     }
 
     async fn delete_track(&mut self, track_name: &str) -> Result<(), String> {

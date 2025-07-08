@@ -1,5 +1,5 @@
-pub mod get_player_state;
-pub mod pause;
-pub mod play;
-pub mod seek;
-pub mod stop;
+pub mod user_get_player_state;
+pub mod user_pause;
+pub mod user_play;
+pub mod user_seek;
+pub mod user_stop;

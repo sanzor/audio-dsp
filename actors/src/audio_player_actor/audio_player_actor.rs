@@ -1,14 +1,9 @@
 use crate::audio_player_actor::create_audio_player_actor_params::CreateAudioPlayerActorParams;
 
-
-use domain::actors::{
-    
-    player_state::AudioPlayerState
-
-};
+use domain::actors::player_state::AudioPlayerState;
 use domain::track::Track;
-
-use player::{audio_sink::AudioSink};
+use kameo::prelude::ActorRef;
+use player::audio_sink::AudioSink;
 
 pub struct AudioPlayerActor {
     pub(crate) sink: Box<dyn AudioSink + Send + Sync>,
@@ -19,15 +14,13 @@ pub struct AudioPlayerActor {
 }
 impl kameo::Actor for AudioPlayerActor {
     type Error = String;
-    async fn on_start(
-        &mut self,
-        actor_ref: kameo::prelude::ActorRef<Self>,
-    ) -> Result<(), Self::Error> {
-        let v = self.start_streaming_task(actor_ref);
-        Ok(())
-    }
 
     type Args = Self;
+
+    async fn on_start(args: Self::Args, actor_ref: ActorRef<Self>) -> Result<Self, Self::Error> {
+        let v = args.start_streaming_task(actor_ref);
+        Ok(args)
+    }
 }
 
 impl AudioPlayerActor {

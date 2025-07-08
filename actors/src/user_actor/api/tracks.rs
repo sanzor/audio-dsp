@@ -11,8 +11,11 @@ use domain::{
             insert_track::{InsertTrack, InsertTrackResult},
             update_track_info::{UpdateTrackInfo, UpdateTrackInfoResult},
         },
-        player::get_player_state::{GetPlayerState, PlayerStateResult},
-        user::get_user_state::{GetUserState, GetUserStateResult},
+        player::get_player_state::{GetPlayerState, GetPlayerStateResult},
+        user::{
+            get_user_state::{GetUserState, GetUserStateResult},
+            remove_user::{RemoveUser, RemoveUserResult},
+        },
     },
     track::TrackInfo,
 };
@@ -44,12 +47,13 @@ impl Message<CopyTrack> for UserActor {
         let source = self.tracks_provider.get_track_ref(&msg.track_id).await?;
         let mut clone = source.inner.clone();
         clone.info.name = msg.track_copy_name;
+        let info = clone.info.clone();
         let insert_result = self.tracks_provider.upsert_track(clone).await;
         match insert_result {
             Err(e) => Err("Could not find track".to_string()),
             Ok(()) => Ok(CopyTrackResult {
-                copied_track_id: clone.info.name,
-                track_copy_name: clone.info.name,
+                copied_track_id: info.name.clone(),
+                track_copy_name: info.name,
             }),
         }
     }
@@ -64,7 +68,7 @@ impl Message<GetTrackInfo> for UserActor {
         ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
         let get_info_result = self.tracks_provider.get_track_info(&msg.track_id).await;
-        get_info_result.map(|e|GetTrackInfoResult{track_info:e})
+        get_info_result.map(|e| GetTrackInfoResult { track_info: e })
     }
 }
 
@@ -76,8 +80,9 @@ impl Message<GetTracks> for UserActor {
         msg: GetTracks,
         ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
-        let tracks = self.tracks_provider.get_all_track_infos().await;
-        tracks.map(|result|GetTracksResult { tracks: result.track_infos.values().collect() })
+        let tracks_info_result = self.tracks_provider.get_all_track_infos().await?;
+        let result: Vec<TrackInfo> = tracks_info_result.track_infos.into_values().collect();
+        Ok(GetTracksResult { tracks: result })
     }
 }
 
@@ -117,31 +122,5 @@ impl Message<UpdateTrackInfo> for UserActor {
     ) -> Self::Reply {
         let update_result = self.tracks_provider.update_track_info(msg.track_info).await;
         update_result.map(|()| UpdateTrackInfoResult {})
-    }
-}
-
-impl Message<GetUserState> for UserActor {
-    type Reply = Result<GetUserStateResult, String>;
-
-    async fn handle(
-        &mut self,
-        msg: GetUserState,
-        ctx: &mut Context<Self, Self::Reply>,
-    ) -> Self::Reply {
-        let mut player_list: HashMap<String, PlayerStateResult> = HashMap::new();
-        let mut track_list: HashMap<String, TrackInfo> = HashMap::new();
-        let players_result = self.players_provider.get_all().await?;
-        let tracks_result = self.tracks_provider.get_all_track_infos().await?;
-        for (key, track_info) in tracks_result.track_infos {
-            track_list.insert(key, track_info);
-        }
-        for element in players_result.items {
-            let player_state: PlayerStateResult = element.player_ref.ask(GetPlayerState {}).await?;
-            player_list.insert(element.player_id, player_state.state);
-        }
-        Ok(GetUserStateResult {
-            tracks: track_list,
-            players: player_list,
-        })
     }
 }

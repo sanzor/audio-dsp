@@ -4,6 +4,5 @@ members=[
     "domain",
     "dsp-core",
     "player",
-    "cli-app",
     "actors",
     "api"]

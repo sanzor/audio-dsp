@@ -1,5 +1,5 @@
-use actix_web::{get, post, web::{self}, HttpResponse, Responder,Result};
-use domain::actors::user_player_command::UserPlayerCommand;
+use actix_web::{get, post, web::{self}, HttpResponse};
+use domain::actors::{messages::user_to_player::{user_pause::UserPause, user_play::UserPlay, user_seek::UserSeek, user_stop::UserStop}, user_player_command::UserPlayerCommand};
 use serde::Deserialize;
 
 use crate::app_data::AppData;
@@ -42,7 +42,7 @@ async fn play(body: web::Json<PlayRequest>,app_state:web::Data<AppData>)->HttpRe
         None=>return HttpResponse::BadRequest().body("Invalid track name")
     };
     
-    let _=user_addr.tell(UserPlayerCommand::Play { track_id: Some(track_name)}).await;
+    let _=user_addr.tell(UserPlay{player_id:track_name}).await;
     HttpResponse::Ok().finish()
 }
 
@@ -73,7 +73,7 @@ async fn pause(body: web::Json<PauseRequest>,app_state:web::Data<AppData>)->Http
         None=>return HttpResponse::BadRequest().body("Invalid track name")
     };
     
-    let _=user_addr.tell(UserPlayerCommand::Pause { track_id: Some(track_name)}).await;
+    let _=user_addr.tell(UserPause{track_id:track_name}).await;
     HttpResponse::Ok().finish()
 }
 
@@ -105,7 +105,7 @@ async fn seek(body: web::Json<SeekRequest>,app_state:web::Data<AppData>)->HttpRe
         None=>return HttpResponse::BadRequest().body("Invalid track name")
     };
     
-    let _=user_addr.tell(UserPlayerCommand::Seek { track_id: Some(track_name), position: seek_message.position}).await;
+    let _=user_addr.tell(UserSeek{track_id:track_name,position:seek_message.position}).await;
     HttpResponse::Ok().finish()
 }
 
@@ -131,7 +131,7 @@ async fn stop(body: web::Json<PauseRequest>,app_state:web::Data<AppData>)->HttpR
         None=>return HttpResponse::BadRequest().body("Invalid track name")
     };
     
-    let _=user_addr.tell(UserPlayerCommand::Stop { track_id: Some(track_name)}).await;
+    let _=user_addr.tell(UserStop{track_id:track_name}).await;
     HttpResponse::Ok().finish()
 }
 

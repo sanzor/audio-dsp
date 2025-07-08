@@ -1,10 +1,9 @@
 use domain::{
-    actors::{
-        player_state_query::PlayerStateQuery, player_state_query_result::PlayerStateQueryResult,
-    },
+    actors::messages::player::get_player_state::{GetPlayerState, GetPlayerStateResult},
     track::Track,
 };
-use kameo::{actor::ActorRef, spawn};
+
+use kameo::{actor::ActorRef, Actor};
 use player::audio_sink::AudioSink;
 
 use crate::audio_player_actor::{
@@ -21,7 +20,8 @@ pub(crate) fn create_user_actor(
         track: track,
         cursor: 0,
     };
-    let audio_player_actor = spawn(AudioPlayerActor::new(audio_player_actor_params));
+    let audio_player_actor =
+        AudioPlayerActor::spawn(AudioPlayerActor::new(audio_player_actor_params));
 
     let g = kameo::registry::ActorRegistry::new();
 
@@ -30,9 +30,9 @@ pub(crate) fn create_user_actor(
 
 pub(crate) async fn get_player_actor_state(
     actor_ref: &ActorRef<AudioPlayerActor>,
-) -> Result<PlayerStateQueryResult, String> {
+) -> Result<GetPlayerStateResult, String> {
     let state_query_result = actor_ref
-        .ask(PlayerStateQuery {})
+        .ask(GetPlayerState {})
         .await
         .map_err(|e| e.to_string());
     state_query_result

@@ -4,6 +4,7 @@ use actix_web::{
     web::{self, service},
     App, HttpServer,
 };
+use actors::user_actor::player_factory::PlayerFactory;
 use dsp_api::{
     app_data::AppData,
     controllers::{self, facebook_controller, google_controller, user_controller},
@@ -14,7 +15,7 @@ use tokio::sync::Mutex;
 async fn main() -> std::io::Result<()> {
     let registry = AppData {
         user_map: Arc::new(Mutex::new(HashMap::new())),
-        processor: Arc::new(CommandProcessor::create_processor()),
+        player_factory: Arc::new(PlayerFactory {}),
     };
 
     HttpServer::new(move || {

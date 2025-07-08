@@ -6,35 +6,36 @@ use domain::{
         player_state::AudioPlayerState, user_player_command::UserPlayerCommand,
         user_player_state_query::UserPlayerStateQuery,
         user_player_state_query_result::UserPlayerStateQueryResult,
-        user_state_query::UserStateQuery, user_state_query_result::UserStateQueryResult,
+        user_state_query::UserStateQuery,
     },
     dsp_message::DspMessage,
     track::{Track, TrackInfo},
 };
-use dsp_core::{command_processor::CommandProcessor, tracks_provider::TracksState};
-use kameo::{actor::ActorRef, spawn};
+
+use dsp_core::tracks_provider::LocalTrackStoreProvider;
+use kameo::{actor::ActorRef, Actor};
 use ulid::Ulid;
 
 use crate::user_actor::{
     create_user_actor_params::CreateUserActorParams, create_user_data::CreateUserData,
+    local_players_provider::LocalPlayerProvider, player_factory::PlayerFactory,
     user_actor::UserActor,
 };
 
 fn create_user_actor(id: Ulid) -> ActorRef<UserActor> {
-    let processor = Arc::new(CommandProcessor::create_processor());
-    let tracks = TracksState::new();
-    let players = HashMap::new();
+    let tracks_provider = Box::new(LocalTrackStoreProvider::new());
+    let players_provider = Box::new(LocalPlayerProvider::new());
     let actor_params = CreateUserActorParams {
         user_data: CreateUserData {
             email: id.to_string(),
             name: id.to_string(),
             id: id.to_string(),
         },
-        players: players,
-        tracks,
-        processor: processor,
+        players_provider: players_provider,
+        tracks_provider,
+        player_factory: Arc::new(PlayerFactory {}),
     };
-    let actor = spawn(UserActor::new(actor_params));
+    let actor = UserActor::spawn(UserActor::new(actor_params));
     let g = kameo::registry::ActorRegistry::new();
 
     actor

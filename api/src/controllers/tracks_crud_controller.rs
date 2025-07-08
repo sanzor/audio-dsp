@@ -1,15 +1,17 @@
-use actix_web::{post, web::{self, post}, HttpResponse};
+use actix_web::{get, post, web::{self}, HttpResponse};
 use actors::user_actor::user_actor::UserActor;
-use domain::{actors::{crud_command::CrudCommand, messages::crud::{copy_track::CopyTrack, delete_track::DeleteTrack, get_track::GetTrack, get_track_info::GetTrackInfo, get_tracks::GetTracks, insert_track::InsertTrack, update_track_info::UpdateTrackInfo}}, dsp_message::DspMessage, track::{Track, TrackInfo}};
+use domain::{actors::{messages::crud::{copy_track::CopyTrack,
+     delete_track::DeleteTrack, get_track::GetTrack, get_track_info::GetTrackInfo, 
+     get_tracks::GetTracks, insert_track::InsertTrack, update_track_info::UpdateTrackInfo}}, track::{Track, TrackInfo}};
 use kameo::actor::ActorRef;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::app_data::AppData;
 
-#[derive(Deserialize)]
+#[derive(Deserialize,Serialize)]
 pub struct AddTrackParams{
-    user_id:String,
-    track:Track
+    pub user_id:String,
+    pub track:Track
 }
 
 #[post("/add-track")]
@@ -31,8 +33,9 @@ async fn add_track(path:web::Json<AddTrackParams>,app_state:web::Data<AppData>)-
 
 #[derive(Deserialize)]
 pub struct CopyTrackParams{
-    track_id:String,
-    copy_track_name:String
+    pub user_id:String,
+    pub track_id:String,
+    pub copy_track_name:String
 }
 
 #[post("/copy-track")]
@@ -75,8 +78,8 @@ async fn update_track_info(path:web::Json<UpdateTrackParams>,app_state:web::Data
 }
 #[derive(Deserialize)]
 pub struct RemoveTrackParams{
-    user_id:String,
-    track_id:String
+    pub user_id:String,
+    pub track_id:String
 }
 
 #[post("/remove-track")]
@@ -111,7 +114,7 @@ async fn get_track(query:web::Query<GetTrackParams>,app_state:web::Data<AppData>
     };
 
     let rez=match user.ask(GetTrack { track_id:request.track_id}).await{
-        Ok(smth)=> HttpResponse::Ok().json(smth),
+        Ok(smth)=> HttpResponse::Ok().json(smth.track),
         Err(e)=>return HttpResponse::InternalServerError().body("Could not get track")
     };
     rez
@@ -128,7 +131,7 @@ async fn get_tracks(query:web::Query<GetTrackParams>,app_state:web::Data<AppData
     };
 
     let rez=match user.ask(GetTracks {}).await{
-        Ok(smth)=> HttpResponse::Ok().json(smth),
+        Ok(smth)=> HttpResponse::Ok().json(smth.tracks),
         Err(e)=>return HttpResponse::InternalServerError().body("Could not get tracks")
     };
     rez

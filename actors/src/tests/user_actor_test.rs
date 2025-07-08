@@ -1,28 +1,26 @@
 use std::{collections::HashMap, sync::Arc};
 
 use crate::user_actor::create_user_data::CreateUserData;
+use crate::user_actor::player_factory::PlayerFactory;
 use crate::user_actor::user_actor::UserActor;
 use crate::user_actor::{
     create_user_actor_params::CreateUserActorParams, local_player_provider::LocalPlayerProvider,
 };
 use audiolib::{self, audio_buffer::AudioBuffer, Channels};
+use domain::actors::messages::crud::copy_track::CopyTrack;
+use domain::actors::messages::crud::insert_track::{InsertTrack, InsertTrackResult};
 use domain::{
     dsp_message::DspMessage,
     track::{Track, TrackInfo},
     tracks_message_result::TracksMessageResult,
 };
-use dsp_core::{
-    command_processor::CommandProcessor,
-    tracks_provider::{LocalTrackStoreProvider, TracksState},
-};
-use kameo;
+use dsp_core::tracks_provider::LocalTrackStoreProvider;
 use kameo::actor::ActorRef;
+use kameo::{self, Actor};
 use ulid::Ulid;
 
 fn create_actor(id: Ulid) -> ActorRef<UserActor> {
-    let processor = Arc::new(CommandProcessor::create_processor());
-    let tracks = TracksState::new();
-    let tracks_provider = LocalTrackStoreProvider::new();
+    let tracks_provider = Box::new(LocalTrackStoreProvider::new());
     let players_provder = LocalPlayerProvider::new();
     let actor_params = CreateUserActorParams {
         user_data: CreateUserData {
@@ -31,9 +29,10 @@ fn create_actor(id: Ulid) -> ActorRef<UserActor> {
             name: id.to_string(),
         },
         tracks_provider: tracks_provider,
-        players: players_provder,
+        players_provider: players_provder,
+        player_factory: Arc::new(PlayerFactory {}),
     };
-    let actor = spawn(UserActor::new(actor_params));
+    let actor = UserActor::spawn(UserActor::new(actor_params));
     let g = kameo::registry::ActorRegistry::new();
 
     actor
@@ -88,13 +87,11 @@ async fn can_run_copy() -> Result<(), String> {
     let after_insert_list = list_command(&addr, &user_name.clone()).await?;
     assert_eq!(after_insert_list.len(), 1);
 
-    let copy_command = DspMessage::Copy {
-        user_name: Some(user_name.clone()),
-        track_name: Some(track_name),
-        copy_name: Some(copy_track_name),
+    let copy_command = CopyTrack {
+        track_id: track_name,
+        track_copy_name: copy_track_name,
     };
-    let copy_result = addr.ask(copy_command).await.map_err(|e| e.to_string())?;
-    assert!(copy_result.output.contains("Copied"));
+    let _ = addr.ask(copy_command).await.map_err(|e| e.to_string())?;
     let after_copy_list = list_command(&addr, &user_name).await?;
     assert_eq!(after_copy_list.len(), 2);
     Ok(())
@@ -130,11 +127,8 @@ async fn insert_track_command(
     addr: &ActorRef<UserActor>,
     user_name: &str,
     track: Track,
-) -> Result<TracksMessageResult, String> {
-    let command = DspMessage::InsertRaw {
-        user_name: Some(user_name.to_string()),
-        track_payload: Some(serde_json::to_string(&track).unwrap()),
-    };
+) -> Result<InsertTrackResult, String> {
+    let command = InsertTrack { track };
     let rez = addr.ask(command).await.map_err(|e| e.to_string());
     rez
 }
