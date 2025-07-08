@@ -1,14 +1,10 @@
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
 use audiolib::{audio_buffer::AudioBuffer, Channels};
 use domain::{
     actors::{
-        player_state::AudioPlayerState, user_player_command::UserPlayerCommand,
-        user_player_state_query::UserPlayerStateQuery,
-        user_player_state_query_result::UserPlayerStateQueryResult,
-        user_state_query::UserStateQuery,
+        messages::{crud::insert_track::InsertTrack, user_to_player::{user_pause::UserPause, user_play::UserPlay}}, player_state::AudioPlayerState, user_player_command::UserPlayerCommand, user_player_state_query::UserPlayerStateQuery, user_player_state_query_result::UserPlayerStateQueryResult, user_state_query::UserStateQuery
     },
-    dsp_message::DspMessage,
     track::{Track, TrackInfo},
 };
 
@@ -43,28 +39,23 @@ fn create_user_actor(id: Ulid) -> ActorRef<UserActor> {
 
 #[tokio::test]
 async fn can_create_player_and_play() -> Result<(), String> {
-    let track_name = "some_track";
-    let track = sample_track(track_name);
+    let track_id = "some_track";
+    let track = sample_track(track_id);
     let user_name = "my_user".to_string();
     let id = Ulid::new();
     let user_actor = create_user_actor(id);
     let insert_result = user_actor
-        .ask(DspMessage::InsertRaw {
-            user_name: Some(user_name),
-            track_payload: Some(to_string(&track)),
-        })
+        .ask(InsertTrack{track:track })
         .await
         .map_err(|e| e.to_string())?;
 
-    assert!(insert_result.output.contains("Inserted"));
+    
 
     let play = user_actor
-        .tell(UserPlayerCommand::Play {
-            track_id: Some(track_name.to_string()),
-        })
+        .tell(UserPlay {player_id:track_id.into()})
         .await;
     assert!(play.is_ok());
-    let user_actor_state_result = get_player_state(&user_actor, track_name).await;
+    let user_actor_state_result = get_player_state(&user_actor, track_id).await;
     assert!(user_actor_state_result.is_ok());
     assert!(matches!(
         user_actor_state_result?.state,
@@ -75,24 +66,22 @@ async fn can_create_player_and_play() -> Result<(), String> {
 
 #[tokio::test]
 async fn can_play_on_existing_player() -> Result<(), String> {
-    let track_name = "some_track";
-    let track = sample_track(track_name);
+    let track_id = "some_track";
+    let track = sample_track(track_id);
     let user_name = "my_user".to_string();
     let id = Ulid::new();
     let user_actor = create_user_actor(id);
     let insert_result = user_actor
-        .ask(DspMessage::InsertRaw {
-            user_name: Some(user_name),
-            track_payload: Some(to_string(&track)),
+        .ask(InsertTrack {track:track
         })
         .await
         .map_err(|e| e.to_string())?;
 
-    assert!(insert_result.output.contains("Inserted"));
+   
 
     let play = user_actor
-        .tell(UserPlayerCommand::Play {
-            track_id: Some(track_name.to_string()),
+        .tell(UserPlay {
+            player_id:track_id.into()
         })
         .await;
     let user_actor_state_result = get_user_state(&user_actor).await?;
@@ -100,19 +89,19 @@ async fn can_play_on_existing_player() -> Result<(), String> {
     assert!(matches!(
         user_actor_state_result
             .players
-            .get(track_name)
+            .get(track_id)
             .unwrap()
             .state,
         AudioPlayerState::Playing
     ));
     let pause = user_actor
-        .tell(UserPlayerCommand::Pause {
-            track_id: Some(track_name.to_string()),
+        .tell(UserPause{
+            track_id: track_id.into(),
         })
         .await;
     let play_again = user_actor
-        .tell(UserPlayerCommand::Play {
-            track_id: Some(track_name.to_string()),
+        .tell(UserPlay {
+            player_id:track_id.into()
         })
         .await;
     let user_actor_state_result = get_user_state(&user_actor).await?;
@@ -122,40 +111,39 @@ async fn can_play_on_existing_player() -> Result<(), String> {
 
 #[tokio::test]
 async fn can_create_player_and_stop() -> Result<(), String> {
-    let track_name = "some_track";
-    let track = sample_track(track_name);
+    let track_id = "some_track";
+    let track = sample_track(track_id);
     let user_name = "my_user".to_string();
     let id = Ulid::new();
     let user_actor = create_user_actor(id);
     let insert_result = user_actor
-        .ask(DspMessage::InsertRaw {
-            user_name: Some(user_name),
-            track_payload: Some(to_string(&track)),
+        .ask(InsertTrack {
+            track:track
         })
         .await
         .map_err(|e| e.to_string())?;
 
-    assert!(insert_result.output.contains("Inserted"));
+  
 
     let play = user_actor
-        .tell(UserPlayerCommand::Play {
-            track_id: Some(track_name.to_string()),
+        .tell(UserPlay {
+            player_id: track_id.into(),
         })
         .await;
     assert!(play.is_ok());
-    let user_actor_state_result = get_player_state(&user_actor, track_name).await;
+    let user_actor_state_result = get_player_state(&user_actor, track_id).await;
     assert!(user_actor_state_result.is_ok());
     assert!(matches!(
         user_actor_state_result?.state,
         AudioPlayerState::Playing
     ));
     let play = user_actor
-        .tell(UserPlayerCommand::Stop {
-            track_id: Some(track_name.to_string()),
+        .tell(UserPause {
+            track_id:track_id.into()
         })
         .await;
 
-    let state = get_player_state(&user_actor, track_name).await;
+    let state = get_player_state(&user_actor, track_id).await;
     assert!(state.is_err());
     assert!(state.unwrap_err().contains("Player does not exist"));
     let deleted = get_user_state(&user_actor).await?;
@@ -188,7 +176,7 @@ async fn get_player_state(
 ) -> Result<UserPlayerStateQueryResult, String> {
     let rez = user_actor
         .ask(UserPlayerStateQuery {
-            track_id: Some(track_id.to_string()),
+            track_id: track_id.into(),
         })
         .await
         .map_err(|e| e.to_string())?;

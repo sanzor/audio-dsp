@@ -1,18 +1,19 @@
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
 use crate::user_actor::create_user_data::CreateUserData;
+use crate::user_actor::local_players_provider::LocalPlayerProvider;
 use crate::user_actor::player_factory::PlayerFactory;
 use crate::user_actor::user_actor::UserActor;
 use crate::user_actor::{
-    create_user_actor_params::CreateUserActorParams, local_player_provider::LocalPlayerProvider,
+    create_user_actor_params::CreateUserActorParams
 };
 use audiolib::{self, audio_buffer::AudioBuffer, Channels};
 use domain::actors::messages::crud::copy_track::CopyTrack;
+use domain::actors::messages::crud::get_tracks::GetTracks;
 use domain::actors::messages::crud::insert_track::{InsertTrack, InsertTrackResult};
 use domain::{
-    dsp_message::DspMessage,
-    track::{Track, TrackInfo},
-    tracks_message_result::TracksMessageResult,
+   
+    track::{Track, TrackInfo}
 };
 use dsp_core::tracks_provider::LocalTrackStoreProvider;
 use kameo::actor::ActorRef;
@@ -29,7 +30,7 @@ fn create_actor(id: Ulid) -> ActorRef<UserActor> {
             name: id.to_string(),
         },
         tracks_provider: tracks_provider,
-        players_provider: players_provder,
+        players_provider: Box::new(players_provder),
         player_factory: Arc::new(PlayerFactory {}),
     };
     let actor = UserActor::spawn(UserActor::new(actor_params));
@@ -52,14 +53,13 @@ async fn can_run_insert() -> Result<(), String> {
             sample_rate: sample_rate,
         },
     };
-    let command = DspMessage::InsertRaw {
-        user_name: Some(user_name),
-        track_payload: Some(serde_json::to_string(&track).unwrap()),
+    let command = InsertTrack {
+        track: track
     };
     let addr = create_actor(id);
     let rez = addr.ask(command).await.map_err(|e| e.to_string())?;
 
-    assert!(rez.output.contains("Inserted"));
+   
 
     Ok(())
 }
@@ -116,8 +116,6 @@ async fn can_run_list() -> Result<(), String> {
     let initial_list = list_command(&addr, &user_name.clone()).await?;
     assert_eq!(initial_list.len(), 0);
     let insert_result = insert_track_command(&addr, &user_name, track).await?;
-
-    assert!(insert_result.output.contains("Inserted"));
     let after_list = list_command(&addr, &user_name.clone()).await?;
     assert_eq!(after_list.len(), 1);
     Ok(())
@@ -137,10 +135,8 @@ async fn list_command(
     addr: &ActorRef<UserActor>,
     user_name: &str,
 ) -> Result<Vec<TrackInfo>, String> {
-    let command = DspMessage::Ls {
-        user_name: Some(user_name.to_string()),
-    };
-    let rez = addr.ask(command).await.map_err(|e| e.to_string())?;
-    let ls: Vec<TrackInfo> = serde_json::from_str(&rez.output).unwrap();
-    Ok(ls)
+   
+    let rez = addr.ask(GetTracks{}).await.map_err(|e| e.to_string())?;
+    
+    Ok(rez.tracks)
 }

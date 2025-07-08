@@ -7,6 +7,7 @@ use audiolib::audio_buffer::AudioBuffer;
 use audiolib::Channels;
 use domain::actors::messages::player::pause::Pause;
 use domain::actors::messages::player::play::Play;
+use domain::actors::messages::player::seek::Seek;
 use domain::actors::player_state::AudioPlayerState;
 use domain::track::Track;
 use domain::track::TrackInfo;
@@ -16,6 +17,7 @@ use player::AudioFrame;
 use tokio::sync::Mutex;
 
 use crate::user_actor_test::utils::create_user_actor;
+use crate::user_actor_test::utils::get_player_actor_state;
 struct TestSink {
     pub written: Arc<Mutex<Vec<AudioFrame>>>,
 }
@@ -65,7 +67,7 @@ async fn test_can_write() -> Result<(), String> {
         written: Arc::clone(&written),
     });
     let audio_player_actor = create_user_actor(track, sink);
-    let _ = audio_player_actor.tell(PlayerCommand::Play {}).await;
+    let _ = audio_player_actor.tell(Play {}).await;
     tokio::time::sleep(Duration::from_secs(10)).await;
     let val = &*written.lock().await;
     assert!(val.len() > 0);
@@ -85,7 +87,7 @@ async fn test_can_pause() -> Result<(), String> {
     tokio::time::sleep(Duration::from_secs(1)).await;
     let state_query_result = get_player_actor_state(&actor_ref).await?;
     assert!(matches!(state_query_result.state, AudioPlayerState::Playing) == true);
-    let _ = actor_ref.tell(PlayerCommand::Pause {}).await;
+    let _ = actor_ref.tell(Pause {}).await;
     tokio::time::sleep(Duration::from_millis(1)).await;
     let state_query_result = get_player_actor_state(&actor_ref).await?;
     tokio::time::sleep(Duration::from_secs(1)).await;
@@ -101,16 +103,16 @@ async fn test_can_pause_and_resume() -> Result<(), String> {
         written: Arc::clone(&written),
     });
     let actor_ref = create_user_actor(track, sink);
-    let _ = actor_ref.tell(PlayerCommand::Play {}).await;
+    let _ = actor_ref.tell(Play {}).await;
     tokio::time::sleep(Duration::from_secs(1)).await;
     let state_query_result = get_player_actor_state(&actor_ref).await?;
     assert!(matches!(state_query_result.state, AudioPlayerState::Playing) == true);
-    let _ = actor_ref.tell(PlayerCommand::Pause {}).await;
+    let _ = actor_ref.tell(Pause {}).await;
     tokio::time::sleep(Duration::from_millis(1)).await;
     let state_query_result = get_player_actor_state(&actor_ref).await?;
     tokio::time::sleep(Duration::from_secs(1)).await;
     assert!(matches!(state_query_result.state, AudioPlayerState::Paused) == true);
-    let _ = actor_ref.tell(PlayerCommand::Play {}).await;
+    let _ = actor_ref.tell(Play {}).await;
     tokio::time::sleep(Duration::from_secs(1)).await;
     let state_query_result = get_player_actor_state(&actor_ref).await?;
     assert!(matches!(state_query_result.state, AudioPlayerState::Playing) == true);
@@ -134,7 +136,7 @@ async fn test_cursor_still_moves_after_pause() -> Result<(), String> {
     tokio::time::sleep(Duration::from_secs(1)).await;
     let _ = actor_ref.tell(Play {}).await;
     tokio::time::sleep(Duration::from_secs(3)).await;
-    let _ = actor_ref.tell(PlayerCommand::Pause {}).await;
+    let _ = actor_ref.tell(Pause {}).await;
     tokio::time::sleep(Duration::from_millis(1)).await;
     let state_query_result = get_player_actor_state(&actor_ref).await?;
     let cursor_after_second_pause = state_query_result.cursor;
@@ -151,7 +153,7 @@ async fn test_state_is_paused_at_end() -> Result<(), String> {
         written: Arc::clone(&written),
     });
     let actor_ref = create_user_actor(track, sink);
-    let _ = actor_ref.tell(PlayerCommand::Play {}).await;
+    let _ = actor_ref.tell(Play {}).await;
     loop {
         tokio::time::sleep(Duration::from_millis(3)).await;
         let state_query_result = get_player_actor_state(&actor_ref).await?;
@@ -178,7 +180,7 @@ async fn test_can_seek_while_paused() -> Result<(), String> {
     });
     let actor_ref = create_user_actor(track, sink);
     let _ = actor_ref
-        .tell(PlayerCommand::Seek {
+        .tell(Seek {
             position: seek_position as u32,
         })
         .await;
@@ -200,9 +202,9 @@ async fn test_pauses_when_seek() -> Result<(), String> {
         written: Arc::clone(&written),
     });
     let actor_ref = create_user_actor(track, sink);
-    let _ = actor_ref.tell(PlayerCommand::Play {}).await;
+    let _ = actor_ref.tell(Play {}).await;
     let _ = actor_ref
-        .tell(PlayerCommand::Seek {
+        .tell(Seek {
             position: seek_position as u32,
         })
         .await;

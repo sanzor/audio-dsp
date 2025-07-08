@@ -1,3 +1,3 @@
 pub struct UserPlayerStateQuery {
-    pub track_id: Option<String>,
+    pub track_id: String,
 }
