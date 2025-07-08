@@ -1,29 +1,38 @@
-use actix_web::{dev::{Service, ServiceRequest, ServiceResponse}, http::Error, test, App};
-use domain::{ track::Track};
+use actix_web::{
+    dev::{Service, ServiceRequest, ServiceResponse},
+    http::Error,
+    test, App,
+};
+use domain::track::Track;
 use rstest::rstest;
-
 
 use crate::controllers::{player_controller, tracks_crud_controller::AddTrackParams};
 #[rstest]
 #[actix_web::test]
-async fn can_play(){
-    
-}
+async fn can_play() {}
 
 #[rstest]
 #[actix_web::test]
-async fn can_pause()->Result<(),String>{
-    let user_name="some_name";
-    let app=test::init_service(App::new().configure(player_controller::init)).await;
-    let req=test::TestRequest::get().uri(&format!("/get-user-state/{}",user_name)) .to_request();
+async fn can_pause() -> Result<(), String> {
+    let user_name = "some_name";
+    let app = test::init_service(App::new().configure(player_controller::init)).await;
+    let req = test::TestRequest::get()
+        .uri(&format!("/get-user-state/{}", user_name))
+        .to_request();
     Ok(())
-} 
-
+}
 
 async fn insert(
-    user_name:&str,
-    track:Track,
-    app: &mut impl Service<ServiceRequest, Response = ServiceResponse, Error = Error>){
-    let req=test::TestRequest::post().uri("/insert").set_json(AddTrackParams{track:track,user_id:user_name.to_string()});
-    let c=test::call_service(&app, req).await;
+    user_name: &str,
+    track: Track,
+    app: &mut impl Service<ServiceRequest, Response = ServiceResponse, Error = Error>,
+) {
+    let req = test::TestRequest::post()
+        .uri("/insert")
+        .set_json(AddTrackParams {
+            track: track,
+            user_id: user_name.to_string(),
+        });
+    // let c=test::call_service(&app, req).await;
+    todo!()
 }

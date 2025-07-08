@@ -1,15 +1,14 @@
 use std::{collections::HashMap, sync::Arc};
 
 use actix_web::{
-    web::{self, service},
+    web::{self},
     App, HttpServer,
 };
 use actors::user_actor::player_factory::PlayerFactory;
 use dsp_api::{
     app_data::AppData,
-    controllers::{self, facebook_controller, google_controller, user_controller},
+    controllers::{self, facebook_controller, google_controller},
 };
-use dsp_core::command_processor::CommandProcessor;
 use tokio::sync::Mutex;
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {

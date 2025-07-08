@@ -1,20 +1,15 @@
 use std::sync::Arc;
 
+use crate::user_actor::create_user_actor_params::CreateUserActorParams;
 use crate::user_actor::create_user_data::CreateUserData;
 use crate::user_actor::local_players_provider::LocalPlayerProvider;
 use crate::user_actor::player_factory::PlayerFactory;
 use crate::user_actor::user_actor::UserActor;
-use crate::user_actor::{
-    create_user_actor_params::CreateUserActorParams
-};
 use audiolib::{self, audio_buffer::AudioBuffer, Channels};
 use domain::actors::messages::crud::copy_track::CopyTrack;
 use domain::actors::messages::crud::get_tracks::GetTracks;
 use domain::actors::messages::crud::insert_track::{InsertTrack, InsertTrackResult};
-use domain::{
-   
-    track::{Track, TrackInfo}
-};
+use domain::track::{Track, TrackInfo};
 use dsp_core::tracks_provider::LocalTrackStoreProvider;
 use kameo::actor::ActorRef;
 use kameo::{self, Actor};
@@ -53,13 +48,9 @@ async fn can_run_insert() -> Result<(), String> {
             sample_rate: sample_rate,
         },
     };
-    let command = InsertTrack {
-        track: track
-    };
+    let command = InsertTrack { track: track };
     let addr = create_actor(id);
     let rez = addr.ask(command).await.map_err(|e| e.to_string())?;
-
-   
 
     Ok(())
 }
@@ -135,8 +126,7 @@ async fn list_command(
     addr: &ActorRef<UserActor>,
     user_name: &str,
 ) -> Result<Vec<TrackInfo>, String> {
-   
-    let rez = addr.ask(GetTracks{}).await.map_err(|e| e.to_string())?;
-    
+    let rez = addr.ask(GetTracks {}).await.map_err(|e| e.to_string())?;
+
     Ok(rez.tracks)
 }

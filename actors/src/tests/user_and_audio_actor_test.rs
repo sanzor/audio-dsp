@@ -3,12 +3,16 @@ use std::sync::Arc;
 use audiolib::{audio_buffer::AudioBuffer, Channels};
 use domain::{
     actors::{
-        messages::{crud::insert_track::InsertTrack, 
-        user::get_user_state::{GetUserState, GetUserStateResult},
-        user_to_player::{user_get_player_state::UserGetPlayerState,
-        user_pause::UserPause, user_play::UserPlay}},
-        player_state::AudioPlayerState, 
-        user_player_state_query_result::UserPlayerStateQueryResult
+        messages::{
+            crud::insert_track::InsertTrack,
+            user::get_user_state::{GetUserState, GetUserStateResult},
+            user_to_player::{
+                user_get_player_state::UserGetPlayerState, user_pause::UserPause,
+                user_play::UserPlay,
+            },
+        },
+        player_state::AudioPlayerState,
+        user_player_state_query_result::UserPlayerStateQueryResult,
     },
     track::{Track, TrackInfo},
 };
@@ -50,14 +54,14 @@ async fn can_create_player_and_play() -> Result<(), String> {
     let id = Ulid::new();
     let user_actor = create_user_actor(id);
     let insert_result = user_actor
-        .ask(InsertTrack{track:track })
+        .ask(InsertTrack { track: track })
         .await
         .map_err(|e| e.to_string())?;
 
-    
-
     let play = user_actor
-        .tell(UserPlay {player_id:track_id.into()})
+        .tell(UserPlay {
+            player_id: track_id.into(),
+        })
         .await;
     assert!(play.is_ok());
     let user_actor_state_result = get_player_state(&user_actor, track_id).await;
@@ -77,36 +81,29 @@ async fn can_play_on_existing_player() -> Result<(), String> {
     let id = Ulid::new();
     let user_actor = create_user_actor(id);
     let insert_result = user_actor
-        .ask(InsertTrack {track:track
-        })
+        .ask(InsertTrack { track: track })
         .await
         .map_err(|e| e.to_string())?;
 
-   
-
     let play = user_actor
         .tell(UserPlay {
-            player_id:track_id.into()
+            player_id: track_id.into(),
         })
         .await;
     let user_actor_state_result = get_user_state(&user_actor).await?;
     assert!(matches!(user_actor_state_result.players.len(), 1));
     assert!(matches!(
-        user_actor_state_result
-            .players
-            .get(track_id)
-            .unwrap()
-            .state,
+        user_actor_state_result.players.get(track_id).unwrap().state,
         AudioPlayerState::Playing
     ));
     let pause = user_actor
-        .tell(UserPause{
+        .tell(UserPause {
             track_id: track_id.into(),
         })
         .await;
     let play_again = user_actor
         .tell(UserPlay {
-            player_id:track_id.into()
+            player_id: track_id.into(),
         })
         .await;
     let user_actor_state_result = get_user_state(&user_actor).await?;
@@ -122,13 +119,9 @@ async fn can_create_player_and_stop() -> Result<(), String> {
     let id = Ulid::new();
     let user_actor = create_user_actor(id);
     let insert_result = user_actor
-        .ask(InsertTrack {
-            track:track
-        })
+        .ask(InsertTrack { track: track })
         .await
         .map_err(|e| e.to_string())?;
-
-  
 
     let play = user_actor
         .tell(UserPlay {
@@ -144,7 +137,7 @@ async fn can_create_player_and_stop() -> Result<(), String> {
     ));
     let play = user_actor
         .tell(UserPause {
-            track_id:track_id.into()
+            track_id: track_id.into(),
         })
         .await;
 
@@ -181,12 +174,16 @@ async fn get_player_state(
 ) -> Result<UserPlayerStateQueryResult, String> {
     let rez = user_actor
         .ask(UserGetPlayerState {
-          track_id:track_id.into()
+            track_id: track_id.into(),
         })
         .await
         .map_err(|e| e.to_string())?;
 
-    Ok(UserPlayerStateQueryResult { cursor: rez.cursor, written: rez.written, state: rez.state })
+    Ok(UserPlayerStateQueryResult {
+        cursor: rez.cursor,
+        written: rez.written,
+        state: rez.state,
+    })
 }
 async fn get_user_state(user_actor: &ActorRef<UserActor>) -> Result<GetUserStateResult, String> {
     let rez = user_actor

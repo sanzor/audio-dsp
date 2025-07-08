@@ -5,7 +5,7 @@ use kameo::actor::ActorRef;
 use tokio::sync::Mutex;
 
 #[derive(Clone)]
-pub struct AppData{
-    pub user_map:Arc<Mutex<HashMap<String,ActorRef<UserActor>>>>,
-    pub player_factory:Arc<PlayerFactory>
+pub struct AppData {
+    pub user_map: Arc<Mutex<HashMap<String, ActorRef<UserActor>>>>,
+    pub player_factory: Arc<PlayerFactory>,
 }
