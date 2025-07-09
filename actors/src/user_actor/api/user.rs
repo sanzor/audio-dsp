@@ -9,7 +9,7 @@ use domain::{
             update_user::{UpdateUser, UpdateUserResult},
         },
     },
-    track::TrackInfo,
+    track_meta::TrackMeta,
 };
 use kameo::prelude::{Context, Message};
 
@@ -24,7 +24,7 @@ impl Message<GetUserState> for UserActor {
         ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
         let mut player_list: HashMap<String, GetPlayerStateResult> = HashMap::new();
-        let mut track_list: HashMap<String, TrackInfo> = HashMap::new();
+        let mut track_list: HashMap<String, TrackMeta> = HashMap::new();
         let players_result = self.players_provider.get_all().await?;
         let tracks_result = self.tracks_provider.get_all_track_infos().await?;
         for (key, track_info) in tracks_result.track_infos {

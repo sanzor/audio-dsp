@@ -1,7 +1,7 @@
 use crate::audio_player_actor::create_audio_player_actor_params::CreateAudioPlayerActorParams;
 
 use domain::actors::player_state::AudioPlayerState;
-use domain::track::Track;
+use domain::raw_track::RawTrack;
 use kameo::prelude::ActorRef;
 use player::audio_sink::AudioSink;
 
@@ -10,7 +10,7 @@ pub struct AudioPlayerActor {
     pub(crate) state: AudioPlayerState,
     pub(crate) cursor: usize,
     pub(crate) frames_written: usize,
-    pub(crate) track: Track,
+    pub(crate) track: RawTrack,
 }
 impl kameo::Actor for AudioPlayerActor {
     type Error = String;

@@ -1054,6 +1054,7 @@ dependencies = [
  "actors",
  "async-std",
  "async-trait",
+ "audiolib",
  "domain",
  "dotenv",
  "dsp-core",

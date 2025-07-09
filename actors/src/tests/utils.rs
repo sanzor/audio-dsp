@@ -1,6 +1,5 @@
 use domain::{
-    actors::messages::player::get_player_state::{GetPlayerState, GetPlayerStateResult},
-    track::Track,
+    actors::messages::player::get_player_state::{GetPlayerState, GetPlayerStateResult}, track::Track,
 };
 
 use kameo::{actor::ActorRef, Actor};
@@ -11,7 +10,7 @@ use crate::audio_player_actor::{
     create_audio_player_actor_params::CreateAudioPlayerActorParams,
 };
 
-pub(crate) fn create_user_actor(
+pub(crate) fn create_user_actor_with_track(
     track: Track,
     sink: Box<dyn AudioSink + Send + Sync + 'static>,
 ) -> ActorRef<AudioPlayerActor> {

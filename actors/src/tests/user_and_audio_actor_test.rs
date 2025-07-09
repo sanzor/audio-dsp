@@ -5,16 +5,17 @@ use domain::{
     actors::{
         messages::{
             crud::insert_track::InsertTrack,
+            player::stop::Stop,
             user::get_user_state::{GetUserState, GetUserStateResult},
             user_to_player::{
                 user_get_player_state::UserGetPlayerState, user_pause::UserPause,
-                user_play::UserPlay,
+                user_play::UserPlay, user_stop::UserStop,
             },
         },
         player_state::AudioPlayerState,
         user_player_state_query_result::UserPlayerStateQueryResult,
     },
-    track::{Track, TrackInfo},
+    raw_track::{RawTrack, TrackInfo},
 };
 
 use dsp_core::tracks_provider::LocalTrackStoreProvider;
@@ -62,12 +63,12 @@ async fn can_create_player_and_play() -> Result<(), String> {
         .tell(UserPlay {
             player_id: track_id.into(),
         })
-        .await;
-    assert!(play.is_ok());
-    let user_actor_state_result = get_player_state(&user_actor, track_id).await;
-    assert!(user_actor_state_result.is_ok());
+        .await
+        .map_err(|e| e.to_string())?;
+    let user_actor_state_result = get_player_state(&user_actor, track_id).await?;
+
     assert!(matches!(
-        user_actor_state_result?.state,
+        user_actor_state_result.state,
         AudioPlayerState::Playing
     ));
     Ok(())
@@ -122,37 +123,35 @@ async fn can_create_player_and_stop() -> Result<(), String> {
         .ask(InsertTrack { track: track })
         .await
         .map_err(|e| e.to_string())?;
-
     let play = user_actor
         .tell(UserPlay {
             player_id: track_id.into(),
         })
         .await;
     assert!(play.is_ok());
-    let user_actor_state_result = get_player_state(&user_actor, track_id).await;
-    assert!(user_actor_state_result.is_ok());
+    let user_actor_state_result = get_player_state(&user_actor, track_id).await?;
+
     assert!(matches!(
-        user_actor_state_result?.state,
+        user_actor_state_result.state,
         AudioPlayerState::Playing
     ));
     let play = user_actor
-        .tell(UserPause {
+        .tell(UserStop {
             track_id: track_id.into(),
         })
         .await;
 
     let state = get_player_state(&user_actor, track_id).await;
-    assert!(state.is_err());
-    assert!(state.unwrap_err().contains("Player does not exist"));
+    assert!(state.unwrap_err().contains("Could not find player"));
     let deleted = get_user_state(&user_actor).await?;
     assert!(deleted.players.len() == 0);
     Ok(())
 }
 
-fn sample_track(track_name: &str) -> Track {
+fn sample_track(track_name: &str) -> RawTrack {
     let samples = vec![1.1_f32; 500];
     let sample_rate = 1_f32;
-    let track = Track {
+    let track = RawTrack {
         info: TrackInfo {
             name: track_name.to_string(),
         },
@@ -164,7 +163,7 @@ fn sample_track(track_name: &str) -> Track {
     };
     track
 }
-fn to_string(track: &Track) -> String {
+fn to_string(track: &RawTrack) -> String {
     serde_json::to_string(track).unwrap()
 }
 

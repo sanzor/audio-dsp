@@ -1,4 +1,4 @@
-use domain::track::Track;
+use domain::raw_track::RawTrack;
 pub struct PlayerParams {
-    pub track: Track,
+    pub track: RawTrack,
 }

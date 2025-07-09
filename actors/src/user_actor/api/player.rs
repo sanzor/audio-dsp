@@ -134,9 +134,9 @@ impl UserActor {
             .store(track_id.to_string(), create_actor_result.audio_actor_ref)
             .await
         {
-            Err("Could not insert ".into())
-        } else {
             Ok(UserPlayResult {})
+        } else {
+            Err("Could not insert ".into())
         }
     }
     async fn handle_play_existing_player(

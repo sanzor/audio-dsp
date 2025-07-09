@@ -3,11 +3,8 @@ use actix_web::{
     web::{self},
     HttpResponse,
 };
-use domain::actors::{
-    messages::user_to_player::{
-        user_pause::UserPause, user_play::UserPlay, user_seek::UserSeek, user_stop::UserStop,
-    },
-    user_player_command::UserPlayerCommand,
+use domain::actors::messages::user_to_player::{
+    user_pause::UserPause, user_play::UserPlay, user_seek::UserSeek, user_stop::UserStop,
 };
 use serde::Deserialize;
 

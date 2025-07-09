@@ -23,3 +23,4 @@ dotenv = "0.15"
 reqwest = { version = "0.12.22", features = ["json"] }
 jsonwebtoken = "9"
 oauth2 = "5.0.0"
+audiolib={path = "../audiolib"}

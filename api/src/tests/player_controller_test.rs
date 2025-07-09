@@ -3,7 +3,7 @@ use actix_web::{
     http::Error,
     test, App,
 };
-use domain::track::Track;
+use domain::raw_track::RawTrack;
 use rstest::rstest;
 
 use crate::controllers::{player_controller, tracks_crud_controller::AddTrackParams};
@@ -24,7 +24,7 @@ async fn can_pause() -> Result<(), String> {
 
 async fn insert(
     user_name: &str,
-    track: Track,
+    track: RawTrack,
     app: &mut impl Service<ServiceRequest, Response = ServiceResponse, Error = Error>,
 ) {
     let req = test::TestRequest::post()
@@ -32,7 +32,7 @@ async fn insert(
         .set_json(AddTrackParams {
             track: track,
             user_id: user_name.to_string(),
-        });
-    // let c=test::call_service(&app, req).await;
-    todo!()
+        })
+        .to_request();
+    todo!();
 }

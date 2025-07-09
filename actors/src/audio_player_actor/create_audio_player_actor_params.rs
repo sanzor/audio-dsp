@@ -1,4 +1,4 @@
-use domain::track::Track;
+use domain::{track::Track};
 use kameo::actor::ActorRef;
 use player::audio_sink::AudioSink;
 

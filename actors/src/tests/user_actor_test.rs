@@ -9,7 +9,7 @@ use audiolib::{self, audio_buffer::AudioBuffer, Channels};
 use domain::actors::messages::crud::copy_track::CopyTrack;
 use domain::actors::messages::crud::get_tracks::GetTracks;
 use domain::actors::messages::crud::insert_track::{InsertTrack, InsertTrackResult};
-use domain::track::{Track, TrackInfo};
+use domain::raw_track::{RawTrack, TrackInfo};
 use dsp_core::tracks_provider::LocalTrackStoreProvider;
 use kameo::actor::ActorRef;
 use kameo::{self, Actor};
@@ -40,7 +40,7 @@ async fn can_run_insert() -> Result<(), String> {
     let id = Ulid::new();
     let samples = vec![1.1_f32; 500];
     let sample_rate = 1_f32;
-    let track = Track {
+    let track = RawTrack {
         info: TrackInfo { name: track_name },
         data: AudioBuffer {
             channels: Channels::Mono,
@@ -62,7 +62,7 @@ async fn can_run_copy() -> Result<(), String> {
     let copy_track_name = "some_other_track".to_string();
     let samples = vec![1.1_f32; 500];
     let sample_rate = 1_f32;
-    let track = Track {
+    let track = RawTrack {
         info: TrackInfo {
             name: track_name.clone(),
         },
@@ -94,7 +94,7 @@ async fn can_run_list() -> Result<(), String> {
     let track_name = "some_track".to_string();
     let samples = vec![1.1_f32; 500];
     let sample_rate = 1_f32;
-    let track = Track {
+    let track = RawTrack {
         info: TrackInfo { name: track_name },
         data: AudioBuffer {
             channels: Channels::Mono,
@@ -115,7 +115,7 @@ async fn can_run_list() -> Result<(), String> {
 async fn insert_track_command(
     addr: &ActorRef<UserActor>,
     user_name: &str,
-    track: Track,
+    track: RawTrack,
 ) -> Result<InsertTrackResult, String> {
     let command = InsertTrack { track };
     let rez = addr.ask(command).await.map_err(|e| e.to_string());

@@ -11,16 +11,11 @@ use actors::user_actor::{
     local_players_provider::LocalPlayerProvider, user_actor::UserActor,
 };
 use domain::{
-    actors::{
-        messages::{
-            player::get_player_state::GetPlayerStateResult,
-            user::{
-                get_user_state::GetUserState, remove_user::RemoveUser, update_user::UpdateUser,
-            },
-        },
-        user_update_params::UserUpdateParams,
+    actors::messages::{
+        player::get_player_state::GetPlayerStateResult,
+        user::{get_user_state::GetUserState, remove_user::RemoveUser, update_user::UpdateUser},
     },
-    track::TrackInfo,
+    raw_track::TrackInfo,
 };
 use dsp_core::tracks_provider::LocalTrackStoreProvider;
 use kameo::{actor::ActorRef, Actor};

@@ -1,9 +1,12 @@
 use serde::Serialize;
 
-use crate::track::Track;
+use crate::raw_track::RawTrack;
 
 pub struct InsertTrack {
-    pub track: Track,
+    pub track: RawTrack,
 }
 #[derive(Serialize)]
-pub struct InsertTrackResult {}
+pub struct InsertTrackResult {
+    pub track_id: String,
+    pub user_id: String,
+}

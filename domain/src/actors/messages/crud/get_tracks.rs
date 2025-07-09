@@ -1,10 +1,10 @@
 use serde::Serialize;
 
-use crate::track::TrackInfo;
+use crate::{raw_track::TrackInfo, track_meta::TrackMeta};
 
 pub struct GetTracks {}
 
 #[derive(Serialize)]
 pub struct GetTracksResult {
-    pub tracks: Vec<TrackInfo>,
+    pub tracks: Vec<TrackMeta>,
 }

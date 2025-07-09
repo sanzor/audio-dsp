@@ -7,10 +7,10 @@ use actors::user_actor::user_actor::UserActor;
 use domain::{
     actors::messages::crud::{
         copy_track::CopyTrack, delete_track::DeleteTrack, get_track::GetTrack,
-        get_track_info::GetTrackInfo, get_tracks::GetTracks, insert_track::InsertTrack,
+        get_track_info::GetTrackMeta, get_tracks::GetTracks, insert_track::InsertTrack,
         update_track_info::UpdateTrackInfo,
     },
-    track::{Track, TrackInfo},
+    raw_track::{RawTrack, TrackInfo},
 };
 use kameo::actor::ActorRef;
 use serde::{Deserialize, Serialize};
@@ -20,9 +20,14 @@ use crate::app_data::AppData;
 #[derive(Deserialize, Serialize)]
 pub struct AddTrackParams {
     pub user_id: String,
-    pub track: Track,
+    pub track: RawTrack,
 }
 
+#[derive(Serialize)]
+pub struct AddTrackResult {
+    pub track_id: String,
+    pub user_id: String,
+}
 #[post("/add-track")]
 async fn add_track(path: web::Json<AddTrackParams>, app_state: web::Data<AppData>) -> HttpResponse {
     let request = path.into_inner();
@@ -39,7 +44,10 @@ async fn add_track(path: web::Json<AddTrackParams>, app_state: web::Data<AppData
         })
         .await
     {
-        Ok(smth) => HttpResponse::Ok().json("track added"),
+        Ok(smth) => HttpResponse::Ok().json(AddTrackResult {
+            track_id: smth.track_id,
+            user_id: smth.user_id,
+        }),
         Err(e) => return HttpResponse::InternalServerError().body("Could not insert track"),
     };
     rez
@@ -206,7 +214,7 @@ async fn get_track_info(
     };
 
     let rez = match user
-        .ask(GetTrackInfo {
+        .ask(GetTrackMeta {
             track_id: request.track_id,
         })
         .await

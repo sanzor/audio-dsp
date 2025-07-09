@@ -1,9 +1,11 @@
 use serde::Serialize;
 
-use crate::track::TrackInfo;
+use crate::{raw_track::TrackInfo, track_meta::TrackMeta};
 
 pub struct UpdateTrackInfo {
     pub track_info: TrackInfo,
 }
 #[derive(Serialize)]
-pub struct UpdateTrackInfoResult {}
+pub struct UpdateTrackInfoResult {
+    pub track_meta:TrackMeta
+}

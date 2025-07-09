@@ -25,12 +25,7 @@ async fn main() -> std::io::Result<()> {
                     .configure(controllers::player_controller::init)
                     .service(web::scope("/user").configure(controllers::user_controller::init))
                     .service(
-                        web::scope(
-                            "/tracks
-                    
-                    ",
-                        )
-                        .configure(controllers::tracks_crud_controller::init),
+                        web::scope("/tracks").configure(controllers::tracks_crud_controller::init),
                     )
                     .service(web::scope("/auth/google").configure(google_controller::init))
                     .service(web::scope("/auth/facebook").configure(facebook_controller::init)),
