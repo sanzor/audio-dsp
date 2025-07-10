@@ -1,5 +1,8 @@
+use std::sync::Arc;
+
+use audiolib::audio_buffer::AudioBuffer;
 use domain::{
-    actors::messages::player::get_player_state::{GetPlayerState, GetPlayerStateResult}, track::Track,
+    actors::messages::player::get_player_state::{GetPlayerState, GetPlayerStateResult}, raw_track::{RawTrack, TrackInfo}, track::Track, track_meta::TrackMeta
 };
 
 use kameo::{actor::ActorRef, Actor};
@@ -11,13 +14,15 @@ use crate::audio_player_actor::{
 };
 
 pub(crate) fn create_user_actor_with_track(
-    track: Track,
+    meta:TrackMeta,
+    buffer: Arc<AudioBuffer>,
     sink: Box<dyn AudioSink + Send + Sync + 'static>,
 ) -> ActorRef<AudioPlayerActor> {
     let audio_player_actor_params = CreateAudioPlayerActorParams {
         sink: sink,
-        track: track,
-        cursor: 0,
+        track_payload:Arc::clone(&buffer),
+        meta:meta,
+        cursor:0
     };
     let audio_player_actor =
         AudioPlayerActor::spawn(AudioPlayerActor::new(audio_player_actor_params));

@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use crate::app_data::AppData;
 use actix_web::{
     delete, get, post,
-    web::{self, get},
+    web::{self},
     HttpResponse,
 };
 use actors::user_actor::{
@@ -15,7 +15,7 @@ use domain::{
         player::get_player_state::GetPlayerStateResult,
         user::{get_user_state::GetUserState, remove_user::RemoveUser, update_user::UpdateUser},
     },
-    raw_track::TrackInfo,
+    raw_track::TrackInfo, track_meta::TrackMeta,
 };
 use dsp_core::tracks_provider::LocalTrackStoreProvider;
 use kameo::{actor::ActorRef, Actor};
@@ -25,7 +25,7 @@ use ulid::Ulid;
 #[derive(Deserialize, Clone, Debug, Serialize)]
 pub struct GetUserDataResult {
     players: HashMap<String, GetPlayerStateResult>,
-    tracks: HashMap<String, TrackInfo>,
+    tracks: HashMap<String, TrackMeta>,
 }
 #[get("/get-user")]
 async fn get_user(path: web::Path<String>, app_state: web::Data<AppData>) -> HttpResponse {

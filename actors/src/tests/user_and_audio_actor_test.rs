@@ -49,8 +49,8 @@ fn create_user_actor(id: Ulid) -> ActorRef<UserActor> {
 
 #[tokio::test]
 async fn can_create_player_and_play() -> Result<(), String> {
-    let track_id = "some_track";
-    let track = sample_track(track_id);
+    let track_name = "some_track";
+    let track = sample_track(track_name);
     let user_name = "my_user".to_string();
     let id = Ulid::new();
     let user_actor = create_user_actor(id);
@@ -61,11 +61,11 @@ async fn can_create_player_and_play() -> Result<(), String> {
 
     let play = user_actor
         .tell(UserPlay {
-            player_id: track_id.into(),
+            player_id: insert_result.track_id.clone(),
         })
         .await
         .map_err(|e| e.to_string())?;
-    let user_actor_state_result = get_player_state(&user_actor, track_id).await?;
+    let user_actor_state_result = get_player_state(&user_actor, &insert_result.track_id).await?;
 
     assert!(matches!(
         user_actor_state_result.state,
@@ -76,8 +76,8 @@ async fn can_create_player_and_play() -> Result<(), String> {
 
 #[tokio::test]
 async fn can_play_on_existing_player() -> Result<(), String> {
-    let track_id = "some_track";
-    let track = sample_track(track_id);
+    let track_name = "some_track";
+    let track = sample_track(track_name);
     let user_name = "my_user".to_string();
     let id = Ulid::new();
     let user_actor = create_user_actor(id);
@@ -88,23 +88,23 @@ async fn can_play_on_existing_player() -> Result<(), String> {
 
     let play = user_actor
         .tell(UserPlay {
-            player_id: track_id.into(),
+            player_id: insert_result.track_id.clone(),
         })
         .await;
     let user_actor_state_result = get_user_state(&user_actor).await?;
     assert!(matches!(user_actor_state_result.players.len(), 1));
     assert!(matches!(
-        user_actor_state_result.players.get(track_id).unwrap().state,
+        user_actor_state_result.players.get(&insert_result.track_id.clone()).unwrap().state,
         AudioPlayerState::Playing
     ));
     let pause = user_actor
         .tell(UserPause {
-            track_id: track_id.into(),
+            track_id: insert_result.track_id.clone(),
         })
         .await;
     let play_again = user_actor
         .tell(UserPlay {
-            player_id: track_id.into(),
+            player_id: insert_result.track_id,
         })
         .await;
     let user_actor_state_result = get_user_state(&user_actor).await?;
@@ -114,8 +114,8 @@ async fn can_play_on_existing_player() -> Result<(), String> {
 
 #[tokio::test]
 async fn can_create_player_and_stop() -> Result<(), String> {
-    let track_id = "some_track";
-    let track = sample_track(track_id);
+    let track_name="some_track";
+    let track = sample_track(track_name);
     let user_name = "my_user".to_string();
     let id = Ulid::new();
     let user_actor = create_user_actor(id);
@@ -123,13 +123,14 @@ async fn can_create_player_and_stop() -> Result<(), String> {
         .ask(InsertTrack { track: track })
         .await
         .map_err(|e| e.to_string())?;
+    let player_id=insert_result.track_id.clone();
     let play = user_actor
         .tell(UserPlay {
-            player_id: track_id.into(),
+            player_id: insert_result.track_id.into(),
         })
         .await;
     assert!(play.is_ok());
-    let user_actor_state_result = get_player_state(&user_actor, track_id).await?;
+    let user_actor_state_result = get_player_state(&user_actor, &player_id.clone()).await?;
 
     assert!(matches!(
         user_actor_state_result.state,
@@ -137,11 +138,11 @@ async fn can_create_player_and_stop() -> Result<(), String> {
     ));
     let play = user_actor
         .tell(UserStop {
-            track_id: track_id.into(),
+            track_id: player_id.clone(),
         })
         .await;
 
-    let state = get_player_state(&user_actor, track_id).await;
+    let state = get_player_state(&user_actor, &player_id.clone()).await;
     assert!(state.unwrap_err().contains("Could not find player"));
     let deleted = get_user_state(&user_actor).await?;
     assert!(deleted.players.len() == 0);

@@ -1,7 +1,9 @@
+use std::sync::Arc;
+
 use crate::audio_player_actor::create_audio_player_actor_params::CreateAudioPlayerActorParams;
 
-use domain::actors::player_state::AudioPlayerState;
-use domain::raw_track::RawTrack;
+use audiolib::audio_buffer::AudioBuffer;
+use domain::{actors::player_state::AudioPlayerState, track_meta::TrackMeta};
 use kameo::prelude::ActorRef;
 use player::audio_sink::AudioSink;
 
@@ -10,7 +12,8 @@ pub struct AudioPlayerActor {
     pub(crate) state: AudioPlayerState,
     pub(crate) cursor: usize,
     pub(crate) frames_written: usize,
-    pub(crate) track: RawTrack,
+    pub(crate) track_payload: Arc<AudioBuffer>,
+    pub(crate) track_meta:TrackMeta
 }
 impl kameo::Actor for AudioPlayerActor {
     type Error = String;
@@ -29,8 +32,9 @@ impl AudioPlayerActor {
             sink: params.sink,
             state: AudioPlayerState::Paused,
             cursor: params.cursor,
-            track: params.track,
+            track_payload: params.track_payload,
             frames_written: 0,
+            track_meta:params.meta
         }
     }
 }

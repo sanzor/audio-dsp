@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-
+use ulid::Ulid;
 use domain::{
     raw_track::{RawTrack, TrackInfo, TrackRef, TrackRefMut},
     track::Track,
@@ -90,7 +90,7 @@ impl TracksProvider for LocalTrackStoreProvider {
             .map(|v| ())
     }
     async fn upsert_track(&mut self, tr: RawTrack) -> Result<TrackMeta, String> {
-        let id = tr.info.name.clone();
+        let id = Ulid::new().to_string();
         let track = Track {
             data: tr.data,
             track_id: id.clone(),

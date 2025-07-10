@@ -1,8 +1,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    actors::messages::player::get_player_state::GetPlayerStateResult, raw_track::TrackInfo,
-    track_meta::TrackMeta,
+    actors::messages::player::get_player_state::GetPlayerStateResult, track_meta::TrackMeta,
 };
 
 pub struct GetUserState {}

@@ -10,6 +10,7 @@ use domain::actors::messages::crud::copy_track::CopyTrack;
 use domain::actors::messages::crud::get_tracks::GetTracks;
 use domain::actors::messages::crud::insert_track::{InsertTrack, InsertTrackResult};
 use domain::raw_track::{RawTrack, TrackInfo};
+use domain::track_meta::TrackMeta;
 use dsp_core::tracks_provider::LocalTrackStoreProvider;
 use kameo::actor::ActorRef;
 use kameo::{self, Actor};
@@ -74,12 +75,12 @@ async fn can_run_copy() -> Result<(), String> {
     };
     let id = Ulid::new();
     let addr = create_actor(id);
-    let _ = insert_track_command(&addr, &user_name, track).await?;
+    let track_result = insert_track_command(&addr, &user_name, track).await?;
     let after_insert_list = list_command(&addr, &user_name.clone()).await?;
     assert_eq!(after_insert_list.len(), 1);
 
     let copy_command = CopyTrack {
-        track_id: track_name,
+        track_id: track_result.track_id,
         track_copy_name: copy_track_name,
     };
     let _ = addr.ask(copy_command).await.map_err(|e| e.to_string())?;
@@ -125,8 +126,8 @@ async fn insert_track_command(
 async fn list_command(
     addr: &ActorRef<UserActor>,
     user_name: &str,
-) -> Result<Vec<TrackInfo>, String> {
+) -> Result<Vec<TrackMeta>, String> {
     let rez = addr.ask(GetTracks {}).await.map_err(|e| e.to_string())?;
-
+    
     Ok(rez.tracks)
 }

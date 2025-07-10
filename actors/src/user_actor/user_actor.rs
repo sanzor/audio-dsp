@@ -1,3 +1,4 @@
+use audiolib::audio_buffer::AudioBuffer;
 use dsp_core::tracks_provider::TracksProvider;
 use kameo::{actor::ActorRef, Actor};
 use std::{collections::HashMap, sync::Arc};
@@ -20,6 +21,7 @@ pub struct UserActor {
     pub(crate) tracks_provider: Box<dyn TracksProvider + Send + Sync>,
     pub(crate) players_provider: Box<dyn PlayersProvider + Send + Sync>,
     pub(crate) player_factory: Arc<PlayerFactory>,
+    pub(crate) loaded_payloads:HashMap<String,Arc<AudioBuffer>>
 }
 
 impl UserActor {
@@ -31,6 +33,7 @@ impl UserActor {
             tracks_provider: actor_params.tracks_provider,
             players_provider: actor_params.players_provider,
             player_factory: Arc::clone(&actor_params.player_factory),
+            loaded_payloads:HashMap::new()
         }
     }
 }
