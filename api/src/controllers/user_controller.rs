@@ -128,7 +128,7 @@ async fn update(path: web::Json<UpdateUserParams>, app_state: web::Data<AppData>
         .ask(UpdateUser {
             id: request.user_id,
             email: request.email.clone(),
-            name: request.email,
+            name: request.user_name,
         })
         .await{
             Ok(new_user)=>HttpResponse::Ok().json(UserUpdateResult{

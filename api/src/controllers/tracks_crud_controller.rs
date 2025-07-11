@@ -84,8 +84,9 @@ async fn copy_track(
 
 #[derive(Deserialize)]
 pub struct UpdateTrackParams {
-    user_id: String,
-    track_info: TrackInfo,
+    pub user_id: String,
+    pub track_id:String,
+    pub track_info: TrackInfo,
 }
 #[post("/update-track-info")]
 async fn update_track_info(
@@ -102,10 +103,11 @@ async fn update_track_info(
     let rez = match user
         .ask(UpdateTrackInfo {
             track_info: request.track_info,
+            track_id:request.track_id
         })
         .await
     {
-        Ok(smth) => HttpResponse::Ok().json("track added"),
+        Ok(smth) => HttpResponse::Ok().json("track updated"),
         Err(e) => return HttpResponse::InternalServerError().body("Could not insert track"),
     };
     rez

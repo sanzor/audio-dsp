@@ -4,13 +4,12 @@ use actix_http::{Request, StatusCode};
 use actix_web::{dev::Service, test, web, App};
 
 use ::actors::user_actor::player_factory::PlayerFactory;
-use domain::actors::messages::user::update_user::UpdateUserResult;
 use rstest::rstest;
 use tokio::sync::Mutex;
 
 use crate::{
     app_data::AppData,
-    controllers::user_controller::{self, CreateUserParams, CreateUserResult, UpdateUserParams},
+    controllers::user_controller::{self, CreateUserParams, CreateUserResult, UpdateUserParams, UserUpdateResult},
 };
 
 #[rstest]
@@ -107,12 +106,12 @@ async fn can_update_user() -> Result<(), String> {
         .set_json(update_request)
         .to_request();
 
-    let update_result:UpdateUserResult= test::call_and_read_body_json(&app, update_request).await;
+    let update_result:UserUpdateResult= test::call_and_read_body_json(&app, update_request).await;
     
 
-    assert_eq!(update_result.id,rez.user_id);
+    assert_eq!(update_result.user_id,rez.user_id);
     assert_eq!(update_result.new_email,new_email);
-    assert_eq!(update_result.new_name,new_user_name);
+    assert_eq!(update_result.new_user_name,new_user_name);
     Ok(())
 }
 

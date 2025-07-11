@@ -113,7 +113,7 @@ impl Message<UpdateTrackInfo> for UserActor {
     ) -> Self::Reply {
         let update_result = self
             .tracks_provider
-            .update_track_info(msg.track_info)
+            .update_track_info(&msg.track_id,msg.track_info)
             .await?;
         Ok(UpdateTrackInfoResult {
             track_meta: update_result,
