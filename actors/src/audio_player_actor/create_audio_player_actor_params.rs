@@ -10,8 +10,8 @@ use crate::audio_player_actor::audio_player_actor::AudioPlayerActor;
 pub struct CreateAudioPlayerActorParams {
     pub sink: Box<dyn AudioSink + Sync + Send + 'static>,
     pub cursor: usize,
-    pub track_payload:Arc<AudioBuffer>,
-    pub meta:TrackMeta
+    pub track_payload: Arc<AudioBuffer>,
+    pub meta: TrackMeta,
 }
 
 pub struct CreateAudioPlayerActorResult {

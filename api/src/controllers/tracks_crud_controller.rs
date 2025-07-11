@@ -1,13 +1,11 @@
 use actix_web::{
-    get, post,
-    web::{self},
-    HttpResponse,
+    delete, get, post, web::{self}, HttpResponse
 };
 use actors::user_actor::user_actor::UserActor;
 use domain::{
     actors::messages::crud::{
-        copy_track::CopyTrack, delete_track::DeleteTrack, get_track::GetTrack,
-        get_track_info::GetTrackMeta, get_tracks::GetTracks, insert_track::InsertTrack,
+        copy_track::CopyTrack, delete_track::DeleteTrack, get_track::GetRawTrack,
+        get_track_info::GetTrackMeta, get_tracks::GetTrackMetas, insert_track::InsertTrack,
         update_track_info::UpdateTrackInfo,
     },
     raw_track::{RawTrack, TrackInfo},
@@ -23,7 +21,7 @@ pub struct AddTrackParams {
     pub track: RawTrack,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct AddTrackResult {
     pub track_id: String,
     pub user_id: String,
@@ -31,7 +29,6 @@ pub struct AddTrackResult {
 #[post("/add-track")]
 async fn add_track(path: web::Json<AddTrackParams>, app_state: web::Data<AppData>) -> HttpResponse {
     let request = path.into_inner();
-    let guard = app_state.user_map.lock().await;
 
     let user = match get_user_internal(&request.user_id, &app_state).await {
         Ok(u) => u,
@@ -66,7 +63,6 @@ async fn copy_track(
     app_state: web::Data<AppData>,
 ) -> HttpResponse {
     let request = request_raw.into_inner();
-    let guard = app_state.user_map.lock().await;
 
     let user = match get_user_internal(&request.user_id, &app_state).await {
         Ok(u) => u,
@@ -97,7 +93,6 @@ async fn update_track_info(
     app_state: web::Data<AppData>,
 ) -> HttpResponse {
     let request = path.into_inner();
-    let guard = app_state.user_map.lock().await;
 
     let user = match get_user_internal(&request.user_id, &app_state).await {
         Ok(u) => u,
@@ -121,13 +116,12 @@ pub struct RemoveTrackParams {
     pub track_id: String,
 }
 
-#[post("/remove-track")]
+#[delete("/remove")]
 async fn remove_track(
     path: web::Query<RemoveTrackParams>,
     app_state: web::Data<AppData>,
 ) -> HttpResponse {
     let request = path.into_inner();
-    let guard = app_state.user_map.lock().await;
 
     let user = match get_user_internal(&request.user_id, &app_state).await {
         Ok(u) => u,
@@ -150,13 +144,12 @@ pub struct GetTrackParams {
     pub user_id: String,
     pub track_id: String,
 }
-#[get("/get-track")]
-async fn get_track(
+#[get("/get-raw")]
+async fn get_raw(
     query: web::Query<GetTrackParams>,
     app_state: web::Data<AppData>,
 ) -> HttpResponse {
     let request = query.into_inner();
-    let guard = app_state.user_map.lock().await;
 
     let user = match get_user_internal(&request.user_id, &app_state).await {
         Ok(u) => u,
@@ -164,32 +157,60 @@ async fn get_track(
     };
 
     let rez = match user
-        .ask(GetTrack {
+        .ask(GetRawTrack {
             track_id: request.track_id,
         })
         .await
     {
-        Ok(smth) => HttpResponse::Ok().json(smth.track),
+        Ok(smth) => HttpResponse::Ok().json(smth),
         Err(e) => return HttpResponse::InternalServerError().body("Could not get track"),
     };
     rez
 }
 
-#[get("/get-tracks")]
-async fn get_tracks(
+
+#[get("/get-meta")]
+async fn get_meta(
     query: web::Query<GetTrackParams>,
     app_state: web::Data<AppData>,
 ) -> HttpResponse {
     let request = query.into_inner();
-    let guard = app_state.user_map.lock().await;
 
     let user = match get_user_internal(&request.user_id, &app_state).await {
         Ok(u) => u,
         Err(e) => return HttpResponse::NotFound().body("User not found"),
     };
 
-    let rez = match user.ask(GetTracks {}).await {
-        Ok(smth) => HttpResponse::Ok().json(smth.tracks),
+    let rez = match user
+        .ask(GetTrackMeta {
+            track_id: request.track_id,
+        })
+        .await
+    {
+        Ok(smth) => HttpResponse::Ok().json(smth),
+        Err(e) => return HttpResponse::InternalServerError().body("Could not get track"),
+    };
+    rez
+}
+
+#[derive(Deserialize)]
+pub struct GetAllParams {
+    pub user_id: String,
+}
+#[get("/get-all")]
+async fn get_tracks(
+    query: web::Query<GetAllParams>,
+    app_state: web::Data<AppData>,
+) -> HttpResponse {
+    let request = query.into_inner();
+
+    let user = match get_user_internal(&request.user_id, &app_state).await {
+        Ok(u) => u,
+        Err(e) => return HttpResponse::NotFound().body("User not found"),
+    };
+
+    let rez = match user.ask(GetTrackMetas {}).await {
+        Ok(smth) => HttpResponse::Ok().json(smth),
         Err(e) => return HttpResponse::InternalServerError().body("Could not get tracks"),
     };
     rez
@@ -243,8 +264,9 @@ pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(add_track)
         .service(update_track_info)
         .service(remove_track)
-        .service(get_track)
+        .service(get_raw)
         .service(get_track_info)
+        .service(get_meta)
         .service(get_tracks)
         .service(copy_track);
 }

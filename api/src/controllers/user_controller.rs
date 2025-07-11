@@ -2,9 +2,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use crate::app_data::AppData;
 use actix_web::{
-    delete, get, post,
-    web::{self},
-    HttpResponse,
+    delete, get, post, put, web::{self, put}, HttpResponse
 };
 use actors::user_actor::{
     create_user_actor_params::CreateUserActorParams, create_user_data::CreateUserData,
@@ -15,7 +13,7 @@ use domain::{
         player::get_player_state::GetPlayerStateResult,
         user::{get_user_state::GetUserState, remove_user::RemoveUser, update_user::UpdateUser},
     },
-    raw_track::TrackInfo, track_meta::TrackMeta,
+    track_meta::TrackMeta,
 };
 use dsp_core::tracks_provider::LocalTrackStoreProvider;
 use kameo::{actor::ActorRef, Actor};
@@ -47,20 +45,20 @@ async fn get_user(path: web::Path<String>, app_state: web::Data<AppData>) -> Htt
 }
 
 #[derive(Deserialize, Clone, Debug, Serialize)]
-pub struct InsertUserParams {
-    user_name: String,
-    email: String,
+pub struct CreateUserParams {
+    pub user_name: String,
+    pub email: String,
 }
 
-#[derive(Serialize, Clone, Debug)]
-pub struct InsertUserResult {
-    user_id: String,
-    email: String,
-    user_name: String,
+#[derive(Serialize, Clone, Debug, Deserialize)]
+pub struct CreateUserResult {
+    pub user_id: String,
+    pub email: String,
+    pub user_name: String,
 }
 
 #[post("/create")]
-async fn create(path: web::Json<InsertUserParams>, app_state: web::Data<AppData>) -> HttpResponse {
+async fn create(path: web::Json<CreateUserParams>, app_state: web::Data<AppData>) -> HttpResponse {
     let request = path.into_inner();
     let id = Ulid::new().to_string();
     let actor_params = CreateUserActorParams {
@@ -75,11 +73,8 @@ async fn create(path: web::Json<InsertUserParams>, app_state: web::Data<AppData>
     };
     let user_actor = UserActor::spawn(UserActor::new(actor_params));
     let mut user_map = app_state.user_map.lock().await;
-    let rez = match user_map.insert(id.clone(), user_actor) {
-        None => return HttpResponse::InternalServerError().body("Could not insert new user"),
-        Some(u) => u,
-    };
-    HttpResponse::Created().json(InsertUserResult {
+    user_map.insert(id.clone(), user_actor);
+    HttpResponse::Created().json(CreateUserResult {
         user_id: id,
         user_name: request.user_name,
         email: request.email,
@@ -90,10 +85,10 @@ async fn create(path: web::Json<InsertUserParams>, app_state: web::Data<AppData>
 pub struct RemoveUserParams {
     pub user_id: String,
 }
-#[delete("/remove")]
+
+#[delete("/remove/{user_id}")]
 async fn delete(path: web::Path<String>, app_state: web::Data<AppData>) -> HttpResponse {
     let user_id = path.into_inner();
-
     let user = match get_user_internal(&user_id, &app_state).await {
         Ok(u) => u,
         Err(e) if e.contains("Could not find") => {
@@ -105,20 +100,20 @@ async fn delete(path: web::Path<String>, app_state: web::Data<AppData>) -> HttpR
     HttpResponse::NoContent().body("User deleted")
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug,Serialize)]
 pub struct UpdateUserParams {
-    user_id: String,
-    user_name: String,
-    email: String,
+    pub user_id: String,
+    pub user_name: String,
+    pub email: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug,Serialize)]
 pub struct UserUpdateResult {
-    user_id: String,
-    email: String,
-    user_name: String,
+    pub user_id: String,
+    pub new_email: String,
+    pub new_user_name: String,
 }
-#[post("/update")]
+#[put("/update")]
 async fn update(path: web::Json<UpdateUserParams>, app_state: web::Data<AppData>) -> HttpResponse {
     let request = path.into_inner();
     let user = match get_user_internal(&request.user_id, &app_state).await {
@@ -129,14 +124,21 @@ async fn update(path: web::Json<UpdateUserParams>, app_state: web::Data<AppData>
         _ => return HttpResponse::InternalServerError().body("Could not search user"),
     };
 
-    let _ = user
+    match user
         .ask(UpdateUser {
             id: request.user_id,
             email: request.email.clone(),
             name: request.email,
         })
-        .await;
-    HttpResponse::Ok().json("User created")
+        .await{
+            Ok(new_user)=>HttpResponse::Ok().json(UserUpdateResult{
+                new_email:new_user.new_email,
+                new_user_name:new_user.new_name,
+                user_id:new_user.id
+            }),
+            Err(err)=>HttpResponse::InternalServerError().body(format!("Could not update user with cause:{:?}",err.to_string()))
+        }
+
 }
 
 async fn get_user_internal(
@@ -153,5 +155,8 @@ async fn get_user_internal(
     user_addr
 }
 pub fn init(cfg: &mut web::ServiceConfig) {
-    cfg.service(create).service(get_user);
+    cfg.service(create)
+    .service(get_user)
+    .service(delete)
+    .service(update);
 }

@@ -67,8 +67,6 @@ impl Message<UserStop> for UserActor {
             Err("Could not find player".into())
         }
     }
-
-    
 }
 
 impl Message<UserSeek> for UserActor {
@@ -117,49 +115,51 @@ impl Message<UserGetPlayerState> for UserActor {
     }
 }
 
-    impl UserActor {
-
-        async fn get_payload(&mut self,track_id:&str)->Result<Arc<AudioBuffer>,String>{
-            let payload= match self.loaded_payloads.get(track_id){
-                Some(payload)=>Arc::clone(&payload),
-                None=>{
-                    let track_copy=self.tracks_provider.get_track_copy(track_id).await?;
-                    let payload_ref=Arc::new(track_copy.data);
-                    self.loaded_payloads.insert(track_id.to_string(), Arc::clone(&payload_ref));
-                    payload_ref
-                }
-            };
-            Ok(payload)
-        }
-        async fn handle_play_new_player(&mut self, track_id: &str) -> Result<UserPlayResult, String> {
-            let meta = self.tracks_provider.get_track_meta(track_id).await?;
-            
-            let sink = Box::new(CpalSink::new()?);
-            let payload=self.get_payload(track_id).await?;
-            let create_audio_actor_params = CreateAudioPlayerActorParams {
-                track_payload:payload,
-                cursor: 0,
-                sink: sink,
-                meta:meta
-            };
-
-            let create_actor_result = self.player_factory.create_audio_actor(create_audio_actor_params)?;
-
-            let _ = create_actor_result
-                .audio_actor_ref
-                .tell(Play {})
-                .await
-                .unwrap();
-            if let Ok(()) = self
-                .players_provider
-                .store(track_id.to_string(), create_actor_result.audio_actor_ref)
-                .await
-            {
-                Ok(UserPlayResult {})
-            } else {
-                Err("Could not insert ".into())
+impl UserActor {
+    async fn get_payload(&mut self, track_id: &str) -> Result<Arc<AudioBuffer>, String> {
+        let payload = match self.loaded_payloads.get(track_id) {
+            Some(payload) => Arc::clone(&payload),
+            None => {
+                let track_copy = self.tracks_provider.get_track_copy(track_id).await?;
+                let payload_ref = Arc::new(track_copy.data);
+                self.loaded_payloads
+                    .insert(track_id.to_string(), Arc::clone(&payload_ref));
+                payload_ref
             }
+        };
+        Ok(payload)
+    }
+    async fn handle_play_new_player(&mut self, track_id: &str) -> Result<UserPlayResult, String> {
+        let meta = self.tracks_provider.get_track_meta(track_id).await?;
+
+        let sink = Box::new(CpalSink::new()?);
+        let payload = self.get_payload(track_id).await?;
+        let create_audio_actor_params = CreateAudioPlayerActorParams {
+            track_payload: payload,
+            cursor: 0,
+            sink: sink,
+            meta: meta,
+        };
+
+        let create_actor_result = self
+            .player_factory
+            .create_audio_actor(create_audio_actor_params)?;
+
+        let _ = create_actor_result
+            .audio_actor_ref
+            .tell(Play {})
+            .await
+            .unwrap();
+        if let Ok(()) = self
+            .players_provider
+            .store(track_id.to_string(), create_actor_result.audio_actor_ref)
+            .await
+        {
+            Ok(UserPlayResult {})
+        } else {
+            Err("Could not insert ".into())
         }
+    }
     async fn handle_play_existing_player(
         &mut self,
         player_ref: &ActorRef<AudioPlayerActor>,

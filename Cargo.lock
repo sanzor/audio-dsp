@@ -1048,6 +1048,7 @@ name = "dsp-api"
 version = "0.1.0"
 dependencies = [
  "actix",
+ "actix-http",
  "actix-rt",
  "actix-session",
  "actix-web",

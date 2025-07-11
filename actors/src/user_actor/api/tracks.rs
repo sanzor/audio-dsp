@@ -2,9 +2,9 @@ use domain::{
     actors::messages::crud::{
         copy_track::{CopyTrack, CopyTrackResult},
         delete_track::{DeleteTrack, DeleteTrackResult},
-        get_track::{GetTrack, GetTrackResult},
+        get_track::{GetRawTrack, GetRawTrackResult},
         get_track_info::{GetTrackMeta, GetTrackMetaResult},
-        get_tracks::{GetTracks, GetTracksResult},
+        get_tracks::{GetTrackMetas, GetTracksResult},
         insert_track::{InsertTrack, InsertTrackResult},
         update_track_info::{UpdateTrackInfo, UpdateTrackInfoResult},
     },
@@ -15,14 +15,14 @@ use crate::user_actor::user_actor::UserActor;
 use kameo::prelude::Context;
 use kameo::prelude::Message;
 
-impl Message<GetTrack> for UserActor {
-    type Reply = Result<GetTrackResult, String>;
+impl Message<GetRawTrack> for UserActor {
+    type Reply = Result<GetRawTrackResult, String>;
 
-    async fn handle(&mut self, msg: GetTrack, ctx: &mut Context<Self, Self::Reply>) -> Self::Reply {
+    async fn handle(&mut self, msg: GetRawTrack, ctx: &mut Context<Self, Self::Reply>) -> Self::Reply {
         let track = self.tracks_provider.get_track_copy(&msg.track_id).await;
         match track {
             Err(e) => Err("Could not find track".to_string()),
-            Ok(e) => Ok(GetTrackResult { track: e }),
+            Ok(e) => Ok(GetRawTrackResult { track: e }),
         }
     }
 }
@@ -54,16 +54,18 @@ impl Message<GetTrackMeta> for UserActor {
         ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
         let get_info_result = self.tracks_provider.get_track_meta(&msg.track_id).await?;
-        Ok(GetTrackMetaResult{track_meta:get_info_result})
+        Ok(GetTrackMetaResult {
+            track_meta: get_info_result,
+        })
     }
 }
 
-impl Message<GetTracks> for UserActor {
+impl Message<GetTrackMetas> for UserActor {
     type Reply = Result<GetTracksResult, String>;
 
     async fn handle(
         &mut self,
-        msg: GetTracks,
+        msg: GetTrackMetas,
         ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
         let tracks_info_result = self.tracks_provider.get_all_track_infos().await?;
@@ -109,7 +111,12 @@ impl Message<UpdateTrackInfo> for UserActor {
         msg: UpdateTrackInfo,
         ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
-        let update_result = self.tracks_provider.update_track_info(msg.track_info).await?;
-        Ok(UpdateTrackInfoResult{track_meta:update_result})
+        let update_result = self
+            .tracks_provider
+            .update_track_info(msg.track_info)
+            .await?;
+        Ok(UpdateTrackInfoResult {
+            track_meta: update_result,
+        })
     }
 }

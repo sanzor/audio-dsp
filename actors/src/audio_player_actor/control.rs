@@ -104,7 +104,7 @@ impl AudioPlayerActor {
     }
 
     fn get_frame(&self, cursor: usize) -> Option<AudioFrame> {
-        let frame: Option<Vec<f32>> = match self.track_payload.channels{
+        let frame: Option<Vec<f32>> = match self.track_payload.channels {
             Channels::Mono => self.track_payload.samples.get(cursor).map(|&s| vec![s]),
             Channels::Stereo => {
                 let i = cursor * 2;

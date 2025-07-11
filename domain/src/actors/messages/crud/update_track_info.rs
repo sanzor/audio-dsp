@@ -7,5 +7,5 @@ pub struct UpdateTrackInfo {
 }
 #[derive(Serialize)]
 pub struct UpdateTrackInfoResult {
-    pub track_meta:TrackMeta
+    pub track_meta: TrackMeta,
 }

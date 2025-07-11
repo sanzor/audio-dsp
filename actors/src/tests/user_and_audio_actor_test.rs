@@ -94,7 +94,11 @@ async fn can_play_on_existing_player() -> Result<(), String> {
     let user_actor_state_result = get_user_state(&user_actor).await?;
     assert!(matches!(user_actor_state_result.players.len(), 1));
     assert!(matches!(
-        user_actor_state_result.players.get(&insert_result.track_id.clone()).unwrap().state,
+        user_actor_state_result
+            .players
+            .get(&insert_result.track_id.clone())
+            .unwrap()
+            .state,
         AudioPlayerState::Playing
     ));
     let pause = user_actor
@@ -114,7 +118,7 @@ async fn can_play_on_existing_player() -> Result<(), String> {
 
 #[tokio::test]
 async fn can_create_player_and_stop() -> Result<(), String> {
-    let track_name="some_track";
+    let track_name = "some_track";
     let track = sample_track(track_name);
     let user_name = "my_user".to_string();
     let id = Ulid::new();
@@ -123,7 +127,7 @@ async fn can_create_player_and_stop() -> Result<(), String> {
         .ask(InsertTrack { track: track })
         .await
         .map_err(|e| e.to_string())?;
-    let player_id=insert_result.track_id.clone();
+    let player_id = insert_result.track_id.clone();
     let play = user_actor
         .tell(UserPlay {
             player_id: insert_result.track_id.into(),

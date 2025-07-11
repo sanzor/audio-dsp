@@ -7,7 +7,7 @@ use crate::user_actor::player_factory::PlayerFactory;
 use crate::user_actor::user_actor::UserActor;
 use audiolib::{self, audio_buffer::AudioBuffer, Channels};
 use domain::actors::messages::crud::copy_track::CopyTrack;
-use domain::actors::messages::crud::get_tracks::GetTracks;
+use domain::actors::messages::crud::get_tracks::GetTrackMetas;
 use domain::actors::messages::crud::insert_track::{InsertTrack, InsertTrackResult};
 use domain::raw_track::{RawTrack, TrackInfo};
 use domain::track_meta::TrackMeta;
@@ -127,7 +127,7 @@ async fn list_command(
     addr: &ActorRef<UserActor>,
     user_name: &str,
 ) -> Result<Vec<TrackMeta>, String> {
-    let rez = addr.ask(GetTracks {}).await.map_err(|e| e.to_string())?;
-    
+    let rez = addr.ask(GetTrackMetas {}).await.map_err(|e| e.to_string())?;
+
     Ok(rez.tracks)
 }

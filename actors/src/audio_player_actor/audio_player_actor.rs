@@ -13,7 +13,7 @@ pub struct AudioPlayerActor {
     pub(crate) cursor: usize,
     pub(crate) frames_written: usize,
     pub(crate) track_payload: Arc<AudioBuffer>,
-    pub(crate) track_meta:TrackMeta
+    pub(crate) track_meta: TrackMeta,
 }
 impl kameo::Actor for AudioPlayerActor {
     type Error = String;
@@ -34,7 +34,7 @@ impl AudioPlayerActor {
             cursor: params.cursor,
             track_payload: params.track_payload,
             frames_written: 0,
-            track_meta:params.meta
+            track_meta: params.meta,
         }
     }
 }

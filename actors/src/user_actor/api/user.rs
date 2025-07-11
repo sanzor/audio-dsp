@@ -65,6 +65,8 @@ impl Message<UpdateUser> for UserActor {
         msg: UpdateUser,
         ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
-        todo!()
+        self.email=msg.email;
+        self.name=msg.name;
+        Ok(UpdateUserResult{id:self.id.clone(),new_email:self.email.clone(),new_name:self.name.clone()})
     }
 }

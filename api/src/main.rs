@@ -20,16 +20,11 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(registry.clone()))
-            .service(
-                web::scope("/player")
-                    .configure(controllers::player_controller::init)
-                    .service(web::scope("/user").configure(controllers::user_controller::init))
-                    .service(
-                        web::scope("/tracks").configure(controllers::tracks_crud_controller::init),
-                    )
-                    .service(web::scope("/auth/google").configure(google_controller::init))
-                    .service(web::scope("/auth/facebook").configure(facebook_controller::init)),
-            )
+            .service(web::scope("/player").configure(controllers::player_controller::init))
+            .service(web::scope("/user").configure(controllers::user_controller::init))
+            .service(web::scope("/tracks").configure(controllers::tracks_crud_controller::init))
+            .service(web::scope("/auth/google").configure(google_controller::init))
+            .service(web::scope("/auth/facebook").configure(facebook_controller::init))
     })
     .bind(("127.0.0.1", 8080))?
     .run()
