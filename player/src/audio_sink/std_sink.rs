@@ -1,5 +1,7 @@
 use std::{future::Future, pin::Pin};
 
+use crate::AudioFrame;
+
 use super::AudioSink;
 
 pub struct StdSink {}
@@ -7,7 +9,7 @@ pub struct StdSink {}
 impl AudioSink for StdSink {
     fn write_frame<'a>(
         &'a mut self,
-        frame: &'a crate::AudioFrame,
+        frame: AudioFrame,
     ) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>> {
         Box::pin(async move {
             println!("{:?}", frame);

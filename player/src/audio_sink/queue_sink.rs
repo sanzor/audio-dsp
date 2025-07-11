@@ -1,4 +1,4 @@
-use std::{collections::VecDeque, sync::Arc};
+use std::{collections::VecDeque, future::Future, pin::Pin, sync::Arc};
 
 use tokio::sync::Mutex;
 
@@ -8,14 +8,14 @@ pub struct QueueSink {
     pub queue: Arc<Mutex<VecDeque<AudioFrame>>>,
 }
 
-pub trait ASink{
-    fn write_frame(&mut self, frame:AudioFrame)->impl std::future::Future<Output = Result<(),String>> + Send;
-}
-impl ASink for QueueSink {
-   async fn write_frame(&mut self, frame:AudioFrame)->Result<(),String>{
-    
+
+impl AudioSink for QueueSink {
+    async fn write_frame(&mut self,frame: AudioFrame) -> Result<(),String> {
+       
         let mut q = self.queue.lock().await;
         q.push_back(frame);
-        Ok(())
+        Ok(())   
+        
+        
     }
 }

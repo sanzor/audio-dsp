@@ -13,7 +13,7 @@ pub struct TestSink {
 impl AudioSink for TestSink {
     fn write_frame<'a>(
         &'a mut self,
-        frame: &'a AudioFrame,
+        frame: AudioFrame,
     ) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>> {
         Box::pin(async move {
             let collection = &mut *self.written.try_lock().map_err(|e| e.to_string())?;

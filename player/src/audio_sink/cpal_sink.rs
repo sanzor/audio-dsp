@@ -10,6 +10,8 @@ use std::{
 use audiolib::Channels;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 
+use crate::AudioFrame;
+
 use super::AudioSink;
 
 pub struct CpalSink {
@@ -70,7 +72,7 @@ impl CpalSink {
 impl AudioSink for CpalSink {
     fn write_frame<'a>(
         &'a mut self,
-        frame: &'a crate::AudioFrame,
+        frame: AudioFrame,
     ) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>> {
         Box::pin(async move {
             let mut buf = self.buffer.lock().map_err(|e| e.to_string())?;

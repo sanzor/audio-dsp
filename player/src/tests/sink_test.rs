@@ -19,7 +19,7 @@ pub fn test_cpal_sink() -> Result<(), String> {
             (2, 1) => vec![(chunk[0] + chunk[1]) * 0.5],
             _ => return Err("Invalid channels".to_string()),
         };
-        let _ = sink.write_frame(&frame.to_vec());
+        let _ = sink.write_frame(frame.to_vec());
     }
     Ok(())
 }
