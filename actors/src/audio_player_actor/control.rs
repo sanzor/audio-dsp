@@ -80,7 +80,7 @@ impl Message<PlayFrame> for AudioPlayerActor {
             return Ok(()); //
         }
         if let Some(frame) = self.get_frame(self.cursor) {
-            self.sink.write_frame(&frame).await?;
+            self.sink.write_frame(frame).await?;
             self.cursor += 1;
             self.frames_written += 1;
             Ok(())

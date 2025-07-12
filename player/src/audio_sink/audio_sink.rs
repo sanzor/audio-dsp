@@ -1,11 +1,10 @@
+use std::{future::Future, pin::Pin};
+
 use crate::AudioFrame;
 
-
-
-#[async_trait::async_trait]
 pub trait AudioSink {
-    async fn write_frame(
-        & mut self,
+    fn write_frame<'a>(
+        &'a mut self,
         frame: AudioFrame,
-    ) -> Result<(), String>;
+    ) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>>;
 }

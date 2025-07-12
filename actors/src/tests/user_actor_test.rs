@@ -127,7 +127,10 @@ async fn list_command(
     addr: &ActorRef<UserActor>,
     user_name: &str,
 ) -> Result<Vec<TrackMeta>, String> {
-    let rez = addr.ask(GetTrackMetas {}).await.map_err(|e| e.to_string())?;
+    let rez = addr
+        .ask(GetTrackMetas {})
+        .await
+        .map_err(|e| e.to_string())?;
 
     Ok(rez.tracks)
 }

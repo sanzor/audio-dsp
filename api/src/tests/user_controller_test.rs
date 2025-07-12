@@ -9,7 +9,9 @@ use tokio::sync::Mutex;
 
 use crate::{
     app_data::AppData,
-    controllers::user_controller::{self, CreateUserParams, CreateUserResult, UpdateUserParams, UserUpdateResult},
+    controllers::user_controller::{
+        self, CreateUserParams, CreateUserResult, UpdateUserParams, UserUpdateResult,
+    },
 };
 
 #[rstest]
@@ -79,8 +81,8 @@ async fn can_remove_user() -> Result<(), String> {
 async fn can_update_user() -> Result<(), String> {
     let user_name = "adrian";
     let email = "adrian.bercovici@gmail.com";
-    let new_user_name="adrian2";
-    let new_email="adrian.bercovici2@yahoo.com";
+    let new_user_name = "adrian2";
+    let new_email = "adrian.bercovici2@yahoo.com";
     let app_data = AppData {
         player_factory: Arc::new(PlayerFactory {}),
         user_map: Arc::new(Mutex::new(HashMap::new())),
@@ -96,22 +98,21 @@ async fn can_update_user() -> Result<(), String> {
         email: email.to_string(),
     };
     let rez = insert_user(&mut app, create_request).await?;
-    let update_request=UpdateUserParams{
-        email:new_email.to_string(),
-        user_id:rez.user_id.clone(),
-        user_name:new_user_name.to_string()
+    let update_request = UpdateUserParams {
+        email: new_email.to_string(),
+        user_id: rez.user_id.clone(),
+        user_name: new_user_name.to_string(),
     };
     let update_request = test::TestRequest::put()
         .uri("/user/update")
         .set_json(update_request)
         .to_request();
 
-    let update_result:UserUpdateResult= test::call_and_read_body_json(&app, update_request).await;
-    
+    let update_result: UserUpdateResult = test::call_and_read_body_json(&app, update_request).await;
 
-    assert_eq!(update_result.user_id,rez.user_id);
-    assert_eq!(update_result.new_email,new_email);
-    assert_eq!(update_result.new_user_name,new_user_name);
+    assert_eq!(update_result.user_id, rez.user_id);
+    assert_eq!(update_result.new_email, new_email);
+    assert_eq!(update_result.new_user_name, new_user_name);
     Ok(())
 }
 

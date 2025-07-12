@@ -5,7 +5,7 @@ pub struct UpdateUser {
     pub email: String,
     pub name: String,
 }
-#[derive(Serialize,Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct UpdateUserResult {
     pub id: String,
     pub new_email: String,

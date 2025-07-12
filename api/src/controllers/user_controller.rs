@@ -2,7 +2,9 @@ use std::{collections::HashMap, sync::Arc};
 
 use crate::app_data::AppData;
 use actix_web::{
-    delete, get, post, put, web::{self, put}, HttpResponse
+    delete, get, post, put,
+    web::{self, put},
+    HttpResponse,
 };
 use actors::user_actor::{
     create_user_actor_params::CreateUserActorParams, create_user_data::CreateUserData,
@@ -100,14 +102,14 @@ async fn delete(path: web::Path<String>, app_state: web::Data<AppData>) -> HttpR
     HttpResponse::NoContent().body("User deleted")
 }
 
-#[derive(Deserialize, Debug,Serialize)]
+#[derive(Deserialize, Debug, Serialize)]
 pub struct UpdateUserParams {
     pub user_id: String,
     pub user_name: String,
     pub email: String,
 }
 
-#[derive(Deserialize, Debug,Serialize)]
+#[derive(Deserialize, Debug, Serialize)]
 pub struct UserUpdateResult {
     pub user_id: String,
     pub new_email: String,
@@ -130,15 +132,18 @@ async fn update(path: web::Json<UpdateUserParams>, app_state: web::Data<AppData>
             email: request.email.clone(),
             name: request.user_name,
         })
-        .await{
-            Ok(new_user)=>HttpResponse::Ok().json(UserUpdateResult{
-                new_email:new_user.new_email,
-                new_user_name:new_user.new_name,
-                user_id:new_user.id
-            }),
-            Err(err)=>HttpResponse::InternalServerError().body(format!("Could not update user with cause:{:?}",err.to_string()))
-        }
-
+        .await
+    {
+        Ok(new_user) => HttpResponse::Ok().json(UserUpdateResult {
+            new_email: new_user.new_email,
+            new_user_name: new_user.new_name,
+            user_id: new_user.id,
+        }),
+        Err(err) => HttpResponse::InternalServerError().body(format!(
+            "Could not update user with cause:{:?}",
+            err.to_string()
+        )),
+    }
 }
 
 async fn get_user_internal(
@@ -156,7 +161,7 @@ async fn get_user_internal(
 }
 pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(create)
-    .service(get_user)
-    .service(delete)
-    .service(update);
+        .service(get_user)
+        .service(delete)
+        .service(update);
 }

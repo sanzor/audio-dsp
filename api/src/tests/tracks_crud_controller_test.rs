@@ -9,7 +9,10 @@ use actors::user_actor::{
 };
 use audiolib::{audio_buffer::AudioBuffer, Channels};
 use domain::{
-    actors::messages::crud::{get_track::GetRawTrackResult, get_track_info::GetTrackMetaResult, get_tracks::GetTracksResult},
+    actors::messages::crud::{
+        get_track::GetRawTrackResult, get_track_info::GetTrackMetaResult,
+        get_tracks::GetTracksResult,
+    },
     raw_track::{RawTrack, TrackInfo},
 };
 use dsp_core::tracks_provider::LocalTrackStoreProvider;
@@ -93,7 +96,6 @@ async fn can_get_track_metas() -> Result<(), String> {
     Ok(())
 }
 
-
 #[rstest]
 #[actix_web::test]
 async fn can_get_track_meta() -> Result<(), String> {
@@ -117,18 +119,20 @@ async fn can_get_track_meta() -> Result<(), String> {
         track: track.clone(),
         user_id: user_id.to_string(),
     };
-   
+
     let insert_result = insert_track(&mut app, insert).await?;
-  
+
     let req = test::TestRequest::get()
-        .uri(&format!("/tracks/get-meta?user_id={}&track_id={}", user_id,insert_result.track_id))
+        .uri(&format!(
+            "/tracks/get-meta?user_id={}&track_id={}",
+            user_id, insert_result.track_id
+        ))
         .to_request();
     let resp: GetTrackMetaResult = test::call_and_read_body_json(&app, req).await;
-    assert!(resp.track_meta.track_id==insert_result.track_id);
-    assert!(resp.track_meta.track_info.name==track.info.name);
+    assert!(resp.track_meta.track_id == insert_result.track_id);
+    assert!(resp.track_meta.track_info.name == track.info.name);
     Ok(())
 }
-
 
 #[rstest]
 #[actix_web::test]
@@ -153,15 +157,18 @@ async fn can_get_track_raw() -> Result<(), String> {
         track: track.clone(),
         user_id: user_id.to_string(),
     };
-   
+
     let insert_result = insert_track(&mut app, insert).await?;
-  
+
     let req = test::TestRequest::get()
-        .uri(&format!("/tracks/get-raw?user_id={}&track_id={}", user_id,insert_result.track_id))
+        .uri(&format!(
+            "/tracks/get-raw?user_id={}&track_id={}",
+            user_id, insert_result.track_id
+        ))
         .to_request();
     let resp: GetRawTrackResult = test::call_and_read_body_json(&app, req).await;
-    assert!(resp.track.info.name==track.info.name);
-    assert!(resp.track.data.samples.len()==track.data.samples.len());
+    assert!(resp.track.info.name == track.info.name);
+    assert!(resp.track.data.samples.len() == track.data.samples.len());
     Ok(())
 }
 
@@ -195,7 +202,10 @@ async fn can_remove_track() -> Result<(), String> {
     assert!(resp.user_id == user_id.to_string());
 
     let remove_request = test::TestRequest::delete()
-        .uri(&format!("/tracks/remove?user_id={}&track_id={}",user_id, resp.track_id))
+        .uri(&format!(
+            "/tracks/remove?user_id={}&track_id={}",
+            user_id, resp.track_id
+        ))
         .to_request();
     let resp = test::call_service(&app, remove_request).await;
     let status = resp.status();

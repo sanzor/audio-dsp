@@ -1,5 +1,7 @@
 use actix_web::{
-    delete, get, post, web::{self}, HttpResponse
+    delete, get, post,
+    web::{self},
+    HttpResponse,
 };
 use actors::user_actor::user_actor::UserActor;
 use domain::{
@@ -13,7 +15,7 @@ use domain::{
 use kameo::actor::ActorRef;
 use serde::{Deserialize, Serialize};
 
-use crate::app_data::AppData;
+use crate::{app_data::AppData, controllers::utils::get_user_internal};
 
 #[derive(Deserialize, Serialize)]
 pub struct AddTrackParams {
@@ -85,7 +87,7 @@ async fn copy_track(
 #[derive(Deserialize)]
 pub struct UpdateTrackParams {
     pub user_id: String,
-    pub track_id:String,
+    pub track_id: String,
     pub track_info: TrackInfo,
 }
 #[post("/update-track-info")]
@@ -103,7 +105,7 @@ async fn update_track_info(
     let rez = match user
         .ask(UpdateTrackInfo {
             track_info: request.track_info,
-            track_id:request.track_id
+            track_id: request.track_id,
         })
         .await
     {
@@ -147,10 +149,7 @@ pub struct GetTrackParams {
     pub track_id: String,
 }
 #[get("/get-raw")]
-async fn get_raw(
-    query: web::Query<GetTrackParams>,
-    app_state: web::Data<AppData>,
-) -> HttpResponse {
+async fn get_raw(query: web::Query<GetTrackParams>, app_state: web::Data<AppData>) -> HttpResponse {
     let request = query.into_inner();
 
     let user = match get_user_internal(&request.user_id, &app_state).await {
@@ -169,7 +168,6 @@ async fn get_raw(
     };
     rez
 }
-
 
 #[get("/get-meta")]
 async fn get_meta(
@@ -248,19 +246,7 @@ async fn get_track_info(
     rez
 }
 
-async fn get_user_internal(
-    user_id: &str,
-    app_state: &AppData,
-) -> Result<ActorRef<UserActor>, String> {
-    let user_addr = {
-        let guard = app_state.user_map.lock().await;
-        match guard.get(&user_id.to_string()).cloned() {
-            Some(addr) => Ok(addr),
-            None => Err("Could not find user".to_string()),
-        }
-    };
-    user_addr
-}
+
 
 pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(add_track)

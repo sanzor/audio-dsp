@@ -33,7 +33,11 @@ impl TracksProvider for LocalTrackStoreProvider {
 
         info
     }
-    async fn update_track_info(&mut self,track_id:&str, track_info: TrackInfo) -> Result<TrackMeta, String> {
+    async fn update_track_info(
+        &mut self,
+        track_id: &str,
+        track_info: TrackInfo,
+    ) -> Result<TrackMeta, String> {
         let mut track = match self.tracks.remove(track_id) {
             None => return Err("Could not find track".into()),
             Some(i) => i,

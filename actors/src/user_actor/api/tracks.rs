@@ -18,7 +18,11 @@ use kameo::prelude::Message;
 impl Message<GetRawTrack> for UserActor {
     type Reply = Result<GetRawTrackResult, String>;
 
-    async fn handle(&mut self, msg: GetRawTrack, ctx: &mut Context<Self, Self::Reply>) -> Self::Reply {
+    async fn handle(
+        &mut self,
+        msg: GetRawTrack,
+        ctx: &mut Context<Self, Self::Reply>,
+    ) -> Self::Reply {
         let track = self.tracks_provider.get_track_copy(&msg.track_id).await;
         match track {
             Err(e) => Err("Could not find track".to_string()),
@@ -113,7 +117,7 @@ impl Message<UpdateTrackInfo> for UserActor {
     ) -> Self::Reply {
         let update_result = self
             .tracks_provider
-            .update_track_info(&msg.track_id,msg.track_info)
+            .update_track_info(&msg.track_id, msg.track_info)
             .await?;
         Ok(UpdateTrackInfoResult {
             track_meta: update_result,

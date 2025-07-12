@@ -19,5 +19,9 @@ pub trait TracksProvider {
     async fn get_all_track_infos(&self) -> Result<GetAllTrackInfosResult, String>;
     async fn delete_track(&mut self, track_name: &str) -> Result<(), String>;
     async fn upsert_track(&mut self, track: RawTrack) -> Result<TrackMeta, String>;
-    async fn update_track_info(&mut self, track_id:&str,track_info: TrackInfo) -> Result<TrackMeta, String>;
+    async fn update_track_info(
+        &mut self,
+        track_id: &str,
+        track_info: TrackInfo,
+    ) -> Result<TrackMeta, String>;
 }
