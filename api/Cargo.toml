@@ -27,3 +27,4 @@ jsonwebtoken = "9"
 oauth2 = "5.0.0"
 audiolib={path = "../audiolib"}
 player={path="../player"}
+bytemuck="1.23.1"

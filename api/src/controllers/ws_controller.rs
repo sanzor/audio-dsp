@@ -1,7 +1,8 @@
 use std::{collections::VecDeque, sync::Arc, time::Duration};
 
 use actix_web::{get, web, HttpRequest, HttpResponse};
-use player::audio_source::audio_source::AudioSource;
+use actix_ws::Message;
+use player::{audio_source::audio_source::AudioSource, AudioFrame};
 use serde::Deserialize;
 use tokio::{sync::Mutex, time};
 
@@ -34,16 +35,25 @@ async fn play(
     let queue=Arc::new(Mutex::new(VecDeque::new()));
     let sink=QueueSink{queue:Arc::clone(&queue)};
     let mut source=QueueSource{queue:queue};
-    let (response,mut v,mut  ws_stream)=actix_ws::handle(&req, stream)?;
-    
+    let (response,mut v,  ws_stream)=actix_ws::handle(&req, stream)?;
+    bytemuck::
     tokio::spawn(async move{
          let mut interval=tokio::time::interval(Duration::from_millis(10));
          loop{
           tokio::select!{
             _=interval.tick()=>{
                 if let Some(frame)=source.next_frame().await{
-                    if(ws_stream.send())
-                    todo!()
+                    let _= v.b(frame).await.unwrap();
+                    
+                }
+            },
+            msg=ws_stream.recv()=>{
+                match msg{
+                    Some(Ok(actix_ws::Message::Text(text)))=>{
+                        match serde_json::from_str::<WsMessage>(&text){
+
+                        }
+                    }
                 }
             }
         }
@@ -55,4 +65,9 @@ async fn play(
 pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(play);
        
+}
+
+fn send_audio_frame(session: &mut actix_ws::Session, frame: &AudioFrame) {
+    let bytes = bytemuck::cast_slice(frame);
+    let _ = session.b(Message::Binary(bytes.to_vec()));
 }
