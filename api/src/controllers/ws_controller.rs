@@ -70,9 +70,13 @@ async fn run_player(
             msg=ws_stream.next()=>{
                 match msg{
                     Some(Ok(actix_ws::Message::Binary(data)))=>{
-                        let text = std::str::from_utf8(&data).unwrap();
-                        let message: WsMessage = serde_json::from_str(text).unwrap();
-                        let _=handle_ws_message(message, &user).await.unwrap();
+                        if let Ok(text)= std::str::from_utf8(&data){
+                             if let Ok(message)= serde_json::from_str(text){
+                                if let Err(e) = handle_ws_message(message, &user).await {
+                                     eprintln!("Failed to handle message: {}", e);
+                                }
+                            }
+                        }
                     },
                     Some(Ok(actix_ws::Message::Text(data))) => {
                         let message: WsMessage = serde_json::from_str(&data).unwrap();
@@ -106,19 +110,19 @@ pub fn init(cfg: &mut web::ServiceConfig) {
 async fn handle_ws_message(message:WsMessage,user_actor:&ActorRef<UserActor>)->Result<(),String>{
     match message{
         WsMessage::Play { track_id }=>{
-            let res=user_actor.ask(UserPlay{track_id}).await.map_err(|e|e.to_string())?;
+            let res=user_actor.tell(UserPlay{track_id}).await.map_err(|e|e.to_string())?;
             Ok(())
         },
         WsMessage::Pause { track_id }=>{
-             let res=user_actor.ask(UserPause{track_id:track_id}).await.map_err(|e|e.to_string())?;
+             let res=user_actor.tell(UserPause{track_id:track_id}).await.map_err(|e|e.to_string())?;
              Ok(())
         },
         WsMessage::Stop { track_id }=>{
-             let res=user_actor.ask(UserStop{track_id:track_id}).await.map_err(|e|e.to_string())?;
+             let res=user_actor.tell(UserStop{track_id:track_id}).await.map_err(|e|e.to_string())?;
              Ok(())
         }
          WsMessage::Seek { track_id ,position}=>{
-             let res=user_actor.ask(UserSeek{track_id:track_id,position:position}).await.map_err(|e|e.to_string())?;
+             let res=user_actor.tell(UserSeek{track_id:track_id,position:position}).await.map_err(|e|e.to_string())?;
              Ok(())
         }
     }
