@@ -27,10 +27,10 @@ impl Message<UserPlay> for UserActor {
     type Reply = Result<UserPlayResult, String>;
 
     async fn handle(&mut self, msg: UserPlay, ctx: &mut Context<Self, Self::Reply>) -> Self::Reply {
-        let player_result = self.players_provider.get(msg.player_id.clone()).await;
+        let player_result = self.players_provider.get(msg.track_id.clone()).await;
         match player_result {
             Ok(player) => self.handle_play_existing_player(&player.player_ref).await,
-            Err(err) => self.handle_play_new_player(&msg.player_id).await,
+            Err(err) => self.handle_play_new_player(&msg.track_id).await,
         }
     }
 }

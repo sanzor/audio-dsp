@@ -49,7 +49,7 @@ async fn play(body: web::Json<PlayRequest>, app_state: web::Data<AppData>) -> Ht
 
     let _ = user_addr
         .tell(UserPlay {
-            player_id: track_name,
+            track_id: track_name,
         })
         .await;
     HttpResponse::Ok().finish()

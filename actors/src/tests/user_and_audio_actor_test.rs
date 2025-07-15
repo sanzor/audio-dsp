@@ -61,7 +61,7 @@ async fn can_create_player_and_play() -> Result<(), String> {
 
     let play = user_actor
         .tell(UserPlay {
-            player_id: insert_result.track_id.clone(),
+            track_id: insert_result.track_id.clone(),
         })
         .await
         .map_err(|e| e.to_string())?;
@@ -88,7 +88,7 @@ async fn can_play_on_existing_player() -> Result<(), String> {
 
     let play = user_actor
         .tell(UserPlay {
-            player_id: insert_result.track_id.clone(),
+            track_id: insert_result.track_id.clone(),
         })
         .await;
     let user_actor_state_result = get_user_state(&user_actor).await?;
@@ -108,7 +108,7 @@ async fn can_play_on_existing_player() -> Result<(), String> {
         .await;
     let play_again = user_actor
         .tell(UserPlay {
-            player_id: insert_result.track_id,
+            track_id: insert_result.track_id,
         })
         .await;
     let user_actor_state_result = get_user_state(&user_actor).await?;
@@ -130,7 +130,7 @@ async fn can_create_player_and_stop() -> Result<(), String> {
     let player_id = insert_result.track_id.clone();
     let play = user_actor
         .tell(UserPlay {
-            player_id: insert_result.track_id.into(),
+            track_id: insert_result.track_id.into(),
         })
         .await;
     assert!(play.is_ok());
