@@ -1,7 +1,10 @@
 use std::{collections::VecDeque, sync::Arc, time::Duration};
 
 use actix_web::{
-    body::MessageBody, get, web::{self, Bytes, ServiceConfig}, HttpRequest, HttpResponse
+    body::MessageBody,
+    get,
+    web::{self, Bytes, ServiceConfig},
+    HttpRequest, HttpResponse,
 };
 use actors::user_actor::user_actor::UserActor;
 use async_std::stream::StreamExt;
@@ -19,10 +22,9 @@ use crate::{
     controllers::utils::get_user_internal,
 };
 
-#[derive(Serialize,Debug,Clone,Deserialize)]
-pub enum WebsocketSendMessage{
-    AudioFrame{audio_frame:AudioFrame},
-
+#[derive(Serialize, Debug, Clone, Deserialize)]
+pub enum WebsocketSendMessage {
+    AudioFrame { audio_frame: AudioFrame },
 }
 #[derive(Deserialize)]
 pub struct PlayRequest {
@@ -159,8 +161,10 @@ async fn send_audio_frame(
     session: &mut actix_ws::Session,
     frame: &AudioFrame,
 ) -> Result<(), actix_web::Error> {
-    let payload=serde_json::to_string(&WebsocketSendMessage::AudioFrame { audio_frame: frame.clone() })?;
-    
+    let payload = serde_json::to_string(&WebsocketSendMessage::AudioFrame {
+        audio_frame: frame.clone(),
+    })?;
+
     let _ = session.text(payload).await;
     Ok(())
 }
