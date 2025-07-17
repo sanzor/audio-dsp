@@ -1,19 +1,15 @@
 use std::{collections::HashMap, sync::Arc};
 
-use actix_http::{Request, StatusCode};
+use actix_http::StatusCode;
 use actix_web::{dev::Service, test, web, App};
 use actors::user_actor::{
     create_user_actor_params::CreateUserActorParams, create_user_data::CreateUserData,
     local_players_provider::LocalPlayerProvider, player_factory::PlayerFactory,
     user_actor::UserActor,
 };
-use audiolib::{audio_buffer::AudioBuffer, Channels};
-use domain::{
-    actors::messages::crud::{
-        get_track::GetRawTrackResult, get_track_info::GetTrackMetaResult,
-        get_tracks::GetTracksResult,
-    },
-    raw_track::{RawTrack, TrackInfo},
+use audiolib::Channels;
+use domain::actors::messages::crud::{
+    get_track::GetRawTrackResult, get_track_info::GetTrackMetaResult, get_tracks::GetTracksResult,
 };
 use dsp_core::tracks_provider::LocalTrackStoreProvider;
 use kameo::{actor::ActorRef, Actor};
@@ -24,12 +20,13 @@ use ulid::Ulid;
 use crate::{
     app_data::AppData,
     controllers::tracks_crud_controller::{self, AddTrackParams, AddTrackResult},
+    player_controller_test::utils::{insert_track, make_raw_track_from_samples},
 };
 
 #[rstest]
 #[actix_web::test]
 async fn can_insert_track() -> Result<(), String> {
-    let track = make_track_from_samples(vec![1_f32; 500], Channels::Mono);
+    let raw_track = make_raw_track_from_samples(vec![1_f32; 500], Channels::Mono);
     let user_id = Ulid::new();
     let user_actor = create_actor(user_id.clone());
     let mut user_map = HashMap::new();
@@ -48,7 +45,7 @@ async fn can_insert_track() -> Result<(), String> {
     let req = test::TestRequest::post()
         .uri("/tracks/add-track")
         .set_json(&AddTrackParams {
-            track,
+            track: raw_track,
             user_id: user_id.to_string(),
         })
         .to_request();
@@ -60,7 +57,7 @@ async fn can_insert_track() -> Result<(), String> {
 #[rstest]
 #[actix_web::test]
 async fn can_get_track_metas() -> Result<(), String> {
-    let track = make_track_from_samples(vec![1_f32; 500], Channels::Mono);
+    let track = make_raw_track_from_samples(vec![1_f32; 500], Channels::Mono);
 
     let user_id = Ulid::new();
     let user_actor = create_actor(user_id.clone());
@@ -99,7 +96,7 @@ async fn can_get_track_metas() -> Result<(), String> {
 #[rstest]
 #[actix_web::test]
 async fn can_get_track_meta() -> Result<(), String> {
-    let track = make_track_from_samples(vec![1_f32; 500], Channels::Mono);
+    let track = make_raw_track_from_samples(vec![1_f32; 500], Channels::Mono);
 
     let user_id = Ulid::new();
     let user_actor = create_actor(user_id.clone());
@@ -137,7 +134,7 @@ async fn can_get_track_meta() -> Result<(), String> {
 #[rstest]
 #[actix_web::test]
 async fn can_get_track_raw() -> Result<(), String> {
-    let track = make_track_from_samples(vec![1_f32; 500], Channels::Mono);
+    let track = make_raw_track_from_samples(vec![1_f32; 500], Channels::Mono);
 
     let user_id = Ulid::new();
     let user_actor = create_actor(user_id.clone());
@@ -175,7 +172,7 @@ async fn can_get_track_raw() -> Result<(), String> {
 #[rstest]
 #[actix_web::test]
 async fn can_remove_track() -> Result<(), String> {
-    let track = make_track_from_samples(vec![1_f32; 500], Channels::Mono);
+    let track = make_raw_track_from_samples(vec![1_f32; 500], Channels::Mono);
     let user_id = Ulid::new();
     let user_actor = create_actor(user_id.clone());
     let mut user_map = HashMap::new();
@@ -213,31 +210,6 @@ async fn can_remove_track() -> Result<(), String> {
     Ok(())
 }
 
-fn make_track_from_samples(samples: Vec<f32>, channels: Channels) -> RawTrack {
-    match channels {
-        Channels::Mono => RawTrack {
-            info: TrackInfo {
-                name: "some_name".to_string(),
-            },
-            data: AudioBuffer {
-                channels: Channels::Mono,
-                sample_rate: 1_f32,
-                samples: samples.clone(),
-            },
-        },
-        Channels::Stereo => RawTrack {
-            info: TrackInfo {
-                name: "some_name".to_string(),
-            },
-            data: AudioBuffer {
-                samples: samples.clone(),
-                sample_rate: 1_f32,
-                channels: Channels::Stereo,
-            },
-        },
-    }
-}
-
 fn create_actor(id: Ulid) -> ActorRef<UserActor> {
     let tracks_provider = Box::new(LocalTrackStoreProvider::new());
     let players_provder = LocalPlayerProvider::new();
@@ -256,49 +228,4 @@ fn create_actor(id: Ulid) -> ActorRef<UserActor> {
     let g = kameo::registry::ActorRegistry::new();
 
     actor
-}
-
-async fn get_tracks(
-    app: &mut impl Service<
-        Request,
-        Response = actix_web::dev::ServiceResponse,
-        Error = actix_web::Error,
-    >,
-) -> Result<GetTracksResult, String> {
-    let req = test::TestRequest::get().uri("/tracks/get-all").to_request();
-    let resp: GetTracksResult = test::call_and_read_body_json(&app, req).await;
-    Ok(resp)
-}
-
-async fn insert_track(
-    app: &mut impl Service<
-        Request,
-        Response = actix_web::dev::ServiceResponse,
-        Error = actix_web::Error,
-    >,
-    track_params: AddTrackParams,
-) -> Result<AddTrackResult, String> {
-    let req = test::TestRequest::post()
-        .uri("/tracks/add-track")
-        .set_json(track_params)
-        .to_request();
-    let resp: AddTrackResult = test::call_and_read_body_json(&app, req).await;
-    Ok(resp)
-}
-
-async fn remove_track(
-    app: &mut impl Service<
-        Request,
-        Response = actix_web::dev::ServiceResponse,
-        Error = actix_web::Error,
-    >,
-    track_id: &str,
-) -> Result<(), String> {
-    let remove_request = test::TestRequest::delete()
-        .uri(&format!("/tracks/remove/{}", track_id))
-        .to_request();
-    let resp = test::call_service(&app, remove_request).await;
-    let status = resp.status();
-    assert!(matches!(resp.status(), StatusCode::OK));
-    Ok(())
 }

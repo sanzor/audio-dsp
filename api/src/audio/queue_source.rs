@@ -3,8 +3,6 @@ use std::{collections::VecDeque, future::Future, pin::Pin, sync::Arc};
 use player::{audio_source::audio_source::AudioSource, AudioFrame};
 use tokio::sync::Mutex;
 
-
-
 pub struct QueueSource {
     pub queue: Arc<Mutex<VecDeque<AudioFrame>>>,
 }

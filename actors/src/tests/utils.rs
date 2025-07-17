@@ -3,8 +3,6 @@ use std::sync::Arc;
 use audiolib::audio_buffer::AudioBuffer;
 use domain::{
     actors::messages::player::get_player_state::{GetPlayerState, GetPlayerStateResult},
-    raw_track::{RawTrack, TrackInfo},
-    track::Track,
     track_meta::TrackMeta,
 };
 
