@@ -104,9 +104,9 @@ impl Message<UserAttachSink> for UserActor {
         let player_result = self.players_provider.get(msg.track_id.clone()).await;
         match player_result {
             Ok(player) => {
-                self.handle_attach_to_existing_player( msg,&player.player_ref).await
+                self.handle_attach_sink_to_existing_player( msg,&player.player_ref).await
             }
-            Err(err) => self.handle_attach_to_new_player(msg).await,
+            Err(err) => self.handle_attach_sink_to_new_player(msg).await,
         }
     }
 }
@@ -169,7 +169,7 @@ impl UserActor {
         };
         Ok(payload)
     }
-    async fn handle_attach_to_new_player(
+    async fn handle_attach_sink_to_new_player(
         &mut self,
         msg: UserAttachSink,
     ) -> Result<UserAttachSinkResult, String> {
@@ -202,7 +202,7 @@ impl UserActor {
             Err("Could not insert ".into())
         }
     }
-    async fn handle_attach_to_existing_player(
+    async fn handle_attach_sink_to_existing_player(
         &mut self,
         msg: UserAttachSink,
         player_ref: &ActorRef<AudioPlayerActor>,

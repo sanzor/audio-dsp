@@ -1,7 +1,9 @@
 use std::{collections::VecDeque, future::Future, pin::Pin, sync::Arc};
 
-use player::{audio_sink::AudioSink, AudioFrame};
+
 use tokio::sync::Mutex;
+
+use crate::{audio_sink::AudioSink, AudioFrame};
 
 pub struct QueueSink {
     pub queue: Arc<Mutex<VecDeque<AudioFrame>>>,

@@ -1,24 +1,22 @@
 use std::{collections::VecDeque, sync::Arc, time::Duration};
 
 use actix_web::{
-    body::MessageBody,
     get,
-    web::{self, Bytes, ServiceConfig},
+    web::{self, ServiceConfig},
     HttpRequest, HttpResponse,
 };
-use actors::user_actor::{user_actor::UserActor, user_attach_sink::UserAttachSink};
+use actors::user_actor::{user_actor::UserActor, user_attach_sink::{UserAttachSink, UserAttachSinkResult}};
 use async_std::stream::StreamExt;
 use domain::actors::messages::user_to_player::{
     user_pause::UserPause, user_play::UserPlay, user_seek::UserSeek, user_stop::UserStop,
 };
 use kameo::actor::ActorRef;
-use player::{audio_source::audio_source::AudioSource, AudioFrame};
+use player::{audio_sink::queue_sink::QueueSink, audio_source::{audio_source::AudioSource, queue_source::QueueSource}, AudioFrame};
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 
 use crate::{
     app_data::AppData,
-    audio::{queue_sink::QueueSink, queue_source::QueueSource},
     controllers::utils::get_user_internal,
 };
 
@@ -59,17 +57,23 @@ async fn run_player(
     let sink = QueueSink {
         queue: Arc::clone(&queue),
     };
+
+    ///create source
+    let mut source = QueueSource { queue: queue };
+
+
     let attach_sink_message = UserAttachSink {
         sink: Box::new(sink),
         track_id: query.track_id.clone(),
     };
-    let attach_result = match user.ask(attach_sink_message).await.map_err(|e|e.to_string()){
+    let _: UserAttachSinkResult = match user.ask(attach_sink_message).await.map_err(|e|e.to_string()){
         Err(e)=>return Ok(HttpResponse::InternalServerError().body("Could not attach sink to audio player")),
-        Ok(r)=>r
-    };
-    ///create source
-    let mut source = QueueSource { queue: queue };
+        Ok(r)=>{
+            println!("Attached sink with result {:?}",r);
+            r
+        }
 
+    };
     //open websocket
     let (response, mut session, mut ws_stream) = actix_ws::handle(&req, stream)?;
 
