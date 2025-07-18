@@ -5,7 +5,6 @@ use domain::{
     actors::{
         messages::{
             crud::insert_track::InsertTrack,
-            player::stop::Stop,
             user::get_user_state::{GetUserState, GetUserStateResult},
             user_to_player::{
                 user_get_player_state::UserGetPlayerState, user_pause::UserPause,
@@ -20,12 +19,13 @@ use domain::{
 
 use dsp_core::tracks_provider::LocalTrackStoreProvider;
 use kameo::{actor::ActorRef, Actor};
+use player::audio_sink::AudioSink;
 use ulid::Ulid;
 
 use crate::user_actor::{
     create_user_actor_params::CreateUserActorParams, create_user_data::CreateUserData,
     local_players_provider::LocalPlayerProvider, player_factory::PlayerFactory,
-    user_actor::UserActor,
+    user_actor::UserActor, user_attach_sink::{UserAttachSink, UserAttachSinkResult}, user_remove_sink::{UserRemoveSink, UserRemoveSinkResult},
 };
 
 fn create_user_actor(id: Ulid) -> ActorRef<UserActor> {
@@ -46,6 +46,7 @@ fn create_user_actor(id: Ulid) -> ActorRef<UserActor> {
 
     actor
 }
+
 
 #[tokio::test]
 async fn can_create_player_and_play() -> Result<(), String> {
@@ -85,7 +86,7 @@ async fn can_play_on_existing_player() -> Result<(), String> {
         .ask(InsertTrack { track: track })
         .await
         .map_err(|e| e.to_string())?;
-
+    
     let play = user_actor
         .tell(UserPlay {
             track_id: insert_result.track_id.clone(),
@@ -187,6 +188,7 @@ async fn get_player_state(
         cursor: rez.cursor,
         written: rez.written,
         state: rez.state,
+        sinks:rez.sinks
     })
 }
 async fn get_user_state(user_actor: &ActorRef<UserActor>) -> Result<GetUserStateResult, String> {
@@ -195,5 +197,23 @@ async fn get_user_state(user_actor: &ActorRef<UserActor>) -> Result<GetUserState
         .await
         .map_err(|e| e.to_string())?;
 
+    Ok(rez)
+}
+
+async fn attach_sink(user_actor:&ActorRef<UserActor>,track_id:String,sink:Box<dyn AudioSink+Send+Sync>)->Result<UserAttachSinkResult,String>{
+    let params=UserAttachSink{
+        sink:sink,
+        track_id:track_id
+    };
+    let rez=user_actor.ask(params).await.map_err(|e|e.to_string())?;
+    Ok(rez)
+}
+
+async fn remove_sink(user_actor:&ActorRef<UserActor>,sink_id:String,track_id:String)->Result<UserRemoveSinkResult,String>{
+    let params=UserRemoveSink{
+        sink_id:sink_id,
+        track_id:track_id
+    };
+    let rez=user_actor.ask(params).await.map_err(|e|e.to_string())?;
     Ok(rez)
 }

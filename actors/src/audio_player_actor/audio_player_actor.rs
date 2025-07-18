@@ -6,16 +6,14 @@ use audiolib::audio_buffer::AudioBuffer;
 use domain::{actors::player_state::AudioPlayerState, track_meta::TrackMeta};
 use kameo::prelude::ActorRef;
 use player::audio_sink::AudioSink;
-use tokio::sync::Mutex;
 
 pub struct AudioPlayerActor {
-    pub(crate) sink: Box<dyn AudioSink + Send + Sync>,
     pub(crate) state: AudioPlayerState,
     pub(crate) cursor: usize,
     pub(crate) frames_written: usize,
     pub(crate) track_payload: Arc<AudioBuffer>,
     pub(crate) track_meta: TrackMeta,
-    pub(crate) sinks: HashMap<String, Arc<Mutex<dyn AudioSink + Send>>>,
+    pub(crate) sinks: HashMap<String, Box<dyn AudioSink + Sync + Send>>,
 }
 impl kameo::Actor for AudioPlayerActor {
     type Error = String;
@@ -31,13 +29,12 @@ impl kameo::Actor for AudioPlayerActor {
 impl AudioPlayerActor {
     pub fn new(params: CreateAudioPlayerActorParams) -> AudioPlayerActor {
         AudioPlayerActor {
-            sink: params.sink,
             state: AudioPlayerState::Paused,
             cursor: params.cursor,
             track_payload: params.track_payload,
             frames_written: 0,
             track_meta: params.meta,
-            sinks: HashMap::new(),
+            sinks: params.sinks,
         }
     }
 }

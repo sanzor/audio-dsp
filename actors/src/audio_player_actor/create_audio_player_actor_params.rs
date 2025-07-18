@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use audiolib::audio_buffer::AudioBuffer;
 use domain::track_meta::TrackMeta;
@@ -8,7 +8,7 @@ use player::audio_sink::AudioSink;
 use crate::audio_player_actor::audio_player_actor::AudioPlayerActor;
 
 pub struct CreateAudioPlayerActorParams {
-    pub sink: Box<dyn AudioSink + Sync + Send + 'static>,
+    pub sinks: HashMap<String, Box<dyn AudioSink + Sync + Send + 'static>>,
     pub cursor: usize,
     pub track_payload: Arc<AudioBuffer>,
     pub meta: TrackMeta,

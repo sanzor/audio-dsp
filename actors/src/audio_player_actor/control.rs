@@ -6,6 +6,7 @@ use domain::actors::{
     messages::player::{
         pause::{Pause, PauseResult},
         play::{Play, PlayResult},
+        remove_sink::{RemoveSink, RemoveSinkResult},
         seek::{Seek, SeekResult},
         stop::{Stop, StopResult},
     },
@@ -17,7 +18,10 @@ use kameo::{
 };
 use player::AudioFrame;
 
-use crate::audio_player_actor::audio_player_actor::AudioPlayerActor;
+use crate::audio_player_actor::{
+    attach_sink::{AttachSink, AttachSinkResult},
+    audio_player_actor::AudioPlayerActor,
+};
 struct PlayFrame {}
 impl Message<Play> for AudioPlayerActor {
     type Reply = Result<PlayResult, String>;
@@ -80,9 +84,15 @@ impl Message<PlayFrame> for AudioPlayerActor {
             return Ok(()); //
         }
         if let Some(frame) = self.get_frame(self.cursor) {
-            self.sink.write_frame(frame).await?;
-            self.cursor += 1;
-            self.frames_written += 1;
+            for (sink_id, sink) in self.sinks.iter_mut() {
+                match sink.write_frame(frame.clone()).await {
+                    Ok(_) => (),
+                    Err(e) => {}
+                }
+                self.cursor += 1;
+                self.frames_written += 1;
+            }
+
             Ok(())
         } else {
             self.state = AudioPlayerState::Paused;
@@ -92,6 +102,36 @@ impl Message<PlayFrame> for AudioPlayerActor {
     }
 }
 
+impl Message<AttachSink> for AudioPlayerActor {
+    type Reply = Result<AttachSinkResult, String>;
+
+    async fn handle(
+        &mut self,
+        msg: AttachSink,
+        ctx: &mut Context<Self, Self::Reply>,
+    ) -> Self::Reply {
+        let sink_id = ulid::Ulid::new().to_string();
+        match self.sinks.insert(sink_id.clone(), msg.sink) {
+            None => Ok(AttachSinkResult { sink_id: sink_id }),
+            Some(s) => Err("Sink already present".to_string()),
+        }
+    }
+}
+
+impl Message<RemoveSink> for AudioPlayerActor {
+    type Reply = Result<RemoveSinkResult, String>;
+
+    async fn handle(
+        &mut self,
+        msg: RemoveSink,
+        ctx: &mut Context<Self, Self::Reply>,
+    ) -> Self::Reply {
+        match self.sinks.remove(&msg.sink_id) {
+            Some(sink) => Ok(RemoveSinkResult {}),
+            None => Err("Could not find sink".to_string()),
+        }
+    }
+}
 impl AudioPlayerActor {
     pub(crate) fn start_streaming_task(&self, actor_ref: ActorRef<Self>) {
         let mut interval = tokio::time::interval(Duration::from_millis(200));

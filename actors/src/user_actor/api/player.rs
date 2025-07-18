@@ -1,9 +1,11 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use audiolib::audio_buffer::AudioBuffer;
 use domain::actors::messages::player::get_player_state::GetPlayerState;
 use domain::actors::messages::player::pause::Pause;
 use domain::actors::messages::player::play::Play;
+use domain::actors::messages::player::remove_sink::RemoveSink;
 use domain::actors::messages::player::{seek::Seek, stop::Stop};
 use domain::actors::messages::user_to_player::user_get_player_state::UserGetPlayerStateResult;
 use domain::actors::messages::user_to_player::user_pause::UserPauseResult;
@@ -16,22 +18,26 @@ use domain::actors::messages::user_to_player::{
 };
 use kameo::actor::ActorRef;
 use kameo::prelude::{Context, Message};
-use player::audio_sink::cpal_sink::CpalSink;
 
+use crate::audio_player_actor::attach_sink::AttachSink;
 use crate::audio_player_actor::audio_player_actor::AudioPlayerActor;
 use crate::audio_player_actor::create_audio_player_actor_params::CreateAudioPlayerActorParams;
 
 use crate::user_actor::user_actor::UserActor;
+use crate::user_actor::user_attach_sink::{UserAttachSink, UserAttachSinkResult};
+use crate::user_actor::user_remove_sink::{UserRemoveSink, UserRemoveSinkResult};
 
 impl Message<UserPlay> for UserActor {
     type Reply = Result<UserPlayResult, String>;
 
     async fn handle(&mut self, msg: UserPlay, ctx: &mut Context<Self, Self::Reply>) -> Self::Reply {
         let player_result = self.players_provider.get(msg.track_id.clone()).await;
-        match player_result {
-            Ok(player) => self.handle_play_existing_player(&player.player_ref).await,
-            Err(err) => self.handle_play_new_player(&msg.track_id).await,
-        }
+
+        let res = match player_result {
+            Ok(player) => player.player_ref.tell(Play {}).await,
+            Err(err) => return Err("Could not find player".to_string()),
+        };
+        Ok(UserPlayResult {})
     }
 }
 
@@ -87,7 +93,40 @@ impl Message<UserSeek> for UserActor {
         }
     }
 }
+impl Message<UserAttachSink> for UserActor {
+    type Reply = Result<UserAttachSinkResult, String>;
 
+    async fn handle(
+        &mut self,
+        msg: UserAttachSink,
+        ctx: &mut Context<Self, Self::Reply>,
+    ) -> Self::Reply {
+        let player_result = self.players_provider.get(msg.track_id.clone()).await;
+        match player_result {
+            Ok(player) => {
+                self.handle_attach_to_existing_player( msg,&player.player_ref).await
+            }
+            Err(err) => self.handle_attach_to_new_player(msg).await,
+        }
+    }
+}
+
+impl Message<UserRemoveSink> for UserActor {
+    type Reply = Result<UserRemoveSinkResult, String>;
+
+    async fn handle(
+        &mut self,
+        msg: UserRemoveSink,
+        ctx: &mut Context<Self, Self::Reply>,
+    ) -> Self::Reply {
+        let player_result = self.players_provider.get(msg.track_id.clone()).await?;
+        match player_result.player_ref.ask(RemoveSink{sink_id:msg.sink_id}).await.map_err(|e|e.to_string()){
+            Ok(e)=>Ok(UserRemoveSinkResult {  }),
+            Err(e)=>Err(e.to_string())
+        }
+
+    }
+}
 impl Message<UserGetPlayerState> for UserActor {
     type Reply = Result<UserGetPlayerStateResult, String>;
 
@@ -100,7 +139,7 @@ impl Message<UserGetPlayerState> for UserActor {
         match player {
             Err(e) => Err(e),
             Ok(p) => {
-                let x = p
+                let x: domain::actors::messages::player::get_player_state::GetPlayerStateResult = p
                     .player_ref
                     .ask(GetPlayerState {})
                     .await
@@ -109,6 +148,7 @@ impl Message<UserGetPlayerState> for UserActor {
                     cursor: x.cursor,
                     written: x.written,
                     state: x.state,
+                    sinks:x.sinks
                 })
             }
         }
@@ -129,15 +169,19 @@ impl UserActor {
         };
         Ok(payload)
     }
-    async fn handle_play_new_player(&mut self, track_id: &str) -> Result<UserPlayResult, String> {
-        let meta = self.tracks_provider.get_track_meta(track_id).await?;
-
-        let sink = Box::new(CpalSink::new()?);
-        let payload = self.get_payload(track_id).await?;
+    async fn handle_attach_to_new_player(
+        &mut self,
+        msg: UserAttachSink,
+    ) -> Result<UserAttachSinkResult, String> {
+        let meta = self.tracks_provider.get_track_meta(&msg.track_id).await?;
+        let sink_id = ulid::Ulid::new().to_string();
+        let mut sinks = HashMap::new();
+        sinks.insert(sink_id.clone(), msg.sink);
+        let payload = self.get_payload(&msg.track_id).await?;
         let create_audio_actor_params = CreateAudioPlayerActorParams {
             track_payload: payload,
             cursor: 0,
-            sink: sink,
+            sinks: sinks,
             meta: meta,
         };
 
@@ -145,29 +189,28 @@ impl UserActor {
             .player_factory
             .create_audio_actor(create_audio_actor_params)?;
 
-        let _ = create_actor_result
-            .audio_actor_ref
-            .tell(Play {})
-            .await
-            .unwrap();
         if let Ok(()) = self
             .players_provider
-            .store(track_id.to_string(), create_actor_result.audio_actor_ref)
+            .store(
+                msg.track_id.to_string(),
+                create_actor_result.audio_actor_ref,
+            )
             .await
         {
-            Ok(UserPlayResult {})
+            Ok(UserAttachSinkResult {sink_id:sink_id,track_id:msg.track_id})
         } else {
             Err("Could not insert ".into())
         }
     }
-    async fn handle_play_existing_player(
+    async fn handle_attach_to_existing_player(
         &mut self,
+        msg: UserAttachSink,
         player_ref: &ActorRef<AudioPlayerActor>,
-    ) -> Result<UserPlayResult, String> {
-        if player_ref.tell(Play {}).await.is_err() {
-            Err("Could not start player".into())
-        } else {
-            Ok(UserPlayResult {})
+    ) -> Result<UserAttachSinkResult, String> {
+        match player_ref.ask(AttachSink { sink: msg.sink }).await{
+            Err(e)=>Err(e.to_string()),
+        
+            Ok(r)=>Ok(UserAttachSinkResult { track_id: msg.track_id, sink_id:r.sink_id })
         }
     }
 }

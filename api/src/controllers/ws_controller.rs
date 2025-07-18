@@ -6,7 +6,7 @@ use actix_web::{
     web::{self, Bytes, ServiceConfig},
     HttpRequest, HttpResponse,
 };
-use actors::user_actor::user_actor::UserActor;
+use actors::user_actor::{user_actor::UserActor, user_attach_sink::UserAttachSink};
 use async_std::stream::StreamExt;
 use domain::actors::messages::user_to_player::{
     user_pause::UserPause, user_play::UserPlay, user_seek::UserSeek, user_stop::UserStop,
@@ -31,7 +31,7 @@ pub struct PlayRequest {
     pub user_id: String,
     pub track_id: String,
 }
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 #[serde(tag = "type")]
 pub enum WsMessage {
     Play { track_id: String },
@@ -59,7 +59,14 @@ async fn run_player(
     let sink = QueueSink {
         queue: Arc::clone(&queue),
     };
-
+    let attach_sink_message = UserAttachSink {
+        sink: Box::new(sink),
+        track_id: query.track_id.clone(),
+    };
+    let attach_result = match user.ask(attach_sink_message).await.map_err(|e|e.to_string()){
+        Err(e)=>return Ok(HttpResponse::InternalServerError().body("Could not attach sink to audio player")),
+        Ok(r)=>r
+    };
     ///create source
     let mut source = QueueSource { queue: queue };
 
@@ -95,8 +102,9 @@ async fn run_player(
                             }
                         },
                         Some(Ok(actix_ws::Message::Text(data))) => {
-                            let message: WsMessage = serde_json::from_str(&data).unwrap();
-                            let _=handle_ws_message(message, &user).await.unwrap();
+                            if let Ok(message)= serde_json::from_str(&data){
+                                handle_ws_message(message, &user).await.unwrap();
+                            }
                         }
                         Some(Ok(_))=>{
                             //

@@ -1,8 +1,7 @@
 use core::panic;
 use std::{collections::HashMap, sync::Arc};
 
-use actix_http::StatusCode;
-use actix_web::{test, web, App};
+use actix_web::{test, web, App, HttpServer};
 
 use actors::user_actor::player_factory::PlayerFactory;
 use audiolib::Channels;
@@ -22,7 +21,7 @@ use crate::{
     app_data::AppData,
     controllers::{
         tracks_crud_controller::{self, AddTrackParams},
-        ws_controller::{self, WebsocketSendMessage},
+        ws_controller::{self, WebsocketSendMessage, WsMessage},
     },
     player_controller_test::utils::{create_user_actor, insert_track, make_raw_track_from_samples},
 };
@@ -39,10 +38,22 @@ async fn can_start_player_ws() -> Result<(), String> {
         player_factory: Arc::new(PlayerFactory {}),
         user_map: Arc::new(Mutex::new(user_map)),
     };
+    let url = "127.0.0.1:0";
+    let server_app_data = app_data.clone();
+    let sv = HttpServer::new(move || {
+        App::new()
+            .app_data(web::Data::new(server_app_data.clone()))
+            .service(web::scope("/ws").configure(ws_controller::init))
+            .service(web::scope("/tracks").configure(tracks_crud_controller::init))
+    });
+    let bound = sv.bind(url).unwrap();
+    let addr = bound.addrs()[0];
+
+    let server_handle = actix_rt::spawn(bound.run());
+
     let mut app = test::init_service(
         App::new()
             .app_data(web::Data::new(app_data))
-            .service(web::scope("/ws").configure(ws_controller::init))
             .service(web::scope("/tracks").configure(tracks_crud_controller::init)),
     )
     .await;
@@ -57,35 +68,29 @@ async fn can_start_player_ws() -> Result<(), String> {
     .await?;
 
     let url = format!(
-        "ws://127.0.0.1:8080/ws/run?user_id={}&track_id={}",
-        id, insert_result.track_id
+        "ws://{}:{}/ws/run?user_id={}&track_id={}",
+        addr.ip(),
+        addr.port(),
+        id,
+        insert_result.track_id
     );
 
-    // let (mut ws_stream, _) = connect_async(&url).await.expect("Failed to connect");
-    match connect_async(&url).await {
-    Ok((ws_stream, _)) => {
-        // good
-    }
-    Err(e) => {
-        eprintln!("WebSocket connection failed: {:?}", e);
-       
-    }
-    }
-    // let (mut write, mut ws_reader) = ws_stream.split();
+    let (mut ws_stream, _) = connect_async(&url).await.expect("Failed to connect");
 
-    // let play_request = serde_json::to_string(&UserPlay {
-    //     track_id: insert_result.track_id,
-    // })
-    // .unwrap();
+    let (mut write, mut ws_reader) = ws_stream.split();
 
-    // let v = write.send(Message::Text(play_request.into())).await;
-    // let msg = read::<WebsocketSendMessage>(&mut ws_reader).await?;
-    // let frame = match msg {
-    //     WebsocketSendMessage::AudioFrame { audio_frame } => audio_frame,
-    //     _ => panic!(),
-    // };
+    let play_request = serde_json::to_string(&WsMessage::Play {
+        track_id: insert_result.track_id,
+    })
+    .unwrap();
 
-    todo!();
+    let v = write.send(Message::Text(play_request.into())).await;
+    let msg = read::<WebsocketSendMessage>(&mut ws_reader).await?;
+    let frame = match msg {
+        WebsocketSendMessage::AudioFrame { audio_frame } => audio_frame,
+        _ => panic!(),
+    };
+    Ok(())
 }
 
 async fn read<T>(

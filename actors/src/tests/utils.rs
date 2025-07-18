@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use audiolib::audio_buffer::AudioBuffer;
 use domain::{
@@ -19,12 +19,16 @@ pub(crate) fn create_user_actor_with_track(
     buffer: Arc<AudioBuffer>,
     sink: Box<dyn AudioSink + Send + Sync + 'static>,
 ) -> ActorRef<AudioPlayerActor> {
+    let sink_id = ulid::Ulid::new().to_string();
+    let mut sinks = HashMap::new();
+    sinks.insert(sink_id, sink);
     let audio_player_actor_params = CreateAudioPlayerActorParams {
-        sink: sink,
+        sinks: sinks,
         track_payload: Arc::clone(&buffer),
         meta: meta,
         cursor: 0,
     };
+
     let audio_player_actor =
         AudioPlayerActor::spawn(AudioPlayerActor::new(audio_player_actor_params));
 

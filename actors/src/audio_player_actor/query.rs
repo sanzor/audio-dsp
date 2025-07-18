@@ -15,6 +15,7 @@ impl Message<GetPlayerState> for AudioPlayerActor {
             cursor: self.cursor,
             state: self.state.clone(),
             written: self.frames_written,
+            sinks: self.sinks.keys().map(|e|e).collect()
         }))
     }
 }
