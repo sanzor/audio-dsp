@@ -24,11 +24,11 @@ use ulid::Ulid;
 
 #[derive(Deserialize, Clone, Debug, Serialize)]
 pub struct GetUserDataResult {
-    players: HashMap<String, GetPlayerStateResult>,
-    tracks: HashMap<String, TrackMeta>,
+    pub players: HashMap<String, GetPlayerStateResult>,
+    pub tracks: HashMap<String, TrackMeta>,
 }
-#[get("/get-user")]
-async fn get_user(path: web::Path<String>, app_state: web::Data<AppData>) -> HttpResponse {
+#[get("/get-user-state/{user_id}")]
+async fn get_user_state(path: web::Path<String>, app_state: web::Data<AppData>) -> HttpResponse {
     let user_id = path.into_inner();
     let guard = app_state.user_map.lock().await;
     let user = match guard.get(&user_id).cloned() {
@@ -161,7 +161,7 @@ async fn get_user_internal(
 }
 pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(create)
-        .service(get_user)
+        .service(get_user_state)
         .service(delete)
         .service(update);
 }

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use actix_http::{Request, StatusCode};
-use actix_web::{dev::Service, test, web, App};
+use actix_web::{dev::Service, test};
 use actors::user_actor::{
     create_user_actor_params::CreateUserActorParams, create_user_data::CreateUserData,
     local_players_provider::LocalPlayerProvider, player_factory::PlayerFactory,
@@ -9,14 +9,16 @@ use actors::user_actor::{
 };
 use audiolib::{audio_buffer::AudioBuffer, Channels};
 use domain::{
-    actors::messages::crud::get_tracks::GetTracksResult,
+    actors::messages::
+        crud::get_tracks::GetTracksResult
+    ,
     raw_track::{RawTrack, TrackInfo},
 };
 use dsp_core::tracks_provider::LocalTrackStoreProvider;
 use kameo::{actor::ActorRef, Actor};
 use ulid::Ulid;
 
-use crate::controllers::tracks_crud_controller::{AddTrackParams, AddTrackResult};
+use crate::controllers::{tracks_crud_controller::{AddTrackParams, AddTrackResult}, user_controller::GetUserDataResult};
 
 pub fn create_user_actor(id: Ulid) -> ActorRef<UserActor> {
     let tracks_provider = Box::new(LocalTrackStoreProvider::new());
@@ -105,4 +107,20 @@ pub fn make_raw_track_from_samples(samples: Vec<f32>, channels: Channels) -> Raw
             },
         },
     }
+}
+pub async fn get_user_state(
+    app: &mut impl Service<
+        Request,
+        Response = actix_web::dev::ServiceResponse,
+        Error = actix_web::Error,
+    >,
+    user_id: String,
+) -> Result<GetUserDataResult, String> {
+    let get_user_state_request = actix_web::test::TestRequest::get()
+        .uri(&format!("/user/get-user-state/{}", user_id.to_string()))
+        .to_request();
+
+    let user_state_result: GetUserDataResult =
+        test::call_and_read_body_json(&app, get_user_state_request).await;
+    Ok(user_state_result)
 }

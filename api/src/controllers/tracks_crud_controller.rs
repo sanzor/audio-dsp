@@ -3,7 +3,6 @@ use actix_web::{
     web::{self},
     HttpResponse,
 };
-use actors::user_actor::user_actor::UserActor;
 use domain::{
     actors::messages::crud::{
         copy_track::CopyTrack, delete_track::DeleteTrack, get_track::GetRawTrack,
@@ -12,7 +11,6 @@ use domain::{
     },
     raw_track::{RawTrack, TrackInfo},
 };
-use kameo::actor::ActorRef;
 use serde::{Deserialize, Serialize};
 
 use crate::{app_data::AppData, controllers::utils::get_user_internal};

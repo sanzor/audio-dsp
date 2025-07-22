@@ -8,5 +8,5 @@ pub struct UserGetPlayerStateResult {
     pub cursor: usize,
     pub written: usize,
     pub state: AudioPlayerState,
-    pub sinks:Vec<String>
+    pub sinks: Vec<String>,
 }

@@ -6,6 +6,6 @@ pub struct UserAttachSink {
 }
 #[derive(Debug)]
 pub struct UserAttachSinkResult {
-    pub track_id:String,
-    pub sink_id:String
+    pub track_id: String,
+    pub sink_id: String,
 }

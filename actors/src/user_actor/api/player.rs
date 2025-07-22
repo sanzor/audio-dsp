@@ -104,7 +104,8 @@ impl Message<UserAttachSink> for UserActor {
         let player_result = self.players_provider.get(msg.track_id.clone()).await;
         match player_result {
             Ok(player) => {
-                self.handle_attach_sink_to_existing_player( msg,&player.player_ref).await
+                self.handle_attach_sink_to_existing_player(msg, &player.player_ref)
+                    .await
             }
             Err(err) => self.handle_attach_sink_to_new_player(msg).await,
         }
@@ -120,11 +121,17 @@ impl Message<UserRemoveSink> for UserActor {
         ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
         let player_result = self.players_provider.get(msg.track_id.clone()).await?;
-        match player_result.player_ref.ask(RemoveSink{sink_id:msg.sink_id}).await.map_err(|e|e.to_string()){
-            Ok(e)=>Ok(UserRemoveSinkResult {  }),
-            Err(e)=>Err(e.to_string())
+        match player_result
+            .player_ref
+            .ask(RemoveSink {
+                sink_id: msg.sink_id,
+            })
+            .await
+            .map_err(|e| e.to_string())
+        {
+            Ok(e) => Ok(UserRemoveSinkResult {}),
+            Err(e) => Err(e.to_string()),
         }
-
     }
 }
 impl Message<UserGetPlayerState> for UserActor {
@@ -148,7 +155,7 @@ impl Message<UserGetPlayerState> for UserActor {
                     cursor: x.cursor,
                     written: x.written,
                     state: x.state,
-                    sinks:x.sinks
+                    sinks: x.sinks,
                 })
             }
         }
@@ -197,7 +204,10 @@ impl UserActor {
             )
             .await
         {
-            Ok(UserAttachSinkResult {sink_id:sink_id,track_id:msg.track_id})
+            Ok(UserAttachSinkResult {
+                sink_id: sink_id,
+                track_id: msg.track_id,
+            })
         } else {
             Err("Could not insert ".into())
         }
@@ -207,10 +217,13 @@ impl UserActor {
         msg: UserAttachSink,
         player_ref: &ActorRef<AudioPlayerActor>,
     ) -> Result<UserAttachSinkResult, String> {
-        match player_ref.ask(AttachSink { sink: msg.sink }).await{
-            Err(e)=>Err(e.to_string()),
-        
-            Ok(r)=>Ok(UserAttachSinkResult { track_id: msg.track_id, sink_id:r.sink_id })
+        match player_ref.ask(AttachSink { sink: msg.sink }).await {
+            Err(e) => Err(e.to_string()),
+
+            Ok(r) => Ok(UserAttachSinkResult {
+                track_id: msg.track_id,
+                sink_id: r.sink_id,
+            }),
         }
     }
 }

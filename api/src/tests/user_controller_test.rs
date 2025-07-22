@@ -10,9 +10,40 @@ use tokio::sync::Mutex;
 use crate::{
     app_data::AppData,
     controllers::user_controller::{
-        self, CreateUserParams, CreateUserResult, UpdateUserParams, UserUpdateResult,
+        self, CreateUserParams, CreateUserResult, GetUserDataResult, UpdateUserParams,
+        UserUpdateResult,
     },
 };
+
+#[rstest]
+#[actix_web::test]
+async fn can_get_user() -> Result<(), String> {
+    let user_name = "adrian";
+    let email = "adrian.bercovici@gmail.com";
+
+    let app_data = AppData {
+        player_factory: Arc::new(PlayerFactory {}),
+        user_map: Arc::new(Mutex::new(HashMap::new())),
+    };
+    let mut app = test::init_service(
+        App::new()
+            .app_data(web::Data::new(app_data))
+            .service(web::scope("/user").configure(user_controller::init)),
+    )
+    .await;
+    let insert_result = insert_user(
+        &mut app,
+        CreateUserParams {
+            user_name: user_name.to_string(),
+            email: email.to_string(),
+        },
+    )
+    .await?;
+    let uri = format!("/user/get-user-state/{}", insert_result.user_id);
+    let get_user_request: Request = test::TestRequest::get().uri(&uri).to_request();
+    let result: GetUserDataResult = test::call_and_read_body_json(&app, get_user_request).await;
+    Ok(())
+}
 
 #[rstest]
 #[actix_web::test]
