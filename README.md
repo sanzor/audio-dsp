@@ -1,17 +1,15 @@
-Audio Media processing and playing distributed platform (actix & tokio), composed of:
-- a DSP (digital processing library)
-- an Audio Player library (controlling the media player)
-- CLI (command line interface) for common operations over audio files (.wav supported only at the moment)
-- using actors for user & audio player management 
+Digital Audio Workstation (DAW) SaaS platform with Rust (Kameo actors, Tokio, Actix) supporting:
+- track management
+- streaming audio files
+- applying digital transforms on tracks
 
-The CLI currently covers the following operations:
-- Load audio to CLI
+Currently supported operations:
+- Load audio track
 - Upload processed audio to disk
-- Copy audio file to
+- Copy audio file
 - Gain
 - Normalize
 - Low Pass Filter - applies low pass filter over a audio file
 - High Pass Filter - applies high pass filter over a audio file
+- Stream audio tracks with supporting controls (play/pause/stop/seek)
 
-It also contains commands for playing audio files:
- - start/stop/pause/seek
