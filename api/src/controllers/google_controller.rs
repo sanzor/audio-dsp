@@ -1,10 +1,41 @@
-use std::env;
+
 
 use actix_web::{get, web, HttpResponse};
-use oauth2::{basic::BasicClient, AuthUrl, ClientId, ClientSecret, RedirectUrl, TokenUrl};
-use serde::Deserialize;
+
+use serde::{Deserialize, Serialize};
+
+
+
+#[get("/auth/google")]
+async fn google_auth_redirect() -> HttpResponse {
+    let client_id = std::env::var("GOOGLE_CLIENT_ID").unwrap();
+    let redirect_uri = std::env::var("GOOGLE_REDIRECT_URI").unwrap();
+
+    let auth_url = format!(
+        "https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id={}&redirect_uri={}&scope=openid%20email%20profile&access_type=offline&prompt=consent",
+        client_id,
+        urlencoding::encode(&redirect_uri),
+    );
+
+    HttpResponse::Found()
+        .append_header(("Location", auth_url))
+        .finish()
+}
+#[derive(Deserialize)]
+struct AuthRequest {
+    code: String,
+}
 
 #[derive(Deserialize)]
+struct TokenResponse {
+    access_token: String,
+    id_token: Option<String>,
+    expires_in: u64,
+    token_type: String,
+    refresh_token: Option<String>,
+}
+
+#[derive(Deserialize,Serialize)]
 struct GoogleUserInfo {
     sub: String,
     email: String,
@@ -12,26 +43,47 @@ struct GoogleUserInfo {
     picture: String,
 }
 
-fn create_google_client() -> BasicClient {
-    let client_id = ClientId::new(env::var("GOOGLE_CLIENT_ID").unwrap());
-    let client_secret = ClientSecret::new(env::var("GOOGLE_CLIENT_SECRET").unwrap());
-    let auth_url = AuthUrl::new("https://accounts.google.com/o/oauth2/auth".to_string()).unwrap();
-    let token_url = TokenUrl::new("https://oauth2.googleapis.com/token".to_string()).unwrap();
-    BasicClient::new(client_id).set_redirect_uri(
-        RedirectUrl::new("http://localhost:8000/auth/google/callback".to_string()).unwrap(),
-    )
+#[get("/auth/google/callback")]
+async fn google_callback(query: web::Query<AuthRequest>) -> HttpResponse {
+    let client_id = std::env::var("GOOGLE_CLIENT_ID").unwrap();
+    let client_secret = std::env::var("GOOGLE_CLIENT_SECRET").unwrap();
+    let redirect_uri = std::env::var("GOOGLE_REDIRECT_URI").unwrap();
+
+    let params = [
+        ("code", query.code.clone()),
+        ("client_id", client_id),
+        ("client_secret", client_secret),
+        ("redirect_uri", redirect_uri),
+        ("grant_type", "authorization_code".to_string()),
+    ];
+
+    let token_res = reqwest::Client::new()
+        .post("https://oauth2.googleapis.com/token")
+        .form(&params)
+        .send()
+        .await;
+
+    if let Ok(res) = token_res {
+        if let Ok(token) = res.json::<TokenResponse>().await {
+            let user_res = reqwest::Client::new()
+                .get("https://www.googleapis.com/oauth2/v3/userinfo")
+                .bearer_auth(&token.access_token)
+                .send()
+                .await;
+
+            if let Ok(resp) = user_res {
+                if let Ok(user) = resp.json::<GoogleUserInfo>().await {
+                    return HttpResponse::Ok().json(user);
+                }
+            }
+        }
+    }
+
+    HttpResponse::InternalServerError().body("OAuth failed")
 }
 
-#[get("/callback")]
-async fn google_login(
-    query: web::Query<std::collections::HashMap<String, String>>,
-) -> HttpResponse {
-    let code = query.get("code").unwrap().to_string();
-    let client = create_google_client();
-    // let token_result=client
-    todo!()
-}
 pub fn init(cfg: &mut web::ServiceConfig) {
-    cfg.service(google_login);
-    todo!()
+    cfg
+        .service(google_auth_redirect)
+        .service(google_callback);
 }

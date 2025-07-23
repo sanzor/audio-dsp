@@ -1,8 +1,8 @@
 use crate::user::User;
 
 pub struct DomainUser {
-    id: String,
-    name: String,
+    pub id: String,
+    pub name: String,
 }
 
 impl User for DomainUser {

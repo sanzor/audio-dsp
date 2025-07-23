@@ -30,8 +30,8 @@ pub enum WebsocketSendMessage {
 }
 #[derive(Deserialize)]
 pub struct PlayRequest {
-    pub user_id: String,
-    pub track_id: String,
+    user_id: String,
+    track_id: String,
 }
 #[derive(Deserialize, Serialize)]
 #[serde(tag = "type")]

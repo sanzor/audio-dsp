@@ -16,7 +16,7 @@ async fn main() -> std::io::Result<()> {
         user_map: Arc::new(Mutex::new(HashMap::new())),
         player_factory: Arc::new(PlayerFactory {}),
     };
-
+    dotenv::dotenv().ok();
     HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(registry.clone()))
