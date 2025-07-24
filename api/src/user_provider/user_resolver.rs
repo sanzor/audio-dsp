@@ -8,10 +8,11 @@ use tokio::sync::Mutex;
 use crate::{controllers::google_controller::GoogleUserInfo, user_provider::{create_user_params::CreateUserParams, user_provider::UserProvider}};
 
 pub struct UserResolver{
-    actors: Mutex<HashMap<String, UserActor>>,
-    player_factory: Arc<PlayerFactory>,
-    tracks_provider: Arc<dyn TracksProvider + Send + Sync>,
-    players_provider: Arc<dyn PlayersProvider + Send + Sync>,
+    // actors: Mutex<HashMap<String, UserActor>>,
+    // player_factory: Arc<PlayerFactory>,
+    // tracks_provider: Arc<dyn TracksProvider + Send + Sync>,
+    user_provider:Arc<dyn UserProvider+Send+Sync>,
+    user_registry:Arc<UserActorRegistry>,
 }
 
 impl UserResolver{
@@ -28,10 +29,7 @@ impl UserResolver{
                 self.user_provider.create_user(new_user_params).await?
             }
         };
-        let mut map=self.user_actors.lock().await;
-        if !map.contains_key(&domain_user.id){
-            let actor=UserActor::new(CreateUserActorParams{player_factory:})
-        }
+        self.user_registry.get_or_spawn_user_actor(&domain_user.id, domain_user, build_params)
         Ok(())
     }
 }

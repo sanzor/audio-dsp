@@ -231,7 +231,6 @@ fn create_actor(id: Ulid) -> ActorRef<UserActor> {
     };
     let actor = UserActor::spawn(UserActor::new(actor_params));
 
-    let g = kameo::registry::ActorRegistry::new();
 
     actor
 }
