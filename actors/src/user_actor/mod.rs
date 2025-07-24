@@ -9,3 +9,4 @@ pub mod players_provider;
 pub mod user_actor;
 pub mod user_attach_sink;
 pub mod user_remove_sink;
+pub mod user_actor_registry;

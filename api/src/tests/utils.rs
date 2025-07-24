@@ -9,16 +9,17 @@ use actors::user_actor::{
 };
 use audiolib::{audio_buffer::AudioBuffer, Channels};
 use domain::{
-    actors::messages::
-        crud::get_tracks::GetTracksResult
-    ,
+    actors::messages::crud::get_tracks::GetTracksResult,
     raw_track::{RawTrack, TrackInfo},
 };
 use dsp_core::tracks_provider::LocalTrackStoreProvider;
 use kameo::{actor::ActorRef, Actor};
 use ulid::Ulid;
 
-use crate::controllers::{tracks_crud_controller::{AddTrackParams, AddTrackResult}, user_controller::GetUserDataResult};
+use crate::controllers::{
+    tracks_crud_controller::{AddTrackParams, AddTrackResult},
+    user_controller::GetUserDataResult,
+};
 
 pub fn create_user_actor(id: Ulid) -> ActorRef<UserActor> {
     let tracks_provider = Box::new(LocalTrackStoreProvider::new());

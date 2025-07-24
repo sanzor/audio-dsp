@@ -20,7 +20,7 @@ use ulid::Ulid;
 use crate::{
     app_data::AppData,
     controllers::tracks_crud_controller::{self, AddTrackParams, AddTrackResult},
-    player_controller_test::utils::{insert_track, make_raw_track_from_samples},
+    player_controller_test::utils::{insert_track, make_raw_track_from_samples}, user_provider::in_memory_user_provider::InMemoryUserProvider,
 };
 
 #[rstest]
@@ -34,6 +34,7 @@ async fn can_insert_track() -> Result<(), String> {
     let app_data = AppData {
         player_factory: Arc::new(PlayerFactory {}),
         user_map: Arc::new(Mutex::new(user_map)),
+        user_provider:Arc::new(InMemoryUserProvider::new())
     };
     let app = test::init_service(
         App::new()
@@ -66,6 +67,7 @@ async fn can_get_track_metas() -> Result<(), String> {
     let app_data = AppData {
         player_factory: Arc::new(PlayerFactory {}),
         user_map: Arc::new(Mutex::new(user_map)),
+        user_provider:Arc::new(InMemoryUserProvider::new())
     };
     let mut app = test::init_service(
         App::new()
@@ -105,6 +107,7 @@ async fn can_get_track_meta() -> Result<(), String> {
     let app_data = AppData {
         player_factory: Arc::new(PlayerFactory {}),
         user_map: Arc::new(Mutex::new(user_map)),
+        user_provider:Arc::new(InMemoryUserProvider::new())
     };
     let mut app = test::init_service(
         App::new()
@@ -143,11 +146,13 @@ async fn can_get_track_raw() -> Result<(), String> {
     let app_data = AppData {
         player_factory: Arc::new(PlayerFactory {}),
         user_map: Arc::new(Mutex::new(user_map)),
+        user_provider:Arc::new(InMemoryUserProvider::new())
     };
     let mut app = test::init_service(
         App::new()
             .app_data(web::Data::new(app_data))
             .service(web::scope("/tracks").configure(tracks_crud_controller::init)),
+            
     )
     .await;
     let insert = AddTrackParams {
@@ -180,6 +185,7 @@ async fn can_remove_track() -> Result<(), String> {
     let app_data = AppData {
         player_factory: Arc::new(PlayerFactory {}),
         user_map: Arc::new(Mutex::new(user_map)),
+        user_provider:Arc::new(InMemoryUserProvider::new())
     };
     let app = test::init_service(
         App::new()

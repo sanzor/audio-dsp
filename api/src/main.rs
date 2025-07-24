@@ -7,14 +7,16 @@ use actix_web::{
 use actors::user_actor::player_factory::PlayerFactory;
 use dsp_api::{
     app_data::AppData,
-    controllers::{self, facebook_controller, google_controller, ws_controller},
+    controllers::{self, facebook_controller, google_controller, ws_controller}, user_provider::in_memory_user_provider::InMemoryUserProvider,
 };
 use tokio::sync::Mutex;
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+   
     let registry = AppData {
         user_map: Arc::new(Mutex::new(HashMap::new())),
         player_factory: Arc::new(PlayerFactory {}),
+        user_provider:Arc::new(InMemoryUserProvider::new())
     };
     dotenv::dotenv().ok();
     HttpServer::new(move || {
@@ -24,10 +26,10 @@ async fn main() -> std::io::Result<()> {
             .service(web::scope("/user").configure(controllers::user_controller::init))
             .service(web::scope("/tracks").configure(controllers::tracks_crud_controller::init))
             .service(web::scope("/auth/google").configure(google_controller::init))
-            .service(web::scope("/auth/facebook").configure(facebook_controller::init))
+            // .service(web::scope("/auth/facebook").configure(facebook_controller::init))
             .service(web::scope("/ws").configure(ws_controller::init))
     })
-    .bind(("127.0.0.1", 8080))?
+    .bind(("127.0.0.1", 8000))?
     .run()
     .await
 }
