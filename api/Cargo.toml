@@ -32,3 +32,4 @@ futures-util = "0.3"
 urlencoding = "2"
 reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
 httpmock = "0.7.0"
+data-provider={path="../data-provider"}

@@ -24,7 +24,7 @@ async fn can_get_user() -> Result<(), String> {
     let app_data = AppData {
         player_factory: Arc::new(PlayerFactory {}),
         user_map: Arc::new(Mutex::new(HashMap::new())),
-        user_provider:Arc::new(InMemoryUserProvider::new())
+        user_resolver:Arc::new(InMemoryUserProvider::new())
     };
     let mut app = test::init_service(
         App::new()
@@ -55,7 +55,7 @@ async fn can_insert_user() -> Result<(), String> {
     let app_data = AppData {
         player_factory: Arc::new(PlayerFactory {}),
         user_map: Arc::new(Mutex::new(HashMap::new())),
-        user_provider:Arc::new(InMemoryUserProvider::new())
+        user_resolver:Arc::new(InMemoryUserProvider::new())
     };
     let app = test::init_service(
         App::new()
@@ -86,7 +86,7 @@ async fn can_remove_user() -> Result<(), String> {
     let app_data = AppData {
         player_factory: Arc::new(PlayerFactory {}),
         user_map: Arc::new(Mutex::new(HashMap::new())),
-        user_provider:Arc::new(InMemoryUserProvider::new())
+        user_resolver:Arc::new(InMemoryUserProvider::new())
     };
     let mut app = test::init_service(
         App::new()
@@ -120,7 +120,7 @@ async fn can_update_user() -> Result<(), String> {
     let app_data = AppData {
         player_factory: Arc::new(PlayerFactory {}),
         user_map: Arc::new(Mutex::new(HashMap::new())),
-        user_provider:Arc::new(InMemoryUserProvider::new())
+        user_resolver:Arc::new(InMemoryUserProvider::new())
     };
     let mut app = test::init_service(
         App::new()

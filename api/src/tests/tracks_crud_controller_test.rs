@@ -34,7 +34,7 @@ async fn can_insert_track() -> Result<(), String> {
     let app_data = AppData {
         player_factory: Arc::new(PlayerFactory {}),
         user_map: Arc::new(Mutex::new(user_map)),
-        user_provider:Arc::new(InMemoryUserProvider::new())
+        user_resolver:Arc::new(InMemoryUserProvider::new())
     };
     let app = test::init_service(
         App::new()
@@ -67,7 +67,7 @@ async fn can_get_track_metas() -> Result<(), String> {
     let app_data = AppData {
         player_factory: Arc::new(PlayerFactory {}),
         user_map: Arc::new(Mutex::new(user_map)),
-        user_provider:Arc::new(InMemoryUserProvider::new())
+        user_resolver:Arc::new(InMemoryUserProvider::new())
     };
     let mut app = test::init_service(
         App::new()
@@ -107,7 +107,7 @@ async fn can_get_track_meta() -> Result<(), String> {
     let app_data = AppData {
         player_factory: Arc::new(PlayerFactory {}),
         user_map: Arc::new(Mutex::new(user_map)),
-        user_provider:Arc::new(InMemoryUserProvider::new())
+        user_resolver:Arc::new(InMemoryUserProvider::new())
     };
     let mut app = test::init_service(
         App::new()
@@ -146,7 +146,7 @@ async fn can_get_track_raw() -> Result<(), String> {
     let app_data = AppData {
         player_factory: Arc::new(PlayerFactory {}),
         user_map: Arc::new(Mutex::new(user_map)),
-        user_provider:Arc::new(InMemoryUserProvider::new())
+        user_resolver:Arc::new(InMemoryUserProvider::new())
     };
     let mut app = test::init_service(
         App::new()
@@ -185,7 +185,7 @@ async fn can_remove_track() -> Result<(), String> {
     let app_data = AppData {
         player_factory: Arc::new(PlayerFactory {}),
         user_map: Arc::new(Mutex::new(user_map)),
-        user_provider:Arc::new(InMemoryUserProvider::new())
+        user_resolver:Arc::new(InMemoryUserProvider::new())
     };
     let app = test::init_service(
         App::new()

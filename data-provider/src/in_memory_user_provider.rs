@@ -1,10 +1,10 @@
 use std::{collections::HashMap, future::Future, pin::Pin, sync::Arc};
 
-use domain::domain_user::DomainUser;
+use domain::{create_domain_user_params::CreateDomainUserParams, domain_user::DomainUser};
 use tokio::sync::Mutex;
 use ulid::Ulid;
 
-use crate::user_provider::{create_user_params::CreateUserParams, user_provider::UserProvider};
+use crate::user_provider::{UserProvider};
 
 pub struct InMemoryUserProvider{
     pub users:Arc<Mutex<HashMap<String,DomainUser>>>
@@ -58,7 +58,7 @@ impl UserProvider for InMemoryUserProvider{
     fn update_user<'a>(&self, user: DomainUser) ->  Pin<Box<dyn Future<Output = Result<(), String>>+Send+'a>>{
         todo!()
      }
-    fn create_user<'a>(&'a self,user_params:CreateUserParams)->Pin<Box<dyn Future<Output = Result<DomainUser,String>>+Send+'a>>{
+    fn create_domain_user<'a>(&'a self,user_params:CreateDomainUserParams)->Pin<Box<dyn Future<Output = Result<DomainUser,String>>+Send+'a>>{
         Box::pin(async move{
             let id=Ulid::new();
         let user=DomainUser{

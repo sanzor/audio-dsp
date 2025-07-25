@@ -4,3 +4,4 @@ pub mod raw_track;
 pub mod track;
 pub mod track_meta;
 pub mod user;
+pub mod create_domain_user_params;

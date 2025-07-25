@@ -4,7 +4,7 @@ use domain::domain_user::DomainUser;
 use kameo::{actor::ActorRef, Actor};
 use tokio::sync::Mutex;
 
-use crate::user_actor::{create_user_actor_params::CreateUserActorParams, create_user_data::CreateUserData, player_factory::PlayerFactory, user_actor::UserActor};
+use crate::user_actor::{create_user_actor_params::CreateUserActorParams, user_actor::UserActor};
 
 pub struct UserActorRegistry{
     user_actors:Arc<Mutex<HashMap<String,ActorRef<UserActor>>>>,
@@ -12,7 +12,7 @@ pub struct UserActorRegistry{
 
 impl UserActorRegistry{
     pub async fn get_or_spawn_user_actor(
-        &mut self,
+        &self,
         user_id:&str,
         domain_user:Option<DomainUser>,
         build_params:impl FnOnce(&DomainUser)->CreateUserActorParams)
@@ -33,5 +33,8 @@ impl UserActorRegistry{
         actors.insert(domain_user.id,actor.clone());
         Ok(actor)
         
+    }
+    pub async fn spawn_user_actor(){
+
     }
 }

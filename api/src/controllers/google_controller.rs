@@ -1,9 +1,8 @@
 use actix_web::{get, web, HttpResponse};
 
-use domain::domain_user::DomainUser;
 use serde::{Deserialize, Serialize};
 
-use crate::{app_data::AppData, user_provider::create_user_params::CreateUserParams};
+use crate::{app_data::AppData, user_provider::create_user_params::CreateDomainUserParams};
 
 #[get("/auth/google")]
 async fn google_auth_redirect() -> HttpResponse {
@@ -49,17 +48,19 @@ async fn google_callback(query: web::Query<AuthRequest>,app_data:web::Data<AppDa
     match exchange_code_for_user(query.code.clone(), token_url, userinfo_url).await {
         Ok(google_user) =>{
             let google_sub_id=google_user.sub.clone();
-            if let Some(user)=app_data.user_provider.get_user_by_google_sub_id(&google_sub_id).await{
-                
-            }else{
-                let domain_user_create_params=CreateUserParams{
+           
+            let user=app_data.user_resolver.resolve_user(&google_user_info, |p|{
+                let domain_user_create_params=CreateDomainUserParams{
                     email:google_user.email,
                     name:google_user.name,
                     picture:google_user.picture,
                     google_sub_id:Some(google_user.sub)
                 };
-                let insert_result=app_data.user_provider.create_user(domain_user_create_params).await;
-            }
+                domain_user_create_params
+            }).await;
+               
+                
+            
             HttpResponse::Ok().json(google_user)
         }
         Err(err) => {

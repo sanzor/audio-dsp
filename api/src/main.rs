@@ -14,9 +14,7 @@ use tokio::sync::Mutex;
 async fn main() -> std::io::Result<()> {
    
     let registry = AppData {
-        user_map: Arc::new(Mutex::new(HashMap::new())),
-        player_factory: Arc::new(PlayerFactory {}),
-        user_provider:Arc::new(InMemoryUserProvider::new())
+        user_resolver:Arc::new(UserResolver::new())
     };
     dotenv::dotenv().ok();
     HttpServer::new(move || {

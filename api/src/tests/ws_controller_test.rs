@@ -33,7 +33,7 @@ use crate::{
     },
     player_controller_test::utils::{
         create_user_actor, get_user_state, insert_track, make_raw_track_from_samples,
-    }, user_provider::in_memory_user_provider::InMemoryUserProvider,
+    }, user_provider::{in_memory_user_provider::InMemoryUserProvider, user_resolver::UserResolver},
 };
 
 #[rstest]
@@ -45,9 +45,8 @@ async fn can_start_player_ws() -> Result<(), String> {
     let mut user_map = HashMap::new();
     user_map.insert(id.to_string(), user);
     let app_data = AppData {
-        player_factory: Arc::new(PlayerFactory {}),
-        user_map: Arc::new(Mutex::new(user_map)),
-        user_provider:Arc::new(InMemoryUserProvider::new())
+        user_resolver:Arc::new(
+            ::::new())
     };
     let url = "127.0.0.1:0";
     let server_app_data = app_data.clone();
@@ -115,7 +114,7 @@ async fn can_stop_player_ws() -> Result<(), String> {
     let app_data = AppData {
         player_factory: Arc::new(PlayerFactory {}),
         user_map: Arc::new(Mutex::new(user_map)),
-        user_provider:Arc::new(InMemoryUserProvider::new())
+        user_resolver:Arc::new(InMemoryUserProvider::new())
     };
     let url = "127.0.0.1:0";
     let server_app_data = app_data.clone();

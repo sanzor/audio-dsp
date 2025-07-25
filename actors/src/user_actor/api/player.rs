@@ -167,6 +167,7 @@ impl UserActor {
         let payload = match self.loaded_payloads.get(track_id) {
             Some(payload) => Arc::clone(&payload),
             None => {
+               
                 let track_copy = self.tracks_provider.get_track_copy(track_id).await?;
                 let payload_ref = Arc::new(track_copy.data);
                 self.loaded_payloads
@@ -180,6 +181,7 @@ impl UserActor {
         &mut self,
         msg: UserAttachSink,
     ) -> Result<UserAttachSinkResult, String> {
+
         let meta = self.tracks_provider.get_track_meta(&msg.track_id).await?;
         let sink_id = ulid::Ulid::new().to_string();
         let mut sinks = HashMap::new();

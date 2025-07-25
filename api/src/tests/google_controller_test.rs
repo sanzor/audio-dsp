@@ -9,7 +9,7 @@ use ulid::Ulid;
 use crate::{
     app_data::AppData,
     controllers::google_controller::{self, exchange_code_for_user},
-    player_controller_test::utils::create_user_actor, user_provider::in_memory_user_provider::InMemoryUserProvider,
+    player_controller_test::utils::create_user_actor, user_provider::{in_memory_user_provider::InMemoryUserProvider, user_resolver::UserResolver},
 };
 
 #[tokio::test]
@@ -63,9 +63,7 @@ pub async fn can_auth_integration_test() -> Result<(), String> {
     let mut user_map = HashMap::new();
     user_map.insert(user_id.to_string(), user_actor);
     let app_data = AppData {
-        user_map: Arc::new(Mutex::new(user_map)),
-        player_factory: Arc::new(PlayerFactory {}),
-        user_provider:Arc::new(InMemoryUserProvider::new())
+        user_resolver:Arc::new(UserResolver::new(user_provider, user_registry))
     };
 
     let mut app = test::init_service(

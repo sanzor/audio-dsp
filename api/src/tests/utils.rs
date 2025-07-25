@@ -22,7 +22,7 @@ use crate::controllers::{
 };
 
 pub fn create_user_actor(id: Ulid) -> ActorRef<UserActor> {
-    let tracks_provider = Box::new(LocalTrackStoreProvider::new());
+    let tracks_provider = Arc::new(LocalTrackStoreProvider::new());
     let players_provder = LocalPlayerProvider::new();
     let actor_params = CreateUserActorParams {
         user_data: CreateUserData {

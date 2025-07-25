@@ -104,7 +104,7 @@ async fn seek(body: web::Json<SeekRequest>, app_state: web::Data<AppData>) -> Ht
         Some(u) => u,
     };
     let user_addr = {
-        let guard = app_state.user_map.lock().await;
+        let guard = app_state.user_resolver.resolve_user(google_user_info, build_params).lock().await;
         match guard.get(&user).cloned() {
             Some(addr) => addr,
             None => return HttpResponse::NotFound().body("Could not find user"),

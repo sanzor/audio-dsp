@@ -13,10 +13,3 @@ pub struct TrackInfo {
     pub name: String,
 }
 
-pub struct TrackRef<'a> {
-    pub inner: &'a Track,
-}
-
-pub struct TrackRefMut<'a> {
-    pub inner: &'a mut Track,
-}
