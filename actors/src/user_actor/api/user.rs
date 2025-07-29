@@ -25,18 +25,18 @@ impl Message<GetUserState> for UserActor {
     ) -> Self::Reply {
         let mut player_list: HashMap<String, GetPlayerStateResult> = HashMap::new();
         let mut track_list: HashMap<String, TrackMeta> = HashMap::new();
-        let players_result = self.players_provider.get_all().await?;
+       
         let tracks_result = self.tracks_provider.get_all_track_infos().await?;
         for (key, track_info) in tracks_result.track_infos {
             track_list.insert(key, track_info);
         }
-        for element in players_result.items {
+        for (k,element) in &self.players_provider {
             let player_state = element
-                .player_ref
+    
                 .ask(GetPlayerState {})
                 .await
                 .map_err(|e| e.to_string())?;
-            player_list.insert(element.player_id, player_state);
+            player_list.insert(k.to_string(), player_state);
         }
         Ok(GetUserStateResult {
             tracks: track_list,

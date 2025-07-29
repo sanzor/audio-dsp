@@ -31,11 +31,11 @@ impl Message<UserPlay> for UserActor {
     type Reply = Result<UserPlayResult, String>;
 
     async fn handle(&mut self, msg: UserPlay, ctx: &mut Context<Self, Self::Reply>) -> Self::Reply {
-        let player_result = self.players_provider.get(msg.track_id.clone()).await;
+        let player_result = self.players_provider.get(&msg.track_id.clone());
 
         let res = match player_result {
-            Ok(player) => player.player_ref.tell(Play {}).await,
-            Err(err) => return Err("Could not find player".to_string()),
+            Some(player) => player.tell(Play {}).await,
+            None => return Err("Could not find player".to_string()),
         };
         Ok(UserPlayResult {})
     }
@@ -49,8 +49,8 @@ impl Message<UserPause> for UserActor {
         msg: UserPause,
         ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
-        if let Ok(player) = self.players_provider.get(msg.track_id).await {
-            player.player_ref.tell(Pause {}).await.unwrap();
+        if let Some(player) = self.players_provider.get(&msg.track_id) {
+            player.tell(Pause {}).await.unwrap();
             Ok(UserPauseResult {})
         } else {
             Err("Could not find player".into())
@@ -62,10 +62,10 @@ impl Message<UserStop> for UserActor {
     type Reply = Result<UserStopResult, String>;
 
     async fn handle(&mut self, msg: UserStop, ctx: &mut Context<Self, Self::Reply>) -> Self::Reply {
-        if let Ok(player) = self.players_provider.get(msg.track_id.clone()).await {
-            player.player_ref.tell(Stop {}).await.unwrap();
-            let removed_player = self.players_provider.remove(msg.track_id).await;
-            if let Ok(pl) = removed_player {
+        if let Some(player) = self.players_provider.get(&msg.track_id.clone()) {
+            player.tell(Stop {}).await.unwrap();
+            let removed_player = self.players_provider.remove(&msg.track_id);
+            if let Some(pl) = removed_player {
                 drop(pl);
             }
             Ok(UserStopResult {})
@@ -79,9 +79,8 @@ impl Message<UserSeek> for UserActor {
     type Reply = Result<UserSeekResult, String>;
 
     async fn handle(&mut self, msg: UserSeek, ctx: &mut Context<Self, Self::Reply>) -> Self::Reply {
-        if let Ok(player) = self.players_provider.get(msg.track_id).await {
+        if let Some(player) = self.players_provider.get(&msg.track_id) {
             player
-                .player_ref
                 .tell(Seek {
                     position: msg.position,
                 })
@@ -101,14 +100,14 @@ impl Message<UserAttachSink> for UserActor {
         msg: UserAttachSink,
         ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
-        let player_result = self.players_provider.get(msg.track_id.clone()).await;
-        match player_result {
-            Ok(player) => {
-                self.handle_attach_sink_to_existing_player(msg, &player.player_ref)
-                    .await
-            }
-            Err(err) => self.handle_attach_sink_to_new_player(msg).await,
-        }
+        let result=match self.players_provider.get(&msg.track_id.clone()){
+            Some(player) => 
+                self.handle_attach_sink_to_existing_player(msg, &player)
+                    .await,
+            None=>self.handle_attach_sink_to_new_player(msg).await
+        };
+      
+        result
     }
 }
 
@@ -120,18 +119,18 @@ impl Message<UserRemoveSink> for UserActor {
         msg: UserRemoveSink,
         ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
-        let player_result = self.players_provider.get(msg.track_id.clone()).await?;
-        match player_result
-            .player_ref
-            .ask(RemoveSink {
-                sink_id: msg.sink_id,
-            })
-            .await
-            .map_err(|e| e.to_string())
-        {
-            Ok(e) => Ok(UserRemoveSinkResult {}),
-            Err(e) => Err(e.to_string()),
+        if let Some(player_result) = self.players_provider.get(&msg.track_id.clone()){
+             match player_result.ask(RemoveSink {sink_id: msg.sink_id}).await.map_err(|e|e.to_string())
+  
+            {
+                Ok(e) => Ok(UserRemoveSinkResult {}),
+                Err(e) => Err(e.to_string()),
+            }
+        }else{
+             Err("Could not get player".into())
         }
+       
+       
     }
 }
 impl Message<UserGetPlayerState> for UserActor {
@@ -142,12 +141,11 @@ impl Message<UserGetPlayerState> for UserActor {
         msg: UserGetPlayerState,
         ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
-        let player = self.players_provider.get(msg.track_id).await;
+        let player = self.players_provider.get(&msg.track_id);
         match player {
-            Err(e) => Err(e),
-            Ok(p) => {
+            None => Err("Could not find player".into()),
+            Some(p) => {
                 let x: domain::actors::messages::player::get_player_state::GetPlayerStateResult = p
-                    .player_ref
                     .ask(GetPlayerState {})
                     .await
                     .map_err(|e| e.to_string())?;
@@ -198,24 +196,24 @@ impl UserActor {
             .player_factory
             .create_audio_actor(create_audio_actor_params)?;
 
-        if let Ok(()) = self
+        match self
             .players_provider
-            .store(
+            .insert(
                 msg.track_id.to_string(),
                 create_actor_result.audio_actor_ref,
             )
-            .await
+        
         {
+            None=>
             Ok(UserAttachSinkResult {
                 sink_id: sink_id,
                 track_id: msg.track_id,
-            })
-        } else {
-            Err("Could not insert ".into())
+            }),
+            Some(v)=>Err("key alrdy present".into())
         }
     }
     async fn handle_attach_sink_to_existing_player(
-        &mut self,
+        &self,
         msg: UserAttachSink,
         player_ref: &ActorRef<AudioPlayerActor>,
     ) -> Result<UserAttachSinkResult, String> {

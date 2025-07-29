@@ -25,9 +25,9 @@ fn create_actor(id: Ulid) -> ActorRef<UserActor> {
             id: id.to_string(),
             name: id.to_string(),
         },
-        tracks_provider: tracks_provider,
-        players_provider: Box::new(players_provder),
-        player_factory: Arc::new(PlayerFactory {}),
+        user_actor_deps:UserActorDeps{
+            
+        }
     };
     let actor = UserActor::spawn(UserActor::new(actor_params));
     let g = kameo::registry::ActorRegistry::new();

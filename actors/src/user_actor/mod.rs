@@ -3,11 +3,10 @@ pub mod create_user_actor_params;
 pub mod create_user_data;
 pub mod get_all_players_result;
 pub mod get_player_result;
-pub mod local_players_provider;
 pub mod player_factory;
-pub mod players_provider;
 pub mod user_actor;
 pub mod user_attach_sink;
 pub mod user_remove_sink;
 pub mod user_actor_registry;
+pub mod user_actor_deps;
 

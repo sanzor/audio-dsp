@@ -14,23 +14,19 @@ impl UserActorRegistry{
     pub async fn get_or_spawn_user_actor(
         &self,
         user_id:&str,
-        domain_user:Option<DomainUser>,
-        build_params:impl FnOnce(&DomainUser)->CreateUserActorParams)
+        build_params:CreateUserActorParams)
         ->Result<ActorRef<UserActor>,String>{
 
         let map=self.user_actors.lock().await;
         if let Some(actor)=map.get(user_id){
             return Ok(actor.clone())
         }
-        let domain_user=match domain_user{
-            Some(u)=>u,
-            None=>return Err("Invalid domain user provided".into())
-        };
-        let params=build_params(&domain_user);
-        let actor=UserActor::spawn(UserActor::new(params));
+
+    
+        let actor=UserActor::spawn(UserActor::new(build_params).await);
            
         let mut actors=self.user_actors.lock().await;
-        actors.insert(domain_user.id,actor.clone());
+        actors.insert(user_id.to_string(),actor.clone());
         Ok(actor)
         
     }

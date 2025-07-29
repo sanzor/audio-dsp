@@ -58,9 +58,7 @@ async fn google_callback(query: web::Query<AuthRequest>,app_data:web::Data<AppDa
                 };
                 domain_user_create_params
             }).await;
-               
-                
-            
+
             HttpResponse::Ok().json(google_user)
         }
         Err(err) => {
