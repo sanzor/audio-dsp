@@ -7,14 +7,14 @@ use actix_web::{
 use actors::user_actor::player_factory::PlayerFactory;
 use dsp_api::{
     app_data::AppData,
-    controllers::{self, facebook_controller, google_controller, ws_controller}, user_provider::in_memory_user_provider::InMemoryUserProvider,
+    controllers::{self, facebook_controller, google_controller, ws_controller},
+    user_provider::in_memory_user_provider::InMemoryUserProvider,
 };
 use tokio::sync::Mutex;
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-   
     let registry = AppData {
-        user_resolver:Arc::new(UserResolver::new())
+        user_resolver: Arc::new(UserResolver::new()),
     };
     dotenv::dotenv().ok();
     HttpServer::new(move || {

@@ -89,7 +89,7 @@ impl Message<InsertTrack> for UserActor {
         let track_meta = self.tracks_provider.upsert_track(msg.track).await?;
         Ok(InsertTrackResult {
             track_id: track_meta.track_id.clone(),
-            user_id: self.id.to_string(),
+            user_id: self.user_data.id.to_string(),
         })
     }
 }

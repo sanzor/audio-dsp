@@ -1,35 +1,42 @@
+
 use std::sync::Arc;
 
 use crate::user_actor::create_user_actor_params::CreateUserActorParams;
-use crate::user_actor::create_user_data::CreateUserData;
-use crate::user_actor::local_players_provider::LocalPlayerProvider;
+
 use crate::user_actor::player_factory::PlayerFactory;
 use crate::user_actor::user_actor::UserActor;
+use crate::user_actor::user_actor_deps::UserActorDeps;
 use audiolib::{self, audio_buffer::AudioBuffer, Channels};
+use data_provider::in_memory_user_provider::InMemoryUserProvider;
+use data_provider::tracks_provider::LocalTrackStoreProvider;
 use domain::actors::messages::crud::copy_track::CopyTrack;
 use domain::actors::messages::crud::get_tracks::GetTrackMetas;
 use domain::actors::messages::crud::insert_track::{InsertTrack, InsertTrackResult};
+use domain::domain_user::DomainUser;
 use domain::raw_track::{RawTrack, TrackInfo};
 use domain::track_meta::TrackMeta;
-use dsp_core::tracks_provider::LocalTrackStoreProvider;
 use kameo::actor::ActorRef;
 use kameo::{self, Actor};
 use ulid::Ulid;
 
-fn create_actor(id: Ulid) -> ActorRef<UserActor> {
+async fn create_actor(id: Ulid) -> ActorRef<UserActor> {
     let tracks_provider = Box::new(LocalTrackStoreProvider::new());
-    let players_provder = LocalPlayerProvider::new();
+    
     let actor_params = CreateUserActorParams {
-        user_data: CreateUserData {
+        user_data: DomainUser {
             email: id.to_string(),
             id: id.to_string(),
             name: id.to_string(),
+            google_sub_id:None,
+            picture:"some".into()
         },
         user_actor_deps:UserActorDeps{
-            
+            player_factory:Arc::new(PlayerFactory{}),
+            tracks_provider:Arc::new(LocalTrackStoreProvider::new()),
+            user_provider:Arc::new(InMemoryUserProvider::new())
         }
     };
-    let actor = UserActor::spawn(UserActor::new(actor_params));
+    let actor = UserActor::spawn(UserActor::new(actor_params).await);
     let g = kameo::registry::ActorRegistry::new();
 
     actor

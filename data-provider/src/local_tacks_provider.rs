@@ -3,12 +3,13 @@ use domain::{
     track::Track,
     track_meta::TrackMeta,
 };
-use tokio::sync::Mutex;
 use std::collections::HashMap;
+use tokio::sync::Mutex;
 use ulid::Ulid;
 
 use crate::{
-    get_all_track_infos_result::GetAllTrackInfosResult, tracks_provider::{LocalTrackStoreProvider, TracksProvider}
+    get_all_track_infos_result::GetAllTrackInfosResult,
+    tracks_provider::{LocalTrackStoreProvider, TracksProvider},
 };
 
 impl LocalTrackStoreProvider {
@@ -22,7 +23,7 @@ impl LocalTrackStoreProvider {
 #[async_trait::async_trait]
 impl TracksProvider for LocalTrackStoreProvider {
     async fn get_track_meta(&self, track_name: &str) -> Result<TrackMeta, String> {
-        let guard=self.tracks.lock().await;
+        let guard = self.tracks.lock().await;
         let info = guard
             .get(track_name)
             .ok_or_else(|| "err".to_string())
@@ -34,12 +35,12 @@ impl TracksProvider for LocalTrackStoreProvider {
         info
     }
     async fn update_track_info(
-        & self,
+        &self,
         track_id: &str,
         track_info: TrackInfo,
     ) -> Result<TrackMeta, String> {
         let mut guard = self.tracks.lock().await;
-        let mut track=match guard.remove(track_id) {
+        let mut track = match guard.remove(track_id) {
             None => return Err("Could not find track".into()),
             Some(i) => i,
         };
@@ -50,9 +51,8 @@ impl TracksProvider for LocalTrackStoreProvider {
         })
     }
 
-
     async fn get_track_copy(&self, track_name: &str) -> Result<RawTrack, String> {
-        let guard=self.tracks.lock().await;
+        let guard = self.tracks.lock().await;
         guard
             .get(track_name)
             .ok_or_else(|| "".into())
@@ -62,7 +62,7 @@ impl TracksProvider for LocalTrackStoreProvider {
             })
     }
     async fn get_all_track_infos(&self) -> Result<GetAllTrackInfosResult, String> {
-        let guard=self.tracks.lock().await;
+        let guard = self.tracks.lock().await;
         let mut hash_map = HashMap::new();
         for (key, track) in guard.iter() {
             hash_map.insert(
@@ -79,7 +79,7 @@ impl TracksProvider for LocalTrackStoreProvider {
     }
 
     async fn delete_track(&self, track_name: &str) -> Result<(), String> {
-        let mut guard=self.tracks.lock().await;
+        let mut guard = self.tracks.lock().await;
         guard
             .remove(track_name)
             .ok_or_else(|| "could not find key".into())
@@ -92,7 +92,7 @@ impl TracksProvider for LocalTrackStoreProvider {
             track_id: id.clone(),
             track_info: tr.info.clone(),
         };
-        let mut guard=self.tracks.lock().await;
+        let mut guard = self.tracks.lock().await;
         match guard.insert(id.clone(), track) {
             None => Ok(TrackMeta {
                 track_info: tr.info.clone(),

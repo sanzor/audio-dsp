@@ -1,8 +1,8 @@
 use audiolib::audio_buffer::AudioBuffer;
-use data_provider::{tracks_provider::TracksProvider, user_provider::UserProvider};
+use data_provider::tracks_provider::TracksProvider;
 use kameo::{actor::ActorRef, Actor};
 use std::{collections::HashMap, sync::Arc};
-use domain::{actors::user_actor_init_input::UserActorInitInput, domain_user::DomainUser};
+use domain::{ domain_user::DomainUser};
 use crate::{
     audio_player_actor::audio_player_actor::AudioPlayerActor,
     user_actor::{
@@ -22,23 +22,13 @@ pub struct UserActor {
 }
 
 impl UserActor {
-    pub async fn new(actor_params: CreateUserActorParams) -> UserActor {
-        match actor_params.user_data{
-                UserActorInitInput::Existing(E)=>{
-                    todo!()
-                },
-                UserActorInitInput::New(new_actor_params)=>{
-                    let new_user=actor_params.user_actor_deps.user_provider.create_domain_user(new_actor_params).await.unwrap();
-                UserActor {
-                    
-                    tracks_provider: Arc::clone(&actor_params.user_actor_deps.tracks_provider),
-                    players_provider: HashMap::new(),
-                    player_factory: Arc::clone(&actor_params.user_actor_deps.player_factory),
-                    loaded_payloads: HashMap::new(),
-                    user_provider:actor_params.user_actor_deps.user_provider
-                }
-            }
+    pub async fn new(actor_params: CreateUserActorParams) -> UserActor {   
+        UserActor {       
+            tracks_provider: Arc::clone(&actor_params.user_actor_deps.tracks_provider),
+            players_provider: HashMap::new(),
+            player_factory: Arc::clone(&actor_params.user_actor_deps.player_factory),
+            loaded_payloads: HashMap::new(),
+            user_data:actor_params.user_data
         }
-        
     }
 }

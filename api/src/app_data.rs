@@ -5,5 +5,6 @@ use crate::user_resolver::UserResolver;
 
 #[derive(Clone)]
 pub struct AppData {
-    pub user_resolver:Arc<UserResolver>
+    pub user_resolver:Arc<UserResolver>,
+    pub user_actor_deps:
 }

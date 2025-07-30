@@ -65,12 +65,12 @@ impl Message<UpdateUser> for UserActor {
         msg: UpdateUser,
         ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
-        self.email = msg.email;
-        self.name = msg.name;
+        self.user_data.email = msg.email;
+        self.user_data.name = msg.name;
         Ok(UpdateUserResult {
-            id: self.id.clone(),
-            new_email: self.email.clone(),
-            new_name: self.name.clone(),
+            id: self.user_data.id.clone(),
+            new_email: self.user_data.email.clone(),
+            new_name: self.user_data.name.clone(),
         })
     }
 }

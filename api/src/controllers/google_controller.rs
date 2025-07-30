@@ -1,8 +1,10 @@
 use actix_web::{get, web, HttpResponse};
 
+use actors::user_actor::{create_user_actor_params::CreateUserActorParams, user_actor_deps::UserActorDeps};
+use domain::create_domain_user_params::CreateDomainUserParams;
 use serde::{Deserialize, Serialize};
 
-use crate::{app_data::AppData, user_provider::create_user_params::CreateDomainUserParams};
+use crate::{app_data::AppData};
 
 #[get("/auth/google")]
 async fn google_auth_redirect() -> HttpResponse {
@@ -49,14 +51,14 @@ async fn google_callback(query: web::Query<AuthRequest>,app_data:web::Data<AppDa
         Ok(google_user) =>{
             let google_sub_id=google_user.sub.clone();
            
-            let user=app_data.user_resolver.resolve_user(&google_user_info, |p|{
-                let domain_user_create_params=CreateDomainUserParams{
-                    email:google_user.email,
-                    name:google_user.name,
-                    picture:google_user.picture,
-                    google_sub_id:Some(google_user.sub)
+            let user=app_data.user_resolver.resolve_user(&google_user, |p|{
+                let domain_user_create_params=CreateUserActorParams{
+                    user_data:p,
+                    user_actor_deps:UserActorDeps{
+                        player_factory:app_data.
+                    }
                 };
-                domain_user_create_params
+                Ok(domain_user_create_params)
             }).await;
 
             HttpResponse::Ok().json(google_user)

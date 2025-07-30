@@ -3,11 +3,10 @@ use domain::{
     track::Track,
     track_meta::TrackMeta,
 };
-use tokio::sync::Mutex;
 use std::collections::HashMap;
+use tokio::sync::Mutex;
 
 use crate::get_all_track_infos_result::GetAllTrackInfosResult;
-
 
 pub struct LocalTrackStoreProvider {
     pub tracks: Mutex<HashMap<String, Track>>,

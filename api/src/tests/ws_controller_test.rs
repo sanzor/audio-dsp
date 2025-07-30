@@ -9,13 +9,13 @@ use actix_web::{
 
 use actors::user_actor::player_factory::PlayerFactory;
 use audiolib::Channels;
-use domain::actors::{
-    messages::{user::get_user_state::GetUserStateResult, user_to_player::user_play::UserPlay},
-    player_state::AudioPlayerState,
-};
+use data_provider::in_memory_user_provider::InMemoryUserProvider;
+use domain::actors::
+    player_state::AudioPlayerState
+;
 use futures_util::{stream::SplitStream, SinkExt, StreamExt};
 use rstest::rstest;
-use serde::{de::DeserializeOwned, Deserialize};
+use serde::de::DeserializeOwned;
 use tokio::{net::TcpStream, sync::Mutex};
 use tokio_tungstenite::{
     connect_async,
@@ -33,7 +33,7 @@ use crate::{
     },
     player_controller_test::utils::{
         create_user_actor, get_user_state, insert_track, make_raw_track_from_samples,
-    }, user_provider::{in_memory_user_provider::InMemoryUserProvider, user_resolver::UserResolver},
+    }
 };
 
 #[rstest]
@@ -46,7 +46,7 @@ async fn can_start_player_ws() -> Result<(), String> {
     user_map.insert(id.to_string(), user);
     let app_data = AppData {
         user_resolver:Arc::new(
-            ::::new())
+            ::new())
     };
     let url = "127.0.0.1:0";
     let server_app_data = app_data.clone();
