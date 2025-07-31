@@ -100,13 +100,14 @@ impl Message<UserAttachSink> for UserActor {
         msg: UserAttachSink,
         ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
-        let result=match self.players_provider.get(&msg.track_id.clone()){
-            Some(player) => 
+        let result = match self.players_provider.get(&msg.track_id.clone()) {
+            Some(player) => {
                 self.handle_attach_sink_to_existing_player(msg, &player)
-                    .await,
-            None=>self.handle_attach_sink_to_new_player(msg).await
+                    .await
+            }
+            None => self.handle_attach_sink_to_new_player(msg).await,
         };
-      
+
         result
     }
 }
@@ -119,18 +120,20 @@ impl Message<UserRemoveSink> for UserActor {
         msg: UserRemoveSink,
         ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
-        if let Some(player_result) = self.players_provider.get(&msg.track_id.clone()){
-             match player_result.ask(RemoveSink {sink_id: msg.sink_id}).await.map_err(|e|e.to_string())
-  
+        if let Some(player_result) = self.players_provider.get(&msg.track_id.clone()) {
+            match player_result
+                .ask(RemoveSink {
+                    sink_id: msg.sink_id,
+                })
+                .await
+                .map_err(|e| e.to_string())
             {
                 Ok(e) => Ok(UserRemoveSinkResult {}),
                 Err(e) => Err(e.to_string()),
             }
-        }else{
-             Err("Could not get player".into())
+        } else {
+            Err("Could not get player".into())
         }
-       
-       
     }
 }
 impl Message<UserGetPlayerState> for UserActor {
@@ -145,10 +148,8 @@ impl Message<UserGetPlayerState> for UserActor {
         match player {
             None => Err("Could not find player".into()),
             Some(p) => {
-                let x: domain::actors::messages::player::get_player_state::GetPlayerStateResult = p
-                    .ask(GetPlayerState {})
-                    .await
-                    .map_err(|e| e.to_string())?;
+                let x: domain::actors::messages::player::get_player_state::GetPlayerStateResult =
+                    p.ask(GetPlayerState {}).await.map_err(|e| e.to_string())?;
                 Ok(UserGetPlayerStateResult {
                     cursor: x.cursor,
                     written: x.written,
@@ -165,7 +166,6 @@ impl UserActor {
         let payload = match self.loaded_payloads.get(track_id) {
             Some(payload) => Arc::clone(&payload),
             None => {
-               
                 let track_copy = self.tracks_provider.get_track_copy(track_id).await?;
                 let payload_ref = Arc::new(track_copy.data);
                 self.loaded_payloads
@@ -179,7 +179,6 @@ impl UserActor {
         &mut self,
         msg: UserAttachSink,
     ) -> Result<UserAttachSinkResult, String> {
-
         let meta = self.tracks_provider.get_track_meta(&msg.track_id).await?;
         let sink_id = ulid::Ulid::new().to_string();
         let mut sinks = HashMap::new();
@@ -196,20 +195,15 @@ impl UserActor {
             .player_factory
             .create_audio_actor(create_audio_actor_params)?;
 
-        match self
-            .players_provider
-            .insert(
-                msg.track_id.to_string(),
-                create_actor_result.audio_actor_ref,
-            )
-        
-        {
-            None=>
-            Ok(UserAttachSinkResult {
+        match self.players_provider.insert(
+            msg.track_id.to_string(),
+            create_actor_result.audio_actor_ref,
+        ) {
+            None => Ok(UserAttachSinkResult {
                 sink_id: sink_id,
                 track_id: msg.track_id,
             }),
-            Some(v)=>Err("key alrdy present".into())
+            Some(v) => Err("key alrdy present".into()),
         }
     }
     async fn handle_attach_sink_to_existing_player(

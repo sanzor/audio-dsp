@@ -4,23 +4,25 @@ use actix_web::{
     web::{self},
     App, HttpServer,
 };
-use actors::user_actor::{player_factory::PlayerFactory, user_actor_deps::UserActorDeps};
-use data_provider::tracks_provider::LocalTrackStoreProvider;
+use actors::user_actor::{player_factory::PlayerFactory, user_actor_deps::UserActorDeps, user_actor_registry::UserActorRegistry};
+use data_provider::{in_memory_user_provider::InMemoryUserProvider, tracks_provider::LocalTrackStoreProvider, user_provider::UserProvider};
 use dsp_api::{
     app_data::AppData,
-    controllers::{self, facebook_controller, google_controller, ws_controller},
-    user_provider::in_memory_user_provider::InMemoryUserProvider,
+    controllers::{self, google_controller, ws_controller}, local_user_resolver::LocalUserResolver,
+   
 };
-use tokio::sync::Mutex;
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    let user_provider:Arc<dyn UserProvider>=Arc::new(InMemoryUserProvider::new());
+    let user_registry=Arc::new(UserActorRegistry::new());
     let registry = AppData {
-        user_resolver: Arc::new(UserResolver::new()),
-        user_actor_deps:Arc::new(UserActorDeps{
-            player_factory:Arc::new(PlayerFactory {  }),
-            tracks_provider:Arc::new(LocalTrackStoreProvider::new()),
-            user_provider:Arc::new(LocalUs)
-        })
+        user_resolver: Arc::new(LocalUserResolver::new(Arc::clone(&user_provider), user_registry)),
+        user_actor_deps: Arc::new(UserActorDeps {
+            player_factory: Arc::new(PlayerFactory {}),
+            tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
+            user_provider: Arc::new(InMemoryUserProvider::new()),
+        }),
     };
     dotenv::dotenv().ok();
     HttpServer::new(move || {

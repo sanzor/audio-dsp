@@ -10,9 +10,7 @@ use actix_web::{
 use actors::user_actor::player_factory::PlayerFactory;
 use audiolib::Channels;
 use data_provider::in_memory_user_provider::InMemoryUserProvider;
-use domain::actors::
-    player_state::AudioPlayerState
-;
+use domain::actors::player_state::AudioPlayerState;
 use futures_util::{stream::SplitStream, SinkExt, StreamExt};
 use rstest::rstest;
 use serde::de::DeserializeOwned;
@@ -33,7 +31,7 @@ use crate::{
     },
     player_controller_test::utils::{
         create_user_actor, get_user_state, insert_track, make_raw_track_from_samples,
-    }
+    },
 };
 
 #[rstest]
@@ -45,8 +43,7 @@ async fn can_start_player_ws() -> Result<(), String> {
     let mut user_map = HashMap::new();
     user_map.insert(id.to_string(), user);
     let app_data = AppData {
-        user_resolver:Arc::new(
-            ::new())
+        user_resolver: Arc::new(::new()),
     };
     let url = "127.0.0.1:0";
     let server_app_data = app_data.clone();
@@ -114,7 +111,7 @@ async fn can_stop_player_ws() -> Result<(), String> {
     let app_data = AppData {
         player_factory: Arc::new(PlayerFactory {}),
         user_map: Arc::new(Mutex::new(user_map)),
-        user_resolver:Arc::new(InMemoryUserProvider::new())
+        user_resolver: Arc::new(InMemoryUserProvider::new()),
     };
     let url = "127.0.0.1:0";
     let server_app_data = app_data.clone();

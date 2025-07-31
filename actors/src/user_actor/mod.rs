@@ -5,8 +5,7 @@ pub mod get_all_players_result;
 pub mod get_player_result;
 pub mod player_factory;
 pub mod user_actor;
+pub mod user_actor_deps;
+pub mod user_actor_registry;
 pub mod user_attach_sink;
 pub mod user_remove_sink;
-pub mod user_actor_registry;
-pub mod user_actor_deps;
-

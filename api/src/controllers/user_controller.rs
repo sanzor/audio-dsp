@@ -6,9 +6,7 @@ use actix_web::{
     web::{self, put},
     HttpResponse,
 };
-use actors::user_actor::{
-    user_actor::UserActor,
-};
+use actors::user_actor::user_actor::UserActor;
 use domain::{
     actors::messages::{
         player::get_player_state::GetPlayerStateResult,
@@ -29,7 +27,10 @@ pub struct GetUserDataResult {
 #[get("/get-user-state/{user_id}")]
 async fn get_user_state(path: web::Path<String>, app_state: web::Data<AppData>) -> HttpResponse {
     let user_id = path.into_inner();
-    let guard = app_state.user_resolver.resolve_existing_user(&user_id).await;
+    let guard = app_state
+        .user_resolver
+        .resolve_existing_user(&user_id)
+        .await;
     let user = match guard {
         Ok(u) => u.actor,
         Err(e) => return HttpResponse::BadRequest().body("Could not find user"),
@@ -57,7 +58,6 @@ pub struct CreateUserResult {
     pub email: String,
     pub user_name: String,
 }
-
 
 #[derive(Deserialize)]
 pub struct RemoveUserParams {
@@ -128,13 +128,10 @@ async fn get_user_internal(
 ) -> Result<ActorRef<UserActor>, String> {
     let user_addr = {
         let res = app_state.user_resolver.resolve_existing_user(user_id).await;
-        res.map(|rez|rez.actor)
+        res.map(|rez| rez.actor)
     };
     user_addr
 }
 pub fn init(cfg: &mut web::ServiceConfig) {
-    cfg
-        .service(get_user_state)
-        .service(delete)
-        .service(update);
+    cfg.service(get_user_state).service(delete).service(update);
 }

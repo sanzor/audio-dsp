@@ -1,7 +1,7 @@
 pub mod actors;
+pub mod create_domain_user_params;
 pub mod domain_user;
 pub mod raw_track;
 pub mod track;
 pub mod track_meta;
 pub mod user;
-pub mod create_domain_user_params;

@@ -2,11 +2,13 @@ use std::sync::Arc;
 
 use actix_web::{get, web, HttpResponse};
 
-use actors::user_actor::{create_user_actor_params::CreateUserActorParams, user_actor_deps::UserActorDeps};
+use actors::user_actor::{
+    create_user_actor_params::CreateUserActorParams, user_actor_deps::UserActorDeps,
+};
 use domain::create_domain_user_params::CreateDomainUserParams;
 use serde::{Deserialize, Serialize};
 
-use crate::{app_data::AppData};
+use crate::app_data::AppData;
 
 #[get("/auth/google")]
 async fn google_auth_redirect() -> HttpResponse {
@@ -46,20 +48,26 @@ pub(crate) struct GoogleUserInfo {
 }
 
 #[get("/callback")]
-async fn google_callback(query: web::Query<AuthRequest>,app_data:web::Data<AppData>) -> HttpResponse {
+async fn google_callback(
+    query: web::Query<AuthRequest>,
+    app_data: web::Data<AppData>,
+) -> HttpResponse {
     let token_url = "https://oauth2.googleapis.com/token";
     let userinfo_url = "https://www.googleapis.com/oauth2/v3/userinfo";
     match exchange_code_for_user(query.code.clone(), token_url, userinfo_url).await {
-        Ok(google_user) =>{
-            let google_sub_id=google_user.sub.clone();
-           
-            let user=app_data.user_resolver.resolve_or_create_user(&google_user, |p|{
-                let domain_user_create_params=CreateUserActorParams{
-                    user_data:p,
-                    user_actor_deps:Arc::clone(&app_data.user_actor_deps)
-                };
-                Ok(domain_user_create_params)
-            }).await;
+        Ok(google_user) => {
+            let google_sub_id = google_user.sub.clone();
+
+            let user = app_data
+                .user_resolver
+                .resolve_or_create_user(&google_user, |p| {
+                    let domain_user_create_params = CreateUserActorParams {
+                        user_data: p,
+                        user_actor_deps: Arc::clone(&app_data.user_actor_deps),
+                    };
+                    Ok(domain_user_create_params)
+                })
+                .await;
 
             HttpResponse::Ok().json(google_user)
         }

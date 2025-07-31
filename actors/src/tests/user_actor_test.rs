@@ -1,4 +1,3 @@
-
 use std::sync::Arc;
 
 use crate::user_actor::create_user_actor_params::CreateUserActorParams;
@@ -21,20 +20,20 @@ use ulid::Ulid;
 
 fn create_actor(id: Ulid) -> ActorRef<UserActor> {
     let tracks_provider = Box::new(LocalTrackStoreProvider::new());
-    
+
     let actor_params = CreateUserActorParams {
         user_data: DomainUser {
             email: id.to_string(),
             id: id.to_string(),
             name: id.to_string(),
-            google_sub_id:None,
-            picture:"some".into()
+            google_sub_id: None,
+            picture: "some".into(),
         },
-        user_actor_deps:Arc::new(UserActorDeps{
-            player_factory:Arc::new(PlayerFactory{}),
-            tracks_provider:Arc::new(LocalTrackStoreProvider::new()),
-            user_provider:Arc::new(InMemoryUserProvider::new())
-        })
+        user_actor_deps: Arc::new(UserActorDeps {
+            player_factory: Arc::new(PlayerFactory {}),
+            tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
+            user_provider: Arc::new(InMemoryUserProvider::new()),
+        }),
     };
     let actor = UserActor::spawn(UserActor::new(actor_params));
     let g = kameo::registry::ActorRegistry::new();

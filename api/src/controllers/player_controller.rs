@@ -23,23 +23,24 @@ async fn get_player_state(path: web::Query<GetPlayerState>) -> String {
 
 #[derive(Deserialize)]
 pub struct PlayRequest {
-    pub user_name: Option<String>,
+    pub user_id: Option<String>,
     pub track_name: Option<String>,
 }
 #[post("/play")]
 async fn play(body: web::Json<PlayRequest>, app_state: web::Data<AppData>) -> HttpResponse {
     let play_message = body.into_inner();
 
-    let user = match play_message.user_name {
+    let user_id = match play_message.user_id {
         None => return HttpResponse::BadRequest().body("Invalid user"),
         Some(u) => u,
     };
-    let user_addr = {
-        let guard = app_state.user_map.lock().await;
-        match guard.get(&user).cloned() {
-            Some(addr) => addr,
-            None => return HttpResponse::NotFound().body("Could not find user"),
-        }
+     let actor = match app_state
+        .user_resolver
+        .resolve_existing_user(&user_id)
+        .await
+    {
+        Ok(addr) => addr.actor,
+        Err(e) => return HttpResponse::NotFound().body("Could not find user"),
     };
 
     let track_name = match play_message.track_name {
@@ -47,7 +48,7 @@ async fn play(body: web::Json<PlayRequest>, app_state: web::Data<AppData>) -> Ht
         None => return HttpResponse::BadRequest().body("Invalid track name"),
     };
 
-    let _ = user_addr
+    let _ = actor
         .tell(UserPlay {
             track_id: track_name,
         })
@@ -57,23 +58,25 @@ async fn play(body: web::Json<PlayRequest>, app_state: web::Data<AppData>) -> Ht
 
 #[derive(Deserialize)]
 pub struct PauseRequest {
-    pub user_name: Option<String>,
+    pub user_id: Option<String>,
     pub track_name: Option<String>,
 }
 #[post("/pause")]
 async fn pause(body: web::Json<PauseRequest>, app_state: web::Data<AppData>) -> HttpResponse {
     let pause_message = body.into_inner();
 
-    let user = match pause_message.user_name {
+    let user_id = match pause_message.user_id {
         None => return HttpResponse::BadRequest().body("Invalid user"),
         Some(u) => u,
     };
-    let user_addr = {
-        let guard = app_state.user_map.lock().await;
-        match guard.get(&user).cloned() {
-            Some(addr) => addr,
-            None => return HttpResponse::NotFound().body("Could not find user"),
-        }
+
+    let actor = match app_state
+        .user_resolver
+        .resolve_existing_user(&user_id)
+        .await
+    {
+        Ok(addr) => addr.actor,
+        Err(e) => return HttpResponse::NotFound().body("Could not find user"),
     };
 
     let track_name = match pause_message.track_name {
@@ -81,7 +84,7 @@ async fn pause(body: web::Json<PauseRequest>, app_state: web::Data<AppData>) -> 
         None => return HttpResponse::BadRequest().body("Invalid track name"),
     };
 
-    let _ = user_addr
+    let _ = actor
         .tell(UserPause {
             track_id: track_name,
         })
@@ -91,7 +94,7 @@ async fn pause(body: web::Json<PauseRequest>, app_state: web::Data<AppData>) -> 
 
 #[derive(Deserialize)]
 pub struct SeekRequest {
-    pub user_name: Option<String>,
+    pub user_id: Option<String>,
     pub track_name: Option<String>,
     pub position: u32,
 }
@@ -99,16 +102,17 @@ pub struct SeekRequest {
 async fn seek(body: web::Json<SeekRequest>, app_state: web::Data<AppData>) -> HttpResponse {
     let seek_message = body.into_inner();
 
-    let user = match seek_message.user_name {
+    let user_id = match seek_message.user_id {
         None => return HttpResponse::BadRequest().body("Invalid user"),
         Some(u) => u,
     };
-    let user_addr = {
-        let guard = app_state.user_resolver.resolve_or_create_user(google_user_info, build_params).lock().await;
-        match guard.get(&user).cloned() {
-            Some(addr) => addr,
-            None => return HttpResponse::NotFound().body("Could not find user"),
-        }
+     let actor = match app_state
+        .user_resolver
+        .resolve_existing_user(&user_id)
+        .await
+    {
+        Ok(addr) => addr.actor,
+        Err(e) => return HttpResponse::NotFound().body("Could not find user"),
     };
 
     let track_name = match seek_message.track_name {
@@ -116,7 +120,7 @@ async fn seek(body: web::Json<SeekRequest>, app_state: web::Data<AppData>) -> Ht
         None => return HttpResponse::BadRequest().body("Invalid track name"),
     };
 
-    let _ = user_addr
+    let _ = actor
         .tell(UserSeek {
             track_id: track_name,
             position: seek_message.position,
@@ -125,20 +129,27 @@ async fn seek(body: web::Json<SeekRequest>, app_state: web::Data<AppData>) -> Ht
     HttpResponse::Ok().finish()
 }
 
+
+#[derive(Deserialize)]
+pub struct StopRequest {
+    pub user_id: Option<String>,
+    pub track_name: Option<String>
+}
 #[post("/stop")]
-async fn stop(body: web::Json<PauseRequest>, app_state: web::Data<AppData>) -> HttpResponse {
+async fn stop(body: web::Json<StopRequest>, app_state: web::Data<AppData>) -> HttpResponse {
     let player_message = body.into_inner();
 
-    let user = match player_message.user_name {
+    let user_id = match player_message.user_id {
         None => return HttpResponse::BadRequest().body("Invalid user"),
         Some(u) => u,
     };
-    let user_addr = {
-        let guard = app_state.user_map.lock().await;
-        match guard.get(&user).cloned() {
-            Some(addr) => addr,
-            None => return HttpResponse::NotFound().body("Could not find user"),
-        }
+   let actor = match app_state
+        .user_resolver
+        .resolve_existing_user(&user_id)
+        .await
+    {
+        Ok(addr) => addr.actor,
+        Err(e) => return HttpResponse::NotFound().body("Could not find user"),
     };
 
     let track_name = match player_message.track_name {
@@ -146,7 +157,7 @@ async fn stop(body: web::Json<PauseRequest>, app_state: web::Data<AppData>) -> H
         None => return HttpResponse::BadRequest().body("Invalid track name"),
     };
 
-    let _ = user_addr
+    let _ = actor
         .tell(UserStop {
             track_id: track_name,
         })
