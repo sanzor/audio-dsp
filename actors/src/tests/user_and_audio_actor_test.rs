@@ -4,6 +4,7 @@ use std::{
 };
 
 use audiolib::{audio_buffer::AudioBuffer, Channels};
+use data_provider::{in_memory_user_provider::InMemoryUserProvider, tracks_provider::LocalTrackStoreProvider};
 use domain::{
     actors::{
         messages::{
@@ -16,11 +17,9 @@ use domain::{
         },
         player_state::AudioPlayerState,
         user_player_state_query_result::UserPlayerStateQueryResult,
-    },
-    raw_track::{RawTrack, TrackInfo},
+    }, domain_user::DomainUser, raw_track::{RawTrack, TrackInfo}
 };
 
-use dsp_core::tracks_provider::LocalTrackStoreProvider;
 use kameo::{actor::ActorRef, Actor};
 use player::{
     audio_sink::{queue_sink::QueueSink, AudioSink},
@@ -30,13 +29,12 @@ use tokio::sync::Mutex;
 use ulid::Ulid;
 
 use crate::user_actor::{
-    create_user_actor_params::CreateUserActorParams,
-    create_user_data::CreateUserData,
-    local_players_provider::LocalPlayerProvider,
-    player_factory::PlayerFactory,
-    user_actor::UserActor,
-    user_attach_sink::{UserAttachSink, UserAttachSinkResult},
-    user_remove_sink::{UserRemoveSink, UserRemoveSinkResult},
+    create_user_actor_params::CreateUserActorParams, 
+     player_factory::PlayerFactory, 
+     user_actor::UserActor, 
+     user_actor_deps::UserActorDeps,
+      user_attach_sink::{UserAttachSink, UserAttachSinkResult},
+       user_remove_sink::{UserRemoveSink, UserRemoveSinkResult}
 };
 struct TestSink {
     pub queue: Arc<Mutex<VecDeque<AudioFrame>>>,
@@ -53,17 +51,22 @@ impl AudioSink for TestSink {
 }
 
 fn create_user_actor(id: Ulid) -> ActorRef<UserActor> {
-    let tracks_provider = Box::new(LocalTrackStoreProvider::new());
-    let players_provider = Box::new(LocalPlayerProvider::new());
+    let tracks_provider = Arc::new(LocalTrackStoreProvider::new());
+
     let actor_params = CreateUserActorParams {
-        user_data: CreateUserData {
+        user_data: DomainUser {
             email: id.to_string(),
             name: id.to_string(),
             id: id.to_string(),
+            picture:"some picture".into(),
+            google_sub_id:None
         },
-        players_provider: players_provider,
-        tracks_provider,
-        player_factory: Arc::new(PlayerFactory {}),
+        user_actor_deps:Arc::new(UserActorDeps{
+            player_factory:Arc::new(PlayerFactory {  }),
+            tracks_provider:tracks_provider,
+            user_provider:Arc::new(InMemoryUserProvider::new())
+        })
+
     };
     let actor = UserActor::spawn(UserActor::new(actor_params));
     let g = kameo::registry::ActorRegistry::new();

@@ -22,7 +22,7 @@ pub struct UserActor {
 }
 
 impl UserActor {
-    pub async fn new(actor_params: CreateUserActorParams) -> UserActor {   
+    pub  fn new(actor_params: CreateUserActorParams) -> UserActor {   
         UserActor {       
             tracks_provider: Arc::clone(&actor_params.user_actor_deps.tracks_provider),
             players_provider: HashMap::new(),

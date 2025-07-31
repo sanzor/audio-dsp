@@ -19,7 +19,7 @@ use kameo::actor::ActorRef;
 use kameo::{self, Actor};
 use ulid::Ulid;
 
-async fn create_actor(id: Ulid) -> ActorRef<UserActor> {
+fn create_actor(id: Ulid) -> ActorRef<UserActor> {
     let tracks_provider = Box::new(LocalTrackStoreProvider::new());
     
     let actor_params = CreateUserActorParams {
@@ -30,13 +30,13 @@ async fn create_actor(id: Ulid) -> ActorRef<UserActor> {
             google_sub_id:None,
             picture:"some".into()
         },
-        user_actor_deps:UserActorDeps{
+        user_actor_deps:Arc::new(UserActorDeps{
             player_factory:Arc::new(PlayerFactory{}),
             tracks_provider:Arc::new(LocalTrackStoreProvider::new()),
             user_provider:Arc::new(InMemoryUserProvider::new())
-        }
+        })
     };
-    let actor = UserActor::spawn(UserActor::new(actor_params).await);
+    let actor = UserActor::spawn(UserActor::new(actor_params));
     let g = kameo::registry::ActorRegistry::new();
 
     actor

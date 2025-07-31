@@ -4,7 +4,8 @@ use actix_web::{
     web::{self},
     App, HttpServer,
 };
-use actors::user_actor::player_factory::PlayerFactory;
+use actors::user_actor::{player_factory::PlayerFactory, user_actor_deps::UserActorDeps};
+use data_provider::tracks_provider::LocalTrackStoreProvider;
 use dsp_api::{
     app_data::AppData,
     controllers::{self, facebook_controller, google_controller, ws_controller},
@@ -15,6 +16,11 @@ use tokio::sync::Mutex;
 async fn main() -> std::io::Result<()> {
     let registry = AppData {
         user_resolver: Arc::new(UserResolver::new()),
+        user_actor_deps:Arc::new(UserActorDeps{
+            player_factory:Arc::new(PlayerFactory {  }),
+            tracks_provider:Arc::new(LocalTrackStoreProvider::new()),
+            user_provider:Arc::new(LocalUs)
+        })
     };
     dotenv::dotenv().ok();
     HttpServer::new(move || {

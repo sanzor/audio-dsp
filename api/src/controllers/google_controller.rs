@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use actix_web::{get, web, HttpResponse};
 
 use actors::user_actor::{create_user_actor_params::CreateUserActorParams, user_actor_deps::UserActorDeps};
@@ -51,12 +53,10 @@ async fn google_callback(query: web::Query<AuthRequest>,app_data:web::Data<AppDa
         Ok(google_user) =>{
             let google_sub_id=google_user.sub.clone();
            
-            let user=app_data.user_resolver.resolve_user(&google_user, |p|{
+            let user=app_data.user_resolver.resolve_or_create_user(&google_user, |p|{
                 let domain_user_create_params=CreateUserActorParams{
                     user_data:p,
-                    user_actor_deps:UserActorDeps{
-                        player_factory:app_data.
-                    }
+                    user_actor_deps:Arc::clone(&app_data.user_actor_deps)
                 };
                 Ok(domain_user_create_params)
             }).await;

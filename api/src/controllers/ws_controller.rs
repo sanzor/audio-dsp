@@ -22,7 +22,7 @@ use player::{
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 
-use crate::{app_data::AppData, controllers::utils::get_user_internal};
+use crate::{app_data::AppData, controllers::utils::get_user_actor_internal};
 
 #[derive(Serialize, Debug, Clone, Deserialize)]
 pub enum WebsocketSendMessage {
@@ -49,7 +49,7 @@ async fn run_player(
     app_state: web::Data<AppData>,
 ) -> Result<HttpResponse, actix_web::Error> {
     //fetch user
-    let user = match get_user_internal(&query.user_id, &app_state).await {
+    let user = match get_user_actor_internal(&query.user_id, &app_state).await {
         Ok(u) => u,
         Err(e) => return Ok(HttpResponse::NotFound().body("User not found")),
     };

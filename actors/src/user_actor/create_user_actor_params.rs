@@ -12,5 +12,5 @@ use crate::{
 type Players = HashMap<String, ActorRef<AudioPlayerActor>>;
     pub struct CreateUserActorParams {
         pub user_data: DomainUser,
-        pub user_actor_deps:UserActorDeps
+        pub user_actor_deps:Arc<UserActorDeps>
     }

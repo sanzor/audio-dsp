@@ -7,8 +7,7 @@ use actix_web::{
     HttpResponse,
 };
 use actors::user_actor::{
-    create_user_actor_params::CreateUserActorParams, create_user_data::CreateUserData,
-    local_players_provider::LocalPlayerProvider, user_actor::UserActor,
+    user_actor::UserActor,
 };
 use domain::{
     actors::messages::{
@@ -17,7 +16,7 @@ use domain::{
     },
     track_meta::TrackMeta,
 };
-use dsp_core::tracks_provider::LocalTrackStoreProvider;
+
 use kameo::{actor::ActorRef, Actor};
 use serde::{Deserialize, Serialize};
 use ulid::Ulid;
@@ -30,10 +29,10 @@ pub struct GetUserDataResult {
 #[get("/get-user-state/{user_id}")]
 async fn get_user_state(path: web::Path<String>, app_state: web::Data<AppData>) -> HttpResponse {
     let user_id = path.into_inner();
-    let guard = app_state.user_map.lock().await;
-    let user = match guard.get(&user_id).cloned() {
-        Some(u) => u,
-        None => return HttpResponse::BadRequest().body("Could not find user"),
+    let guard = app_state.user_resolver.resolve_existing_user(&user_id).await;
+    let user = match guard {
+        Ok(u) => u.actor,
+        Err(e) => return HttpResponse::BadRequest().body("Could not find user"),
     };
     let user_data = match user.ask(GetUserState {}).await {
         Ok(data) => data,
@@ -59,29 +58,6 @@ pub struct CreateUserResult {
     pub user_name: String,
 }
 
-#[post("/create")]
-async fn create(path: web::Json<CreateUserParams>, app_state: web::Data<AppData>) -> HttpResponse {
-    let request = path.into_inner();
-    let id = Ulid::new().to_string();
-    let actor_params = CreateUserActorParams {
-        player_factory: Arc::clone(&app_state.player_factory),
-        user_data: CreateUserData {
-            id: id.clone(),
-            name: request.user_name.clone(),
-            email: request.email.clone(),
-        },
-        players_provider: Box::new(LocalPlayerProvider::new()),
-        tracks_provider: Box::new(LocalTrackStoreProvider::new()),
-    };
-    let user_actor = UserActor::spawn(UserActor::new(actor_params));
-    let mut user_map = app_state.user_map.lock().await;
-    user_map.insert(id.clone(), user_actor);
-    HttpResponse::Created().json(CreateUserResult {
-        user_id: id,
-        user_name: request.user_name,
-        email: request.email,
-    })
-}
 
 #[derive(Deserialize)]
 pub struct RemoveUserParams {
@@ -151,16 +127,13 @@ async fn get_user_internal(
     app_state: &AppData,
 ) -> Result<ActorRef<UserActor>, String> {
     let user_addr = {
-        let guard = app_state.user_map.lock().await;
-        match guard.get(&user_id.to_string()).cloned() {
-            Some(addr) => Ok(addr),
-            None => Err("Could not find user".to_string()),
-        }
+        let res = app_state.user_resolver.resolve_existing_user(user_id).await;
+        res.map(|rez|rez.actor)
     };
     user_addr
 }
 pub fn init(cfg: &mut web::ServiceConfig) {
-    cfg.service(create)
+    cfg
         .service(get_user_state)
         .service(delete)
         .service(update);
