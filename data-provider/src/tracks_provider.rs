@@ -24,3 +24,6 @@ pub trait TracksProvider {
         track_info: TrackInfo,
     ) -> Result<TrackMeta, String>;
 }
+unsafe impl Send for LocalTrackStoreProvider{
+
+}

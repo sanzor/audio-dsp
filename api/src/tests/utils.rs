@@ -8,7 +8,7 @@ use actors::user_actor::{
     user_actor::UserActor, user_actor_deps::UserActorDeps
 };
 use audiolib::{audio_buffer::AudioBuffer, Channels};
-use data_provider::{in_memory_user_provider::InMemoryUserProvider, tracks_provider::LocalTrackStoreProvider};
+use data_provider::{in_memory_user_provider::InMemoryUserProvider, tracks_provider::{LocalTrackStoreProvider, TracksProvider}};
 use domain::{
     actors::messages::crud::get_tracks::GetTracksResult, domain_user::DomainUser, raw_track::{RawTrack, TrackInfo}
 };
@@ -22,7 +22,7 @@ use crate::controllers::{
 };
 
 pub fn create_user_actor(id: Ulid) -> ActorRef<UserActor> {
-    let tracks_provider = Arc::new(LocalTrackStoreProvider::new());
+    let tracks_provider:Arc<dyn TracksProvider> = Arc::new(LocalTrackStoreProvider::new());
     let player_factory=PlayerFactory{};
     let actor_params = CreateUserActorParams {
         user_data: DomainUser {
@@ -36,7 +36,7 @@ pub fn create_user_actor(id: Ulid) -> ActorRef<UserActor> {
             player_factory:Arc::new(player_factory),
             user_provider:Arc::new(InMemoryUserProvider::new()),
             tracks_provider:Arc::clone(&tracks_provider)
-        })
+        })  
     };
     let actor = UserActor::spawn(UserActor::new(actor_params));
 
