@@ -22,7 +22,7 @@ use crate::controllers::{
 };
 
 pub fn create_user_actor(id: Ulid) -> ActorRef<UserActor> {
-    let tracks_provider:Arc<dyn TracksProvider> = Arc::new(LocalTrackStoreProvider::new());
+    let tracks_provider:Arc<dyn TracksProvider+Send+Sync> = Arc::new(LocalTrackStoreProvider::new());
     let player_factory=PlayerFactory{};
     let actor_params = CreateUserActorParams {
         user_data: DomainUser {
