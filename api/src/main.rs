@@ -20,8 +20,7 @@ async fn main() -> std::io::Result<()> {
         user_resolver: Arc::new(LocalUserResolver::new(Arc::clone(&user_provider), user_registry)),
         user_actor_deps: Arc::new(UserActorDeps {
             player_factory: Arc::new(PlayerFactory {}),
-            tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
-            user_provider: Arc::new(InMemoryUserProvider::new()),
+            tracks_provider: Arc::new(LocalTrackStoreProvider::new())
         }),
     };
     dotenv::dotenv().ok();

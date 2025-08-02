@@ -45,8 +45,7 @@ async fn can_start_player_ws() -> Result<(), String> {
     let app_data = AppData {
         user_actor_deps:Arc::new(UserActorDeps{
             player_factory:Arc::new(PlayerFactory {}),
-            tracks_provider:Arc::new(LocalTrackStoreProvider::new()),
-            user_provider:Arc::clone(&user_provider)
+            tracks_provider:Arc::new(LocalTrackStoreProvider::new())
         }),
         user_resolver:Arc::new(LocalUserResolver::new(user_provider,Arc::new(UserActorRegistry::new()) ))
     };
@@ -117,8 +116,7 @@ async fn can_stop_player_ws() -> Result<(), String> {
     let app_data = AppData {
         user_actor_deps:Arc::new(UserActorDeps{
             player_factory:Arc::new(PlayerFactory {}),
-            tracks_provider:Arc::new(LocalTrackStoreProvider::new()),
-            user_provider:Arc::clone(&user_provider)
+            tracks_provider:Arc::new(LocalTrackStoreProvider::new())
         }),
         user_resolver:Arc::new(LocalUserResolver::new(user_provider,Arc::new(UserActorRegistry::new()) ))
     };

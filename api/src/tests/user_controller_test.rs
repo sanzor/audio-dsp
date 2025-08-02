@@ -4,16 +4,16 @@ use actix_http::{Request, StatusCode};
 use actix_web::{dev::Service, test, web, App};
 
 use ::actors::user_actor::player_factory::PlayerFactory;
+use actors::user_actor::{user_actor_deps::UserActorDeps, user_actor_registry::UserActorRegistry};
+use data_provider::{tracks_provider::LocalTrackStoreProvider, user_provider::UserProvider};
 use rstest::rstest;
 use tokio::sync::Mutex;
 
 use crate::{
-    app_data::AppData,
-    controllers::user_controller::{
+    app_data::AppData, controllers::user_controller::{
         self, CreateUserParams, CreateUserResult, GetUserDataResult, UpdateUserParams,
         UserUpdateResult,
-    },
-    user_provider::in_memory_user_provider::InMemoryUserProvider,
+    }, local_user_resolver::LocalUserResolver, user_provider::in_memory_user_provider::InMemoryUserProvider
 };
 
 #[rstest]
@@ -52,11 +52,13 @@ async fn can_get_user() -> Result<(), String> {
 async fn can_insert_user() -> Result<(), String> {
     let user_name = "adrian";
     let email = "adrian.bercovici@gmail.com";
-
-    let app_data = AppData {
-        player_factory: Arc::new(PlayerFactory {}),
-        user_map: Arc::new(Mutex::new(HashMap::new())),
-        user_resolver: Arc::new(InMemoryUserProvider::new()),
+    let user_provider:Arc<dyn UserProvider>=Arc::new(InMemoryUserProvider::new());
+   let app_data = AppData {
+        user_actor_deps:Arc::new(UserActorDeps{
+        player_factory:Arc::new(PlayerFactory {}),
+            tracks_provider:Arc::new(LocalTrackStoreProvider::new())
+        }),
+        user_resolver:Arc::new(LocalUserResolver::new(user_provider,Arc::new(UserActorRegistry::new()) ))
     };
     let app = test::init_service(
         App::new()
@@ -118,10 +120,13 @@ async fn can_update_user() -> Result<(), String> {
     let email = "adrian.bercovici@gmail.com";
     let new_user_name = "adrian2";
     let new_email = "adrian.bercovici2@yahoo.com";
+     let user_provider:Arc<dyn UserProvider>=Arc::new(InMemoryUserProvider::new());
     let app_data = AppData {
-        player_factory: Arc::new(PlayerFactory {}),
-        user_map: Arc::new(Mutex::new(HashMap::new())),
-        user_resolver: Arc::new(InMemoryUserProvider::new()),
+            user_actor_deps:Arc::new(UserActorDeps{
+            player_factory:Arc::new(PlayerFactory {}),
+            tracks_provider:Arc::new(LocalTrackStoreProvider::new())
+        }),
+        user_resolver:Arc::new(LocalUserResolver::new(user_provider,Arc::new(UserActorRegistry::new()) ))
     };
     let mut app = test::init_service(
         App::new()

@@ -34,7 +34,6 @@ pub fn create_user_actor(id: Ulid) -> ActorRef<UserActor> {
         },
         user_actor_deps:Arc::new(UserActorDeps{
             player_factory:Arc::new(player_factory),
-            user_provider:Arc::new(InMemoryUserProvider::new()),
             tracks_provider:Arc::clone(&tracks_provider)
         })  
     };
