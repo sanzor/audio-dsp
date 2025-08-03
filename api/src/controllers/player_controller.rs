@@ -36,7 +36,7 @@ async fn play(body: web::Json<PlayRequest>, app_state: web::Data<AppData>) -> Ht
     };
      let actor = match app_state
         .user_resolver
-        .resolve_existing_user(&user_id)
+        .resolve_existing_user_and_actor(&user_id)
         .await
     {
         Ok(addr) => addr.actor,
@@ -72,7 +72,7 @@ async fn pause(body: web::Json<PauseRequest>, app_state: web::Data<AppData>) -> 
 
     let actor = match app_state
         .user_resolver
-        .resolve_existing_user(&user_id)
+        .resolve_existing_user_and_actor(&user_id)
         .await
     {
         Ok(addr) => addr.actor,
@@ -108,7 +108,7 @@ async fn seek(body: web::Json<SeekRequest>, app_state: web::Data<AppData>) -> Ht
     };
      let actor = match app_state
         .user_resolver
-        .resolve_existing_user(&user_id)
+        .resolve_existing_user_and_actor(&user_id)
         .await
     {
         Ok(addr) => addr.actor,
@@ -145,7 +145,7 @@ async fn stop(body: web::Json<StopRequest>, app_state: web::Data<AppData>) -> Ht
     };
    let actor = match app_state
         .user_resolver
-        .resolve_existing_user(&user_id)
+        .resolve_existing_user_and_actor(&user_id)
         .await
     {
         Ok(addr) => addr.actor,

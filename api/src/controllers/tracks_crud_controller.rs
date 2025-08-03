@@ -227,7 +227,7 @@ async fn get_track_info(
     let request = query.into_inner();
     let resolved_user = app_state
         .user_resolver
-        .resolve_existing_user(&request.user_id)
+        .resolve_existing_user_and_actor(&request.user_id)
         .await;
 
     let user_actor = match resolved_user {

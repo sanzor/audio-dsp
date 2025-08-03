@@ -27,9 +27,9 @@ use crate::{
         tracks_crud_controller::{self, AddTrackParams},
         user_controller,
         ws_controller::{self, WebsocketSendMessage, WsMessage},
-    }, local_user_resolver::LocalUserResolver, player_controller_test::utils::{
+    }  ,player_controller_test::utils::{
         create_user_actor, get_user_state, insert_track, make_raw_track_from_samples,
-    }
+    }, user_and_actor_resolver::local_user_and_actor_resolver::LocalUserAndActorResolver
 };
 
 #[rstest]
@@ -47,7 +47,7 @@ async fn can_start_player_ws() -> Result<(), String> {
             player_factory:Arc::new(PlayerFactory {}),
             tracks_provider:Arc::new(LocalTrackStoreProvider::new())
         }),
-        user_resolver:Arc::new(LocalUserResolver::new(user_provider,Arc::new(UserActorRegistry::new()) ))
+        user_resolver:Arc::new(LocalUserAndActorResolver::new(user_provider,Arc::new(UserActorRegistry::new()) ))
     };
     let url = "127.0.0.1:0";
     let server_app_data = app_data.clone();
@@ -118,7 +118,7 @@ async fn can_stop_player_ws() -> Result<(), String> {
             player_factory:Arc::new(PlayerFactory {}),
             tracks_provider:Arc::new(LocalTrackStoreProvider::new())
         }),
-        user_resolver:Arc::new(LocalUserResolver::new(user_provider,Arc::new(UserActorRegistry::new()) ))
+        user_resolver:Arc::new(LocalUserAndActorResolver::new(user_provider,Arc::new(UserActorRegistry::new()) ))
     };
     let url = "127.0.0.1:0";
     let server_app_data = app_data.clone();

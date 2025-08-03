@@ -60,7 +60,7 @@ async fn google_callback(
 
             let user = app_data
                 .user_resolver
-                .resolve_or_create_user(&google_user, |p| {
+                .resolve_or_create_user_and_actor(&google_user, |p| {
                     let domain_user_create_params = CreateUserActorParams {
                         user_data: p,
                         user_actor_deps: Arc::clone(&app_data.user_actor_deps),

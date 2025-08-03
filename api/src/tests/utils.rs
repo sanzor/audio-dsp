@@ -8,7 +8,7 @@ use actors::user_actor::{
     user_actor::UserActor, user_actor_deps::UserActorDeps
 };
 use audiolib::{audio_buffer::AudioBuffer, Channels};
-use data_provider::{in_memory_user_provider::InMemoryUserProvider, tracks_provider::{LocalTrackStoreProvider, TracksProvider}};
+use data_provider::tracks_provider::{LocalTrackStoreProvider, TracksProvider};
 use domain::{
     actors::messages::crud::get_tracks::GetTracksResult, domain_user::DomainUser, raw_track::{RawTrack, TrackInfo}
 };
@@ -16,10 +16,9 @@ use domain::{
 use kameo::{actor::ActorRef, Actor};
 use ulid::Ulid;
 
-use crate::controllers::{
-    tracks_crud_controller::{AddTrackParams, AddTrackResult},
-    user_controller::GetUserDataResult,
-};
+use crate::{controllers::{
+    google_controller::GoogleUserInfo, tracks_crud_controller::{AddTrackParams, AddTrackResult}, user_controller::GetUserDataResult
+}, user_and_actor_resolver::{local_user_and_actor_resolver::LocalUserAndActorResolver, resolved_user_and_actor::ResolvedUserAndActor}};
 
 pub fn create_user_actor(id: Ulid) -> ActorRef<UserActor> {
     let tracks_provider:Arc<dyn TracksProvider+Send+Sync> = Arc::new(LocalTrackStoreProvider::new());
@@ -41,6 +40,23 @@ pub fn create_user_actor(id: Ulid) -> ActorRef<UserActor> {
 
     let g = kameo::registry::ActorRegistry::new();
     actor
+}
+
+pub async fn create_user_and_actor(id:Ulid,user_resolver:LocalUserAndActorResolver,user_actor_deps:Arc<UserActorDeps>)->Result<ResolvedUserAndActor,String>{
+    let google_info=GoogleUserInfo{
+        email:"some email".into(),
+        name:"some_name".into(),
+        picture:"some picture".into(),
+        sub:id.to_string()
+    };
+    let rez=user_resolver.resolve_or_create_user_and_actor(&google_info, |p| {
+                    let domain_user_create_params = CreateUserActorParams {
+                        user_data: p,
+                        user_actor_deps: Arc::clone(&user_actor_deps),
+                    };
+                    Ok(domain_user_create_params)
+                }).await;
+    rez
 }
 
 pub async fn get_tracks(

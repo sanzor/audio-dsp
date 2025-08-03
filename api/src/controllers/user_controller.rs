@@ -29,7 +29,7 @@ async fn get_user_state(path: web::Path<String>, app_state: web::Data<AppData>) 
     let user_id = path.into_inner();
     let guard = app_state
         .user_resolver
-        .resolve_existing_user(&user_id)
+        .resolve_existing_user_and_actor(&user_id)
         .await;
     let user = match guard {
         Ok(u) => u.actor,
@@ -127,7 +127,7 @@ async fn get_user_internal(
     app_state: &AppData,
 ) -> Result<ActorRef<UserActor>, String> {
     let user_addr = {
-        let res = app_state.user_resolver.resolve_existing_user(user_id).await;
+        let res = app_state.user_resolver.resolve_existing_user_and_actor(user_id).await;
         res.map(|rez| rez.actor)
     };
     user_addr

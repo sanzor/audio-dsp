@@ -8,7 +8,7 @@ pub async fn get_user_actor_internal(
     app_state: &AppData,
 ) -> Result<ActorRef<UserActor>, String> {
     let user_addr = {
-        let guard = app_state.user_resolver.resolve_existing_user(user_id).await;
+        let guard = app_state.user_resolver.resolve_existing_user_and_actor(user_id).await;
         match guard {
             Ok(r_user) => Ok(r_user.actor),
             Err(e) => Err("Could not find user".to_string()),
