@@ -11,11 +11,11 @@ impl Message<GetPlayerState> for AudioPlayerActor {
         msg: GetPlayerState,
         ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
-        Ok((GetPlayerStateResult {
+        Ok(GetPlayerStateResult {
             cursor: self.cursor,
             state: self.state.clone(),
             written: self.frames_written,
             sinks: self.sinks.keys().cloned().collect(),
-        }))
+        })
     }
 }

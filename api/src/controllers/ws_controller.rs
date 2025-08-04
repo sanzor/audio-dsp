@@ -2,7 +2,7 @@ use std::{collections::VecDeque, sync::Arc, time::Duration};
 
 use actix_web::{
     get,
-    web::{self, ServiceConfig},
+    web::{self},
     HttpRequest, HttpResponse,
 };
 use actors::user_actor::{

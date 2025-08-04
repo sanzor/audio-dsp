@@ -1,9 +1,9 @@
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
 
 use crate::app_data::AppData;
 use actix_web::{
-    delete, get, post, put,
-    web::{self, put},
+    delete, get, put,
+    web::{self},
     HttpResponse,
 };
 use actors::user_actor::user_actor::UserActor;
@@ -17,7 +17,6 @@ use domain::{
 
 use kameo::{actor::ActorRef, Actor};
 use serde::{Deserialize, Serialize};
-use ulid::Ulid;
 
 #[derive(Deserialize, Clone, Debug, Serialize)]
 pub struct GetUserDataResult {
@@ -127,7 +126,10 @@ async fn get_user_internal(
     app_state: &AppData,
 ) -> Result<ActorRef<UserActor>, String> {
     let user_addr = {
-        let res = app_state.user_resolver.resolve_existing_user_and_actor(user_id).await;
+        let res = app_state
+            .user_resolver
+            .resolve_existing_user_and_actor(user_id)
+            .await;
         res.map(|rez| rez.actor)
     };
     user_addr

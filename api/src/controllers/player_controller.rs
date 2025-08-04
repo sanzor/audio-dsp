@@ -34,7 +34,7 @@ async fn play(body: web::Json<PlayRequest>, app_state: web::Data<AppData>) -> Ht
         None => return HttpResponse::BadRequest().body("Invalid user"),
         Some(u) => u,
     };
-     let actor = match app_state
+    let actor = match app_state
         .user_resolver
         .resolve_existing_user_and_actor(&user_id)
         .await
@@ -106,7 +106,7 @@ async fn seek(body: web::Json<SeekRequest>, app_state: web::Data<AppData>) -> Ht
         None => return HttpResponse::BadRequest().body("Invalid user"),
         Some(u) => u,
     };
-     let actor = match app_state
+    let actor = match app_state
         .user_resolver
         .resolve_existing_user_and_actor(&user_id)
         .await
@@ -129,11 +129,10 @@ async fn seek(body: web::Json<SeekRequest>, app_state: web::Data<AppData>) -> Ht
     HttpResponse::Ok().finish()
 }
 
-
 #[derive(Deserialize)]
 pub struct StopRequest {
     pub user_id: Option<String>,
-    pub track_name: Option<String>
+    pub track_name: Option<String>,
 }
 #[post("/stop")]
 async fn stop(body: web::Json<StopRequest>, app_state: web::Data<AppData>) -> HttpResponse {
@@ -143,7 +142,7 @@ async fn stop(body: web::Json<StopRequest>, app_state: web::Data<AppData>) -> Ht
         None => return HttpResponse::BadRequest().body("Invalid user"),
         Some(u) => u,
     };
-   let actor = match app_state
+    let actor = match app_state
         .user_resolver
         .resolve_existing_user_and_actor(&user_id)
         .await

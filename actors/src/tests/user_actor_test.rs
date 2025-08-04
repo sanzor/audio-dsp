@@ -6,7 +6,6 @@ use crate::user_actor::player_factory::PlayerFactory;
 use crate::user_actor::user_actor::UserActor;
 use crate::user_actor::user_actor_deps::UserActorDeps;
 use audiolib::{self, audio_buffer::AudioBuffer, Channels};
-use data_provider::in_memory_user_provider::InMemoryUserProvider;
 use data_provider::tracks_provider::LocalTrackStoreProvider;
 use domain::actors::messages::crud::copy_track::CopyTrack;
 use domain::actors::messages::crud::get_tracks::GetTrackMetas;
@@ -32,7 +31,6 @@ fn create_actor(id: Ulid) -> ActorRef<UserActor> {
         user_actor_deps: Arc::new(UserActorDeps {
             player_factory: Arc::new(PlayerFactory {}),
             tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
-            user_provider: Arc::new(InMemoryUserProvider::new()),
         }),
     };
     let actor = UserActor::spawn(UserActor::new(actor_params));

@@ -3,38 +3,48 @@ use std::sync::Arc;
 use actix_http::{Request, StatusCode};
 use actix_web::{dev::Service, test};
 use actors::user_actor::{
-    create_user_actor_params::CreateUserActorParams,
-     player_factory::PlayerFactory,
-    user_actor::UserActor, user_actor_deps::UserActorDeps
+    create_user_actor_params::CreateUserActorParams, player_factory::PlayerFactory,
+    user_actor::UserActor, user_actor_deps::UserActorDeps,
 };
 use audiolib::{audio_buffer::AudioBuffer, Channels};
 use data_provider::tracks_provider::{LocalTrackStoreProvider, TracksProvider};
 use domain::{
-    actors::messages::crud::get_tracks::GetTracksResult, domain_user::DomainUser, raw_track::{RawTrack, TrackInfo}
+    actors::messages::crud::get_tracks::GetTracksResult,
+    domain_user::DomainUser,
+    raw_track::{RawTrack, TrackInfo},
 };
 
 use kameo::{actor::ActorRef, Actor};
 use ulid::Ulid;
 
-use crate::{controllers::{
-    google_controller::GoogleUserInfo, tracks_crud_controller::{AddTrackParams, AddTrackResult}, user_controller::GetUserDataResult
-}, user_and_actor_resolver::{local_user_and_actor_resolver::LocalUserAndActorResolver, resolved_user_and_actor::ResolvedUserAndActor}};
+use crate::{
+    controllers::{
+        google_controller::GoogleUserInfo,
+        tracks_crud_controller::{AddTrackParams, AddTrackResult},
+        user_controller::GetUserDataResult,
+    },
+    user_and_actor_resolver::{
+        local_user_and_actor_resolver::LocalUserAndActorResolver,
+        resolved_user_and_actor::ResolvedUserAndActor,
+    },
+};
 
 pub fn create_user_actor(id: Ulid) -> ActorRef<UserActor> {
-    let tracks_provider:Arc<dyn TracksProvider+Send+Sync> = Arc::new(LocalTrackStoreProvider::new());
-    let player_factory=PlayerFactory{};
+    let tracks_provider: Arc<dyn TracksProvider + Send + Sync> =
+        Arc::new(LocalTrackStoreProvider::new());
+    let player_factory = PlayerFactory {};
     let actor_params = CreateUserActorParams {
         user_data: DomainUser {
             email: id.to_string(),
             id: id.to_string(),
             name: id.to_string(),
-            google_sub_id:None,
-            picture:"Some str".into()
+            google_sub_id: None,
+            picture: "Some str".into(),
         },
-        user_actor_deps:Arc::new(UserActorDeps{
-            player_factory:Arc::new(player_factory),
-            tracks_provider:Arc::clone(&tracks_provider)
-        })  
+        user_actor_deps: Arc::new(UserActorDeps {
+            player_factory: Arc::new(player_factory),
+            tracks_provider: Arc::clone(&tracks_provider),
+        }),
     };
     let actor = UserActor::spawn(UserActor::new(actor_params));
 
@@ -42,20 +52,26 @@ pub fn create_user_actor(id: Ulid) -> ActorRef<UserActor> {
     actor
 }
 
-pub async fn create_user_and_actor(id:Ulid,user_resolver:LocalUserAndActorResolver,user_actor_deps:Arc<UserActorDeps>)->Result<ResolvedUserAndActor,String>{
-    let google_info=GoogleUserInfo{
-        email:"some email".into(),
-        name:"some_name".into(),
-        picture:"some picture".into(),
-        sub:id.to_string()
+pub async fn create_user_and_actor(
+    id: Ulid,
+    user_resolver: LocalUserAndActorResolver,
+    user_actor_deps: Arc<UserActorDeps>,
+) -> Result<ResolvedUserAndActor, String> {
+    let google_info = GoogleUserInfo {
+        email: "some email".into(),
+        name: "some_name".into(),
+        picture: "some picture".into(),
+        sub: id.to_string(),
     };
-    let rez=user_resolver.resolve_or_create_user_and_actor(&google_info, |p| {
-                    let domain_user_create_params = CreateUserActorParams {
-                        user_data: p,
-                        user_actor_deps: Arc::clone(&user_actor_deps),
-                    };
-                    Ok(domain_user_create_params)
-                }).await;
+    let rez = user_resolver
+        .resolve_google_user_and_actor(&google_info, |p| {
+            let domain_user_create_params = CreateUserActorParams {
+                user_data: p,
+                user_actor_deps: Arc::clone(&user_actor_deps),
+            };
+            Ok(domain_user_create_params)
+        })
+        .await;
     rez
 }
 

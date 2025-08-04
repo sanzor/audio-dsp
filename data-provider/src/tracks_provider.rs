@@ -12,7 +12,7 @@ pub struct LocalTrackStoreProvider {
     pub tracks: Mutex<HashMap<String, Track>>,
 }
 #[async_trait::async_trait]
-pub trait TracksProvider:Send+Sync {
+pub trait TracksProvider: Send + Sync {
     async fn get_track_meta(&self, track_name: &str) -> Result<TrackMeta, String>;
     async fn get_track_copy(&self, track_name: &str) -> Result<RawTrack, String>;
     async fn get_all_track_infos(&self) -> Result<GetAllTrackInfosResult, String>;
@@ -24,7 +24,5 @@ pub trait TracksProvider:Send+Sync {
         track_info: TrackInfo,
     ) -> Result<TrackMeta, String>;
 }
-unsafe impl Send for LocalTrackStoreProvider{
-
-}
-unsafe  impl Sync for LocalTrackStoreProvider{}
+unsafe impl Send for LocalTrackStoreProvider {}
+unsafe impl Sync for LocalTrackStoreProvider {}

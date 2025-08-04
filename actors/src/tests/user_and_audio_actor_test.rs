@@ -1,12 +1,10 @@
 use std::{
-    collections::{HashMap, VecDeque},
+    collections::VecDeque,
     sync::Arc,
 };
 
 use audiolib::{audio_buffer::AudioBuffer, Channels};
-use data_provider::{
-    in_memory_user_provider::InMemoryUserProvider, tracks_provider::LocalTrackStoreProvider,
-};
+use data_provider::tracks_provider::LocalTrackStoreProvider;
 use domain::{
     actors::{
         messages::{
@@ -68,7 +66,6 @@ fn create_user_actor(id: Ulid) -> ActorRef<UserActor> {
         user_actor_deps: Arc::new(UserActorDeps {
             player_factory: Arc::new(PlayerFactory {}),
             tracks_provider: tracks_provider,
-            user_provider: Arc::new(InMemoryUserProvider::new()),
         }),
     };
     let actor = UserActor::spawn(UserActor::new(actor_params));

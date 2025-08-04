@@ -1,25 +1,30 @@
 use std::{collections::HashMap, sync::Arc};
 
 use actix_http::StatusCode;
-use actix_web::{dev::Service, test, web, App};
+use actix_web::{test, web, App};
 use actors::user_actor::{
-    create_user_actor_params::CreateUserActorParams, create_user_data::CreateUserData,
-     player_factory::PlayerFactory,
+    create_user_actor_params::CreateUserActorParams, player_factory::PlayerFactory,
     user_actor::UserActor, user_actor_deps::UserActorDeps, user_actor_registry::UserActorRegistry,
 };
 use audiolib::Channels;
-use data_provider::{tracks_provider::LocalTrackStoreProvider, user_provider::UserProvider};
-use domain::{actors::messages::crud::{
-    get_track::GetRawTrackResult, get_track_info::GetTrackMetaResult, get_tracks::GetTracksResult,
-}, domain_user::DomainUser};
+use data_provider::{
+    in_memory_user_provider::InMemoryUserProvider, tracks_provider::LocalTrackStoreProvider,
+    user_provider::UserProvider,
+};
+use domain::{
+    actors::messages::crud::{get_track::GetRawTrackResult, get_track_info::GetTrackMetaResult, get_tracks::GetTracksResult},
+    domain_user::DomainUser,
+};
 
 use kameo::{actor::ActorRef, Actor};
 use rstest::rstest;
-use tokio::sync::Mutex;
 use ulid::Ulid;
 
 use crate::{
-    app_data::AppData, controllers::tracks_crud_controller::{self, AddTrackParams, AddTrackResult}, player_controller_test::utils::{insert_track, make_raw_track_from_samples}, user_and_actor_resolver::{local_user_and_actor_resolver::LocalUserAndActorResolver, resolved_user_and_actor::ResolvedUserAndActor}, user_provider::in_memory_user_provider::InMemoryUserProvider
+    app_data::AppData,
+    controllers::tracks_crud_controller::{self, AddTrackParams, AddTrackResult},
+    player_controller_test::utils::{insert_track, make_raw_track_from_samples},
+    user_and_actor_resolver::local_user_and_actor_resolver::LocalUserAndActorResolver,
 };
 
 #[rstest]
@@ -27,16 +32,23 @@ use crate::{
 async fn can_insert_track() -> Result<(), String> {
     let raw_track = make_raw_track_from_samples(vec![1_f32; 500], Channels::Mono);
     let user_id = Ulid::new();
-    let user_actor = create_user_and_actor(user_id.clone());
+    let user_actor_deps = Arc::new(UserActorDeps {
+        player_factory: Arc::new(PlayerFactory {}),
+        tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
+    });
+    let user_actor = create_user_actor(user_id.clone(), Arc::clone(&user_actor_deps));
     let mut user_map = HashMap::new();
     user_map.insert(user_id.to_string(), user_actor);
-    let user_provider:Arc<dyn UserProvider>=Arc::new(InMemoryUserProvider::new());
+    let user_provider: Arc<dyn UserProvider> = Arc::new(InMemoryUserProvider::new());
     let app_data = AppData {
-        user_actor_deps:Arc::new(UserActorDeps{
-            player_factory:Arc::new(PlayerFactory {}),
-            tracks_provider:Arc::new(LocalTrackStoreProvider::new())
+        user_actor_deps: Arc::new(UserActorDeps {
+            player_factory: Arc::new(PlayerFactory {}),
+            tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
         }),
-        user_resolver:Arc::new(LocalUserAndActorResolver::new(user_provider,Arc::new(UserActorRegistry::new()) ))
+        user_resolver: Arc::new(LocalUserAndActorResolver::new(
+            user_provider,
+            Arc::new(UserActorRegistry::new()),
+        )),
     };
     let app = test::init_service(
         App::new()
@@ -63,16 +75,23 @@ async fn can_get_track_metas() -> Result<(), String> {
     let track = make_raw_track_from_samples(vec![1_f32; 500], Channels::Mono);
 
     let user_id = Ulid::new();
-    let user_actor = create_user_and_actor(user_id.clone());
+    let user_actor_deps = Arc::new(UserActorDeps {
+        player_factory: Arc::new(PlayerFactory {}),
+        tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
+    });
+    let user_actor = create_user_actor(user_id.clone(), Arc::clone(&user_actor_deps));
     let mut user_map = HashMap::new();
     user_map.insert(user_id.to_string(), user_actor);
-    let user_provider:Arc<dyn UserProvider>=Arc::new(InMemoryUserProvider::new());
+    let user_provider: Arc<dyn UserProvider> = Arc::new(InMemoryUserProvider::new());
     let app_data = AppData {
-        user_actor_deps:Arc::new(UserActorDeps{
-            player_factory:Arc::new(PlayerFactory {}),
-            tracks_provider:Arc::new(LocalTrackStoreProvider::new())
+        user_actor_deps: Arc::new(UserActorDeps {
+            player_factory: Arc::new(PlayerFactory {}),
+            tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
         }),
-        user_resolver:Arc::new(LocalUserAndActorResolver::new(user_provider,Arc::new(UserActorRegistry::new()) ))
+        user_resolver: Arc::new(LocalUserAndActorResolver::new(
+            user_provider,
+            Arc::new(UserActorRegistry::new()),
+        )),
     };
     let mut app = test::init_service(
         App::new()
@@ -106,16 +125,23 @@ async fn can_get_track_meta() -> Result<(), String> {
     let track = make_raw_track_from_samples(vec![1_f32; 500], Channels::Mono);
 
     let user_id = Ulid::new();
-    let user_actor = create_user_and_actor(user_id.clone());
+    let user_actor_deps = Arc::new(UserActorDeps {
+        player_factory: Arc::new(PlayerFactory {}),
+        tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
+    });
+    let user_actor = create_user_actor(user_id.clone(), Arc::clone(&user_actor_deps));
     let mut user_map = HashMap::new();
     user_map.insert(user_id.to_string(), user_actor);
-    let user_provider:Arc<dyn UserProvider>=Arc::new(InMemoryUserProvider::new());
+    let user_provider: Arc<dyn UserProvider> = Arc::new(InMemoryUserProvider::new());
     let app_data = AppData {
-        user_actor_deps:Arc::new(UserActorDeps{
-            player_factory:Arc::new(PlayerFactory {}),
-            tracks_provider:Arc::new(LocalTrackStoreProvider::new())
+        user_actor_deps: Arc::new(UserActorDeps {
+            player_factory: Arc::new(PlayerFactory {}),
+            tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
         }),
-        user_resolver:Arc::new(LocalUserAndActorResolver::new(user_provider,Arc::new(UserActorRegistry::new()) ))
+        user_resolver: Arc::new(LocalUserAndActorResolver::new(
+            user_provider,
+            Arc::new(UserActorRegistry::new()),
+        )),
     };
     let mut app = test::init_service(
         App::new()
@@ -148,17 +174,22 @@ async fn can_get_track_raw() -> Result<(), String> {
     let track = make_raw_track_from_samples(vec![1_f32; 500], Channels::Mono);
 
     let user_id = Ulid::new();
-    let user_actor = create_user_and_actor(user_id.clone());
-    let user_resolver:Arc::new(LocalUserAndActorResolver::new(user_provider,Arc::new(UserActorRegistry::new())));
+    let user_actor_deps = Arc::new(UserActorDeps {
+        player_factory: Arc::new(PlayerFactory {}),
+        tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
+    });
+    let user_actor = create_user_actor(user_id.clone(), Arc::clone(&user_actor_deps));
+
     let mut user_map = HashMap::new();
     user_map.insert(user_id.to_string(), user_actor);
-    let user_provider:Arc<dyn UserProvider>=Arc::new(InMemoryUserProvider::new());
+    let user_provider: Arc<dyn UserProvider> = Arc::new(InMemoryUserProvider::new());
+
     let app_data = AppData {
-        user_actor_deps:Arc::new(UserActorDeps{
-            player_factory:Arc::new(PlayerFactory {}),
-            tracks_provider:Arc::new(LocalTrackStoreProvider::new())
-        }),
-        user_resolver:user_resolver
+        user_actor_deps: user_actor_deps,
+        user_resolver: Arc::new(LocalUserAndActorResolver::new(
+            user_provider,
+            Arc::new(UserActorRegistry::new()),
+        )),
     };
     let mut app = test::init_service(
         App::new()
@@ -189,18 +220,22 @@ async fn can_get_track_raw() -> Result<(), String> {
 #[actix_web::test]
 async fn can_remove_track() -> Result<(), String> {
     let track = make_raw_track_from_samples(vec![1_f32; 500], Channels::Mono);
+    let user_actor_deps = Arc::new(UserActorDeps {
+        player_factory: Arc::new(PlayerFactory {}),
+        tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
+    });
     let user_id = Ulid::new();
-    let user_actor = create_user_and_actor(user_id.clone());
+    let user_actor = create_user_actor(user_id.clone(), Arc::clone(&user_actor_deps));
     let mut user_map = HashMap::new();
     user_map.insert(user_id.to_string(), user_actor);
-    let user_provider:Arc<dyn UserProvider>=Arc::new(InMemoryUserProvider::new());
-    
+    let user_provider: Arc<dyn UserProvider> = Arc::new(InMemoryUserProvider::new());
+
     let app_data = AppData {
-        user_actor_deps:Arc::new(UserActorDeps{
-            player_factory:Arc::new(PlayerFactory {}),
-            tracks_provider:Arc::new(LocalTrackStoreProvider::new())
-        }),
-        user_resolver:Arc::new(LocalUserAndActorResolver::new(user_provider,Arc::new(UserActorRegistry::new()) ))
+        user_resolver: Arc::new(LocalUserAndActorResolver::new(
+            user_provider,
+            Arc::new(UserActorRegistry::new()),
+        )),
+        user_actor_deps: user_actor_deps,
     };
     let app = test::init_service(
         App::new()
@@ -231,21 +266,18 @@ async fn can_remove_track() -> Result<(), String> {
     Ok(())
 }
 
-fn create_user_and_actor(id: Ulid,user_resolver:LocalUserAndActorResolver) -> ResolvedUserAndActor {
-   
-  
+fn create_user_actor(id: Ulid, user_actor_deps: Arc<UserActorDeps>) -> ActorRef<UserActor> {
     let actor_params = CreateUserActorParams {
         user_data: DomainUser {
             email: id.to_string(),
             id: id.to_string(),
             name: id.to_string(),
-            google_sub_id:None,
-            picture:"Some pic".into()
+            google_sub_id: None,
+            picture: "Some pic".into(),
         },
-        user_actor_deps:user_actor_deps
+        user_actor_deps: Arc::clone(&user_actor_deps),
     };
-    user_resolver.resolve_or_create_user_and_actor(google_user_info, build_actor_params)
-    let actor =user_resolver.  UserActor::spawn(UserActor::new(actor_params));
 
+    let actor = UserActor::spawn(UserActor::new(actor_params));
     actor
 }

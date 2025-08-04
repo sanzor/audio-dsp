@@ -2,18 +2,15 @@ use std::sync::Arc;
 
 use actix_web::{get, web, HttpResponse};
 
-use actors::user_actor::{
-    create_user_actor_params::CreateUserActorParams, user_actor_deps::UserActorDeps,
-};
-use domain::create_domain_user_params::CreateDomainUserParams;
+use actors::user_actor::create_user_actor_params::CreateUserActorParams;
 use serde::{Deserialize, Serialize};
 
 use crate::app_data::AppData;
 
-#[get("/auth/google")]
+#[get("/")]
 async fn google_auth_redirect() -> HttpResponse {
-    let client_id = std::env::var("GOOGLE_CLIENT_ID").unwrap();
-    let redirect_uri = std::env::var("GOOGLE_REDIRECT_URI").unwrap();
+    let client_id = std::env::var("GOOGLE_CLIENT_ID").expect("Could not find GOOGLE_CLIENT_ID in env");
+    let redirect_uri = std::env::var("GOOGLE_REDIRECT_URI").expect("Could not find GOOGLE_REDIRECT_URI in env");
 
     let auth_url = format!(
         "https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id={}&redirect_uri={}&scope=openid%20email%20profile&access_type=offline&prompt=consent",
@@ -60,7 +57,7 @@ async fn google_callback(
 
             let user = app_data
                 .user_resolver
-                .resolve_or_create_user_and_actor(&google_user, |p| {
+                .resolve_google_user_and_actor(&google_user, |p| {
                     let domain_user_create_params = CreateUserActorParams {
                         user_data: p,
                         user_actor_deps: Arc::clone(&app_data.user_actor_deps),
@@ -68,8 +65,10 @@ async fn google_callback(
                     Ok(domain_user_create_params)
                 })
                 .await;
-
-            HttpResponse::Ok().json(google_user)
+            let token=create_jwt()
+            HttpResponse::Found()
+                .append_header("Set-Cookie", format!("auth_token={}; HttpOnly; SameSite=Lax; Path=/",token))
+                .json(google_user)
         }
         Err(err) => {
             eprintln!("OAuth error: {}", err);

@@ -1,28 +1,40 @@
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
 use actix_web::{
     web::{self},
     App, HttpServer,
 };
-use actors::user_actor::{player_factory::PlayerFactory, user_actor_deps::UserActorDeps, user_actor_registry::UserActorRegistry};
-use data_provider::{in_memory_user_provider::InMemoryUserProvider, tracks_provider::LocalTrackStoreProvider, user_provider::UserProvider};
+use actors::user_actor::{
+    player_factory::PlayerFactory, user_actor_deps::UserActorDeps,
+    user_actor_registry::UserActorRegistry,
+};
+use data_provider::{
+    in_memory_user_provider::InMemoryUserProvider, tracks_provider::LocalTrackStoreProvider,
+    user_provider::UserProvider,
+};
 use dsp_api::{
     app_data::AppData,
-    controllers::{self, google_controller, ws_controller}, user_and_actor_resolver::local_user_and_actor_resolver::LocalUserAndActorResolver
+    controllers::{self, google_controller, ws_controller},
+    user_and_actor_resolver::local_user_and_actor_resolver::LocalUserAndActorResolver,
 };
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let user_provider:Arc<dyn UserProvider>=Arc::new(InMemoryUserProvider::new());
-    let user_registry=Arc::new(UserActorRegistry::new());
+    dotenv::from_path(".env").ok();
+    println!("🔍 CWD: {:?}", std::env::current_dir());
+    let user_provider: Arc<dyn UserProvider> = Arc::new(InMemoryUserProvider::new());
+    let user_registry = Arc::new(UserActorRegistry::new());
     let registry = AppData {
-        user_resolver: Arc::new(LocalUserAndActorResolver::new(Arc::clone(&user_provider), user_registry)),
+        user_resolver: Arc::new(LocalUserAndActorResolver::new(
+            Arc::clone(&user_provider),
+            user_registry,
+        )),
         user_actor_deps: Arc::new(UserActorDeps {
             player_factory: Arc::new(PlayerFactory {}),
-            tracks_provider: Arc::new(LocalTrackStoreProvider::new())
+            tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
         }),
     };
-    dotenv::dotenv().ok();
+   println!("🚀 Server running at http://127.0.0.1:8000");
     HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(registry.clone()))

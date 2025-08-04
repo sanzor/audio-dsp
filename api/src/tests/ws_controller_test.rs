@@ -7,9 +7,15 @@ use actix_web::{
     App, HttpServer,
 };
 
-use actors::user_actor::{player_factory::PlayerFactory, user_actor_deps::UserActorDeps, user_actor_registry::UserActorRegistry};
+use actors::user_actor::{
+    player_factory::PlayerFactory, user_actor_deps::UserActorDeps,
+    user_actor_registry::UserActorRegistry,
+};
 use audiolib::Channels;
-use data_provider::{in_memory_user_provider::InMemoryUserProvider, tracks_provider::LocalTrackStoreProvider, user_provider::UserProvider};
+use data_provider::{
+    in_memory_user_provider::InMemoryUserProvider, tracks_provider::LocalTrackStoreProvider,
+    user_provider::UserProvider,
+};
 use domain::actors::player_state::AudioPlayerState;
 use futures_util::{stream::SplitStream, SinkExt, StreamExt};
 use rstest::rstest;
@@ -23,13 +29,16 @@ use tokio_tungstenite::{
 use ulid::Ulid;
 
 use crate::{
-    app_data::AppData, controllers::{
+    app_data::AppData,
+    controllers::{
         tracks_crud_controller::{self, AddTrackParams},
         user_controller,
         ws_controller::{self, WebsocketSendMessage, WsMessage},
-    }  ,player_controller_test::utils::{
+    },
+    player_controller_test::utils::{
         create_user_actor, get_user_state, insert_track, make_raw_track_from_samples,
-    }, user_and_actor_resolver::local_user_and_actor_resolver::LocalUserAndActorResolver
+    },
+    user_and_actor_resolver::local_user_and_actor_resolver::LocalUserAndActorResolver,
 };
 
 #[rstest]
@@ -38,16 +47,19 @@ async fn can_start_player_ws() -> Result<(), String> {
     let track = make_raw_track_from_samples(vec![1_f32, 2_f32], Channels::Mono);
     let id = Ulid::new();
     let user = create_user_actor(id);
-    let user_provider:Arc<dyn UserProvider>=Arc::new(InMemoryUserProvider::new());
+    let user_provider: Arc<dyn UserProvider> = Arc::new(InMemoryUserProvider::new());
     let mut user_map = HashMap::new();
-    
+
     user_map.insert(id.to_string(), user);
     let app_data = AppData {
-        user_actor_deps:Arc::new(UserActorDeps{
-            player_factory:Arc::new(PlayerFactory {}),
-            tracks_provider:Arc::new(LocalTrackStoreProvider::new())
+        user_actor_deps: Arc::new(UserActorDeps {
+            player_factory: Arc::new(PlayerFactory {}),
+            tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
         }),
-        user_resolver:Arc::new(LocalUserAndActorResolver::new(user_provider,Arc::new(UserActorRegistry::new()) ))
+        user_resolver: Arc::new(LocalUserAndActorResolver::new(
+            user_provider,
+            Arc::new(UserActorRegistry::new()),
+        )),
     };
     let url = "127.0.0.1:0";
     let server_app_data = app_data.clone();
@@ -86,7 +98,7 @@ async fn can_start_player_ws() -> Result<(), String> {
         insert_result.track_id
     );
 
-    let (mut ws_stream, _) = connect_async(&url).await.expect("Failed to connect");
+    let (ws_stream, _) = connect_async(&url).await.expect("Failed to connect");
 
     let (mut write, mut ws_reader) = ws_stream.split();
 
@@ -110,15 +122,18 @@ async fn can_stop_player_ws() -> Result<(), String> {
     let track = make_raw_track_from_samples(vec![1_f32; 512], Channels::Mono);
     let user_id = Ulid::new();
     let user = create_user_actor(user_id);
-    let user_provider:Arc<dyn UserProvider>=Arc::new(InMemoryUserProvider::new());
+    let user_provider: Arc<dyn UserProvider> = Arc::new(InMemoryUserProvider::new());
     let mut user_map = HashMap::new();
     user_map.insert(user_id.to_string(), user);
     let app_data = AppData {
-        user_actor_deps:Arc::new(UserActorDeps{
-            player_factory:Arc::new(PlayerFactory {}),
-            tracks_provider:Arc::new(LocalTrackStoreProvider::new())
+        user_actor_deps: Arc::new(UserActorDeps {
+            player_factory: Arc::new(PlayerFactory {}),
+            tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
         }),
-        user_resolver:Arc::new(LocalUserAndActorResolver::new(user_provider,Arc::new(UserActorRegistry::new()) ))
+        user_resolver: Arc::new(LocalUserAndActorResolver::new(
+            user_provider,
+            Arc::new(UserActorRegistry::new()),
+        )),
     };
     let url = "127.0.0.1:0";
     let server_app_data = app_data.clone();
@@ -157,7 +172,7 @@ async fn can_stop_player_ws() -> Result<(), String> {
         insert_result.track_id
     );
 
-    let (mut ws_stream, _) = connect_async(&ws_url).await.expect("Failed to connect");
+    let (ws_stream, _) = connect_async(&ws_url).await.expect("Failed to connect");
 
     let (mut write, mut ws_reader) = ws_stream.split();
     let user_state = get_user_state(&mut app, user_id.to_string()).await?;

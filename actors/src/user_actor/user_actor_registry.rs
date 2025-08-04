@@ -10,19 +10,25 @@ pub struct UserActorRegistry {
 }
 
 impl UserActorRegistry {
-    pub fn new()->UserActorRegistry{
-        UserActorRegistry { user_actors: Arc::new(Mutex::new(HashMap::new())) }
+    pub fn new() -> UserActorRegistry {
+        UserActorRegistry {
+            user_actors: Arc::new(Mutex::new(HashMap::new())),
+        }
     }
     pub async fn get_or_spawn_user_actor(
         &self,
         user_id: &str,
         build_params: CreateUserActorParams,
     ) -> Result<ActorRef<UserActor>, String> {
-        let map = self.user_actors.lock().await;
-        if let Some(actor) = map.get(user_id) {
-            return Ok(actor.clone());
-        }
 
+        let maybe_actor={
+            let map = self.user_actors.lock().await;
+            map.get(user_id).cloned()
+        };
+        if let Some(existing_actor)=maybe_actor{
+            return Ok(existing_actor)
+        }
+        
         let actor = UserActor::spawn(UserActor::new(build_params));
 
         let mut actors = self.user_actors.lock().await;

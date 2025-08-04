@@ -17,9 +17,7 @@ impl InMemoryUserProvider {
         }
     }
 }
-unsafe impl Send for InMemoryUserProvider{
-
-}
+unsafe impl Send for InMemoryUserProvider {}
 impl UserProvider for InMemoryUserProvider {
     fn get_user_by_id<'a>(
         &'a self,

@@ -6,11 +6,15 @@ use actors::user_actor::{
 use data_provider::user_provider::UserProvider;
 use domain::{create_domain_user_params::CreateDomainUserParams, domain_user::DomainUser};
 
-use crate::{controllers::google_controller::GoogleUserInfo, user_and_actor_resolver::resolved_user_and_actor::ResolvedUserAndActor};
+use crate::{
+    controllers::google_controller::GoogleUserInfo,
+    user_and_actor_resolver::resolved_user_and_actor::ResolvedUserAndActor,
+};
 pub struct LocalUserAndActorResolver {
     user_provider: Arc<dyn UserProvider>,
     user_registry: Arc<UserActorRegistry>,
 }
+
 
 impl LocalUserAndActorResolver {
     pub fn new(
@@ -23,13 +27,12 @@ impl LocalUserAndActorResolver {
         }
     }
 
-    pub async fn resolve_or_create_user_and_actor<F>(
+    pub async fn resolve_google_user_and_actor<F>(
         &self,
         google_user_info: &GoogleUserInfo,
         build_actor_params: F,
     ) -> Result<ResolvedUserAndActor, String>
     where
-
         F: FnOnce(DomainUser) -> Result<CreateUserActorParams, String>,
     {
         let user = match self
@@ -56,20 +59,27 @@ impl LocalUserAndActorResolver {
             .user_registry
             .get_or_spawn_user_actor(&user_id, actor_deps)
             .await?;
-       Ok(ResolvedUserAndActor{actor:actor,domain_user:user})
+        Ok(ResolvedUserAndActor {
+            actor: actor,
+            domain_user: user,
+        })
     }
 
-    pub async fn resolve_existing_user_and_actor(&self, user_id: &str) -> Result<ResolvedUserAndActor, String> {
-        let maybe_actor = match self.user_provider.get_user_by_id(&user_id).await {
-            Some(u) => match self.user_registry.get_actor(&u.id).await {
-                Some(actor) => Ok(ResolvedUserAndActor {
-                    actor: actor,
-                    domain_user: u,
-                }),
-                None => Err("Could not find actor".to_string()),
-            },
-            None => Err("Could not find user".into()),
-        };
-        maybe_actor
+    pub async fn resolve_existing_user_and_actor(
+        &self,
+        user_id: &str,
+    ) -> Result<ResolvedUserAndActor, String> {
+        let user=
+            self.user_provider
+            .get_user_by_id(&user_id)
+            .await
+            .ok_or_else(||"Could not find user".to_string())?;
+        let actor=
+            self
+            .user_registry
+            .get_actor(&user.id)
+            .await
+            .ok_or_else(||"Could not find actor".to_string())?;
+        Ok(ResolvedUserAndActor{actor:actor,domain_user:user})
     }
 }

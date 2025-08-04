@@ -1,16 +1,23 @@
 use std::{collections::HashMap, sync::Arc};
 
 use actix_web::{test, web, App};
-use actors::user_actor::{player_factory::PlayerFactory, user_actor_deps::UserActorDeps, user_actor_registry::UserActorRegistry};
-use data_provider::{in_memory_user_provider::InMemoryUserProvider, tracks_provider::LocalTrackStoreProvider, user_provider::UserProvider};
+use actors::user_actor::{
+    player_factory::PlayerFactory, user_actor_deps::UserActorDeps,
+    user_actor_registry::UserActorRegistry,
+};
+use data_provider::{
+    in_memory_user_provider::InMemoryUserProvider, tracks_provider::LocalTrackStoreProvider,
+    user_provider::UserProvider,
+};
 use httpmock::prelude::*;
 
 use ulid::Ulid;
 
 use crate::{
-    app_data::AppData, controllers::google_controller::{self, exchange_code_for_user}, 
-    player_controller_test::utils::create_user_actor, user_and_actor_resolver::local_user_and_actor_resolver::LocalUserAndActorResolver
-
+    app_data::AppData,
+    controllers::google_controller::{self, exchange_code_for_user},
+    player_controller_test::utils::create_user_actor,
+    user_and_actor_resolver::local_user_and_actor_resolver::LocalUserAndActorResolver,
 };
 
 #[tokio::test]
@@ -62,16 +69,19 @@ pub async fn can_auth_integration_test() -> Result<(), String> {
     let user_id = Ulid::new();
     let user_actor = create_user_actor(user_id.clone());
     let mut user_map = HashMap::new();
-    let user_provider:Arc<dyn UserProvider>=Arc::new(InMemoryUserProvider::new());
+    let user_provider: Arc<dyn UserProvider> = Arc::new(InMemoryUserProvider::new());
     user_map.insert(user_id.to_string(), user_actor);
-     let app_data = AppData {
-            user_actor_deps:Arc::new(UserActorDeps{
-            player_factory:Arc::new(PlayerFactory {}),
-            tracks_provider:Arc::new(LocalTrackStoreProvider::new())
+    let app_data = AppData {
+        user_actor_deps: Arc::new(UserActorDeps {
+            player_factory: Arc::new(PlayerFactory {}),
+            tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
         }),
-        user_resolver:Arc::new(LocalUserAndActorResolver::new(user_provider,Arc::new(UserActorRegistry::new()) ))
+        user_resolver: Arc::new(LocalUserAndActorResolver::new(
+            user_provider,
+            Arc::new(UserActorRegistry::new()),
+        )),
     };
-    let mut app = test::init_service(
+    let app = test::init_service(
         App::new()
             .app_data(web::Data::new(app_data))
             .service(web::scope("/auth/google").configure(google_controller::init)),
