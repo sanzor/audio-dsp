@@ -50,7 +50,7 @@ async fn test_exchange_code_for_user() -> Result<(), String> {
     std::env::set_var("GOOGLE_CLIENT_SECRET", "test-client-secret");
     std::env::set_var("GOOGLE_REDIRECT_URI", "http://localhost/callback");
 
-    let result: crate::controllers::google_controller::GoogleUserInfo = exchange_code_for_user(
+    let result = exchange_code_for_user(
         "dummy_code".to_string(),
         &format!("{}/token", server.base_url()),
         &format!("{}/userinfo", server.base_url()),

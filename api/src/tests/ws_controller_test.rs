@@ -81,14 +81,7 @@ async fn can_start_player_ws() -> Result<(), String> {
     )
     .await;
 
-    let insert_result = insert_track(
-        &mut app,
-        AddTrackParams {
-            track: track,
-            user_id: id.to_string(),
-        },
-    )
-    .await?;
+    let insert_result = insert_track(&mut app, AddTrackParams { track: track }).await?;
 
     let url = format!(
         "ws://{}:{}/ws/run?user_id={}&track_id={}",
@@ -155,15 +148,8 @@ async fn can_stop_player_ws() -> Result<(), String> {
     )
     .await;
 
-    let insert_result = insert_track(
-        &mut app,
-        AddTrackParams {
-            track: track,
-            user_id: user_id.to_string(),
-        },
-    )
-    .await?;
-    let user_data = get_user_state(&mut app, user_id.to_string()).await?;
+    let insert_result = insert_track(&mut app, AddTrackParams { track: track }).await?;
+    let _ = get_user_state(&mut app, user_id.to_string()).await?;
     let ws_url = format!(
         "ws://{}:{}/ws/run?user_id={}&track_id={}",
         addr.ip(),

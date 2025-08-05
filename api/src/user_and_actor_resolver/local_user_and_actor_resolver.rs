@@ -7,14 +7,13 @@ use data_provider::user_provider::UserProvider;
 use domain::{create_domain_user_params::CreateDomainUserParams, domain_user::DomainUser};
 
 use crate::{
-    controllers::google_controller::GoogleUserInfo,
+    dtos::google_user_info::GoogleUserInfo,
     user_and_actor_resolver::resolved_user_and_actor::ResolvedUserAndActor,
 };
 pub struct LocalUserAndActorResolver {
     user_provider: Arc<dyn UserProvider>,
     user_registry: Arc<UserActorRegistry>,
 }
-
 
 impl LocalUserAndActorResolver {
     pub fn new(
@@ -69,17 +68,19 @@ impl LocalUserAndActorResolver {
         &self,
         user_id: &str,
     ) -> Result<ResolvedUserAndActor, String> {
-        let user=
-            self.user_provider
+        let user = self
+            .user_provider
             .get_user_by_id(&user_id)
             .await
-            .ok_or_else(||"Could not find user".to_string())?;
-        let actor=
-            self
+            .ok_or_else(|| "Could not find user".to_string())?;
+        let actor = self
             .user_registry
             .get_actor(&user.id)
             .await
-            .ok_or_else(||"Could not find actor".to_string())?;
-        Ok(ResolvedUserAndActor{actor:actor,domain_user:user})
+            .ok_or_else(|| "Could not find actor".to_string())?;
+        Ok(ResolvedUserAndActor {
+            actor: actor,
+            domain_user: user,
+        })
     }
 }

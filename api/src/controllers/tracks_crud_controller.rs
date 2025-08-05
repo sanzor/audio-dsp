@@ -13,29 +13,34 @@ use domain::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{app_data::AppData, controllers::utils::get_user_actor_internal};
+use crate::{
+    app_data::AppData, controllers::utils::get_user_actor_internal,
+    dtos::authenticated_user::AuthenticatedUser,
+};
 
 #[derive(Deserialize, Serialize)]
 pub struct AddTrackParams {
-    pub user_id: String,
     pub track: RawTrack,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct AddTrackResult {
     pub track_id: String,
-    pub user_id: String,
 }
 #[post("/add-track")]
-async fn add_track(path: web::Json<AddTrackParams>, app_state: web::Data<AppData>) -> HttpResponse {
+async fn add_track(
+    user: AuthenticatedUser,
+    path: web::Json<AddTrackParams>,
+    app_state: web::Data<AppData>,
+) -> HttpResponse {
     let request = path.into_inner();
 
-    let user = match get_user_actor_internal(&request.user_id, &app_state).await {
+    let found_user = match get_user_actor_internal(&user.user_id, &app_state).await {
         Ok(u) => u,
         Err(e) => return HttpResponse::NotFound().body("User not found"),
     };
 
-    let rez = match user
+    let rez = match found_user
         .ask(InsertTrack {
             track: request.track,
         })
@@ -43,7 +48,6 @@ async fn add_track(path: web::Json<AddTrackParams>, app_state: web::Data<AppData
     {
         Ok(smth) => HttpResponse::Ok().json(AddTrackResult {
             track_id: smth.track_id,
-            user_id: smth.user_id,
         }),
         Err(e) => return HttpResponse::InternalServerError().body("Could not insert track"),
     };
@@ -52,19 +56,19 @@ async fn add_track(path: web::Json<AddTrackParams>, app_state: web::Data<AppData
 
 #[derive(Deserialize)]
 pub struct CopyTrackParams {
-    pub user_id: String,
     pub track_id: String,
     pub copy_track_name: String,
 }
 
 #[post("/copy-track")]
 async fn copy_track(
+    user: AuthenticatedUser,
     request_raw: web::Json<CopyTrackParams>,
     app_state: web::Data<AppData>,
 ) -> HttpResponse {
     let request = request_raw.into_inner();
 
-    let user = match get_user_actor_internal(&request.user_id, &app_state).await {
+    let user = match get_user_actor_internal(&user.user_id, &app_state).await {
         Ok(u) => u,
         Err(e) => return HttpResponse::NotFound().body("User not found"),
     };
@@ -84,18 +88,18 @@ async fn copy_track(
 
 #[derive(Deserialize)]
 pub struct UpdateTrackParams {
-    pub user_id: String,
     pub track_id: String,
     pub track_info: TrackInfo,
 }
 #[post("/update-track-info")]
 async fn update_track_info(
+    user: AuthenticatedUser,
     path: web::Json<UpdateTrackParams>,
     app_state: web::Data<AppData>,
 ) -> HttpResponse {
     let request = path.into_inner();
 
-    let user = match get_user_actor_internal(&request.user_id, &app_state).await {
+    let user = match get_user_actor_internal(&user.user_id, &app_state).await {
         Ok(u) => u,
         Err(e) => return HttpResponse::NotFound().body("User not found"),
     };
@@ -114,18 +118,18 @@ async fn update_track_info(
 }
 #[derive(Deserialize)]
 pub struct RemoveTrackParams {
-    pub user_id: String,
     pub track_id: String,
 }
 
 #[delete("/remove")]
 async fn remove_track(
+    user: AuthenticatedUser,
     path: web::Query<RemoveTrackParams>,
     app_state: web::Data<AppData>,
 ) -> HttpResponse {
     let request = path.into_inner();
 
-    let user = match get_user_actor_internal(&request.user_id, &app_state).await {
+    let user = match get_user_actor_internal(&user.user_id, &app_state).await {
         Ok(u) => u,
         Err(e) => return HttpResponse::NotFound().body("User not found"),
     };
@@ -143,14 +147,17 @@ async fn remove_track(
 }
 #[derive(Deserialize)]
 pub struct GetTrackParams {
-    pub user_id: String,
     pub track_id: String,
 }
 #[get("/get-raw")]
-async fn get_raw(query: web::Query<GetTrackParams>, app_state: web::Data<AppData>) -> HttpResponse {
+async fn get_raw(
+    user: AuthenticatedUser,
+    query: web::Query<GetTrackParams>,
+    app_state: web::Data<AppData>,
+) -> HttpResponse {
     let request = query.into_inner();
 
-    let user = match get_user_actor_internal(&request.user_id, &app_state).await {
+    let user = match get_user_actor_internal(&user.user_id, &app_state).await {
         Ok(u) => u,
         Err(e) => return HttpResponse::NotFound().body("User not found"),
     };
@@ -169,12 +176,13 @@ async fn get_raw(query: web::Query<GetTrackParams>, app_state: web::Data<AppData
 
 #[get("/get-meta")]
 async fn get_meta(
+    user: AuthenticatedUser,
     query: web::Query<GetTrackParams>,
     app_state: web::Data<AppData>,
 ) -> HttpResponse {
     let request = query.into_inner();
 
-    let user = match get_user_actor_internal(&request.user_id, &app_state).await {
+    let user = match get_user_actor_internal(&user.user_id, &app_state).await {
         Ok(u) => u,
         Err(e) => return HttpResponse::NotFound().body("User not found"),
     };
@@ -191,18 +199,9 @@ async fn get_meta(
     rez
 }
 
-#[derive(Deserialize)]
-pub struct GetAllParams {
-    pub user_id: String,
-}
 #[get("/get-all")]
-async fn get_tracks(
-    query: web::Query<GetAllParams>,
-    app_state: web::Data<AppData>,
-) -> HttpResponse {
-    let request = query.into_inner();
-
-    let user = match get_user_actor_internal(&request.user_id, &app_state).await {
+async fn get_tracks(user: AuthenticatedUser, app_state: web::Data<AppData>) -> HttpResponse {
+    let user = match get_user_actor_internal(&user.user_id, &app_state).await {
         Ok(u) => u,
         Err(e) => return HttpResponse::NotFound().body("User not found"),
     };
@@ -216,18 +215,18 @@ async fn get_tracks(
 
 #[derive(Deserialize)]
 pub struct GetTrackInfoParams {
-    pub user_id: String,
     pub track_id: String,
 }
 #[get("/get-track-info")]
 async fn get_track_info(
+    user: AuthenticatedUser,
     query: web::Json<GetTrackInfoParams>,
     app_state: web::Data<AppData>,
 ) -> HttpResponse {
     let request = query.into_inner();
     let resolved_user = app_state
         .user_resolver
-        .resolve_existing_user_and_actor(&request.user_id)
+        .resolve_existing_user_and_actor(&user.user_id)
         .await;
 
     let user_actor = match resolved_user {

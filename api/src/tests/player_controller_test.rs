@@ -29,10 +29,7 @@ async fn insert(
 ) {
     let req = test::TestRequest::post()
         .uri("/insert")
-        .set_json(AddTrackParams {
-            track: track,
-            user_id: user_name.to_string(),
-        })
+        .set_json(AddTrackParams { track: track })
         .to_request();
     todo!();
 }

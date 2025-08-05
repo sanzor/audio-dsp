@@ -12,7 +12,10 @@ use data_provider::{
     user_provider::UserProvider,
 };
 use domain::{
-    actors::messages::crud::{get_track::GetRawTrackResult, get_track_info::GetTrackMetaResult, get_tracks::GetTracksResult},
+    actors::messages::crud::{
+        get_track::GetRawTrackResult, get_track_info::GetTrackMetaResult,
+        get_tracks::GetTracksResult,
+    },
     domain_user::DomainUser,
 };
 
@@ -24,6 +27,7 @@ use crate::{
     app_data::AppData,
     controllers::tracks_crud_controller::{self, AddTrackParams, AddTrackResult},
     player_controller_test::utils::{insert_track, make_raw_track_from_samples},
+    token::token_utils::{create_access_token, create_token},
     user_and_actor_resolver::local_user_and_actor_resolver::LocalUserAndActorResolver,
 };
 
@@ -59,13 +63,9 @@ async fn can_insert_track() -> Result<(), String> {
 
     let req = test::TestRequest::post()
         .uri("/tracks/add-track")
-        .set_json(&AddTrackParams {
-            track: raw_track,
-            user_id: user_id.to_string(),
-        })
+        .set_json(&AddTrackParams { track: raw_track })
         .to_request();
     let resp: AddTrackResult = test::call_and_read_body_json(&app, req).await;
-    assert!(resp.user_id == user_id.to_string());
     Ok(())
 }
 
@@ -101,12 +101,8 @@ async fn can_get_track_metas() -> Result<(), String> {
     .await;
     let insert1 = AddTrackParams {
         track: track.clone(),
-        user_id: user_id.to_string(),
     };
-    let insert2 = AddTrackParams {
-        track: track,
-        user_id: user_id.to_string(),
-    };
+    let insert2 = AddTrackParams { track: track };
     let insert1_result = insert_track(&mut app, insert1).await?;
     let insert2_result = insert_track(&mut app, insert2).await?;
     let req = test::TestRequest::get()
@@ -151,7 +147,6 @@ async fn can_get_track_meta() -> Result<(), String> {
     .await;
     let insert = AddTrackParams {
         track: track.clone(),
-        user_id: user_id.to_string(),
     };
 
     let insert_result = insert_track(&mut app, insert).await?;
@@ -174,6 +169,8 @@ async fn can_get_track_raw() -> Result<(), String> {
     let track = make_raw_track_from_samples(vec![1_f32; 500], Channels::Mono);
 
     let user_id = Ulid::new();
+    let email = "some@yahoo.com";
+    let token = create_test_token(&user_id.to_string(), email);
     let user_actor_deps = Arc::new(UserActorDeps {
         player_factory: Arc::new(PlayerFactory {}),
         tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
@@ -199,7 +196,6 @@ async fn can_get_track_raw() -> Result<(), String> {
     .await;
     let insert = AddTrackParams {
         track: track.clone(),
-        user_id: user_id.to_string(),
     };
 
     let insert_result = insert_track(&mut app, insert).await?;
@@ -209,6 +205,7 @@ async fn can_get_track_raw() -> Result<(), String> {
             "/tracks/get-raw?user_id={}&track_id={}",
             user_id, insert_result.track_id
         ))
+        .insert_header(("Cookie", format!("auth_token={}", token)))
         .to_request();
     let resp: GetRawTrackResult = test::call_and_read_body_json(&app, req).await;
     assert!(resp.track.info.name == track.info.name);
@@ -225,6 +222,8 @@ async fn can_remove_track() -> Result<(), String> {
         tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
     });
     let user_id = Ulid::new();
+    let email = "some@gmail.com";
+    let token = create_test_token(&user_id.to_string(), email);
     let user_actor = create_user_actor(user_id.clone(), Arc::clone(&user_actor_deps));
     let mut user_map = HashMap::new();
     user_map.insert(user_id.to_string(), user_actor);
@@ -246,13 +245,10 @@ async fn can_remove_track() -> Result<(), String> {
 
     let insert_request = test::TestRequest::post()
         .uri("/tracks/add-track")
-        .set_json(&AddTrackParams {
-            track,
-            user_id: user_id.to_string(),
-        })
+        .insert_header(("Cookie", format!("auth_token={}", token)))
+        .set_json(&AddTrackParams { track })
         .to_request();
     let resp: AddTrackResult = test::call_and_read_body_json(&app, insert_request).await;
-    assert!(resp.user_id == user_id.to_string());
 
     let remove_request = test::TestRequest::delete()
         .uri(&format!(
@@ -280,4 +276,8 @@ fn create_user_actor(id: Ulid, user_actor_deps: Arc<UserActorDeps>) -> ActorRef<
 
     let actor = UserActor::spawn(UserActor::new(actor_params));
     actor
+}
+
+fn create_test_token(user_id: &str, email: &str) -> String {
+    create_access_token(user_id, Some(email), None)
 }

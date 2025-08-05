@@ -32,4 +32,7 @@ urlencoding = "2"
 reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
 httpmock = "0.7.0"
 data-provider={path="../data-provider"}
-mockall = "0.11"
+mockall = "0.13.1"
+chrono = "0.4"
+rand = "0.9.2"
+base64 = "0.22.1"

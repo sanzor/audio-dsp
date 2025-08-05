@@ -34,7 +34,7 @@ async fn main() -> std::io::Result<()> {
             tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
         }),
     };
-   println!("🚀 Server running at http://127.0.0.1:8000");
+    println!("🚀 Server running at http://127.0.0.1:8000");
     HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(registry.clone()))

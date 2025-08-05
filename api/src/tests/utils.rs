@@ -19,10 +19,10 @@ use ulid::Ulid;
 
 use crate::{
     controllers::{
-        google_controller::GoogleUserInfo,
         tracks_crud_controller::{AddTrackParams, AddTrackResult},
         user_controller::GetUserDataResult,
     },
+    dtos::google_user_info::GoogleUserInfo,
     user_and_actor_resolver::{
         local_user_and_actor_resolver::LocalUserAndActorResolver,
         resolved_user_and_actor::ResolvedUserAndActor,

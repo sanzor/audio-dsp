@@ -1,7 +1,4 @@
-use std::{
-    collections::VecDeque,
-    sync::Arc,
-};
+use std::{collections::VecDeque, sync::Arc};
 
 use audiolib::{audio_buffer::AudioBuffer, Channels};
 use data_provider::tracks_provider::LocalTrackStoreProvider;
