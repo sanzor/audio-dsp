@@ -112,10 +112,25 @@ async fn google_callback(
 
 #[post("/refresh")]
 async fn refresh(req:HttpRequest)->HttpResponse{
-    let refresh_cookie=req.cookie("refresh_token");
-    if let Some(cookie)=refresh_cookie{
-        match verify_token()
-    }
+    let refresh_cookie=match req.cookie("refresh_token"){
+        Some(cookie)=>cookie,
+        None=>return HttpResponse::Unauthorized().body("Missing refresh token")
+    };
+    let claims=match verify_token(refresh_cookie.value()){
+        Ok(claims)=>    claims,
+        Err(_)=>return HttpResponse::Unauthorized().body("Invalid refresh token")
+    };
+    let user_id=claims.sub;
+    let email=claims.email.unwrap_or_default();
+
+    let new_access_token=create_access_token(&user_id, Some(&email),None);
+    let new_crsf_token=generate_csrf_token();
+    HttpResponse::Ok()
+        .append_header(("SetCookie",format!("auth_token={}; HttpOnly; SameSite=Lax; Path=/; Max-Age={}",new_access_token,60*15)))
+        .append_header(("Set-Cookie",format!("csrf_token={}; SameSite=Lax; Path=/; Max-Age={}",new_crsf_token,60 * 15),
+        ))
+        .json(serde_json::json!({"status":"refreshed"}))
+    
 }
 #[post("/logout")]
 async fn logout() -> HttpResponse {
