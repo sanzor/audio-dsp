@@ -1,24 +1,24 @@
-use std::sync::Arc;
 use actix_cors::Cors;
 use actix_http::Method;
 use actix_web::{
+    http::header,
     web::{self},
     App, HttpServer,
-    http::header
 };
 use actors::user_actor::{
     player_factory::PlayerFactory, user_actor_deps::UserActorDeps,
     user_actor_registry::UserActorRegistry,
-};
-use data_provider::{
-    in_memory_user_provider::InMemoryUserProvider, tracks_provider::LocalTrackStoreProvider,
-    user_provider::UserProvider,
 };
 use api::{
     app_data::AppData,
     controllers::{self, google_controller, ws_controller},
     user_and_actor_resolver::local_user_and_actor_resolver::LocalUserAndActorResolver,
 };
+use data_provider::{
+    in_memory_user_provider::InMemoryUserProvider, tracks_provider::LocalTrackStoreProvider,
+    user_provider::UserProvider,
+};
+use std::sync::Arc;
 
 fn main() -> std::io::Result<()> {
     // ✅ Ensure environment variables are loaded before anything else
@@ -28,9 +28,7 @@ fn main() -> std::io::Result<()> {
     println!("GOOGLE_CLIENT_ID = {:?}", std::env::var("GOOGLE_CLIENT_ID"));
 
     // ✅ Manually start Actix runtime
-    actix_web::rt::System::new().block_on(async {
-        start_server().await
-    })
+    actix_web::rt::System::new().block_on(async { start_server().await })
 }
 async fn start_server() -> std::io::Result<()> {
     println!("🔍 CWD: {:?}", std::env::current_dir());
@@ -57,7 +55,7 @@ async fn start_server() -> std::io::Result<()> {
                     .allowed_origin("http://localhost:3000")
                     .allowed_origin("http://127.0.0.1:3000")
                     .allowed_origin("https://app.example.com")
-                    .allowed_methods(vec![Method::GET, Method::POST, Method::OPTIONS])
+                    .allowed_methods(vec!["GET", "POST", "PUT", "DELETE", "OPTIONS"])
                     .allowed_headers(vec![
                         header::AUTHORIZATION,
                         header::ACCEPT,

@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+  <head><title>Login Successful</title></head>
+  <body>
+    <script>
+      if (window.opener) {
+        window.opener.postMessage("google_login_success", "*");
+        window.close();
+      } else {
+        document.body.innerText = "Login successful. You may close this window.";
+      }
+    </script>
+  </body>
+</html>

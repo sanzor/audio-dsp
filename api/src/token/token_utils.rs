@@ -1,23 +1,22 @@
 use std::env;
 
-
+use base64::{engine::general_purpose, Engine};
 use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use rand::Rng;
-use base64::{engine::general_purpose, Engine};
 
 use crate::dtos::claims::Claims;
 
 pub(crate) fn create_access_token(
     user_id: &str,
-    name:Option<&str>,
+    name: Option<&str>,
     email: Option<&str>,
     roles: Option<Vec<String>>,
 ) -> String {
-    create_token(user_id, email,name, roles, 15)
+    create_token(user_id, email, name, roles, 15)
 }
 
 pub(crate) fn create_refresh_token(user_id: &str) -> String {
-    create_token(user_id, None,None, None, 60 * 24 * 7)
+    create_token(user_id, None, None, None, 60 * 24 * 7)
 }
 
 pub(crate) fn generate_csrf_token() -> String {
@@ -27,7 +26,7 @@ pub(crate) fn generate_csrf_token() -> String {
 pub(crate) fn create_token(
     user_id: &str,
     email: Option<&str>,
-    name:Option<&str>,
+    name: Option<&str>,
     roles: Option<Vec<String>>,
     minutes: i64,
 ) -> String {
@@ -40,7 +39,7 @@ pub(crate) fn create_token(
     let claims = Claims {
         user_id: user_id.to_owned(),
         exp: expiration,
-        name: name.map(|e|e.to_owned()),
+        name: name.map(|e| e.to_owned()),
         email: email.map(|e| e.to_owned()),
         roles: roles,
     };

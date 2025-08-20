@@ -1,7 +1,9 @@
 use std::sync::Arc;
 
 use actix_web::{
-    get, post, web::{self}, HttpRequest, HttpResponse
+    get, post,
+    web::{self},
+    HttpRequest, HttpResponse,
 };
 
 use actors::user_actor::create_user_actor_params::CreateUserActorParams;
@@ -10,12 +12,17 @@ use serde::{Deserialize, Serialize};
 use crate::{
     app_data::AppData,
     dtos::{claims::Claims, google_user_info::GoogleUserInfo, token_response::TokenResponse},
-    token::token_utils::{create_access_token, create_refresh_token, generate_csrf_token, verify_token},
+    token::token_utils::{
+        create_access_token, create_refresh_token, generate_csrf_token, verify_token,
+    },
 };
 
 #[get("/")]
 async fn google_auth_redirect() -> HttpResponse {
-    println!("🧪 GOOGLE_CLIENT_ID = {:?}", std::env::var("GOOGLE_CLIENT_ID"));
+    println!(
+        "🧪 GOOGLE_CLIENT_ID = {:?}",
+        std::env::var("GOOGLE_CLIENT_ID")
+    );
     let client_id =
         std::env::var("GOOGLE_CLIENT_ID").expect("Could not find GOOGLE_CLIENT_ID in env");
     let redirect_uri =
@@ -33,27 +40,33 @@ async fn google_auth_redirect() -> HttpResponse {
 }
 
 #[get("/session")]
-async fn session(req:HttpRequest,app_data: web::Data<AppData>)->HttpResponse{
-    let Some(auth)=req.cookie("auth_token") else{
+async fn session(req: HttpRequest, app_data: web::Data<AppData>) -> HttpResponse {
+    let Some(auth) = req.cookie("auth_token") else {
         return HttpResponse::Ok().json(serde_json::json!({"user":null}));
     };
-    let claims: Claims= match verify_token(auth.value()){
-        Ok(c)=>c,
-        Err(_)=>return HttpResponse::Ok().json(serde_json::json!({"user":null})),
+    let claims: Claims = match verify_token(auth.value()) {
+        Ok(c) => c,
+        Err(_) => return HttpResponse::Ok().json(serde_json::json!({"user":null})),
     };
-    let user_result=match app_data.user_resolver.resolve_existing_user_and_actor(&claims.user_id).await{
-        Ok(u)=>u,
-        Err(_)=>return HttpResponse::NotFound().body(format!("Could not find user with id {}",claims.user_id))
+    let user_result = match app_data
+        .user_resolver
+        .resolve_existing_user_and_actor(&claims.user_id)
+        .await
+    {
+        Ok(u) => u,
+        Err(_) => {
+            return HttpResponse::NotFound()
+                .body(format!("Could not find user with id {}", claims.user_id))
+        }
     };
-    let user=user_result.user;
-    let result=serde_json::json!({
+    let user = user_result.user;
+    let result = serde_json::json!({
         "user_id":claims.user_id,
         "name":claims.name.unwrap_or_default(),
         "email":claims.email.unwrap_or_default(),
         "photo":user.id
     });
     HttpResponse::Ok().json(serde_json::json!({ "user": result }))
-
 }
 #[derive(Deserialize)]
 pub(crate) struct AuthRequest {
@@ -63,7 +76,7 @@ pub(crate) struct AuthRequest {
 #[derive(Serialize)]
 pub struct GoogleLoginResult {
     pub user_id: String,
-    pub name:String,
+    pub name: String,
     pub email: String,
     pub picture: String,
 }
@@ -95,37 +108,55 @@ async fn google_callback(
                 }
             };
 
-            let access_token =
-                create_access_token(&user_and_actor.user.id,Some(&google_user.name), Some(google_user.email.as_str()), None);
+            let access_token = create_access_token(
+                &user_and_actor.user.id,
+                Some(&google_user.name),
+                Some(google_user.email.as_str()),
+                None,
+            );
             let refresh_token = create_refresh_token(&user_and_actor.user.id);
-            let csrf_token=generate_csrf_token();
-            let frontend_redirect = std::env::var("FRONTEND_REDIRECT").unwrap_or_else(|_| "http://localhost:3000/auth/callback".into());
-            HttpResponse::Found()
+            let csrf_token = generate_csrf_token();
+
+            let html = include_str!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/static/postlogin.html"
+            ));
+            let cookie_settings = if cfg!(debug_assertions) {
+                "SameSite=Lax; Path=/"
+            } else {
+                // For production (HTTPS)
+                "SameSite=None; Secure; Path=/"
+            };
+            HttpResponse::Ok()
                 .append_header((
                     "Set-Cookie",
                     format!(
-                        "auth_token={}; HttpOnly; SameSite=Lax; Path=/; Max-Age={}",
+                        "auth_token={}; HttpOnly; {}; Max-Age={}",
                         access_token,
+                        cookie_settings,
                         60 * 15
                     ),
                 ))
                 .append_header((
                     "Set-Cookie",
                     format!(
-                        "refresh_token={}; HttpOnly; SameSite=Lax; Path=/; Max-Age={}",
+                        "refresh_token={}; HttpOnly; {}; Max-Age={}",
                         refresh_token,
+                        cookie_settings,
                         60 * 60 * 24 * 7
                     ),
                 ))
-                .append_header(("Set-Cookie",format!("csrf_token={}; SameSite=Lax; Path=/; Max-Age={}",csrf_token,60*15)))
-                .append_header(("Location", frontend_redirect))
-                // .json(GoogleLoginResult {
-                //     email: user_and_actor.user.email,
-                //     name:user_and_actor.user.name,    
-                //     user_id: user_and_actor.user.id,
-                //     picture: user_and_actor.user.picture,
-                // })
-                .finish()
+                .append_header((
+                    "Set-Cookie",
+                    format!(
+                        "csrf_token={}; {}; Max-Age={}",
+                        csrf_token,
+                        cookie_settings,
+                        60 * 15
+                    ),
+                ))
+                .content_type("text/html; charset=utf-8")
+                .body(html)
         }
         Err(err) => {
             eprintln!("OAuth error: {}", err);
@@ -135,27 +166,40 @@ async fn google_callback(
 }
 
 #[post("/refresh")]
-async fn refresh(req:HttpRequest)->HttpResponse{
-    let refresh_cookie=match req.cookie("refresh_token"){
-        Some(cookie)=>cookie,
-        None=>return HttpResponse::Unauthorized().body("Missing refresh token")
+async fn refresh(req: HttpRequest) -> HttpResponse {
+    let refresh_cookie = match req.cookie("refresh_token") {
+        Some(cookie) => cookie,
+        None => return HttpResponse::Unauthorized().body("Missing refresh token"),
     };
-    let claims=match verify_token(refresh_cookie.value()){
-        Ok(claims)=>    claims,
-        Err(_)=>return HttpResponse::Unauthorized().body("Invalid refresh token")
+    let claims = match verify_token(refresh_cookie.value()) {
+        Ok(claims) => claims,
+        Err(_) => return HttpResponse::Unauthorized().body("Invalid refresh token"),
     };
-    let user_id=claims.user_id;
-    
-    let email=claims.email.unwrap_or_default();
+    let user_id = claims.user_id;
 
-    let new_access_token=create_access_token(&user_id,claims.name.as_deref() ,Some(&email),None);
-    let new_crsf_token=generate_csrf_token();
+    let email = claims.email.unwrap_or_default();
+
+    let new_access_token =
+        create_access_token(&user_id, claims.name.as_deref(), Some(&email), None);
+    let new_crsf_token = generate_csrf_token();
     HttpResponse::Ok()
-        .append_header(("Set-Cookie",format!("auth_token={}; HttpOnly; SameSite=None; Path=/; Max-Age={}",new_access_token,60*15)))
-        .append_header(("Set-Cookie",format!("csrf_token={}; SameSite=Lax; Path=/; Max-Age={}",new_crsf_token,60 * 15),
+        .append_header((
+            "Set-Cookie",
+            format!(
+                "auth_token={}; HttpOnly; SameSite=None; Path=/; Max-Age={}",
+                new_access_token,
+                60 * 15
+            ),
+        ))
+        .append_header((
+            "Set-Cookie",
+            format!(
+                "csrf_token={}; SameSite=Lax; Path=/; Max-Age={}",
+                new_crsf_token,
+                60 * 15
+            ),
         ))
         .json(serde_json::json!({"status":"refreshed"}))
-    
 }
 #[post("/logout")]
 async fn logout() -> HttpResponse {

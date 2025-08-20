@@ -279,5 +279,5 @@ fn create_user_actor(id: Ulid, user_actor_deps: Arc<UserActorDeps>) -> ActorRef<
 }
 
 fn create_test_token(user_id: &str, email: &str) -> String {
-    create_access_token(user_id,None, Some(email), None)
+    create_access_token(user_id, None, Some(email), None)
 }
