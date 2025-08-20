@@ -60,7 +60,7 @@ impl LocalUserAndActorResolver {
             .await?;
         Ok(ResolvedUserAndActor {
             actor: actor,
-            domain_user: user,
+            user,
         })
     }
 
@@ -80,7 +80,7 @@ impl LocalUserAndActorResolver {
             .ok_or_else(|| "Could not find actor".to_string())?;
         Ok(ResolvedUserAndActor {
             actor: actor,
-            domain_user: user,
+            user,
         })
     }
 }

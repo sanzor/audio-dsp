@@ -26,7 +26,7 @@ impl FromRequest for AuthenticatedUser {
             .map(|claims| AuthenticatedUser {
                 email: claims.email,
                 roles: claims.roles,
-                user_id: claims.sub,
+                user_id: claims.user_id,
             });
         ready(result)
     }

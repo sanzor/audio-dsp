@@ -38,7 +38,7 @@ pub async fn can_resolve_new_user() -> Result<(), String> {
             })
         })
         .await?;
-    assert_eq!(create_result.domain_user.google_sub_id.unwrap(), google_id);
+    assert_eq!(create_result.user.google_sub_id.unwrap(), google_id);
     Ok(())
 }
 
@@ -73,7 +73,7 @@ pub async fn can_resolve_existitng_user() -> Result<(), String> {
             })
         })
         .await?;
-    assert_eq!(lookup_result.domain_user.id, create_result.domain_user.id);
+    assert_eq!(lookup_result.user.id, create_result.user.id);
     Ok(())
 }
 
@@ -100,9 +100,9 @@ pub async fn can_get_existing_user() -> Result<(), String> {
         })
         .await?;
     let lookup_result = resolver
-        .resolve_existing_user_and_actor(&create_result.domain_user.id)
+        .resolve_existing_user_and_actor(&create_result.user.id)
         .await?;
-    assert_eq!(lookup_result.domain_user.id, create_result.domain_user.id);
+    assert_eq!(lookup_result.user.id, create_result.user.id);
     Ok(())
 }
 

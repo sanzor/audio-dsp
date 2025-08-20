@@ -1,22 +1,21 @@
-use std::{env, sync::Arc};
+use std::sync::Arc;
 
 use actix_web::{
-    get, post, web::{self, Json}, HttpRequest, HttpResponse
+    get, post, web::{self}, HttpRequest, HttpResponse
 };
 
 use actors::user_actor::create_user_actor_params::CreateUserActorParams;
-use chrono::{Duration, Utc};
-use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     app_data::AppData,
     dtos::{claims::Claims, google_user_info::GoogleUserInfo, token_response::TokenResponse},
-    token::{csrf_token, token_utils::{create_access_token, create_refresh_token, create_token, generate_csrf_token, verify_token}},
+    token::token_utils::{create_access_token, create_refresh_token, generate_csrf_token, verify_token},
 };
 
 #[get("/")]
 async fn google_auth_redirect() -> HttpResponse {
+    println!("🧪 GOOGLE_CLIENT_ID = {:?}", std::env::var("GOOGLE_CLIENT_ID"));
     let client_id =
         std::env::var("GOOGLE_CLIENT_ID").expect("Could not find GOOGLE_CLIENT_ID in env");
     let redirect_uri =
@@ -31,6 +30,30 @@ async fn google_auth_redirect() -> HttpResponse {
     HttpResponse::Found()
         .append_header(("Location", auth_url))
         .finish()
+}
+
+#[get("/session")]
+async fn session(req:HttpRequest,app_data: web::Data<AppData>)->HttpResponse{
+    let Some(auth)=req.cookie("auth_token") else{
+        return HttpResponse::Ok().json(serde_json::json!({"user":null}));
+    };
+    let claims: Claims= match verify_token(auth.value()){
+        Ok(c)=>c,
+        Err(_)=>return HttpResponse::Ok().json(serde_json::json!({"user":null})),
+    };
+    let user_result=match app_data.user_resolver.resolve_existing_user_and_actor(&claims.user_id).await{
+        Ok(u)=>u,
+        Err(_)=>return HttpResponse::NotFound().body(format!("Could not find user with id {}",claims.user_id))
+    };
+    let user=user_result.user;
+    let result=serde_json::json!({
+        "user_id":claims.user_id,
+        "name":claims.name.unwrap_or_default(),
+        "email":claims.email.unwrap_or_default(),
+        "photo":user.id
+    });
+    HttpResponse::Ok().json(serde_json::json!({ "user": result }))
+
 }
 #[derive(Deserialize)]
 pub(crate) struct AuthRequest {
@@ -54,7 +77,7 @@ async fn google_callback(
     let userinfo_url = "https://www.googleapis.com/oauth2/v3/userinfo";
     match exchange_code_for_user(query.code.clone(), token_url, userinfo_url).await {
         Ok(google_user) => {
-            let resolved_user = match app_data
+            let user_and_actor = match app_data
                 .user_resolver
                 .resolve_google_user_and_actor(&google_user, |p| {
                     let domain_user_create_params = CreateUserActorParams {
@@ -73,10 +96,10 @@ async fn google_callback(
             };
 
             let access_token =
-                create_access_token(&google_user.sub, Some(google_user.email.as_str()), None);
-            let refresh_token = create_refresh_token(&google_user.sub);
+                create_access_token(&user_and_actor.user.id,Some(&google_user.name), Some(google_user.email.as_str()), None);
+            let refresh_token = create_refresh_token(&user_and_actor.user.id);
             let csrf_token=generate_csrf_token();
-
+            let frontend_redirect = std::env::var("FRONTEND_REDIRECT").unwrap_or_else(|_| "http://localhost:3000/auth/callback".into());
             HttpResponse::Found()
                 .append_header((
                     "Set-Cookie",
@@ -95,13 +118,14 @@ async fn google_callback(
                     ),
                 ))
                 .append_header(("Set-Cookie",format!("csrf_token={}; SameSite=Lax; Path=/; Max-Age={}",csrf_token,60*15)))
-                .append_header(("Location", "/"))
-                .json(GoogleLoginResult {
-                    email: resolved_user.domain_user.email,
-                    name:resolved_user.domain_user.name,    
-                    user_id: resolved_user.domain_user.id,
-                    picture: resolved_user.domain_user.picture,
-                })
+                .append_header(("Location", frontend_redirect))
+                // .json(GoogleLoginResult {
+                //     email: user_and_actor.user.email,
+                //     name:user_and_actor.user.name,    
+                //     user_id: user_and_actor.user.id,
+                //     picture: user_and_actor.user.picture,
+                // })
+                .finish()
         }
         Err(err) => {
             eprintln!("OAuth error: {}", err);
@@ -120,13 +144,14 @@ async fn refresh(req:HttpRequest)->HttpResponse{
         Ok(claims)=>    claims,
         Err(_)=>return HttpResponse::Unauthorized().body("Invalid refresh token")
     };
-    let user_id=claims.sub;
+    let user_id=claims.user_id;
+    
     let email=claims.email.unwrap_or_default();
 
-    let new_access_token=create_access_token(&user_id, Some(&email),None);
+    let new_access_token=create_access_token(&user_id,claims.name.as_deref() ,Some(&email),None);
     let new_crsf_token=generate_csrf_token();
     HttpResponse::Ok()
-        .append_header(("SetCookie",format!("auth_token={}; HttpOnly; SameSite=Lax; Path=/; Max-Age={}",new_access_token,60*15)))
+        .append_header(("Set-Cookie",format!("auth_token={}; HttpOnly; SameSite=None; Path=/; Max-Age={}",new_access_token,60*15)))
         .append_header(("Set-Cookie",format!("csrf_token={}; SameSite=Lax; Path=/; Max-Age={}",new_crsf_token,60 * 15),
         ))
         .json(serde_json::json!({"status":"refreshed"}))
@@ -188,5 +213,7 @@ pub(crate) async fn exchange_code_for_user(
 pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(google_auth_redirect)
         .service(google_callback)
-        .service(logout);
+        .service(logout)
+        .service(refresh)
+        .service(session);
 }

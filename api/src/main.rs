@@ -1,8 +1,10 @@
 use std::sync::Arc;
-
+use actix_cors::Cors;
+use actix_http::Method;
 use actix_web::{
     web::{self},
     App, HttpServer,
+    http::header
 };
 use actors::user_actor::{
     player_factory::PlayerFactory, user_actor_deps::UserActorDeps,
@@ -12,16 +14,27 @@ use data_provider::{
     in_memory_user_provider::InMemoryUserProvider, tracks_provider::LocalTrackStoreProvider,
     user_provider::UserProvider,
 };
-use dsp_api::{
+use api::{
     app_data::AppData,
     controllers::{self, google_controller, ws_controller},
     user_and_actor_resolver::local_user_and_actor_resolver::LocalUserAndActorResolver,
 };
 
-#[actix_web::main]
-async fn main() -> std::io::Result<()> {
-    dotenv::from_path(".env").ok();
+fn main() -> std::io::Result<()> {
+    // ✅ Ensure environment variables are loaded before anything else
+    dotenv::from_path("api/.env").ok();
+
+    // Optional: debug print to confirm env is loaded
+    println!("GOOGLE_CLIENT_ID = {:?}", std::env::var("GOOGLE_CLIENT_ID"));
+
+    // ✅ Manually start Actix runtime
+    actix_web::rt::System::new().block_on(async {
+        start_server().await
+    })
+}
+async fn start_server() -> std::io::Result<()> {
     println!("🔍 CWD: {:?}", std::env::current_dir());
+
     let user_provider: Arc<dyn UserProvider> = Arc::new(InMemoryUserProvider::new());
     let user_registry = Arc::new(UserActorRegistry::new());
     let registry = AppData {
@@ -34,18 +47,33 @@ async fn main() -> std::io::Result<()> {
             tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
         }),
     };
+
     println!("🚀 Server running at http://127.0.0.1:8000");
+
     HttpServer::new(move || {
         App::new()
+            .wrap(
+                Cors::default()
+                    .allowed_origin("http://localhost:3000")
+                    .allowed_origin("http://127.0.0.1:3000")
+                    .allowed_origin("https://app.example.com")
+                    .allowed_methods(vec![Method::GET, Method::POST, Method::OPTIONS])
+                    .allowed_headers(vec![
+                        header::AUTHORIZATION,
+                        header::ACCEPT,
+                        header::CONTENT_TYPE,
+                    ])
+                    .supports_credentials()
+                    .max_age(3600),
+            )
             .app_data(web::Data::new(registry.clone()))
             .service(web::scope("/player").configure(controllers::player_controller::init))
             .service(web::scope("/user").configure(controllers::user_controller::init))
             .service(web::scope("/tracks").configure(controllers::tracks_crud_controller::init))
             .service(web::scope("/auth/google").configure(google_controller::init))
-            // .service(web::scope("/auth/facebook").configure(facebook_controller::init))
             .service(web::scope("/ws").configure(ws_controller::init))
     })
-    .bind(("127.0.0.1", 8000))?
+    .bind(("localhost", 8000))?
     .run()
     .await
 }

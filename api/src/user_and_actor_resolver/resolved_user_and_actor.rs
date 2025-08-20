@@ -3,6 +3,6 @@ use domain::domain_user::DomainUser;
 use kameo::actor::ActorRef;
 
 pub struct ResolvedUserAndActor {
-    pub domain_user: DomainUser,
+    pub user: DomainUser,
     pub actor: ActorRef<UserActor>,
 }
