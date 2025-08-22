@@ -9,4 +9,5 @@ pub struct RawTrack {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TrackInfo {
     pub name: String,
+    pub extension:String
 }
