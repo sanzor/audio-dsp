@@ -45,8 +45,9 @@ async fn start_server() -> std::io::Result<()> {
             tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
         }),
     };
-
-    println!("🚀 Server running at http://127.0.0.1:8000");
+    let url="127.0.0.1";
+    let port=8000;
+    println!("🚀 Server running at http://{}:{}", url, port);
 
     HttpServer::new(move || {
         App::new()
@@ -57,6 +58,7 @@ async fn start_server() -> std::io::Result<()> {
                     .allowed_origin("https://app.example.com")
                     .allowed_methods(vec!["GET", "POST", "PUT", "DELETE", "OPTIONS"])
                     .allowed_headers(vec![
+                        header::ORIGIN,
                         header::AUTHORIZATION,
                         header::ACCEPT,
                         header::CONTENT_TYPE,
@@ -71,7 +73,7 @@ async fn start_server() -> std::io::Result<()> {
             .service(web::scope("/auth/google").configure(google_controller::init))
             .service(web::scope("/ws").configure(ws_controller::init))
     })
-    .bind(("localhost", 8000))?
+    .bind((url, port))?
     .run()
     .await
 }

@@ -46,7 +46,7 @@ async fn can_run_insert() -> Result<(), String> {
     let samples = vec![1.1_f32; 500];
     let sample_rate = 1_f32;
     let track = RawTrack {
-        info: TrackInfo { name: track_name },
+        info: TrackInfo { name: track_name,extension:"wav".to_string() },
         data: AudioBuffer {
             channels: Channels::Mono,
             samples: samples,
@@ -70,6 +70,7 @@ async fn can_run_copy() -> Result<(), String> {
     let track = RawTrack {
         info: TrackInfo {
             name: track_name.clone(),
+            extension:"wav".to_string()
         },
         data: AudioBuffer {
             channels: Channels::Mono,
@@ -100,7 +101,7 @@ async fn can_run_list() -> Result<(), String> {
     let samples = vec![1.1_f32; 500];
     let sample_rate = 1_f32;
     let track = RawTrack {
-        info: TrackInfo { name: track_name },
+        info: TrackInfo { name: track_name ,extension:"wav".to_string()},
         data: AudioBuffer {
             channels: Channels::Mono,
             samples: samples,

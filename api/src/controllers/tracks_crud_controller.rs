@@ -1,8 +1,16 @@
+use std::str::FromStr;
+
+use crate::{
+    app_data::AppData, controllers::utils::get_user_actor_internal,
+    dtos::authenticated_user::AuthenticatedUser,
+};
+use actix_multipart::Multipart;
 use actix_web::{
     delete, get, post,
     web::{self},
     HttpResponse,
 };
+use audiolib::{audio_buffer::AudioBuffer, Channels};
 use domain::{
     actors::messages::crud::{
         copy_track::CopyTrack, delete_track::DeleteTrack, get_track::GetRawTrack,
@@ -11,12 +19,8 @@ use domain::{
     },
     raw_track::{RawTrack, TrackInfo},
 };
+use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
-
-use crate::{
-    app_data::AppData, controllers::utils::get_user_actor_internal,
-    dtos::authenticated_user::AuthenticatedUser,
-};
 
 #[derive(Deserialize, Serialize)]
 pub struct AddTrackParams {
@@ -27,6 +31,7 @@ pub struct AddTrackParams {
 pub struct AddTrackResult {
     pub track_id: String,
 }
+
 #[post("/add-track")]
 async fn add_track(
     user: AuthenticatedUser,
@@ -52,6 +57,67 @@ async fn add_track(
         Err(e) => return HttpResponse::InternalServerError().body("Could not insert track"),
     };
     rez
+}
+
+#[post("/add-track-multi")]
+async fn add_track_multi(
+    user: AuthenticatedUser,
+    mut payload: Multipart,
+    app_state: web::Data<AppData>,
+) -> HttpResponse {
+    let mut name: Option<String> = None;
+    let mut extension: Option<String> = None;
+    let mut sample_rate: Option<f32> = None; // ✅ f32 now
+    let mut channels: Option<Channels> = None; // ✅ Enum now
+    let mut samples_bytes: Vec<u8> = vec![];
+
+    while let Some(Ok(mut field)) = payload.next().await {
+        let field_name = field.name().unwrap_or("").to_string();
+        let field_data = next_multipart_field(&mut field).await;
+
+        match field_name.as_str() {
+            "name" => name = Some(String::from_utf8_lossy(&field_data).to_string()),
+            "extension" => extension = Some(String::from_utf8_lossy(&field_data).to_string()),
+            "sample_rate" => sample_rate = String::from_utf8_lossy(&field_data).parse::<f32>().ok(),
+            "channels" => channels = Channels::from_str(&String::from_utf8_lossy(&field_data)).ok(),
+            "samples" => samples_bytes = field_data,
+            _ => {}
+        }
+    }
+    let (name, extension, sample_rate, channels) = match (name, extension, sample_rate, channels) {
+        (Some(n), Some(ext), Some(sr), Some(ch)) => (n, ext, sr, ch),
+        _ => return HttpResponse::BadRequest().body("Missing required fields"),
+    };
+    if samples_bytes.is_empty() {
+        return HttpResponse::BadRequest().body("Missing samples data");
+    };
+    let samples: Vec<f32> = bytes_to_f32(samples_bytes);
+
+    let audio_buffer = AudioBuffer {
+        samples,
+        sample_rate,
+        channels,
+    };
+
+    let raw_track = RawTrack {
+        info: TrackInfo { name, extension },
+        data: audio_buffer,
+    };
+
+    // ✅ Continue same as before
+    let found_user = match get_user_actor_internal(&user.user_id, &app_state).await {
+        Ok(u) => u,
+        Err(_) => return HttpResponse::NotFound().body("User not found"),
+    };
+
+    let result = found_user.ask(InsertTrack { track: raw_track }).await;
+
+    match result {
+        Ok(smth) => HttpResponse::Ok().json(AddTrackResult {
+            track_id: smth.track_id,
+        }),
+        Err(_) => HttpResponse::InternalServerError().body("Could not insert track"),
+    }
 }
 
 #[derive(Deserialize)]
@@ -255,4 +321,25 @@ pub fn init(cfg: &mut web::ServiceConfig) {
         .service(get_meta)
         .service(get_tracks)
         .service(copy_track);
+}
+fn bytes_to_f32(bytes: Vec<u8>) -> Vec<f32> {
+    use std::convert::TryInto;
+
+    // Each f32 is 4 bytes
+    let mut out = Vec::with_capacity(bytes.len() / 4);
+
+    for chunk in bytes.chunks_exact(4) {
+        let arr: [u8; 4] = chunk.try_into().unwrap();
+        out.push(f32::from_le_bytes(arr)); // little-endian decode
+    }
+
+    out
+}
+
+async fn next_multipart_field(field: &mut actix_multipart::Field) -> Vec<u8> {
+    let mut data = Vec::new();
+    while let Some(chunk) = field.next().await {
+        data.extend_from_slice(&chunk.unwrap());
+    }
+    data
 }

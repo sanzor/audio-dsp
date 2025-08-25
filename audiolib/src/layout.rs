@@ -24,3 +24,15 @@ impl From<Channels> for u8 {
         value as u8
     }
 }
+
+impl std::str::FromStr for Channels {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "1" | "mono" | "Mono" => Ok(Channels::Mono),
+            "2" | "stereo" | "Stereo" => Ok(Channels::Stereo),
+            other => Err(format!("Invalid channel count: {}", other)),
+        }
+    }
+}

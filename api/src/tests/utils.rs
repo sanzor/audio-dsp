@@ -125,6 +125,7 @@ pub fn make_raw_track_from_samples(samples: Vec<f32>, channels: Channels) -> Raw
         Channels::Mono => RawTrack {
             info: TrackInfo {
                 name: "some_name".to_string(),
+                extension: "wav".to_string(),
             },
             data: AudioBuffer {
                 channels: Channels::Mono,
@@ -135,6 +136,7 @@ pub fn make_raw_track_from_samples(samples: Vec<f32>, channels: Channels) -> Raw
         Channels::Stereo => RawTrack {
             info: TrackInfo {
                 name: "some_name".to_string(),
+                extension: "wav".to_string(),
             },
             data: AudioBuffer {
                 samples: samples.clone(),

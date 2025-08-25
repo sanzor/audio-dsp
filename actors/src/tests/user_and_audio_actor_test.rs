@@ -309,6 +309,7 @@ fn sample_track(track_name: &str) -> RawTrack {
     let track = RawTrack {
         info: TrackInfo {
             name: track_name.to_string(),
+            extension:"wav".to_string()
         },
         data: AudioBuffer {
             channels: Channels::Mono,
