@@ -1,5 +1,3 @@
-use actix_cors::Cors;
-use actix_http::Method;
 use actix_web::{
     http::header,
     web::{self},
@@ -45,26 +43,31 @@ async fn start_server() -> std::io::Result<()> {
             tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
         }),
     };
-    let url="127.0.0.1";
-    let port=8000;
+    let url="localhost";
+    let port=3080;
     println!("🚀 Server running at http://{}:{}", url, port);
 
+    
     HttpServer::new(move || {
+        let cors = actix_cors::Cors::default()
+        // allow any localhost/127.0.0.1 *with* credentials
+        .allowed_origin_fn(|origin, _| {
+            let o = origin.as_bytes();
+            o.starts_with(b"http://localhost:") || o.starts_with(b"http://127.0.0.1:")
+        })
+        .allowed_methods(vec!["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+        .allowed_headers(vec![
+            header::ORIGIN,
+            header::AUTHORIZATION,
+            header::ACCEPT,
+            header::CONTENT_TYPE,
+        ])
+        .supports_credentials()
+        .max_age(3600);
+
         App::new()
             .wrap(
-                Cors::default()
-                    .allowed_origin("http://localhost:3000")
-                    .allowed_origin("http://127.0.0.1:3000")
-                    .allowed_origin("https://app.example.com")
-                    .allowed_methods(vec!["GET", "POST", "PUT", "DELETE", "OPTIONS"])
-                    .allowed_headers(vec![
-                        header::ORIGIN,
-                        header::AUTHORIZATION,
-                        header::ACCEPT,
-                        header::CONTENT_TYPE,
-                    ])
-                    .supports_credentials()
-                    .max_age(3600),
+                cors
             )
             .app_data(web::Data::new(registry.clone()))
             .service(web::scope("/player").configure(controllers::player_controller::init))

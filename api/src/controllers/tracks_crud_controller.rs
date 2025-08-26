@@ -314,6 +314,7 @@ async fn get_track_info(
 
 pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(add_track)
+        .service(add_track_multi)
         .service(update_track_info)
         .service(remove_track)
         .service(get_raw)
