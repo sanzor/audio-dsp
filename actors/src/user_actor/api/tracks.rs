@@ -8,7 +8,7 @@ use domain::{
         insert_track::{InsertTrack, InsertTrackResult},
         update_track_info::{UpdateTrackInfo, UpdateTrackInfoResult},
     },
-    track_meta::TrackMeta,
+    track_meta::TrackMeta, update_track_info_params::{UpdateTrackInfoParams},
 };
 
 use crate::user_actor::user_actor::UserActor;
@@ -112,12 +112,13 @@ impl Message<UpdateTrackInfo> for UserActor {
 
     async fn handle(
         &mut self,
-        msg: UpdateTrackInfo,
+        msg: domain::actors::messages::crud::update_track_info::UpdateTrackInfo,
         ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
         let update_result = self
             .tracks_provider
-            .update_track_info(&msg.track_id, msg.track_info)
+            .update_track_info(&msg.track_id, 
+                UpdateTrackInfoParams{track_name:msg.name})
             .await?;
         Ok(UpdateTrackInfoResult {
             track_meta: update_result,

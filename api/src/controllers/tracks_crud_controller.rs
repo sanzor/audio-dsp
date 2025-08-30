@@ -147,7 +147,10 @@ async fn copy_track(
         .await
     {
         Ok(smth) => HttpResponse::Ok().json("track copied"),
-        Err(e) => return HttpResponse::InternalServerError().body("Could not copy track"),
+        Err(e) => 
+        
+        
+        return HttpResponse::InternalServerError().body("Could not copy track"),
     };
     rez
 }
@@ -155,7 +158,7 @@ async fn copy_track(
 #[derive(Deserialize)]
 pub struct UpdateTrackParams {
     pub track_id: String,
-    pub track_info: TrackInfo,
+    pub track_name: String
 }
 #[post("/update-track-info")]
 async fn update_track_info(
@@ -172,8 +175,8 @@ async fn update_track_info(
 
     let rez = match user
         .ask(UpdateTrackInfo {
-            track_info: request.track_info,
-            track_id: request.track_id,
+            name:request.track_name,
+            track_id: request.track_id
         })
         .await
     {

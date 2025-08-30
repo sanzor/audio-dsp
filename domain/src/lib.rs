@@ -5,3 +5,4 @@ pub mod raw_track;
 pub mod track;
 pub mod track_meta;
 pub mod user;
+pub mod update_track_info_params;

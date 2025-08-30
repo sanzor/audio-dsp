@@ -1,7 +1,7 @@
 use domain::{
     raw_track::{RawTrack, TrackInfo},
     track::Track,
-    track_meta::TrackMeta,
+    track_meta::TrackMeta, update_track_info_params::UpdateTrackInfoParams,
 };
 use std::collections::HashMap;
 use tokio::sync::Mutex;
@@ -37,17 +37,19 @@ impl TracksProvider for LocalTrackStoreProvider {
     async fn update_track_info(
         &self,
         track_id: &str,
-        track_info: TrackInfo,
+        updated_info: UpdateTrackInfoParams,
     ) -> Result<TrackMeta, String> {
-        let mut guard = self.tracks.lock().await;
-        let mut track = match guard.remove(track_id) {
+        let mut remove_guard = self.tracks.lock().await;
+        let track_to_update = match remove_guard.get_mut(track_id) {
             None => return Err("Could not find track".into()),
             Some(i) => i,
         };
-        track.track_info = track_info;
+       
+        track_to_update.track_info.name =updated_info.track_name;
+       
         Ok(TrackMeta {
-            track_info: track.track_info.clone(),
-            track_id: track.track_id.clone(),
+            track_info: track_to_update.track_info.clone(),
+            track_id: track_to_update.track_id.clone(),
         })
     }
 
