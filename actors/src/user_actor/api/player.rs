@@ -166,11 +166,13 @@ impl UserActor {
         let payload = match self.loaded_payloads.get(track_id) {
             Some(payload) => Arc::clone(&payload),
             None => {
-                let track_copy = self.tracks_provider.get_track_copy(track_id).await?;
-                let payload_ref = Arc::new(track_copy.data);
-                self.loaded_payloads
-                    .insert(track_id.to_string(), Arc::clone(&payload_ref));
-                payload_ref
+                let track_copy=self.tracks_provider.get_stored_track(track_id).await?;
+               
+                let payload_ref=Arc::new(track_copy.)
+                // let payload_ref = Arc::new(track_copy);
+                // self.loaded_payloads
+                //     .insert(track_id.to_string(), Arc::clone(&payload_ref));
+                // payload_ref
             }
         };
         Ok(payload)

@@ -1204,9 +1204,11 @@ name = "data-provider"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "audiolib",
  "chrono",
  "clap",
  "domain",
+ "hound",
  "jsonwebtoken",
  "kameo",
  "serde",

@@ -1,15 +1,14 @@
+use audiolib::audio_buffer::AudioBuffer;
 use domain::{
-    raw_track::{RawTrack, TrackInfo},
-    track::Track,
-    track_meta::TrackMeta, update_track_info_params::UpdateTrackInfoParams,
+    raw_track::{RawTrack, TrackInfo}, stored_track::StoredTrack, track::Track, track_meta::TrackMeta, update_track_info_params::UpdateTrackInfoParams
 };
-use std::collections::HashMap;
-use tokio::sync::Mutex;
 use ulid::Ulid;
+use std::{collections::HashMap, io::Cursor};
+use tokio::sync::Mutex;
+use hound;
 
 use crate::{
-    get_all_track_infos_result::GetAllTrackInfosResult,
-    tracks_provider::{LocalTrackStoreProvider, TracksProvider},
+    get_all_track_infos_result::GetAllTrackInfosResult, tracks_provider::{LocalTrackStoreProvider, TracksProvider}
 };
 
 impl LocalTrackStoreProvider {
@@ -17,6 +16,28 @@ impl LocalTrackStoreProvider {
         LocalTrackStoreProvider {
             tracks: Mutex::new(HashMap::new()),
         }
+    }
+    pub fn encode_audio_buffer_as_wav(buffer:&AudioBuffer)->Result<Vec<u8>,String>{
+        let spec=hound::WavSpec{
+            channels:match buffer.channels{
+                audiolib::Channels::Mono=>1,
+                audiolib::Channels::Stereo=>2
+            },
+            sample_rate:buffer.sample_rate as u32,
+            bits_per_sample:16,
+            sample_format:hound::SampleFormat::Int
+        };
+        let mut cursor=Cursor::new(Vec::new());
+        let mut writer=hound::WavWriter::new(&mut cursor,spec).map_err(|e|format!("Failed to create wav writer {}",e))?;
+        for sample in buffer.samples.iter(){
+            let clamped=sample.clamp(-1.0, 1.0);
+            let i16_sample=(clamped*i16::MAX as f32) as i16;
+            writer.write_sample(i16_sample)
+            .map_err(|e| format!("Could not write sample :{}",e))?;
+        }
+        writer.finalize().map_err(|e|format!("Finalize error: {}",e))?;
+        Ok(cursor.into_inner())
+
     }
 }
 
@@ -33,6 +54,43 @@ impl TracksProvider for LocalTrackStoreProvider {
             });
 
         info
+    }
+
+    async fn get_stored_track(&self,track_id:&str)->Result<StoredTrack,String>{
+        let guard=self.tracks.lock().await;
+        let track=match guard.get(track_id) {
+            Some(tr)=>tr,
+            None=> return Err("Could not find track".into())
+        };
+       
+        Ok(StoredTrack{track_info:track.track_info.clone(),track_id:track_id.to_owned(),canonical_audio:track.canonical_audio.clone()})
+    }
+
+    async fn copy_track(&self,track_id:&str,new_name:&str)->Result<TrackMeta,String>{
+    
+        let mut guard=self.tracks.lock().await;
+        let original=match guard.get(track_id){
+            Some(tr)=>tr,
+            None=>return Err("Could not find track".into())
+        };
+
+
+        let new_track_id=Ulid::new().to_string();
+        let mut new_track_info=original.track_info.clone();
+        new_track_info.name=new_name.to_owned();
+
+
+        let copy=StoredTrack{
+            track_id:new_track_id.to_string(),
+            track_info:new_track_info.clone(),
+            canonical_audio:original.canonical_audio.clone()};
+       
+       
+        match guard.insert(new_track_id.to_string(),copy){
+            Some(_)=>Err("Could not insert new track".into()),
+            None=>Ok(TrackMeta { track_info: new_track_info, track_id: new_track_id.to_string() })
+        }
+        
     }
     async fn update_track_info(
         &self,
@@ -53,16 +111,7 @@ impl TracksProvider for LocalTrackStoreProvider {
         })
     }
 
-    async fn get_track_copy(&self, track_name: &str) -> Result<RawTrack, String> {
-        let guard = self.tracks.lock().await;
-        guard
-            .get(track_name)
-            .ok_or_else(|| "".into())
-            .map(|track| RawTrack {
-                info: track.track_info.clone(),
-                data: track.data.clone(),
-            })
-    }
+
     async fn get_all_track_infos(&self) -> Result<GetAllTrackInfosResult, String> {
         let guard = self.tracks.lock().await;
         let mut hash_map = HashMap::new();
@@ -89,11 +138,11 @@ impl TracksProvider for LocalTrackStoreProvider {
     }
     async fn upsert_track(&self, tr: RawTrack) -> Result<TrackMeta, String> {
         let id = Ulid::new().to_string();
-        let track = Track {
-            data: tr.data,
-            track_id: id.clone(),
-            track_info: tr.info.clone(),
+        let canonical_audio=match LocalTrackStoreProvider::encode_audio_buffer_as_wav(&tr.data){
+            Ok(c)=>c,
+            Err(e)=>return Err("Could not store track".into())
         };
+        let track = StoredTrack { track_id: id.clone(), track_info:tr.info.clone(), canonical_audio: canonical_audio };
         let mut guard = self.tracks.lock().await;
         match guard.insert(id.clone(), track) {
             None => Ok(TrackMeta {

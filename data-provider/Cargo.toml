@@ -14,3 +14,5 @@ async-trait = "0.1"
 ulid="1"
 jsonwebtoken = "9"
 chrono = "0.4"
+hound="3.5.1"
+audiolib={path = "../audiolib"}
