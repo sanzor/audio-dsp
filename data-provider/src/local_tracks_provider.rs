@@ -1,9 +1,9 @@
-use audiolib::audio_buffer::AudioBuffer;
+use audiolib::utils::encode_audio_buffer_as_wav;
 use domain::{
-    raw_track::{RawTrack, TrackInfo}, stored_track::StoredTrack, track::Track, track_meta::TrackMeta, update_track_info_params::UpdateTrackInfoParams
+    raw_track::RawTrack, stored_track::StoredTrack, track_meta::TrackMeta, update_track_info_params::UpdateTrackInfoParams
 };
 use ulid::Ulid;
-use std::{collections::HashMap, io::Cursor};
+use std::collections::HashMap;
 use tokio::sync::Mutex;
 use hound;
 
@@ -17,28 +17,7 @@ impl LocalTrackStoreProvider {
             tracks: Mutex::new(HashMap::new()),
         }
     }
-    pub fn encode_audio_buffer_as_wav(buffer:&AudioBuffer)->Result<Vec<u8>,String>{
-        let spec=hound::WavSpec{
-            channels:match buffer.channels{
-                audiolib::Channels::Mono=>1,
-                audiolib::Channels::Stereo=>2
-            },
-            sample_rate:buffer.sample_rate as u32,
-            bits_per_sample:16,
-            sample_format:hound::SampleFormat::Int
-        };
-        let mut cursor=Cursor::new(Vec::new());
-        let mut writer=hound::WavWriter::new(&mut cursor,spec).map_err(|e|format!("Failed to create wav writer {}",e))?;
-        for sample in buffer.samples.iter(){
-            let clamped=sample.clamp(-1.0, 1.0);
-            let i16_sample=(clamped*i16::MAX as f32) as i16;
-            writer.write_sample(i16_sample)
-            .map_err(|e| format!("Could not write sample :{}",e))?;
-        }
-        writer.finalize().map_err(|e|format!("Finalize error: {}",e))?;
-        Ok(cursor.into_inner())
-
-    }
+    
 }
 
 #[async_trait::async_trait]
@@ -138,7 +117,7 @@ impl TracksProvider for LocalTrackStoreProvider {
     }
     async fn upsert_track(&self, tr: RawTrack) -> Result<TrackMeta, String> {
         let id = Ulid::new().to_string();
-        let canonical_audio=match LocalTrackStoreProvider::encode_audio_buffer_as_wav(&tr.data){
+        let canonical_audio=match encode_audio_buffer_as_wav(&tr.data){
             Ok(c)=>c,
             Err(e)=>return Err("Could not store track".into())
         };

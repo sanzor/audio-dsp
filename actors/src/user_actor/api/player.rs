@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
-
-use audiolib::audio_buffer::AudioBuffer;
+use audiolib::utils::decode_canonical_audio;
 use domain::actors::messages::player::get_player_state::GetPlayerState;
 use domain::actors::messages::player::pause::Pause;
 use domain::actors::messages::player::play::Play;
@@ -16,6 +15,7 @@ use domain::actors::messages::user_to_player::{
     user_get_player_state::UserGetPlayerState, user_pause::UserPause, user_play::UserPlay,
     user_seek::UserSeek, user_stop::UserStop,
 };
+use domain::stored_track::StoredTrack;
 use kameo::actor::ActorRef;
 use kameo::prelude::{Context, Message};
 
@@ -23,6 +23,7 @@ use crate::audio_player_actor::attach_sink::AttachSink;
 use crate::audio_player_actor::audio_player_actor::AudioPlayerActor;
 use crate::audio_player_actor::create_audio_player_actor_params::CreateAudioPlayerActorParams;
 
+use crate::audio_player_actor::player_track_payload::PlayerTrackPayload;
 use crate::user_actor::user_actor::UserActor;
 use crate::user_actor::user_attach_sink::{UserAttachSink, UserAttachSinkResult};
 use crate::user_actor::user_remove_sink::{UserRemoveSink, UserRemoveSinkResult};
@@ -162,13 +163,15 @@ impl Message<UserGetPlayerState> for UserActor {
 }
 
 impl UserActor {
-    async fn get_payload(&mut self, track_id: &str) -> Result<Arc<AudioBuffer>, String> {
-        let payload = match self.loaded_payloads.get(track_id) {
+    async fn get_stored_track(&mut self, track_id: &str) -> Result<Arc<StoredTrack>, String> {
+        let payload = match self.cached_tracks.get(track_id) {
             Some(payload) => Arc::clone(&payload),
             None => {
-                let track_copy=self.tracks_provider.get_stored_track(track_id).await?;
+                let track_copy:StoredTrack=self.tracks_provider.get_stored_track(track_id).await?;
                
-                let payload_ref=Arc::new(track_copy.)
+                let payload_ref=Arc::new(track_copy);
+                self.cached_tracks.insert(track_id.to_string(), Arc::clone(&payload_ref));
+                payload_ref
                 // let payload_ref = Arc::new(track_copy);
                 // self.loaded_payloads
                 //     .insert(track_id.to_string(), Arc::clone(&payload_ref));
@@ -181,16 +184,17 @@ impl UserActor {
         &mut self,
         msg: UserAttachSink,
     ) -> Result<UserAttachSinkResult, String> {
+        
         let meta = self.tracks_provider.get_track_meta(&msg.track_id).await?;
         let sink_id = ulid::Ulid::new().to_string();
         let mut sinks = HashMap::new();
         sinks.insert(sink_id.clone(), msg.sink);
-        let payload = self.get_payload(&msg.track_id).await?;
+        let payload = self.get_stored_track(&msg.track_id).await?;
+        let decoded_track=decode_canonical_audio(&payload.canonical_audio)?;
         let create_audio_actor_params = CreateAudioPlayerActorParams {
-            track_payload: payload,
+            track_payload: PlayerTrackPayload{audio:decoded_track,meta:meta},
             cursor: 0,
             sinks: sinks,
-            meta: meta,
         };
 
         let create_actor_result = self

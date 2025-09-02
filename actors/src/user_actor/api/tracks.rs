@@ -2,7 +2,7 @@ use domain::{
     actors::messages::crud::{
         copy_track::{CopyTrack, CopyTrackResult},
         delete_track::{DeleteTrack, DeleteTrackResult},
-        get_track::{GetRawTrack, GetRawTrackResult},
+        get_stored_track::{GetStoredTrack, GetStoredTrackResult},
         get_track_info::{GetTrackMeta, GetTrackMetaResult},
         get_tracks::{GetTrackMetas, GetTracksResult},
         insert_track::{InsertTrack, InsertTrackResult},
@@ -15,18 +15,18 @@ use crate::user_actor::user_actor::UserActor;
 use kameo::prelude::Context;
 use kameo::prelude::Message;
 
-impl Message<GetRawTrack> for UserActor {
-    type Reply = Result<GetRawTrackResult, String>;
+impl Message<GetStoredTrack> for UserActor {
+    type Reply = Result<GetStoredTrackResult, String>;
 
     async fn handle(
         &mut self,
-        msg: GetRawTrack,
+        msg: GetStoredTrack,
         ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
-        let track = self.tracks_provider.get_track_copy(&msg.track_id).await;
+        let track = self.tracks_provider.get_stored_track(&msg.track_id).await;
         match track {
             Err(e) => Err("Could not find track".to_string()),
-            Ok(e) => Ok(GetRawTrackResult { track: e }),
+            Ok(e) => Ok(GetStoredTrackResult { track: e }),
         }
     }
 }
@@ -39,13 +39,8 @@ impl Message<CopyTrack> for UserActor {
         msg: CopyTrack,
         ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
-        let raw_track_copy = self.tracks_provider.get_track_copy(&msg.track_id).await?;
-
-        let insert_result = self.tracks_provider.upsert_track(raw_track_copy).await?;
-        Ok(CopyTrackResult {
-            copied_track_id: insert_result.track_id,
-            track_copy_name: insert_result.track_info.name,
-        })
+        let result:TrackMeta=self.tracks_provider.copy_track(&msg.track_id, &msg.track_copy_name).await?;
+        return Ok(CopyTrackResult { copied_track_id: result.track_id, track_copy_name: result.track_info.name});
     }
 }
 

@@ -4,3 +4,4 @@ pub mod control;
 pub mod create_audio_player_actor_params;
 pub mod query;
 pub mod remove_sink;
+pub mod player_track_payload;

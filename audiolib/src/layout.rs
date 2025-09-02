@@ -19,12 +19,28 @@ impl TryFrom<u8> for Channels {
     }
 }
 
+impl TryFrom<u16> for Channels {
+    type Error = String;
+
+    fn try_from(value: u16) -> Result<Self, Self::Error> {
+        match value {
+            1 => Ok(Channels::Mono),
+            2 => Ok(Channels::Stereo),
+            _ => Err(format!("Invalid channel count {}", value)),
+        }
+    }
+}
+
 impl From<Channels> for u8 {
     fn from(value: Channels) -> Self {
         value as u8
     }
 }
-
+impl From<Channels> for u16 {
+    fn from(value: Channels) -> Self {
+        value as u16
+    }
+}
 impl std::str::FromStr for Channels {
     type Err = String;
 

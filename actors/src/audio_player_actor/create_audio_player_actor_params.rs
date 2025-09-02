@@ -1,17 +1,13 @@
-use std::{collections::HashMap, sync::Arc};
-
-use audiolib::audio_buffer::AudioBuffer;
-use domain::track_meta::TrackMeta;
+use std::{collections::HashMap};
 use kameo::actor::ActorRef;
 use player::audio_sink::AudioSink;
 
-use crate::audio_player_actor::audio_player_actor::AudioPlayerActor;
+use crate::audio_player_actor::{audio_player_actor::AudioPlayerActor, player_track_payload::PlayerTrackPayload};
 
 pub struct CreateAudioPlayerActorParams {
     pub sinks: HashMap<String, Box<dyn AudioSink + Sync + Send + 'static>>,
     pub cursor: usize,
-    pub track_payload: Arc<AudioBuffer>,
-    pub meta: TrackMeta,
+    pub track_payload:PlayerTrackPayload
 }
 
 pub struct CreateAudioPlayerActorResult {

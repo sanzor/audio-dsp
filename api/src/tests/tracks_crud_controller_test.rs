@@ -13,7 +13,7 @@ use data_provider::{
 };
 use domain::{
     actors::messages::crud::{
-        get_track::GetRawTrackResult, get_track_info::GetTrackMetaResult,
+        get_stored_track::GetStoredTrackResult, get_track_info::GetTrackMetaResult,
         get_tracks::GetTracksResult,
     },
     domain_user::DomainUser,
@@ -207,9 +207,9 @@ async fn can_get_track_raw() -> Result<(), String> {
         ))
         .insert_header(("Cookie", format!("auth_token={}", token)))
         .to_request();
-    let resp: GetRawTrackResult = test::call_and_read_body_json(&app, req).await;
-    assert!(resp.track.info.name == track.info.name);
-    assert!(resp.track.data.samples.len() == track.data.samples.len());
+    let resp: GetStoredTrackResult = test::call_and_read_body_json(&app, req).await;
+    assert!(resp.track.track_info.name == track.info.name);
+    assert!(resp.track.canonical_audio.len() == track.data.samples.len());
     Ok(())
 }
 

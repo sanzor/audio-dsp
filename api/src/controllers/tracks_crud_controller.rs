@@ -13,7 +13,7 @@ use actix_web::{
 use audiolib::{audio_buffer::AudioBuffer, Channels};
 use domain::{
     actors::messages::crud::{
-        copy_track::CopyTrack, delete_track::DeleteTrack, get_track::GetRawTrack,
+        copy_track::CopyTrack, delete_track::DeleteTrack, get_stored_track::GetStoredTrack,
         get_track_info::GetTrackMeta, get_tracks::GetTrackMetas, insert_track::InsertTrack,
         update_track_info::UpdateTrackInfo,
     },
@@ -218,7 +218,7 @@ async fn remove_track(
 pub struct GetTrackParams {
     pub track_id: String,
 }
-#[get("/get-raw")]
+#[get("/get-stored-track")]
 async fn get_raw(
     user: AuthenticatedUser,
     query: web::Query<GetTrackParams>,
@@ -232,7 +232,7 @@ async fn get_raw(
     };
 
     let rez = match user
-        .ask(GetRawTrack {
+        .ask(GetStoredTrack {
             track_id: request.track_id,
         })
         .await

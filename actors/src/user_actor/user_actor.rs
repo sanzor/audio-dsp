@@ -4,7 +4,7 @@ use crate::{
 };
 use audiolib::audio_buffer::AudioBuffer;
 use data_provider::tracks_provider::TracksProvider;
-use domain::domain_user::DomainUser;
+use domain::{domain_user::DomainUser, stored_track::StoredTrack};
 use kameo::{actor::ActorRef, Actor};
 use std::{collections::HashMap, sync::Arc};
 
@@ -16,7 +16,7 @@ pub struct UserActor {
     pub(crate) tracks_provider: Arc<dyn TracksProvider + Send + Sync + 'static>,
     pub(crate) players_provider: HashMap<String, ActorRef<AudioPlayerActor>>,
     pub(crate) player_factory: Arc<PlayerFactory>,
-    pub(crate) loaded_payloads: HashMap<String, Arc<AudioBuffer>>,
+    pub(crate) cached_tracks: HashMap<String, Arc<StoredTrack>>,
 }
 
 impl UserActor {
@@ -25,7 +25,7 @@ impl UserActor {
             tracks_provider: Arc::clone(&actor_params.user_actor_deps.tracks_provider),
             players_provider: HashMap::new(),
             player_factory: Arc::clone(&actor_params.user_actor_deps.player_factory),
-            loaded_payloads: HashMap::new(),
+            cached_tracks: HashMap::new(),
             user_data: actor_params.user_data,
         }
     }
