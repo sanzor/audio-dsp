@@ -231,16 +231,21 @@ async fn get_raw(
         Err(e) => return HttpResponse::NotFound().body("User not found"),
     };
 
-    let rez = match user
+    let stored_track = match user
         .ask(GetStoredTrack {
             track_id: request.track_id,
         })
         .await
-    {
-        Ok(smth) => HttpResponse::Ok().json(smth),
-        Err(e) => return HttpResponse::InternalServerError().body("Could not get track"),
-    };
-    rez
+        {
+            Ok(track)=>track,
+            Err(e)=>return HttpResponse::NotFound().body("Could not find track")
+        };
+        
+        HttpResponse::Ok()
+            .insert_header(("Content-Type", "audio/wav")) // adjust as needed
+            .insert_header(("Content-Disposition", format!("inline; filename=\"{}.wav\"", stored_track.track.track_info.name)))
+            .body(stored_track.track.canonical_audio)
+
 }
 
 #[get("/get-meta")]
