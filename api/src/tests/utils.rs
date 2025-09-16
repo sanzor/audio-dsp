@@ -9,7 +9,7 @@ use actors::user_actor::{
 use audiolib::{audio_buffer::AudioBuffer, Channels};
 use data_provider::tracks_provider::{LocalTrackStoreProvider, TracksProvider};
 use domain::{
-    actors::messages::crud::get_tracks::GetTracksResult,
+    actors::messages::tracks::get_tracks::GetTracksResult,
     domain_user::DomainUser,
     raw_track::{RawTrack, TrackInfo},
 };

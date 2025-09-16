@@ -1,5 +1,5 @@
 use std::str::FromStr;
-
+use mime_guess::from_ext;
 use crate::{
     app_data::AppData, controllers::utils::get_user_actor_internal,
     dtos::authenticated_user::AuthenticatedUser,
@@ -12,7 +12,7 @@ use actix_web::{
 };
 use audiolib::{audio_buffer::AudioBuffer, Channels};
 use domain::{
-    actors::messages::crud::{
+    actors::messages::tracks::{
         copy_track::CopyTrack, delete_track::DeleteTrack, get_stored_track::GetStoredTrack,
         get_track_info::GetTrackMeta, get_tracks::GetTrackMetas, insert_track::InsertTrack,
         update_track_info::UpdateTrackInfo,
@@ -240,11 +240,22 @@ async fn get_raw(
             Ok(track)=>track,
             Err(e)=>return HttpResponse::NotFound().body("Could not find track")
         };
-        
-        HttpResponse::Ok()
-            .insert_header(("Content-Type", "audio/wav")) // adjust as needed
-            .insert_header(("Content-Disposition", format!("inline; filename=\"{}.wav\"", stored_track.track.track_info.name)))
-            .body(stored_track.track.canonical_audio)
+    let ext = stored_track.track.track_info.extension.to_lowercase();
+    let mime_type = from_ext(&ext)
+        .first_or_octet_stream()
+        .essence_str()
+        .to_owned();    
+    HttpResponse::Ok()
+        .insert_header(("Content-Type", mime_type))
+        .insert_header((
+            "Content-Disposition",
+            format!(
+                "inline; filename=\"{}.{}\"",
+                stored_track.track.track_info.name,
+                ext
+            ),
+        ))
+        .body(stored_track.track.canonical_audio)
 
 }
 

@@ -5,7 +5,7 @@ use data_provider::tracks_provider::LocalTrackStoreProvider;
 use domain::{
     actors::{
         messages::{
-            crud::insert_track::InsertTrack,
+            tracks::insert_track::InsertTrack,
             user::get_user_state::{GetUserState, GetUserStateResult},
             user_to_player::{
                 user_get_player_state::UserGetPlayerState, user_pause::UserPause,

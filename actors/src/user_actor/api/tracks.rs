@@ -1,5 +1,5 @@
 use domain::{
-    actors::messages::crud::{
+    actors::messages::tracks::{
         copy_track::{CopyTrack, CopyTrackResult},
         delete_track::{DeleteTrack, DeleteTrackResult},
         get_stored_track::{GetStoredTrack, GetStoredTrackResult},
@@ -107,7 +107,7 @@ impl Message<UpdateTrackInfo> for UserActor {
 
     async fn handle(
         &mut self,
-        msg: domain::actors::messages::crud::update_track_info::UpdateTrackInfo,
+        msg: domain::actors::messages::tracks::update_track_info::UpdateTrackInfo,
         ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
         let update_result = self

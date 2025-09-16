@@ -73,6 +73,7 @@ async fn start_server() -> std::io::Result<()> {
             .service(web::scope("/player").configure(controllers::player_controller::init))
             .service(web::scope("/user").configure(controllers::user_controller::init))
             .service(web::scope("/tracks").configure(controllers::tracks_crud_controller::init))
+            .service(web::scope("/regions").configure(controllers::regions_controller::init))
             .service(web::scope("/auth/google").configure(google_controller::init))
             .service(web::scope("/ws").configure(ws_controller::init))
     })

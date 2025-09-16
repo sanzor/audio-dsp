@@ -12,7 +12,7 @@ use data_provider::{
     user_provider::UserProvider,
 };
 use domain::{
-    actors::messages::crud::{
+    actors::messages::tracks::{
         get_stored_track::GetStoredTrackResult, get_track_info::GetTrackMetaResult,
         get_tracks::GetTracksResult,
     },
