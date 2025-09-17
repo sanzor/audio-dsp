@@ -12,7 +12,7 @@ pub struct InMemoryRegionSetProvider{
 
 impl InMemoryRegionSetProvider{
     pub fn new()->InMemoryRegionSetProvider{
-        InMemoryRegionSetProvider { region_sets: HashMap::new() }
+        InMemoryRegionSetProvider { region_sets: Mutex::new(HashMap::new()) }
     }
 }
 
