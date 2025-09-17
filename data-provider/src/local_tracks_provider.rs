@@ -5,7 +5,6 @@ use domain::{
 use ulid::Ulid;
 use std::collections::HashMap;
 use tokio::sync::Mutex;
-use hound;
 
 use crate::{
     get_all_track_infos_result::GetAllTrackInfosResult, tracks_provider::{LocalTrackStoreProvider, TracksProvider}

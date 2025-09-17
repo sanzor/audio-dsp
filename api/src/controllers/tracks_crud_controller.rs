@@ -209,7 +209,7 @@ async fn remove_track(
         })
         .await
     {
-        Ok(smth) => HttpResponse::Ok().json("track added"),
+        Ok(smth) => HttpResponse::Ok().json("track removed"),
         Err(e) => return HttpResponse::InternalServerError().body("Could not remove track"),
     };
     rez

@@ -7,4 +7,4 @@ pub mod track_meta;
 pub mod user;
 pub mod update_track_info_params;
 pub mod stored_track;
-pub mod region;
+pub mod regions;

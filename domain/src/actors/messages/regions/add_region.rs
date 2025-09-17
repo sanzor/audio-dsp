@@ -9,4 +9,6 @@ pub struct AddRegionResult{
     pub region_id:String,
     pub track_id:String,
     pub name:String,
+    pub start_time:f32,
+    pub end_time:f32
 }
