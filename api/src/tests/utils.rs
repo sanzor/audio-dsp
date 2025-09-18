@@ -7,7 +7,7 @@ use actors::user_actor::{
     user_actor::UserActor, user_actor_deps::UserActorDeps,
 };
 use audiolib::{audio_buffer::AudioBuffer, Channels};
-use data_provider::tracks_provider::{LocalTrackStoreProvider, TracksProvider};
+use data_provider::{in_memory_region_set_provider::InMemoryRegionSetProvider, tracks_provider::{LocalTrackStoreProvider, TracksProvider}};
 use domain::{
     actors::messages::tracks::get_tracks::GetTracksResult,
     domain_user::DomainUser,
@@ -44,6 +44,7 @@ pub fn create_user_actor(id: Ulid) -> ActorRef<UserActor> {
         user_actor_deps: Arc::new(UserActorDeps {
             player_factory: Arc::new(player_factory),
             tracks_provider: Arc::clone(&tracks_provider),
+            region_sets_provider:Arc::new(InMemoryRegionSetProvider::new())
         }),
     };
     let actor = UserActor::spawn(UserActor::new(actor_params));

@@ -1,6 +1,14 @@
 use std::collections::HashMap;
 
-use domain::regions::{add_region_params::AddRegionParams, create_region_set_params::CreateRegionSetParams, edit_region_params::EditRegionParams, edit_region_set_params::EditRegionSetParams, region::Region, region_set::RegionSet};
+use domain::regions::{
+    add_region_params::AddRegionParams,
+    create_region_set_params::CreateRegionSetParams, 
+    delete_region_params::DeleteRegionParams, 
+    edit_region_params::EditRegionParams, 
+    edit_region_set_params::EditRegionSetParams, 
+    region::Region, region_set::RegionSet
+};
+
 use tokio::sync::Mutex;
 use ulid::Ulid;
 
@@ -23,6 +31,7 @@ impl RegionSetsProvider for InMemoryRegionSetProvider{
 
                 let region_set_id=Ulid::new();
                 let region_set=RegionSet{
+                    track_length:params.track_length,
                     track_id:params.track_id,
                     regions:Vec::new(),
                     name:params.name.unwrap_or(Ulid::new().to_string()),
@@ -127,7 +136,7 @@ impl RegionSetsProvider for InMemoryRegionSetProvider{
                 .ok_or_else(||format!("Could not find region with id {:?}",params.region_id))?;
             
             set.regions
-                .remove(index)
-                
+                .remove(index);
+            Ok(())
         }
 }

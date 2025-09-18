@@ -13,8 +13,7 @@ use actors::user_actor::{
 };
 use audiolib::Channels;
 use data_provider::{
-    in_memory_user_provider::InMemoryUserProvider, tracks_provider::LocalTrackStoreProvider,
-    user_provider::UserProvider,
+    in_memory_region_set_provider::InMemoryRegionSetProvider, in_memory_user_provider::InMemoryUserProvider, tracks_provider::LocalTrackStoreProvider, user_provider::UserProvider
 };
 use domain::actors::player_state::AudioPlayerState;
 use futures_util::{stream::SplitStream, SinkExt, StreamExt};
@@ -55,6 +54,7 @@ async fn can_start_player_ws() -> Result<(), String> {
         user_actor_deps: Arc::new(UserActorDeps {
             player_factory: Arc::new(PlayerFactory {}),
             tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
+            region_sets_provider:Arc::new(InMemoryRegionSetProvider::new())
         }),
         user_resolver: Arc::new(LocalUserAndActorResolver::new(
             user_provider,
@@ -122,6 +122,7 @@ async fn can_stop_player_ws() -> Result<(), String> {
         user_actor_deps: Arc::new(UserActorDeps {
             player_factory: Arc::new(PlayerFactory {}),
             tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
+            region_sets_provider:Arc::new(InMemoryRegionSetProvider::new())
         }),
         user_resolver: Arc::new(LocalUserAndActorResolver::new(
             user_provider,

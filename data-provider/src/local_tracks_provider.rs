@@ -1,6 +1,9 @@
 use audiolib::utils::encode_audio_buffer_as_wav;
 use domain::{
-    raw_track::RawTrack, stored_track::StoredTrack, track_meta::TrackMeta, update_track_info_params::UpdateTrackInfoParams
+    raw_track::RawTrack, 
+    stored_track::StoredTrack,
+    track_meta::TrackMeta,
+    update_track_info_params::UpdateTrackInfoParams
 };
 use ulid::Ulid;
 use std::collections::HashMap;
@@ -16,7 +19,6 @@ impl LocalTrackStoreProvider {
             tracks: Mutex::new(HashMap::new()),
         }
     }
-    
 }
 
 #[async_trait::async_trait]
@@ -52,7 +54,6 @@ impl TracksProvider for LocalTrackStoreProvider {
             None=>return Err("Could not find track".into())
         };
 
-
         let new_track_id=Ulid::new().to_string();
         let mut new_track_info=original.track_info.clone();
         new_track_info.name=new_name.to_owned();
@@ -61,8 +62,8 @@ impl TracksProvider for LocalTrackStoreProvider {
         let copy=StoredTrack{
             track_id:new_track_id.to_string(),
             track_info:new_track_info.clone(),
-            canonical_audio:original.canonical_audio.clone()};
-       
+            canonical_audio:original.canonical_audio.clone()
+        };
        
         match guard.insert(new_track_id.to_string(),copy){
             Some(_)=>Err("Could not insert new track".into()),

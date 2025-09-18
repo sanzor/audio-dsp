@@ -1,14 +1,19 @@
+use crate::regions::region_set::RegionSet;
+
 pub struct AddRegion{
     pub name:String,
-    pub track_id:String,
+    pub region_set_id:String,
     pub start_time:f32,
-    pub end_time:Option<f32>
+    pub end_time_policy:EndTimePolicy
+
 }
 
 pub struct AddRegionResult{
-    pub region_id:String,
-    pub track_id:String,
-    pub name:String,
-    pub start_time:f32,
-    pub end_time:f32
+    pub region_set:RegionSet
+}
+
+pub enum EndTimePolicy{
+    NextRegionOrEnd,
+    FixedLength(f32),
+    Explicit(f32)
 }

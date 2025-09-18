@@ -6,8 +6,7 @@ use actors::user_actor::{
     user_actor_registry::UserActorRegistry,
 };
 use data_provider::{
-    in_memory_user_provider::InMemoryUserProvider, tracks_provider::LocalTrackStoreProvider,
-    user_provider::UserProvider,
+    in_memory_region_set_provider::InMemoryRegionSetProvider, in_memory_user_provider::InMemoryUserProvider, tracks_provider::LocalTrackStoreProvider, user_provider::UserProvider
 };
 use httpmock::prelude::*;
 
@@ -75,6 +74,7 @@ pub async fn can_auth_integration_test() -> Result<(), String> {
         user_actor_deps: Arc::new(UserActorDeps {
             player_factory: Arc::new(PlayerFactory {}),
             tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
+            region_sets_provider:Arc::new(InMemoryRegionSetProvider::new())
         }),
         user_resolver: Arc::new(LocalUserAndActorResolver::new(
             user_provider,

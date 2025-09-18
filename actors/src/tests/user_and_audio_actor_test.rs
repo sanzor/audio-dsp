@@ -1,7 +1,7 @@
 use std::{collections::VecDeque, sync::Arc};
 
 use audiolib::{audio_buffer::AudioBuffer, Channels};
-use data_provider::tracks_provider::LocalTrackStoreProvider;
+use data_provider::{in_memory_region_set_provider::InMemoryRegionSetProvider, tracks_provider::LocalTrackStoreProvider};
 use domain::{
     actors::{
         messages::{
@@ -51,7 +51,7 @@ impl AudioSink for TestSink {
 
 fn create_user_actor(id: Ulid) -> ActorRef<UserActor> {
     let tracks_provider = Arc::new(LocalTrackStoreProvider::new());
-
+    let region_set_provider=Arc::new(InMemoryRegionSetProvider::new());
     let actor_params = CreateUserActorParams {
         user_data: DomainUser {
             email: id.to_string(),
@@ -63,6 +63,7 @@ fn create_user_actor(id: Ulid) -> ActorRef<UserActor> {
         user_actor_deps: Arc::new(UserActorDeps {
             player_factory: Arc::new(PlayerFactory {}),
             tracks_provider: tracks_provider,
+            region_sets_provider:region_set_provider
         }),
     };
     let actor = UserActor::spawn(UserActor::new(actor_params));
