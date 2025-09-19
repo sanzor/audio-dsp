@@ -11,7 +11,6 @@ pub fn test_cpal_sink() -> Result<(), String> {
     let wav_channels = data.channels as usize;
     let sink_channels = sink.channels() as usize;
 
-
     for chunk in data.samples.chunks_exact(wav_channels) {
         let frame = match (wav_channels, sink_channels) {
             (1, 1) => vec![chunk[0]],

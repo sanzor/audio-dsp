@@ -1,5 +1,3 @@
-use std::str::FromStr;
-use mime_guess::from_ext;
 use crate::{
     app_data::AppData, controllers::utils::get_user_actor_internal,
     dtos::authenticated_user::AuthenticatedUser,
@@ -20,7 +18,9 @@ use domain::{
     raw_track::{RawTrack, TrackInfo},
 };
 use futures_util::StreamExt;
+use mime_guess::from_ext;
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 
 #[derive(Deserialize, Serialize)]
 pub struct AddTrackParams {
@@ -88,11 +88,12 @@ async fn add_track_multi(
         (Some(n), Some(ext), Some(sr), Some(ch)) => (n, ext, sr, ch),
         _ => return HttpResponse::BadRequest().body("Missing required fields"),
     };
+
     if samples_bytes.is_empty() {
         return HttpResponse::BadRequest().body("Missing samples data");
     };
     let samples: Vec<f32> = bytes_to_f32(samples_bytes);
-
+    let length = samples.len() as f32 / sample_rate as f32;
     let audio_buffer = AudioBuffer {
         samples,
         sample_rate,
@@ -100,7 +101,11 @@ async fn add_track_multi(
     };
 
     let raw_track = RawTrack {
-        info: TrackInfo { name, extension },
+        info: TrackInfo {
+            name,
+            extension,
+            length: length,
+        },
         data: audio_buffer,
     };
 
@@ -147,10 +152,7 @@ async fn copy_track(
         .await
     {
         Ok(smth) => HttpResponse::Ok().json("track copied"),
-        Err(e) => 
-        
-        
-        return HttpResponse::InternalServerError().body("Could not copy track"),
+        Err(e) => return HttpResponse::InternalServerError().body("Could not copy track"),
     };
     rez
 }
@@ -158,7 +160,7 @@ async fn copy_track(
 #[derive(Deserialize)]
 pub struct UpdateTrackParams {
     pub track_id: String,
-    pub track_name: String
+    pub track_name: String,
 }
 #[post("/update-track-info")]
 async fn update_track_info(
@@ -175,8 +177,8 @@ async fn update_track_info(
 
     let rez = match user
         .ask(UpdateTrackInfo {
-            name:request.track_name,
-            track_id: request.track_id
+            name: request.track_name,
+            track_id: request.track_id,
         })
         .await
     {
@@ -236,27 +238,25 @@ async fn get_raw(
             track_id: request.track_id,
         })
         .await
-        {
-            Ok(track)=>track,
-            Err(e)=>return HttpResponse::NotFound().body("Could not find track")
-        };
+    {
+        Ok(track) => track,
+        Err(e) => return HttpResponse::NotFound().body("Could not find track"),
+    };
     let ext = stored_track.track.track_info.extension.to_lowercase();
     let mime_type = from_ext(&ext)
         .first_or_octet_stream()
         .essence_str()
-        .to_owned();    
+        .to_owned();
     HttpResponse::Ok()
         .insert_header(("Content-Type", mime_type))
         .insert_header((
             "Content-Disposition",
             format!(
                 "inline; filename=\"{}.{}\"",
-                stored_track.track.track_info.name,
-                ext
+                stored_track.track.track_info.name, ext
             ),
         ))
         .body(stored_track.track.canonical_audio)
-
 }
 
 #[get("/get-meta")]

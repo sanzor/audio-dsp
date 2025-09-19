@@ -5,7 +5,9 @@ use actors::user_actor::{
     user_actor_deps::UserActorDeps, user_actor_registry::UserActorRegistry,
 };
 use data_provider::{
-    in_memory_region_set_provider::InMemoryRegionSetProvider, in_memory_user_provider::InMemoryUserProvider, tracks_provider::LocalTrackStoreProvider, user_provider::UserProvider
+    in_memory_region_set_provider::InMemoryRegionSetProvider,
+    in_memory_user_provider::InMemoryUserProvider, tracks_provider::LocalTrackStoreProvider,
+    user_provider::UserProvider,
 };
 use rstest::rstest;
 
@@ -109,6 +111,6 @@ fn create_user_deps() -> UserActorDeps {
     UserActorDeps {
         player_factory: Arc::new(PlayerFactory {}),
         tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
-        region_sets_provider:Arc::new(InMemoryRegionSetProvider::new())
+        region_sets_provider: Arc::new(InMemoryRegionSetProvider::new()),
     }
 }

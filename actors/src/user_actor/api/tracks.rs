@@ -8,7 +8,8 @@ use domain::{
         insert_track::{InsertTrack, InsertTrackResult},
         update_track_info::{UpdateTrackInfo, UpdateTrackInfoResult},
     },
-    track_meta::TrackMeta, update_track_info_params::{UpdateTrackInfoParams},
+    track_meta::TrackMeta,
+    update_track_info_params::UpdateTrackInfoParams,
 };
 
 use crate::user_actor::user_actor::UserActor;
@@ -39,8 +40,14 @@ impl Message<CopyTrack> for UserActor {
         msg: CopyTrack,
         ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
-        let result:TrackMeta=self.tracks_provider.copy_track(&msg.track_id, &msg.track_copy_name).await?;
-        return Ok(CopyTrackResult { copied_track_id: result.track_id, track_copy_name: result.track_info.name});
+        let result: TrackMeta = self
+            .tracks_provider
+            .copy_track(&msg.track_id, &msg.track_copy_name)
+            .await?;
+        return Ok(CopyTrackResult {
+            copied_track_id: result.track_id,
+            track_copy_name: result.track_info.name,
+        });
     }
 }
 
@@ -112,8 +119,12 @@ impl Message<UpdateTrackInfo> for UserActor {
     ) -> Self::Reply {
         let update_result = self
             .tracks_provider
-            .update_track_info(&msg.track_id, 
-                UpdateTrackInfoParams{track_name:msg.name})
+            .update_track_info(
+                &msg.track_id,
+                UpdateTrackInfoParams {
+                    track_name: msg.name,
+                },
+            )
             .await?;
         Ok(UpdateTrackInfoResult {
             track_meta: update_result,

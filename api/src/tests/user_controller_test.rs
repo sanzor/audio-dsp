@@ -6,7 +6,9 @@ use actix_web::{dev::Service, test, web, App};
 use ::actors::user_actor::player_factory::PlayerFactory;
 use actors::user_actor::{user_actor_deps::UserActorDeps, user_actor_registry::UserActorRegistry};
 use data_provider::{
-    in_memory_region_set_provider::InMemoryRegionSetProvider, in_memory_user_provider::InMemoryUserProvider, tracks_provider::LocalTrackStoreProvider, user_provider::UserProvider
+    in_memory_region_set_provider::InMemoryRegionSetProvider,
+    in_memory_user_provider::InMemoryUserProvider, tracks_provider::LocalTrackStoreProvider,
+    user_provider::UserProvider,
 };
 use rstest::rstest;
 
@@ -29,7 +31,7 @@ async fn can_get_user() -> Result<(), String> {
         user_actor_deps: Arc::new(UserActorDeps {
             player_factory: Arc::new(PlayerFactory {}),
             tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
-            region_sets_provider:Arc::new(InMemoryRegionSetProvider::new())
+            region_sets_provider: Arc::new(InMemoryRegionSetProvider::new()),
         }),
         user_resolver: Arc::new(LocalUserAndActorResolver::new(
             user_provider,
@@ -66,7 +68,7 @@ async fn can_insert_user() -> Result<(), String> {
         user_actor_deps: Arc::new(UserActorDeps {
             player_factory: Arc::new(PlayerFactory {}),
             tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
-            region_sets_provider:Arc::new(InMemoryRegionSetProvider::new())
+            region_sets_provider: Arc::new(InMemoryRegionSetProvider::new()),
         }),
         user_resolver: Arc::new(LocalUserAndActorResolver::new(
             user_provider,
@@ -104,7 +106,7 @@ async fn can_remove_user() -> Result<(), String> {
         user_actor_deps: Arc::new(UserActorDeps {
             player_factory: Arc::new(PlayerFactory {}),
             tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
-            region_sets_provider:Arc::new(InMemoryRegionSetProvider::new())
+            region_sets_provider: Arc::new(InMemoryRegionSetProvider::new()),
         }),
         user_resolver: Arc::new(LocalUserAndActorResolver::new(
             user_provider,
@@ -145,7 +147,7 @@ async fn can_update_user() -> Result<(), String> {
         user_actor_deps: Arc::new(UserActorDeps {
             player_factory: Arc::new(PlayerFactory {}),
             tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
-            region_sets_provider:Arc::new(InMemoryRegionSetProvider::new())
+            region_sets_provider: Arc::new(InMemoryRegionSetProvider::new()),
         }),
         user_resolver: Arc::new(LocalUserAndActorResolver::new(
             user_provider,

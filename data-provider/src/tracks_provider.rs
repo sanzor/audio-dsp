@@ -1,5 +1,6 @@
 use domain::{
-    raw_track::RawTrack,  stored_track::StoredTrack, track_meta::TrackMeta, update_track_info_params::UpdateTrackInfoParams
+    raw_track::RawTrack, stored_track::StoredTrack, track_meta::TrackMeta,
+    update_track_info_params::UpdateTrackInfoParams,
 };
 use std::collections::HashMap;
 use tokio::sync::Mutex;
@@ -22,8 +23,6 @@ pub trait TracksProvider: Send + Sync {
         track_id: &str,
         updated_track_info: UpdateTrackInfoParams,
     ) -> Result<TrackMeta, String>;
-
-
 }
 unsafe impl Send for LocalTrackStoreProvider {}
 unsafe impl Sync for LocalTrackStoreProvider {}

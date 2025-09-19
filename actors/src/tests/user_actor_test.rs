@@ -32,7 +32,7 @@ fn create_actor(id: Ulid) -> ActorRef<UserActor> {
         user_actor_deps: Arc::new(UserActorDeps {
             player_factory: Arc::new(PlayerFactory {}),
             tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
-            region_sets_provider:Arc::new(InMemoryRegionSetProvider::new())
+            region_sets_provider: Arc::new(InMemoryRegionSetProvider::new()),
         }),
     };
     let actor = UserActor::spawn(UserActor::new(actor_params));
@@ -42,13 +42,16 @@ fn create_actor(id: Ulid) -> ActorRef<UserActor> {
 }
 #[tokio::test]
 async fn can_run_insert() -> Result<(), String> {
-    let user_name = "some_user".to_string();
     let track_name = "some_track".to_string();
     let id = Ulid::new();
     let samples = vec![1.1_f32; 500];
     let sample_rate = 1_f32;
     let track = RawTrack {
-        info: TrackInfo { name: track_name,extension:"wav".to_string() },
+        info: TrackInfo {
+            name: track_name,
+            extension: "wav".to_string(),
+            length: samples.len() as f32 / sample_rate as f32,
+        },
         data: AudioBuffer {
             channels: Channels::Mono,
             samples: samples,
@@ -57,7 +60,7 @@ async fn can_run_insert() -> Result<(), String> {
     };
     let command = InsertTrack { track: track };
     let addr = create_actor(id);
-    let rez = addr.ask(command).await.map_err(|e| e.to_string())?;
+    let _: InsertTrackResult = addr.ask(command).await.map_err(|e| e.to_string())?;
 
     Ok(())
 }
@@ -72,7 +75,8 @@ async fn can_run_copy() -> Result<(), String> {
     let track = RawTrack {
         info: TrackInfo {
             name: track_name.clone(),
-            extension:"wav".to_string()
+            extension: "wav".to_string(),
+            length: samples.len() as f32 / sample_rate as f32,
         },
         data: AudioBuffer {
             channels: Channels::Mono,
@@ -103,7 +107,11 @@ async fn can_run_list() -> Result<(), String> {
     let samples = vec![1.1_f32; 500];
     let sample_rate = 1_f32;
     let track = RawTrack {
-        info: TrackInfo { name: track_name ,extension:"wav".to_string()},
+        info: TrackInfo {
+            name: track_name,
+            extension: "wav".to_string(),
+            length: samples.len() as f32 / sample_rate as f32,
+        },
         data: AudioBuffer {
             channels: Channels::Mono,
             samples: samples,
@@ -114,7 +122,7 @@ async fn can_run_list() -> Result<(), String> {
     let addr = create_actor(id);
     let initial_list = list_command(&addr, &user_name.clone()).await?;
     assert_eq!(initial_list.len(), 0);
-    let insert_result = insert_track_command(&addr, &user_name, track).await?;
+    let _ = insert_track_command(&addr, &user_name, track).await?;
     let after_list = list_command(&addr, &user_name.clone()).await?;
     assert_eq!(after_list.len(), 1);
     Ok(())

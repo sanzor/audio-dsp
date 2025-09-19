@@ -10,4 +10,5 @@ pub struct RawTrack {
 pub struct TrackInfo {
     pub name: String,
     pub extension: String,
+    pub length: f32,
 }

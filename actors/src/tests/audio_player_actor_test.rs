@@ -40,7 +40,8 @@ fn make_track_from_samples(samples: Vec<f32>, channels: Channels) -> RawTrack {
         Channels::Mono => RawTrack {
             info: TrackInfo {
                 name: "some_name".to_string(),
-                 extension:"wav".to_string()
+                extension: "wav".to_string(),
+                length: samples.len() as f32 / 1_f32,
             },
             data: AudioBuffer {
                 channels: Channels::Mono,
@@ -51,7 +52,8 @@ fn make_track_from_samples(samples: Vec<f32>, channels: Channels) -> RawTrack {
         Channels::Stereo => RawTrack {
             info: TrackInfo {
                 name: "some_name".to_string(),
-               extension:"wav".to_string()
+                extension: "wav".to_string(),
+                length: samples.len() as f32 / 1_f32,
             },
             data: AudioBuffer {
                 samples: samples.clone(),

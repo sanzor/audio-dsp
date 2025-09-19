@@ -4,5 +4,5 @@ pub mod audio_transform;
 pub mod filters;
 pub mod layout;
 pub use layout::Channels;
-pub mod utils;
 pub mod decoded_audio;
+pub mod utils;

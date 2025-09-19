@@ -7,7 +7,10 @@ use actors::user_actor::{
     user_actor::UserActor, user_actor_deps::UserActorDeps,
 };
 use audiolib::{audio_buffer::AudioBuffer, Channels};
-use data_provider::{in_memory_region_set_provider::InMemoryRegionSetProvider, tracks_provider::{LocalTrackStoreProvider, TracksProvider}};
+use data_provider::{
+    in_memory_region_set_provider::InMemoryRegionSetProvider,
+    tracks_provider::{LocalTrackStoreProvider, TracksProvider},
+};
 use domain::{
     actors::messages::tracks::get_tracks::GetTracksResult,
     domain_user::DomainUser,
@@ -44,7 +47,7 @@ pub fn create_user_actor(id: Ulid) -> ActorRef<UserActor> {
         user_actor_deps: Arc::new(UserActorDeps {
             player_factory: Arc::new(player_factory),
             tracks_provider: Arc::clone(&tracks_provider),
-            region_sets_provider:Arc::new(InMemoryRegionSetProvider::new())
+            region_sets_provider: Arc::new(InMemoryRegionSetProvider::new()),
         }),
     };
     let actor = UserActor::spawn(UserActor::new(actor_params));
@@ -127,6 +130,7 @@ pub fn make_raw_track_from_samples(samples: Vec<f32>, channels: Channels) -> Raw
             info: TrackInfo {
                 name: "some_name".to_string(),
                 extension: "wav".to_string(),
+                length: samples.len() as f32 / 1_f32 as f32,
             },
             data: AudioBuffer {
                 channels: Channels::Mono,
@@ -138,6 +142,7 @@ pub fn make_raw_track_from_samples(samples: Vec<f32>, channels: Channels) -> Raw
             info: TrackInfo {
                 name: "some_name".to_string(),
                 extension: "wav".to_string(),
+                length: samples.len() as f32 / 1_f32 as f32,
             },
             data: AudioBuffer {
                 samples: samples.clone(),

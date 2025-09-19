@@ -8,7 +8,9 @@ use actors::user_actor::{
 };
 use audiolib::Channels;
 use data_provider::{
-    in_memory_region_set_provider::InMemoryRegionSetProvider, in_memory_user_provider::InMemoryUserProvider, tracks_provider::LocalTrackStoreProvider, user_provider::UserProvider
+    in_memory_region_set_provider::InMemoryRegionSetProvider,
+    in_memory_user_provider::InMemoryUserProvider, tracks_provider::LocalTrackStoreProvider,
+    user_provider::UserProvider,
 };
 use domain::{
     actors::messages::tracks::{
@@ -38,7 +40,7 @@ async fn can_insert_track() -> Result<(), String> {
     let user_actor_deps = Arc::new(UserActorDeps {
         player_factory: Arc::new(PlayerFactory {}),
         tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
-        region_sets_provider:Arc::new(InMemoryRegionSetProvider::new())
+        region_sets_provider: Arc::new(InMemoryRegionSetProvider::new()),
     });
     let user_actor = create_user_actor(user_id.clone(), Arc::clone(&user_actor_deps));
     let mut user_map = HashMap::new();
@@ -48,7 +50,7 @@ async fn can_insert_track() -> Result<(), String> {
         user_actor_deps: Arc::new(UserActorDeps {
             player_factory: Arc::new(PlayerFactory {}),
             tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
-            region_sets_provider:Arc::new(InMemoryRegionSetProvider::new())
+            region_sets_provider: Arc::new(InMemoryRegionSetProvider::new()),
         }),
         user_resolver: Arc::new(LocalUserAndActorResolver::new(
             user_provider,
@@ -79,7 +81,7 @@ async fn can_get_track_metas() -> Result<(), String> {
     let user_actor_deps = Arc::new(UserActorDeps {
         player_factory: Arc::new(PlayerFactory {}),
         tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
-        region_sets_provider:Arc::new(InMemoryRegionSetProvider::new())
+        region_sets_provider: Arc::new(InMemoryRegionSetProvider::new()),
     });
     let user_actor = create_user_actor(user_id.clone(), Arc::clone(&user_actor_deps));
     let mut user_map = HashMap::new();
@@ -89,7 +91,7 @@ async fn can_get_track_metas() -> Result<(), String> {
         user_actor_deps: Arc::new(UserActorDeps {
             player_factory: Arc::new(PlayerFactory {}),
             tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
-            region_sets_provider:Arc::new(InMemoryRegionSetProvider::new())
+            region_sets_provider: Arc::new(InMemoryRegionSetProvider::new()),
         }),
         user_resolver: Arc::new(LocalUserAndActorResolver::new(
             user_provider,
@@ -127,7 +129,7 @@ async fn can_get_track_meta() -> Result<(), String> {
     let user_actor_deps = Arc::new(UserActorDeps {
         player_factory: Arc::new(PlayerFactory {}),
         tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
-        region_sets_provider:Arc::new(InMemoryRegionSetProvider::new())
+        region_sets_provider: Arc::new(InMemoryRegionSetProvider::new()),
     });
     let user_actor = create_user_actor(user_id.clone(), Arc::clone(&user_actor_deps));
     let mut user_map = HashMap::new();
@@ -137,7 +139,7 @@ async fn can_get_track_meta() -> Result<(), String> {
         user_actor_deps: Arc::new(UserActorDeps {
             player_factory: Arc::new(PlayerFactory {}),
             tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
-            region_sets_provider:Arc::new(InMemoryRegionSetProvider::new())
+            region_sets_provider: Arc::new(InMemoryRegionSetProvider::new()),
         }),
         user_resolver: Arc::new(LocalUserAndActorResolver::new(
             user_provider,
@@ -179,7 +181,7 @@ async fn can_get_track_raw() -> Result<(), String> {
     let user_actor_deps = Arc::new(UserActorDeps {
         player_factory: Arc::new(PlayerFactory {}),
         tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
-        region_sets_provider:Arc::new(InMemoryRegionSetProvider::new())
+        region_sets_provider: Arc::new(InMemoryRegionSetProvider::new()),
     });
     let user_actor = create_user_actor(user_id.clone(), Arc::clone(&user_actor_deps));
 
@@ -226,7 +228,7 @@ async fn can_remove_track() -> Result<(), String> {
     let user_actor_deps = Arc::new(UserActorDeps {
         player_factory: Arc::new(PlayerFactory {}),
         tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
-        region_sets_provider:Arc::new(InMemoryRegionSetProvider::new())
+        region_sets_provider: Arc::new(InMemoryRegionSetProvider::new()),
     });
     let user_id = Ulid::new();
     let email = "some@gmail.com";
