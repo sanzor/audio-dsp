@@ -1,8 +1,13 @@
 use actix_web::{delete, get, patch, post, web, HttpResponse};
 use domain::{
     actors::messages::region_set::{
-        create_region_set::CreateRegionSet, delete_region_set::DeleteRegionSet,
-        edit_region_set::EditRegionSet, get_region_set::GetRegionSet, get_region_sets_for_track::GetRegionSetsForTrack, get_regions_sets::GetRegionSets,
+        copy_region_set::CopyRegionSet,
+        create_region_set::CreateRegionSet,
+        delete_region_set::DeleteRegionSet,
+        edit_region_set::EditRegionSet,
+        get_region_set::GetRegionSet,
+        get_region_sets_for_track::GetRegionSetsForTrack,
+        get_regions_sets::GetRegionSets,
     },
     regions::region_set::RegionSet,
 };
@@ -89,8 +94,6 @@ pub async fn edit_region_set(
     rez
 }
 
-
-
 #[derive(Deserialize)]
 pub struct GetRegionSetParams {
     pub region_set_id: String,
@@ -130,19 +133,12 @@ pub async fn get_region_sets(
         Err(e) => return HttpResponse::NotFound().body("User not found"),
     };
 
-    let rez: HttpResponse = match resolved_user
-        .ask(GetRegionSets {
-            
-        })
-        .await
-    {
+    let rez: HttpResponse = match resolved_user.ask(GetRegionSets {}).await {
         Ok(r) => HttpResponse::Ok().json(r),
         Err(e) => return HttpResponse::InternalServerError().body("Could not edit region"),
     };
     rez
 }
-
-
 
 #[derive(Deserialize)]
 pub struct GetRegionsForTrackParams {
@@ -173,7 +169,6 @@ pub async fn get_region_sets_for_track(
     rez
 }
 
-
 #[derive(Deserialize)]
 pub struct DeleteRegionSetParams {
     pub region_set_id: String,
@@ -203,9 +198,50 @@ pub async fn delete_region_set(
     rez
 }
 
+#[derive(Deserialize)]
+pub struct CopyRegionSetParams {
+    pub track_id: String,
+    pub region_set_id: String,
+    pub copy_region_set_name: String,
+}
+
+
+#[derive(Serialize)]
+pub struct CopyRegionSetResult {
+    pub region_set: RegionSet,
+}
+
+#[post("/copy-region-set")]
+async fn copy_region_set(
+    user: AuthenticatedUser,
+    request_raw: web::Json<CopyRegionSetParams>,
+    app_state: web::Data<AppData>,
+) -> HttpResponse {
+    let request = request_raw.into_inner();
+
+    let user = match get_user_actor_internal(&user.user_id, &app_state).await {
+        Ok(u) => u,
+        Err(e) => return HttpResponse::NotFound().body("User not found"),
+    };
+
+    let rez = match user
+        .ask(CopyRegionSet {
+            track_id: request.track_id,
+            region_set_id: request.region_set_id,
+            region_set_copy_name: request.copy_region_set_name,
+        })
+        .await
+    {
+        Ok(smth) => HttpResponse::Ok().json(CopyRegionSetResult{region_set:smth.region_set}),
+        Err(e) => return HttpResponse::InternalServerError().body("Could not copy track"),
+    };
+    rez
+}
+
 pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(create_region_set)
         .service(delete_region_set)
         .service(edit_region_set)
-        .service(get_region_set);
+        .service(get_region_set)
+        .service(copy_region_set);
 }

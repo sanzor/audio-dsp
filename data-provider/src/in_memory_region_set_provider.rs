@@ -1,9 +1,12 @@
 use std::collections::HashMap;
 
-use domain::regions::{
-    add_region_params::AddRegionParams, create_region_set_params::CreateRegionSetParams,
-    delete_region_params::DeleteRegionParams, edit_region_params::EditRegionParams,
-    edit_region_set_params::EditRegionSetParams, region::Region, region_set::RegionSet,
+use domain::{
+    region_set::copy_region_set_params::CopyRegionSetParams,
+    regions::{
+        add_region_params::AddRegionParams, create_region_set_params::CreateRegionSetParams,
+        delete_region_params::DeleteRegionParams, edit_region_params::EditRegionParams,
+        edit_region_set_params::EditRegionSetParams, region::Region, region_set::RegionSet,
+    },
 };
 
 use tokio::sync::Mutex;
@@ -61,19 +64,19 @@ impl RegionSetsProvider for InMemoryRegionSetProvider {
         return Ok(sets);
     }
 
-   async fn get_region_sets(&self) -> Result<HashMap<String, Vec<RegionSet>>, String> {
+    async fn get_region_sets(&self) -> Result<HashMap<String, Vec<RegionSet>>, String> {
         let guard = self.region_sets.lock().await;
 
         let mut rez: HashMap<String, Vec<RegionSet>> = HashMap::new();
 
         for elem in guard.values() {
-        rez.entry(elem.track_id.clone()) // clone the String here
-            .or_insert_with(Vec::new)
-            .push(elem.clone());
+            rez.entry(elem.track_id.clone()) // clone the String here
+                .or_insert_with(Vec::new)
+                .push(elem.clone());
         }
 
         Ok(rez)
-}
+    }
 
     async fn edit_region_set(&self, params: EditRegionSetParams) -> Result<RegionSet, String> {
         let mut guard = self.region_sets.lock().await;
@@ -173,5 +176,23 @@ impl RegionSetsProvider for InMemoryRegionSetProvider {
 
         set.regions.remove(index);
         Ok(())
+    }
+
+    async fn copy_region_set(&self, params: CopyRegionSetParams) -> Result<RegionSet, String> {
+        let mut guard = self.region_sets.lock().await;
+
+        let set = guard
+            .get(&params.region_set_id)
+            .ok_or_else(|| format!("Could not find set with id {:?}", params.region_set_id))?;
+
+        let id = Ulid::new().to_string();
+        let mut copy = set.clone();
+        copy.name = params.region_set_name;
+
+        // Insert and check the result
+        match guard.insert(id.clone(), copy) {
+            None => Ok(guard.get(&id).expect("just inserted").clone()),
+            Some(_) => Err(format!("Unexpected collision inserting id {:?}", id)),
+        }
     }
 }

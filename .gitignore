@@ -2,3 +2,4 @@
 *.wav
 .env
 .gitignore
+.VSCodeCounter

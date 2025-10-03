@@ -130,6 +130,6 @@ pub async fn delete_region(
 
 pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(add_region)
-    .service(delete_region)
+        .service(delete_region)
         .service(edit_region);
 }

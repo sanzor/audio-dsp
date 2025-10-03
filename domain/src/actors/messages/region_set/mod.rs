@@ -1,3 +1,4 @@
+pub mod copy_region_set;
 pub mod create_region_set;
 pub mod delete_region_set;
 pub mod edit_region_set;

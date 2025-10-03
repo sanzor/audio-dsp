@@ -6,7 +6,7 @@ pub struct GetRegionSetsForTrack {
     pub track_id: String,
 }
 
-#[derive(Serialize,Debug,Clone)]
+#[derive(Serialize, Debug, Clone)]
 pub struct GetRegionSetsForTrackResult {
     pub track_id: String,
     pub region_sets: Vec<RegionSet>,

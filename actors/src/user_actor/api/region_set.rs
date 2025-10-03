@@ -1,11 +1,14 @@
 use domain::{
     actors::messages::region_set::{
+        copy_region_set::{CopyRegionSet, CopyRegionSetResult},
         create_region_set::{CreateRegionSet, CreateRegionSetResult},
         delete_region_set::{DeleteRegionSet, DeleteRegionSetResult},
         edit_region_set::{EditRegionSet, EditRegionSetResult},
         get_region_set::{GetRegionSet, GetRegionSetResult},
-        get_region_sets_for_track::{GetRegionSetsForTrack, GetRegionSetsForTrackResult}, get_regions_sets::{GetRegionSets, GetRegionSetsResult},
+        get_region_sets_for_track::{GetRegionSetsForTrack, GetRegionSetsForTrackResult},
+        get_regions_sets::{GetRegionSets, GetRegionSetsResult},
     },
+    region_set::copy_region_set_params::CopyRegionSetParams,
     regions::{
         create_region_set_params::CreateRegionSetParams,
         edit_region_set_params::EditRegionSetParams, region_set::RegionSet,
@@ -61,12 +64,9 @@ impl Message<GetRegionSets> for UserActor {
         msg: GetRegionSets,
         ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
-        let sets = self
-            .region_set_provider
-            .get_region_sets()
-            .await?;
+        let sets = self.region_set_provider.get_region_sets().await?;
         Ok(GetRegionSetsResult {
-            track_region_sets_map:sets
+            track_region_sets_map: sets,
         })
     }
 }
@@ -123,5 +123,27 @@ impl Message<DeleteRegionSet> for UserActor {
             .delete_region_set(&msg.region_set_id)
             .await?;
         Ok(DeleteRegionSetResult {})
+    }
+}
+
+impl Message<CopyRegionSet> for UserActor {
+    type Reply = Result<CopyRegionSetResult, String>;
+
+    async fn handle(
+        &mut self,
+        msg: CopyRegionSet,
+        ctx: &mut Context<Self, Self::Reply>,
+    ) -> Self::Reply {
+        let result: RegionSet = self
+            .region_set_provider
+            .copy_region_set(CopyRegionSetParams {
+                track_id: msg.track_id,
+                region_set_id: msg.region_set_id,
+                region_set_name: msg.region_set_copy_name,
+            })
+            .await?;
+        return Ok(CopyRegionSetResult {
+           region_set:result
+        });
     }
 }
