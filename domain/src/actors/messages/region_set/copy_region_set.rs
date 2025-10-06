@@ -9,5 +9,5 @@ pub struct CopyRegionSet {
 }
 #[derive(Serialize)]
 pub struct CopyRegionSetResult {
-    pub region_set:RegionSet
+    pub region_set: RegionSet,
 }

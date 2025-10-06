@@ -1,11 +1,15 @@
 use std::collections::HashMap;
 
 use domain::{
-    region_set::copy_region_set_params::CopyRegionSetParams,
+    region_set::{
+        copy_region_set_params::CopyRegionSetParams,
+        create_region_set_params::CreateRegionSetParams,
+        edit_region_set_params::EditRegionSetParams,
+    },
     regions::{
-        add_region_params::AddRegionParams, create_region_set_params::CreateRegionSetParams,
+        add_region_params::AddRegionParams, copy_region_params::CopyRegionParams,
         delete_region_params::DeleteRegionParams, edit_region_params::EditRegionParams,
-        edit_region_set_params::EditRegionSetParams, region::Region, region_set::RegionSet,
+        region::Region, region_set::RegionSet,
     },
 };
 
@@ -176,6 +180,34 @@ impl RegionSetsProvider for InMemoryRegionSetProvider {
 
         set.regions.remove(index);
         Ok(())
+    }
+
+    async fn copy_region(&self, params: CopyRegionParams) -> Result<RegionSet, String> {
+        let mut guard = self.region_sets.lock().await;
+        let set = match guard.get_mut(&params.region_set_id) {
+            Some(set) => set,
+            None => {
+                return Err(format!(
+                    "Could not find set with id {:?}",
+                    params.region_set_id
+                ))
+            }
+        };
+
+        let region = set
+            .regions
+            .iter()
+            .find(|e| e.region_id == params.region_id)
+            .ok_or_else(|| {
+                format!(
+                    "Could not find region with id {:?} in set {:?}",
+                    params.region_set_id, params.region_id
+                )
+            })?;
+        let mut copy = region.clone();
+        copy.name = params.copy_name;
+        set.regions.push(copy);
+        Ok(set.clone())
     }
 
     async fn copy_region_set(&self, params: CopyRegionSetParams) -> Result<RegionSet, String> {

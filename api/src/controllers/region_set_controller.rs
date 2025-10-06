@@ -1,12 +1,9 @@
 use actix_web::{delete, get, patch, post, web, HttpResponse};
 use domain::{
     actors::messages::region_set::{
-        copy_region_set::CopyRegionSet,
-        create_region_set::CreateRegionSet,
-        delete_region_set::DeleteRegionSet,
-        edit_region_set::EditRegionSet,
-        get_region_set::GetRegionSet,
-        get_region_sets_for_track::GetRegionSetsForTrack,
+        copy_region_set::CopyRegionSet, create_region_set::CreateRegionSet,
+        delete_region_set::DeleteRegionSet, edit_region_set::EditRegionSet,
+        get_region_set::GetRegionSet, get_region_sets_for_track::GetRegionSetsForTrack,
         get_regions_sets::GetRegionSets,
     },
     regions::region_set::RegionSet,
@@ -205,7 +202,6 @@ pub struct CopyRegionSetParams {
     pub copy_region_set_name: String,
 }
 
-
 #[derive(Serialize)]
 pub struct CopyRegionSetResult {
     pub region_set: RegionSet,
@@ -232,7 +228,9 @@ async fn copy_region_set(
         })
         .await
     {
-        Ok(smth) => HttpResponse::Ok().json(CopyRegionSetResult{region_set:smth.region_set}),
+        Ok(smth) => HttpResponse::Ok().json(CopyRegionSetResult {
+            region_set: smth.region_set,
+        }),
         Err(e) => return HttpResponse::InternalServerError().body("Could not copy track"),
     };
     rez

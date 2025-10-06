@@ -1,8 +1,6 @@
 use domain::{
     actors::messages::regions::{
-        add_region::{AddRegion, AddRegionResult, EndTimePolicy},
-        delete_region::{DeleteRegion, DeleteRegionResult},
-        edit_region::{EditRegion, EditRegionResult},
+        add_region::{AddRegion, AddRegionResult, EndTimePolicy}, copy_region::{CopyRegion, CopyRegionResult}, delete_region::{DeleteRegion, DeleteRegionResult}, edit_region::{EditRegion, EditRegionResult}
     },
     regions::{
         add_region_params::AddRegionParams, delete_region_params::DeleteRegionParams,
@@ -107,5 +105,17 @@ impl Message<DeleteRegion> for UserActor {
             })
             .await?;
         Ok(DeleteRegionResult {})
+    }
+}
+
+impl Message<CopyRegion> for UserActor{
+    type Reply=Result<CopyRegionResult,String>;
+    async fn handle(
+        &mut self,
+        msg:CopyRegion,
+        ctx:&mut Context<Self,Self::Reply>
+    )->Self::Reply{
+        let _=self.region_set_provider
+                .c
     }
 }
