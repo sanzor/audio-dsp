@@ -8,7 +8,11 @@ use domain::{
         get_region_sets_for_track::{GetRegionSetsForTrack, GetRegionSetsForTrackResult},
         get_regions_sets::{GetRegionSets, GetRegionSetsResult},
     },
-    region_set::{copy_region_set_params::CopyRegionSetParams, create_region_set_params::CreateRegionSetParams, edit_region_set_params::EditRegionSetParams},
+    region_set::{
+        copy_region_set_params::CopyRegionSetParams,
+        create_region_set_params::CreateRegionSetParams,
+        edit_region_set_params::EditRegionSetParams,
+    },
     regions::region_set::RegionSet,
     track_meta::TrackMeta,
 };
@@ -139,8 +143,6 @@ impl Message<CopyRegionSet> for UserActor {
                 region_set_name: msg.region_set_copy_name,
             })
             .await?;
-        return Ok(CopyRegionSetResult {
-           region_set:result
-        });
+        return Ok(CopyRegionSetResult { region_set: result });
     }
 }

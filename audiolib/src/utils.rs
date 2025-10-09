@@ -14,17 +14,17 @@ pub fn encode_audio_buffer_as_wav(buffer: &AudioBuffer) -> Result<Vec<u8>, Strin
     };
     let mut cursor = Cursor::new(Vec::new());
     let mut writer = hound::WavWriter::new(&mut cursor, spec)
-        .map_err(|e| format!("Failed to create wav writer {}", e))?;
+        .map_err(|e| format!("Failed to create wav writer {e}"))?;
     for sample in buffer.samples.iter() {
         let clamped = sample.clamp(-1.0, 1.0);
         let i16_sample = (clamped * i16::MAX as f32) as i16;
         writer
             .write_sample(i16_sample)
-            .map_err(|e| format!("Could not write sample :{}", e))?;
+            .map_err(|e| format!("Could not write sample :{e}"))?;
     }
     writer
         .finalize()
-        .map_err(|e| format!("Finalize error: {}", e))?;
+        .map_err(|e| format!("Finalize error: {e}"))?;
     Ok(cursor.into_inner())
 }
 
@@ -42,8 +42,8 @@ pub fn decode_canonical_audio(data: &[u8]) -> Result<DecodedAudio, String> {
         _ => return Err("Invalid channels".into()),
     };
     Ok(DecodedAudio {
-        samples: samples,
+        samples,
         sample_rate: spec.sample_rate,
-        channels: Channels::from(channels),
+        channels,
     })
 }

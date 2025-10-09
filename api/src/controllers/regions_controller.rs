@@ -135,29 +135,38 @@ pub struct CopyRegionParams {
     pub region_set_id: String,
     pub copy_name: String,
 }
+#[derive(Serialize)]
+pub struct CopyRegionResult {
+    pub region_set: RegionSet,
+}
 
 #[post("/copy")]
 pub async fn copy_region(
     user: AuthenticatedUser,
     request: web::Query<CopyRegionParams>,
     app_state: web::Data<AppData>,
-) -> HttpResponselet {
+) -> HttpResponse {
     let request = request.into_inner();
     let resolved_user = match get_user_actor_internal(&user.user_id, &app_state).await {
         Ok(u) => u,
         Err(e) => return HttpResponse::NotFound().body("User not found"),
     };
-    let rez = match resolved_user.ask(CopyRegion {
-        copy_name: request.copy_name,
-        region_id: request.region_id,
-        region_set_id: request.region_set_id,
-    }) {
-        Ok(r) => r,
+    let rez = match resolved_user
+        .ask(CopyRegion {
+            copy_name: request.copy_name,
+            region_id: request.region_id,
+            region_set_id: request.region_set_id,
+        })
+        .await
+    {
+        Ok(r) => HttpResponse::Ok().json(CopyRegionResult {
+            region_set: r.region_set,
+        }),
         Err(e) => {
             return HttpResponse::InternalServerError()
                 .body(format!("Could not copy region with reason {:?}", e))
         }
-    }?;
+    };
     rez
 }
 pub fn init(cfg: &mut web::ServiceConfig) {

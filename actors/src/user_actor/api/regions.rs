@@ -3,11 +3,12 @@ use domain::{
         add_region::{AddRegion, AddRegionResult, EndTimePolicy},
         copy_region::{CopyRegion, CopyRegionResult},
         delete_region::{DeleteRegion, DeleteRegionResult},
-        edit_region::{EditRegion, EditRegionResult}
+        edit_region::{EditRegion, EditRegionResult},
     },
     regions::{
-        add_region_params::AddRegionParams, delete_region_params::DeleteRegionParams,
-        edit_region_params::EditRegionParams, region_set::RegionSet,
+        add_region_params::AddRegionParams, copy_region_params::CopyRegionParams,
+        delete_region_params::DeleteRegionParams, edit_region_params::EditRegionParams,
+        region_set::RegionSet,
     },
 };
 use kameo::prelude::{Context, Message};
@@ -111,14 +112,23 @@ impl Message<DeleteRegion> for UserActor {
     }
 }
 
-impl Message<CopyRegion> for UserActor{
-    type Reply=Result<CopyRegionResult,String>;
+impl Message<CopyRegion> for UserActor {
+    type Reply = Result<CopyRegionResult, String>;
     async fn handle(
         &mut self,
-        msg:CopyRegion,
-        ctx:&mut Context<Self,Self::Reply>
-    )->Self::Reply{
-        let _=self.region_set_provider
-                .c
+        msg: CopyRegion,
+        ctx: &mut Context<Self, Self::Reply>,
+    ) -> Self::Reply {
+        let region_set = self
+            .region_set_provider
+            .copy_region(CopyRegionParams {
+                region_set_id: msg.region_set_id,
+                region_id: msg.region_id,
+                copy_name: msg.copy_name,
+            })
+            .await?;
+        Ok(CopyRegionResult {
+            region_set: region_set,
+        })
     }
 }

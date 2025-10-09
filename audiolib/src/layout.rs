@@ -14,7 +14,7 @@ impl TryFrom<u8> for Channels {
         match value {
             1 => Ok(Channels::Mono),
             2 => Ok(Channels::Stereo),
-            _ => Err(format!("Invalid channel count {}", value)),
+            _ => Err(format!("Invalid channel count {value}")),
         }
     }
 }
@@ -26,7 +26,7 @@ impl TryFrom<u16> for Channels {
         match value {
             1 => Ok(Channels::Mono),
             2 => Ok(Channels::Stereo),
-            _ => Err(format!("Invalid channel count {}", value)),
+            _ => Err(format!("Invalid channel count {value}")),
         }
     }
 }
@@ -48,7 +48,7 @@ impl std::str::FromStr for Channels {
         match s {
             "1" | "mono" | "Mono" => Ok(Channels::Mono),
             "2" | "stereo" | "Stereo" => Ok(Channels::Stereo),
-            other => Err(format!("Invalid channel count: {}", other)),
+            other => Err(format!("Invalid channel count: {other}")),
         }
     }
 }

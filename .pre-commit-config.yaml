@@ -1,0 +1,37 @@
+repos:
+  - repo: local
+    hooks:
+      # 🧹 Auto-format (fix silently, never block)
+      - id: rust-fmt
+        name: Rust Format
+        entry: bash -c "cargo fmt || (echo 'format failed but continuing')"
+        language: system
+        pass_filenames: false
+        always_run: true
+        verbose: true
+        fail_fast: false
+
+      # 🧩 Clippy - block commit on error
+      - id: rust-lint
+        name: Rust Clippy
+        entry: cargo clippy --workspace --all-targets
+        language: system
+        args: []
+        pass_filenames: false
+
+      # 🧪 Compile - block
+      - id: rust-check
+        name: Rust Check
+        entry: cargo check --workspace --all-targets
+        args: []
+        language: system
+        pass_filenames: false
+
+      # 🧷 Unit tests - warn only (don’t block)
+      # - id: cargo-test
+      #   name: Run Unit Tests
+      #   entry: bash -c "cargo test --quiet || (echo '⚠️ Tests failed, but continuing...')"
+      #   language: system
+      #   pass_filenames: false
+      #   always_run: true
+      #   verbose: true

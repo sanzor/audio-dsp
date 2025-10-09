@@ -15,7 +15,7 @@ pub fn read_wav_file(filename: &Path) -> Result<AudioBuffer, String> {
     };
     Ok(AudioBuffer {
         sample_rate: spec.sample_rate as f32,
-        samples: samples,
+        samples,
         channels: match spec.channels {
             1 => Channels::Mono,
             2 => Channels::Stereo,
@@ -35,7 +35,7 @@ pub fn write_wav_file(audio_buffer: &AudioBuffer, filename: &Path) -> Result<(),
         sample_format: hound::SampleFormat::Int,
     };
     let mut writer = WavWriter::create(filename, wav_spec)
-        .map_err(|e| format!("Failed to create WAV writer: {}", e))?;
+        .map_err(|e| format!("Failed to create WAV writer: {e}"))?;
 
     for sample in &audio_buffer.samples {
         let scaled = (sample * i16::MAX as f32).clamp(i16::MIN as f32, i16::MAX as f32) as i16;
@@ -43,6 +43,6 @@ pub fn write_wav_file(audio_buffer: &AudioBuffer, filename: &Path) -> Result<(),
     }
     let _ = writer
         .finalize()
-        .map_err(|e| format!("Failed to finalize WAV {}", e));
+        .map_err(|e| format!("Failed to finalize WAV {e}"));
     Ok(())
 }

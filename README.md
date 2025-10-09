@@ -13,3 +13,5 @@ Currently supported operations:
 - High Pass Filter - applies high pass filter over a audio file
 - Stream audio tracks with supporting controls (play/pause/stop/seek)
 
+# First-time setup
+./scripts/setup-dev.sh

@@ -17,13 +17,12 @@ impl AudioTransform for AudioBuffer {
         if self.max_sample() > 0.0 {
             self.samples.iter_mut().for_each(|sample| *sample *= factor);
         }
-        return self;
+        self
     }
 
     fn normalize(self) -> AudioBuffer {
         let max_sample = self.max_sample();
-        let normalized_buffer = self.gain(1.0 / max_sample);
-        normalized_buffer
+        self.gain(1.0 / max_sample)
     }
 
     fn low_pass(mut self, cutoff: f32) -> Self {
@@ -34,7 +33,7 @@ impl AudioTransform for AudioBuffer {
             *sample = y;
             prev_y = y;
         }
-        return self;
+        self
     }
 
     fn high_pass(mut self, cutoff: f32) -> Self {
@@ -48,7 +47,7 @@ impl AudioTransform for AudioBuffer {
             prev_y = y;
             prev_x = x;
         }
-        return self;
+        self
     }
 }
 
@@ -57,7 +56,7 @@ impl AudioTransformMut for AudioBuffer {
         if self.max_sample() > 0.0 {
             self.samples.iter_mut().for_each(|sample| *sample *= gain);
         }
-        return self;
+        self
     }
 
     fn normalize_mut(&mut self) -> &mut Self {
@@ -74,7 +73,7 @@ impl AudioTransformMut for AudioBuffer {
             *sample = y;
             prev_y = y;
         }
-        return self;
+        self
     }
 
     fn high_pass_mut(&mut self, cutoff: f32) -> &mut Self {
@@ -88,14 +87,14 @@ impl AudioTransformMut for AudioBuffer {
             prev_y = y;
             prev_x = x;
         }
-        return self;
+        self
     }
 }
 impl AudioTransformP for AudioBuffer {
     fn gain_p(mut self, gain: f32) -> Self {
         let parallelism = AudioBuffer::thread_count();
-        let _ = std::thread::scope(|s| {
-            let chunk_size = (self.samples.len() + parallelism - 1) / parallelism;
+        std::thread::scope(|s| {
+            let chunk_size = self.samples.len().div_ceil(parallelism);
             let vec = self.samples.chunks_mut(chunk_size);
             for chunk in vec {
                 let _ = s.spawn(move || {
@@ -105,19 +104,17 @@ impl AudioTransformP for AudioBuffer {
                 });
             }
         });
-        return self;
+        self
     }
     fn normalize_p(self) -> AudioBuffer {
         let max_sample = self.max_sample();
-        let normalized_buffer = self.gain_p(1.0 / max_sample);
-        normalized_buffer
+        self.gain_p(1.0 / max_sample)
     }
 }
 
 impl AudioBuffer {
     fn max_sample(&self) -> f32 {
-        let max_sample = self.samples.iter().map(|el| el.abs()).fold(0.0, f32::max);
-        return max_sample;
+        self.samples.iter().map(|el| el.abs()).fold(0.0, f32::max)
     }
     fn thread_count() -> usize {
         std::thread::available_parallelism()

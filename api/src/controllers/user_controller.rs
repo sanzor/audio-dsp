@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::app_data::AppData;
 use actix_web::{
     delete, get, put,
@@ -14,8 +12,10 @@ use domain::{
     },
     track_meta::TrackMeta,
 };
+use std::collections::HashMap;
+use tracing::{span, Level};
 
-use kameo::{actor::ActorRef, Actor};
+use kameo::actor::ActorRef;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Clone, Debug, Serialize)]
