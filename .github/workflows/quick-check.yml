@@ -1,0 +1,33 @@
+name: Quick Check
+
+on:
+  push:
+    branches-ignore:
+      - main
+      - staging
+
+jobs:
+  fast-check:
+    name: Fast Lint & Compile
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Run fast checks
+        run: |
+          cargo fmt -- --check
+          cargo clippy -- -D warnings
+          cargo check

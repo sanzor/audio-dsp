@@ -1,6 +1,9 @@
 use domain::{
     actors::messages::regions::{
-        add_region::{AddRegion, AddRegionResult, EndTimePolicy}, copy_region::{CopyRegion, CopyRegionResult}, delete_region::{DeleteRegion, DeleteRegionResult}, edit_region::{EditRegion, EditRegionResult}
+        add_region::{AddRegion, AddRegionResult, EndTimePolicy},
+        copy_region::{CopyRegion, CopyRegionResult},
+        delete_region::{DeleteRegion, DeleteRegionResult},
+        edit_region::{EditRegion, EditRegionResult}
     },
     regions::{
         add_region_params::AddRegionParams, delete_region_params::DeleteRegionParams,

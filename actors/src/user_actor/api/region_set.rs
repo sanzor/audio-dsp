@@ -8,10 +8,8 @@ use domain::{
         get_region_sets_for_track::{GetRegionSetsForTrack, GetRegionSetsForTrackResult},
         get_regions_sets::{GetRegionSets, GetRegionSetsResult},
     },
-    region_set::copy_region_set_params::CopyRegionSetParams,
-    regions::{
-         region_set::RegionSet
-    },
+    region_set::{copy_region_set_params::CopyRegionSetParams, create_region_set_params::CreateRegionSetParams, edit_region_set_params::EditRegionSetParams},
+    regions::region_set::RegionSet,
     track_meta::TrackMeta,
 };
 use kameo::prelude::{Context, Message};
