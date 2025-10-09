@@ -10,8 +10,7 @@ use domain::{
     },
     region_set::copy_region_set_params::CopyRegionSetParams,
     regions::{
-        create_region_set_params::CreateRegionSetParams,
-        edit_region_set_params::EditRegionSetParams, region_set::RegionSet,
+         region_set::RegionSet
     },
     track_meta::TrackMeta,
 };
