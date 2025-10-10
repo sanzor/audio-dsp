@@ -1,0 +1,18 @@
+replicaCount: 3
+
+image:
+  tag: prod-latest
+
+env:
+  frontendRedirect: "https://example.com"
+  googleRedirectUri: "https://example.com/api/auth/google/callback"
+  googleClientId: "prod-client-id.apps.googleusercontent.com"
+
+database:
+  host: prod-db.cluster-xyz.rds.amazonaws.com
+  port: 5432
+  name: rustdb
+  user: rustuser_prod
+  passwordSecret: rust-api-db-secret-prod
+
+dev: false

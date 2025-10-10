@@ -1,0 +1,19 @@
+replicaCount: 1
+
+image:
+  tag: dev-latest
+
+env:
+  frontendRedirect: "https://frontend-dev.local"
+  googleRedirectUri: "https://frontend-dev.local/api/auth/google/callback"
+  googleClientId: "dev-client-id.apps.googleusercontent.com"
+
+
+database:
+  host: dev-postgres.infra.svc.cluster.local
+  port: 5432
+  name: rustdb_dev
+  user: rustuser_dev
+  passwordSecret: rust-api-db-secret-dev   # created via Vault or CI
+  
+dev: true   #

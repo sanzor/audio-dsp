@@ -1,0 +1,18 @@
+replicaCount: 2
+
+image:
+  tag: staging-latest
+
+env:
+  frontendRedirect: "https://staging.example.com"
+  googleRedirectUri: "https://staging.example.com/api/auth/google/callback"
+  googleClientId: "staging-client-id.apps.googleusercontent.com"
+
+database:
+  host: staging-postgres.infra.svc.cluster.local
+  port: 5432
+  name: rustdb_staging
+  user: rustuser_staging
+  passwordSecret: rust-api-db-secret-staging
+
+dev: false

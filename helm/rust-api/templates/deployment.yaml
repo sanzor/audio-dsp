@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "rust-api.fullname" . }}
+  labels:
+    app: {{ include "rust-api.name" . }}
+    chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ include "rust-api.name" . }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "rust-api.name" . }}
+    spec:
+      containers:
+        - name: {{ include "rust-api.name" . }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: 8080
+          env:
+            # --- Non-secret env vars (safe defaults in values.yaml) ---
+            - name: FRONTEND_REDIRECT
+              value: {{ .Values.env.frontendRedirect | quote }}
+            - name: GOOGLE_REDIRECT_URI
+              value: {{ .Values.env.googleRedirectUri | quote }}
+            - name: GOOGLE_CLIENT_ID
+              value: {{ .Values.env.googleClientId | quote }}
+
+            # --- Secret-based env vars ---
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.jwt.secretName | quote }}
+                  key: {{ .Values.jwt.key | quote }}
+
+            - name: GOOGLE_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.google.secretName | quote }}
+                  key: GOOGLE_CLIENT_SECRET
+
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.database.secretName | quote }}
+                  key: DATABASE_URL
+
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}

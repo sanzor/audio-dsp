@@ -1,0 +1,35 @@
+replicaCount: 1
+
+image:
+  repository: ghcr.io/your-org/rust-api
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8080
+
+env:
+  frontendRedirect: "https://frontend.local"
+  googleRedirectUri: ""
+  googleClientId: ""
+
+database:
+  secretName: rust-api-db-secret
+jwt:
+  secretName: rust-api-jwt-secret
+  key: JWT_SECRET
+google:
+  secretName: google-oauth-secret
+
+vault:
+  enabled: true
+  role: rust-api
+  secrets:
+    - name: database_url
+      key: DATABASE_URL
+      path: ""   # left blank; filled by env
+    - name: jwt_secret
+      key: JWT_SECRET
+      path: ""
+resources: {}
