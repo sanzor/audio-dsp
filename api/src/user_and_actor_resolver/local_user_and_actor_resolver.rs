@@ -67,7 +67,7 @@ impl LocalUserAndActorResolver {
     ) -> Result<ResolvedUserAndActor, String> {
         let user = self
             .user_provider
-            .get_user_by_id(&user_id)
+            .get_user_by_id(user_id)
             .await
             .ok_or_else(|| "Could not find user".to_string())?;
         let actor = self

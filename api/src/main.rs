@@ -47,7 +47,7 @@ async fn start_server() -> std::io::Result<()> {
     };
     let url = "localhost";
     let port = 3080;
-    println!("🚀 Server running at http://{}:{}", url, port);
+    println!("🚀 Server running at http://{url}:{port}");
 
     HttpServer::new(move || {
         let cors = actix_cors::Cors::default()

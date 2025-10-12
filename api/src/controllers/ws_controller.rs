@@ -187,8 +187,13 @@ async fn send_audio_frame(
         audio_frame: frame.clone(),
     })?;
 
-    session.text(payload).await;
-    Ok(())
+    match session.text(payload).await {
+        Err(e) => {
+            println!("Could not send frame with reason: {e}");
+            Ok(())
+        }
+        _ => Ok(()),
+    }
 }
 
 pub fn init(cfg: &mut web::ServiceConfig) {

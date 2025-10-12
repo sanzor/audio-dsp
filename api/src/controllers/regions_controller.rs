@@ -123,7 +123,7 @@ pub async fn remove_region(
         })
         .await
     {
-        Ok(r) => HttpResponse::Ok().body("Region deleted"),
+        Ok(_r) => HttpResponse::Ok().body("Region deleted"),
         Err(_e) => return HttpResponse::InternalServerError().body("Could not edit region"),
     };
     rez
