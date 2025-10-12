@@ -1,5 +1,5 @@
 use kameo::actor::ActorRef;
-use player::audio_sink::AudioSink;
+use player::sink::AudioSink;
 use std::collections::HashMap;
 
 use crate::audio_player_actor::{

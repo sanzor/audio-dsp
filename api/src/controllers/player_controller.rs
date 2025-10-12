@@ -17,8 +17,8 @@ pub struct GetPlayerState {
 }
 #[get("/get-player-state")]
 async fn get_player_state(path: web::Query<GetPlayerState>) -> String {
-    let get_player_state = path.into_inner();
-    format!("Hello")
+    let _get_player_state = path.into_inner();
+    "Hello".to_owned()
 }
 
 #[derive(Deserialize)]
@@ -40,7 +40,7 @@ async fn play(body: web::Json<PlayRequest>, app_state: web::Data<AppData>) -> Ht
         .await
     {
         Ok(addr) => addr.actor,
-        Err(e) => return HttpResponse::NotFound().body("Could not find user"),
+        Err(_e) => return HttpResponse::NotFound().body("Could not find user"),
     };
 
     let track_name = match play_message.track_name {
@@ -76,7 +76,7 @@ async fn pause(body: web::Json<PauseRequest>, app_state: web::Data<AppData>) -> 
         .await
     {
         Ok(addr) => addr.actor,
-        Err(e) => return HttpResponse::NotFound().body("Could not find user"),
+        Err(_e) => return HttpResponse::NotFound().body("Could not find user"),
     };
 
     let track_name = match pause_message.track_name {
@@ -112,7 +112,7 @@ async fn seek(body: web::Json<SeekRequest>, app_state: web::Data<AppData>) -> Ht
         .await
     {
         Ok(addr) => addr.actor,
-        Err(e) => return HttpResponse::NotFound().body("Could not find user"),
+        Err(_e) => return HttpResponse::NotFound().body("Could not find user"),
     };
 
     let track_name = match seek_message.track_name {
@@ -148,7 +148,7 @@ async fn stop(body: web::Json<StopRequest>, app_state: web::Data<AppData>) -> Ht
         .await
     {
         Ok(addr) => addr.actor,
-        Err(e) => return HttpResponse::NotFound().body("Could not find user"),
+        Err(_e) => return HttpResponse::NotFound().body("Could not find user"),
     };
 
     let track_name = match player_message.track_name {

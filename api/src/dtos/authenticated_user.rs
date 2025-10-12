@@ -21,7 +21,7 @@ impl FromRequest for AuthenticatedUser {
             .ok_or_else(|| actix_web::error::ErrorUnauthorized("No auth token"))
             .and_then(|cookie| {
                 verify_token(cookie.value())
-                    .map_err(|e| actix_web::error::ErrorUnauthorized("Invalid token"))
+                    .map_err(|_e| actix_web::error::ErrorUnauthorized("Invalid token"))
             })
             .map(|claims| AuthenticatedUser {
                 email: claims.email,

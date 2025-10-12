@@ -119,8 +119,7 @@ impl Message<DeleteRegionSet> for UserActor {
         msg: DeleteRegionSet,
         ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
-        let _ = self
-            .region_set_provider
+        self.region_set_provider
             .delete_region_set(&msg.region_set_id)
             .await?;
         Ok(DeleteRegionSetResult {})
@@ -135,7 +134,7 @@ impl Message<CopyRegionSet> for UserActor {
         msg: CopyRegionSet,
         ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
-        let result: RegionSet = self
+        let result = self
             .region_set_provider
             .copy_region_set(CopyRegionSetParams {
                 track_id: msg.track_id,
@@ -143,6 +142,6 @@ impl Message<CopyRegionSet> for UserActor {
                 region_set_name: msg.region_set_copy_name,
             })
             .await?;
-        return Ok(CopyRegionSetResult { region_set: result });
+        Ok(CopyRegionSetResult { region_set: result })
     }
 }

@@ -1,7 +1,7 @@
 use audiolib::audio_parse;
 use rstest::rstest;
 
-use crate::audio_sink::{cpal_sink::CpalSink, AudioSink};
+use crate::sink::{cpal_sink::CpalSink, AudioSink};
 #[rstest]
 #[ignore]
 pub fn test_cpal_sink() -> Result<(), String> {

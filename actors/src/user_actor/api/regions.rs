@@ -49,7 +49,7 @@ impl UserActor {
     ) -> Result<f32, String> {
         let end_time = match end_time_policy {
             EndTimePolicy::Explicit(val) => {
-                if (val <= new_region_start_time) {
+                if val <= new_region_start_time {
                     Err("End time must be greater than start time".to_string())
                 } else {
                     Ok(val)
@@ -99,10 +99,9 @@ impl Message<DeleteRegion> for UserActor {
     async fn handle(
         &mut self,
         msg: DeleteRegion,
-        ctx: &mut Context<Self, Self::Reply>,
+        _: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
-        let _ = self
-            .region_set_provider
+        self.region_set_provider
             .delete_region(DeleteRegionParams {
                 region_id: msg.region_id,
                 region_set_id: msg.region_set_id,
@@ -127,8 +126,6 @@ impl Message<CopyRegion> for UserActor {
                 copy_name: msg.copy_name,
             })
             .await?;
-        Ok(CopyRegionResult {
-            region_set: region_set,
-        })
+        Ok(CopyRegionResult { region_set })
     }
 }

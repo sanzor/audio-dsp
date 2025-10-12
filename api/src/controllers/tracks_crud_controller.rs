@@ -42,7 +42,7 @@ async fn add_track(
 
     let found_user = match get_user_actor_internal(&user.user_id, &app_state).await {
         Ok(u) => u,
-        Err(e) => return HttpResponse::NotFound().body("User not found"),
+        Err(_e) => return HttpResponse::NotFound().body("User not found"),
     };
 
     let rez = match found_user
@@ -54,7 +54,7 @@ async fn add_track(
         Ok(smth) => HttpResponse::Ok().json(AddTrackResult {
             track_id: smth.track_id,
         }),
-        Err(e) => return HttpResponse::InternalServerError().body("Could not insert track"),
+        Err(_e) => return HttpResponse::InternalServerError().body("Could not insert track"),
     };
     rez
 }
@@ -93,7 +93,7 @@ async fn add_track_multi(
         return HttpResponse::BadRequest().body("Missing samples data");
     };
     let samples: Vec<f32> = bytes_to_f32(samples_bytes);
-    let length = samples.len() as f32 / sample_rate as f32;
+    let length = samples.len() as f32 / sample_rate;
     let audio_buffer = AudioBuffer {
         samples,
         sample_rate,
@@ -104,7 +104,7 @@ async fn add_track_multi(
         info: TrackInfo {
             name,
             extension,
-            length: length,
+            length,
         },
         data: audio_buffer,
     };
@@ -141,7 +141,7 @@ async fn copy_track(
 
     let user = match get_user_actor_internal(&user.user_id, &app_state).await {
         Ok(u) => u,
-        Err(e) => return HttpResponse::NotFound().body("User not found"),
+        Err(_e) => return HttpResponse::NotFound().body("User not found"),
     };
 
     let rez = match user
@@ -151,8 +151,8 @@ async fn copy_track(
         })
         .await
     {
-        Ok(smth) => HttpResponse::Ok().json("track copied"),
-        Err(e) => return HttpResponse::InternalServerError().body("Could not copy track"),
+        Ok(_smth) => HttpResponse::Ok().json("track copied"),
+        Err(_e) => return HttpResponse::InternalServerError().body("Could not copy track"),
     };
     rez
 }
@@ -172,7 +172,7 @@ async fn update_track_info(
 
     let user = match get_user_actor_internal(&user.user_id, &app_state).await {
         Ok(u) => u,
-        Err(e) => return HttpResponse::NotFound().body("User not found"),
+        Err(_e) => return HttpResponse::NotFound().body("User not found"),
     };
 
     let rez = match user
@@ -182,8 +182,8 @@ async fn update_track_info(
         })
         .await
     {
-        Ok(smth) => HttpResponse::Ok().json("track updated"),
-        Err(e) => return HttpResponse::InternalServerError().body("Could not insert track"),
+        Ok(_smth) => HttpResponse::Ok().json("track updated"),
+        Err(_e) => return HttpResponse::InternalServerError().body("Could not insert track"),
     };
     rez
 }
@@ -202,7 +202,7 @@ async fn remove_track(
 
     let user = match get_user_actor_internal(&user.user_id, &app_state).await {
         Ok(u) => u,
-        Err(e) => return HttpResponse::NotFound().body("User not found"),
+        Err(_e) => return HttpResponse::NotFound().body("User not found"),
     };
 
     let rez = match user
@@ -211,8 +211,8 @@ async fn remove_track(
         })
         .await
     {
-        Ok(smth) => HttpResponse::Ok().json("track removed"),
-        Err(e) => return HttpResponse::InternalServerError().body("Could not remove track"),
+        Ok(_smth) => HttpResponse::Ok().json("track removed"),
+        Err(_e) => return HttpResponse::InternalServerError().body("Could not remove track"),
     };
     rez
 }
@@ -230,7 +230,7 @@ async fn get_raw(
 
     let user = match get_user_actor_internal(&user.user_id, &app_state).await {
         Ok(u) => u,
-        Err(e) => return HttpResponse::NotFound().body("User not found"),
+        Err(_e) => return HttpResponse::NotFound().body("User not found"),
     };
 
     let stored_track = match user
@@ -240,7 +240,7 @@ async fn get_raw(
         .await
     {
         Ok(track) => track,
-        Err(e) => return HttpResponse::NotFound().body("Could not find track"),
+        Err(_e) => return HttpResponse::NotFound().body("Could not find track"),
     };
     let ext = stored_track.track.track_info.extension.to_lowercase();
     let mime_type = from_ext(&ext)
@@ -269,7 +269,7 @@ async fn get_meta(
 
     let user = match get_user_actor_internal(&user.user_id, &app_state).await {
         Ok(u) => u,
-        Err(e) => return HttpResponse::NotFound().body("User not found"),
+        Err(_e) => return HttpResponse::NotFound().body("User not found"),
     };
 
     let rez = match user
@@ -279,7 +279,7 @@ async fn get_meta(
         .await
     {
         Ok(smth) => HttpResponse::Ok().json(smth),
-        Err(e) => return HttpResponse::InternalServerError().body("Could not get track"),
+        Err(_e) => return HttpResponse::InternalServerError().body("Could not get track"),
     };
     rez
 }
@@ -288,12 +288,12 @@ async fn get_meta(
 async fn get_tracks(user: AuthenticatedUser, app_state: web::Data<AppData>) -> HttpResponse {
     let user = match get_user_actor_internal(&user.user_id, &app_state).await {
         Ok(u) => u,
-        Err(e) => return HttpResponse::NotFound().body("User not found"),
+        Err(_e) => return HttpResponse::NotFound().body("User not found"),
     };
 
     let rez = match user.ask(GetTrackMetas {}).await {
         Ok(smth) => HttpResponse::Ok().json(smth),
-        Err(e) => return HttpResponse::InternalServerError().body("Could not get tracks"),
+        Err(_e) => return HttpResponse::InternalServerError().body("Could not get tracks"),
     };
     rez
 }
@@ -316,7 +316,7 @@ async fn get_track_info(
 
     let user_actor = match resolved_user {
         Ok(u) => u.actor,
-        Err(e) => return HttpResponse::NotFound().body("User not found"),
+        Err(_e) => return HttpResponse::NotFound().body("User not found"),
     };
 
     let rez = match user_actor
@@ -326,7 +326,7 @@ async fn get_track_info(
         .await
     {
         Ok(smth) => HttpResponse::Ok().json(smth),
-        Err(e) => return HttpResponse::InternalServerError().body("Could not get track info"),
+        Err(_e) => return HttpResponse::InternalServerError().body("Could not get track info"),
     };
     rez
 }

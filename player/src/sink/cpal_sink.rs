@@ -15,8 +15,8 @@ use crate::AudioFrame;
 use super::AudioSink;
 
 pub struct CpalSink {
-    device: cpal::Device,
-    host: cpal::Host,
+    _device: cpal::Device,
+    _host: cpal::Host,
     config: cpal::StreamConfig,
     buffer: Arc<Mutex<VecDeque<f32>>>,
 }
@@ -25,12 +25,10 @@ impl CpalSink {
         match self.config.channels {
             1 => Channels::Mono,
             2 => Channels::Stereo,
-            n => panic!("Invalid sample rate"),
+            _ => panic!("Invalid sample rate"),
         }
     }
-    pub(crate) fn sample_rate(&self) -> u16 {
-        self.sample_rate()
-    }
+
     pub fn new() -> Result<CpalSink, String> {
         let buffer = Arc::new(Mutex::new(VecDeque::new()));
         let buffer_clone = Arc::clone(&buffer);
@@ -40,7 +38,7 @@ impl CpalSink {
             .ok_or_else(|| "e".to_string())?;
         let config = dev
             .default_output_config()
-            .map_err(|e| "e".to_string())?
+            .map_err(|_e| "e".to_string())?
             .config();
         let stream = dev
             .build_output_stream(
@@ -51,19 +49,19 @@ impl CpalSink {
                         *sample = buf.pop_front().unwrap_or(0.0);
                     }
                 },
-                |e| {},
+                |_e| {},
                 Some(Duration::from_micros(1000)),
             )
-            .and_then(|st| {
+            .map(|st| {
                 let _ = st.play();
-                Ok(CpalSink {
-                    config: config,
-                    host: host,
-                    device: dev,
-                    buffer: buffer,
-                })
+                CpalSink {
+                    config,
+                    _host: host,
+                    buffer,
+                    _device: dev,
+                }
             })
-            .map_err(|e| format!("Could not build stream due to : {:?}", e));
+            .map_err(|e| format!("Could not build stream due to : {e}"));
 
         stream
     }

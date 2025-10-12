@@ -34,7 +34,7 @@ impl Message<UserPlay> for UserActor {
     async fn handle(&mut self, msg: UserPlay, ctx: &mut Context<Self, Self::Reply>) -> Self::Reply {
         let player_result = self.players_provider.get(&msg.track_id.clone());
 
-        let res = match player_result {
+        let _res = match player_result {
             Some(player) => player.tell(Play {}).await,
             None => return Err("Could not find player".to_string()),
         };
@@ -103,7 +103,7 @@ impl Message<UserAttachSink> for UserActor {
     ) -> Self::Reply {
         let result = match self.players_provider.get(&msg.track_id.clone()) {
             Some(player) => {
-                self.handle_attach_sink_to_existing_player(msg, &player)
+                self.handle_attach_sink_to_existing_player(msg, player)
                     .await
             }
             None => self.handle_attach_sink_to_new_player(msg).await,
@@ -129,7 +129,7 @@ impl Message<UserRemoveSink> for UserActor {
                 .await
                 .map_err(|e| e.to_string())
             {
-                Ok(e) => Ok(UserRemoveSinkResult {}),
+                Ok(_rez) => Ok(UserRemoveSinkResult {}),
                 Err(e) => Err(e.to_string()),
             }
         } else {
@@ -165,7 +165,7 @@ impl Message<UserGetPlayerState> for UserActor {
 impl UserActor {
     async fn get_stored_track(&mut self, track_id: &str) -> Result<Arc<StoredTrack>, String> {
         let payload = match self.cached_tracks.get(track_id) {
-            Some(payload) => Arc::clone(&payload),
+            Some(payload) => Arc::clone(payload),
             None => {
                 let track_copy: StoredTrack =
                     self.tracks_provider.get_stored_track(track_id).await?;
@@ -195,10 +195,10 @@ impl UserActor {
         let create_audio_actor_params = CreateAudioPlayerActorParams {
             track_payload: PlayerTrackPayload {
                 audio: decoded_track,
-                meta: meta,
+                meta,
             },
             cursor: 0,
-            sinks: sinks,
+            sinks,
         };
 
         let create_actor_result = self
@@ -210,10 +210,10 @@ impl UserActor {
             create_actor_result.audio_actor_ref,
         ) {
             None => Ok(UserAttachSinkResult {
-                sink_id: sink_id,
+                sink_id,
                 track_id: msg.track_id,
             }),
-            Some(v) => Err("key alrdy present".into()),
+            Some(_v) => Err("key alrdy present".into()),
         }
     }
     async fn handle_attach_sink_to_existing_player(

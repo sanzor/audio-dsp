@@ -4,7 +4,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use crate::{audio_sink::AudioSink, AudioFrame};
+use crate::{sink::AudioSink, AudioFrame};
 
 pub struct TestSink {
     pub written: Arc<Mutex<Vec<AudioFrame>>>,

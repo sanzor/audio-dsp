@@ -2,7 +2,7 @@ use std::{collections::VecDeque, future::Future, pin::Pin, sync::Arc};
 
 use tokio::sync::Mutex;
 
-use crate::{audio_source::audio_source::AudioSource, AudioFrame};
+use crate::{source::audio_source::AudioSource, AudioFrame};
 
 pub struct QueueSource {
     pub queue: Arc<Mutex<VecDeque<AudioFrame>>>,

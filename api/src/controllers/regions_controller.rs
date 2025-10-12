@@ -34,7 +34,7 @@ pub async fn add_region(
     let request = request.into_inner();
     let resolved_user = match get_user_actor_internal(&user.user_id, &app_state).await {
         Ok(u) => u,
-        Err(e) => return HttpResponse::NotFound().body("User not found"),
+        Err(_e) => return HttpResponse::NotFound().body("User not found"),
     };
 
     let rez = match resolved_user
@@ -49,7 +49,7 @@ pub async fn add_region(
         Ok(r) => HttpResponse::Created().json(AddRegionResult {
             region_set: r.region_set,
         }),
-        Err(e) => return HttpResponse::InternalServerError().body("Could not add region"),
+        Err(_e) => return HttpResponse::InternalServerError().body("Could not add region"),
     };
     rez
 }
@@ -77,7 +77,7 @@ pub async fn edit_region(
     let request = request.into_inner();
     let resolved_user = match get_user_actor_internal(&user.user_id, &app_state).await {
         Ok(u) => u,
-        Err(e) => return HttpResponse::NotFound().body("User not found"),
+        Err(_e) => return HttpResponse::NotFound().body("User not found"),
     };
 
     let rez = match resolved_user
@@ -93,7 +93,7 @@ pub async fn edit_region(
         Ok(r) => HttpResponse::Ok().json(EditRegionResult {
             region_set: r.region_set,
         }),
-        Err(e) => return HttpResponse::InternalServerError().body("Could not edit region"),
+        Err(_e) => return HttpResponse::InternalServerError().body("Could not edit region"),
     };
     rez
 }
@@ -113,7 +113,7 @@ pub async fn remove_region(
     let request = request.into_inner();
     let resolved_user = match get_user_actor_internal(&user.user_id, &app_state).await {
         Ok(u) => u,
-        Err(e) => return HttpResponse::NotFound().body("User not found"),
+        Err(_e) => return HttpResponse::NotFound().body("User not found"),
     };
 
     let rez = match resolved_user
@@ -124,7 +124,7 @@ pub async fn remove_region(
         .await
     {
         Ok(r) => HttpResponse::Ok().body("Region deleted"),
-        Err(e) => return HttpResponse::InternalServerError().body("Could not edit region"),
+        Err(_e) => return HttpResponse::InternalServerError().body("Could not edit region"),
     };
     rez
 }
@@ -149,7 +149,7 @@ pub async fn copy_region(
     let request = request.into_inner();
     let resolved_user = match get_user_actor_internal(&user.user_id, &app_state).await {
         Ok(u) => u,
-        Err(e) => return HttpResponse::NotFound().body("User not found"),
+        Err(_e) => return HttpResponse::NotFound().body("User not found"),
     };
     let rez = match resolved_user
         .ask(CopyRegion {
@@ -164,7 +164,7 @@ pub async fn copy_region(
         }),
         Err(e) => {
             return HttpResponse::InternalServerError()
-                .body(format!("Could not copy region with reason {:?}", e))
+                .body(format!("Could not copy region with reason {e}"))
         }
     };
     rez

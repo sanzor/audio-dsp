@@ -21,7 +21,7 @@ pub(crate) fn create_refresh_token(user_id: &str) -> String {
 
 pub(crate) fn generate_csrf_token() -> String {
     let bytes: [u8; 32] = rand::rng().random();
-    general_purpose::STANDARD_NO_PAD.encode(&bytes)
+    general_purpose::STANDARD_NO_PAD.encode(bytes)
 }
 pub(crate) fn create_token(
     user_id: &str,
@@ -41,7 +41,7 @@ pub(crate) fn create_token(
         exp: expiration,
         name: name.map(|e| e.to_owned()),
         email: email.map(|e| e.to_owned()),
-        roles: roles,
+        roles,
     };
 
     encode(

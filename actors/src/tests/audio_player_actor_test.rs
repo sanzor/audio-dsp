@@ -13,7 +13,7 @@ use std::time::Duration;
 use ulid::Ulid;
 
 use domain::track_meta::TrackMeta;
-use player::audio_sink::AudioSink;
+use player::sink::AudioSink;
 use player::AudioFrame;
 use tokio::sync::Mutex;
 

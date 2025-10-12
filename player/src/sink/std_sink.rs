@@ -12,7 +12,7 @@ impl AudioSink for StdSink {
         frame: AudioFrame,
     ) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>> {
         Box::pin(async move {
-            println!("{:?}", frame);
+            println!("{frame:?}");
             Ok(())
         })
     }

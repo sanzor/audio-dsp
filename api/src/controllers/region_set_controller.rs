@@ -33,7 +33,7 @@ pub async fn create_region_set(
     let request = request.into_inner();
     let resolved_user = match get_user_actor_internal(&user.user_id, &app_state).await {
         Ok(u) => u,
-        Err(e) => return HttpResponse::NotFound().body("User not found"),
+        Err(_e) => return HttpResponse::NotFound().body("User not found"),
     };
 
     let rez = match resolved_user
@@ -46,7 +46,7 @@ pub async fn create_region_set(
         Ok(r) => HttpResponse::Created().json(AddRegionResult {
             region_set: r.region_set,
         }),
-        Err(e) => return HttpResponse::InternalServerError().body("Could not create region set"),
+        Err(_e) => return HttpResponse::InternalServerError().body("Could not create region set"),
     };
     rez
 }
@@ -72,7 +72,7 @@ pub async fn edit_region_set(
     let request = request.into_inner();
     let resolved_user = match get_user_actor_internal(&user.user_id, &app_state).await {
         Ok(u) => u,
-        Err(e) => return HttpResponse::NotFound().body("User not found"),
+        Err(_e) => return HttpResponse::NotFound().body("User not found"),
     };
 
     let rez = match resolved_user
@@ -86,7 +86,7 @@ pub async fn edit_region_set(
         Ok(r) => HttpResponse::Ok().json(EditRegionSetResult {
             region_set: r.region_set,
         }),
-        Err(e) => return HttpResponse::InternalServerError().body("Could not edit region set"),
+        Err(_e) => return HttpResponse::InternalServerError().body("Could not edit region set"),
     };
     rez
 }
@@ -105,7 +105,7 @@ pub async fn get_region_set(
     let request = request.into_inner();
     let resolved_user = match get_user_actor_internal(&user.user_id, &app_state).await {
         Ok(u) => u,
-        Err(e) => return HttpResponse::NotFound().body("User not found"),
+        Err(_e) => return HttpResponse::NotFound().body("User not found"),
     };
 
     let rez = match resolved_user
@@ -115,7 +115,7 @@ pub async fn get_region_set(
         .await
     {
         Ok(r) => HttpResponse::Ok().json(r),
-        Err(e) => return HttpResponse::InternalServerError().body("Could not find  region set"),
+        Err(_e) => return HttpResponse::InternalServerError().body("Could not find  region set"),
     };
     rez
 }
@@ -127,12 +127,12 @@ pub async fn get_region_sets(
 ) -> HttpResponse {
     let resolved_user = match get_user_actor_internal(&user.user_id, &app_state).await {
         Ok(u) => u,
-        Err(e) => return HttpResponse::NotFound().body("User not found"),
+        Err(_e) => return HttpResponse::NotFound().body("User not found"),
     };
 
     let rez: HttpResponse = match resolved_user.ask(GetRegionSets {}).await {
         Ok(r) => HttpResponse::Ok().json(r),
-        Err(e) => return HttpResponse::InternalServerError().body("Could not edit region"),
+        Err(_e) => return HttpResponse::InternalServerError().body("Could not edit region"),
     };
     rez
 }
@@ -151,7 +151,7 @@ pub async fn get_region_sets_for_track(
     let request = request.into_inner();
     let resolved_user = match get_user_actor_internal(&user.user_id, &app_state).await {
         Ok(u) => u,
-        Err(e) => return HttpResponse::NotFound().body("User not found"),
+        Err(_e) => return HttpResponse::NotFound().body("User not found"),
     };
 
     let rez = match resolved_user
@@ -161,7 +161,7 @@ pub async fn get_region_sets_for_track(
         .await
     {
         Ok(r) => HttpResponse::Ok().json(r),
-        Err(e) => return HttpResponse::InternalServerError().body("Could not edit region"),
+        Err(_e) => return HttpResponse::InternalServerError().body("Could not edit region"),
     };
     rez
 }
@@ -180,7 +180,7 @@ pub async fn delete_region_set(
     let request = request.into_inner();
     let resolved_user = match get_user_actor_internal(&user.user_id, &app_state).await {
         Ok(u) => u,
-        Err(e) => return HttpResponse::NotFound().body("User not found"),
+        Err(_e) => return HttpResponse::NotFound().body("User not found"),
     };
 
     let rez = match resolved_user
@@ -189,8 +189,8 @@ pub async fn delete_region_set(
         })
         .await
     {
-        Ok(r) => HttpResponse::Ok().body("Region deleted"),
-        Err(e) => return HttpResponse::InternalServerError().body("Could not delete region set"),
+        Ok(_r) => HttpResponse::Ok().body("Region deleted"),
+        Err(_e) => return HttpResponse::InternalServerError().body("Could not delete region set"),
     };
     rez
 }
@@ -217,7 +217,7 @@ async fn copy_region_set(
 
     let user = match get_user_actor_internal(&user.user_id, &app_state).await {
         Ok(u) => u,
-        Err(e) => return HttpResponse::NotFound().body("User not found"),
+        Err(_e) => return HttpResponse::NotFound().body("User not found"),
     };
 
     let rez = match user
@@ -231,7 +231,7 @@ async fn copy_region_set(
         Ok(smth) => HttpResponse::Ok().json(CopyRegionSetResult {
             region_set: smth.region_set,
         }),
-        Err(e) => return HttpResponse::InternalServerError().body("Could not copy track"),
+        Err(_e) => return HttpResponse::InternalServerError().body("Could not copy track"),
     };
     rez
 }

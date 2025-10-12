@@ -14,7 +14,7 @@ pub async fn get_user_actor_internal(
             .await;
         match guard {
             Ok(r_user) => Ok(r_user.actor),
-            Err(e) => Err("Could not find user".to_string()),
+            Err(_e) => Err("Could not find user".to_string()),
         }
     };
     user_addr

@@ -19,7 +19,11 @@ impl LocalTrackStoreProvider {
         }
     }
 }
-
+impl Default for LocalTrackStoreProvider {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 #[async_trait::async_trait]
 impl TracksProvider for LocalTrackStoreProvider {
     async fn get_track_meta(&self, track_name: &str) -> Result<TrackMeta, String> {
@@ -115,18 +119,18 @@ impl TracksProvider for LocalTrackStoreProvider {
         guard
             .remove(track_name)
             .ok_or_else(|| "could not find key".into())
-            .map(|v| ())
+            .map(|_v| ())
     }
     async fn upsert_track(&self, tr: RawTrack) -> Result<TrackMeta, String> {
         let id = Ulid::new().to_string();
         let canonical_audio = match encode_audio_buffer_as_wav(&tr.data) {
             Ok(c) => c,
-            Err(e) => return Err("Could not store track".into()),
+            Err(_e) => return Err("Could not store track".into()),
         };
         let track = StoredTrack {
             track_id: id.clone(),
             track_info: tr.info.clone(),
-            canonical_audio: canonical_audio,
+            canonical_audio,
         };
         let mut guard = self.tracks.lock().await;
         match guard.insert(id.clone(), track) {

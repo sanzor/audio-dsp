@@ -11,10 +11,16 @@ pub struct InMemoryUserProvider {
 }
 
 impl InMemoryUserProvider {
-    pub fn new() -> impl UserProvider {
+    pub fn new() -> InMemoryUserProvider {
         InMemoryUserProvider {
             users: Arc::new(Mutex::new(HashMap::new())),
         }
+    }
+}
+
+impl Default for InMemoryUserProvider {
+    fn default() -> Self {
+        Self::new()
     }
 }
 unsafe impl Send for InMemoryUserProvider {}
@@ -54,7 +60,7 @@ impl UserProvider for InMemoryUserProvider {
         Box::pin(async move {
             let mut state = self.users.lock().await;
             match state.remove_entry(id) {
-                Some((k, deleted)) => Ok(deleted),
+                Some((_k, deleted)) => Ok(deleted),
                 None => Err("could not find user".into()),
             }
         })
@@ -68,7 +74,7 @@ impl UserProvider for InMemoryUserProvider {
     }
     fn update_user<'a>(
         &self,
-        user: DomainUser,
+        _user: DomainUser,
     ) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>> {
         todo!()
     }

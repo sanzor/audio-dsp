@@ -40,3 +40,8 @@ impl UserActorRegistry {
         guard.get(user_id).cloned()
     }
 }
+impl Default for UserActorRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}

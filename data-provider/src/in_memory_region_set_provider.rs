@@ -30,6 +30,12 @@ impl InMemoryRegionSetProvider {
     }
 }
 
+impl Default for InMemoryRegionSetProvider {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[async_trait::async_trait]
 impl RegionSetsProvider for InMemoryRegionSetProvider {
     async fn create_region_set(&self, params: CreateRegionSetParams) -> Result<RegionSet, String> {
@@ -52,7 +58,7 @@ impl RegionSetsProvider for InMemoryRegionSetProvider {
         let guard = self.region_sets.lock().await;
         let set = match guard.get(set_id) {
             Some(set) => Ok(set.clone()),
-            None => Err(format!("Could not find set with id {:?}", set_id)),
+            None => Err(format!("Could not find set with id {set_id}")),
         };
         return set;
     }
@@ -75,7 +81,7 @@ impl RegionSetsProvider for InMemoryRegionSetProvider {
 
         for elem in guard.values() {
             rez.entry(elem.track_id.clone()) // clone the String here
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(elem.clone());
         }
 
@@ -103,7 +109,7 @@ impl RegionSetsProvider for InMemoryRegionSetProvider {
         let mut guard = self.region_sets.lock().await;
         guard
             .remove(set_id)
-            .ok_or_else(|| format!("Could not find set with id {:?}", set_id))
+            .ok_or_else(|| format!("Could not find set with id {set_id}"))
             .map(|_: RegionSet| ())
     }
 
@@ -168,7 +174,7 @@ impl RegionSetsProvider for InMemoryRegionSetProvider {
             None => {
                 return Err(format!(
                     "Could not find set with id {:?}",
-                    params.region_set_id
+                    params.region_set_id,
                 ))
             }
         };
@@ -224,7 +230,7 @@ impl RegionSetsProvider for InMemoryRegionSetProvider {
         // Insert and check the result
         match guard.insert(id.clone(), copy) {
             None => Ok(guard.get(&id).expect("just inserted").clone()),
-            Some(_) => Err(format!("Unexpected collision inserting id {:?}", id)),
+            Some(_) => Err(format!("Unexpected collision inserting id {id}")),
         }
     }
 }

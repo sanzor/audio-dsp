@@ -13,7 +13,6 @@ use domain::{
     track_meta::TrackMeta,
 };
 use std::collections::HashMap;
-use tracing::{span, Level};
 
 use kameo::actor::ActorRef;
 use serde::{Deserialize, Serialize};
@@ -32,7 +31,7 @@ async fn get_user_state(path: web::Path<String>, app_state: web::Data<AppData>) 
         .await;
     let user = match guard {
         Ok(u) => u.actor,
-        Err(e) => return HttpResponse::BadRequest().body("Could not find user"),
+        Err(_e) => return HttpResponse::BadRequest().body("Could not find user"),
     };
     let user_data = match user.ask(GetUserState {}).await {
         Ok(data) => data,
@@ -73,7 +72,7 @@ async fn delete(path: web::Path<String>, app_state: web::Data<AppData>) -> HttpR
         }
         _ => return HttpResponse::InternalServerError().body("Could not search user"),
     };
-    let result = user.ask(RemoveUser {}).await;
+    let _result = user.ask(RemoveUser {}).await;
     HttpResponse::NoContent().body("User deleted")
 }
 

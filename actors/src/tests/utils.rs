@@ -9,7 +9,7 @@ use domain::{
 };
 
 use kameo::{actor::ActorRef, Actor};
-use player::audio_sink::AudioSink;
+use player::sink::AudioSink;
 
 use crate::audio_player_actor::{
     audio_player_actor::AudioPlayerActor,

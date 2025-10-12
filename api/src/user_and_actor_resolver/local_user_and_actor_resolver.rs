@@ -58,7 +58,7 @@ impl LocalUserAndActorResolver {
             .user_registry
             .get_or_spawn_user_actor(&user_id, actor_deps)
             .await?;
-        Ok(ResolvedUserAndActor { actor: actor, user })
+        Ok(ResolvedUserAndActor { actor, user })
     }
 
     pub async fn resolve_existing_user_and_actor(
@@ -75,6 +75,6 @@ impl LocalUserAndActorResolver {
             .get_actor(&user.id)
             .await
             .ok_or_else(|| "Could not find actor".to_string())?;
-        Ok(ResolvedUserAndActor { actor: actor, user })
+        Ok(ResolvedUserAndActor { actor, user })
     }
 }

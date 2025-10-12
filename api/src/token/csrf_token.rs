@@ -1,5 +1,5 @@
 use actix::fut::{ready, Ready};
-use actix_web::{dev::Payload, Error, FromRequest, HttpRequest};
+use actix_web::{Error, FromRequest};
 
 pub struct CsrfToken;
 
@@ -10,7 +10,7 @@ impl FromRequest for CsrfToken {
 
     fn from_request(
         req: &actix_web::HttpRequest,
-        payload: &mut actix_http::Payload,
+        _payload: &mut actix_http::Payload,
     ) -> Self::Future {
         let csrf_cookie = req.cookie("csrf_token").map(|c| c.value().to_string());
         let csrf_header = req

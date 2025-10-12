@@ -112,7 +112,7 @@ impl Message<AttachSink> for AudioPlayerActor {
     ) -> Self::Reply {
         let sink_id = ulid::Ulid::new().to_string();
         match self.sinks.insert(sink_id.clone(), msg.sink) {
-            None => Ok(AttachSinkResult { sink_id: sink_id }),
+            None => Ok(AttachSinkResult { sink_id }),
             Some(s) => Err("Sink already present".to_string()),
         }
     }
@@ -127,7 +127,7 @@ impl Message<RemoveSink> for AudioPlayerActor {
         ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
         match self.sinks.remove(&msg.sink_id) {
-            Some(sink) => Ok(RemoveSinkResult {}),
+            Some(_sink) => Ok(RemoveSinkResult {}),
             None => Err("Could not find sink".to_string()),
         }
     }
@@ -135,10 +135,10 @@ impl Message<RemoveSink> for AudioPlayerActor {
 impl AudioPlayerActor {
     pub(crate) fn start_streaming_task(&self, actor_ref: ActorRef<Self>) {
         let mut interval = tokio::time::interval(Duration::from_millis(200));
-        let task = tokio::task::spawn(async move {
+        let _task = tokio::task::spawn(async move {
             loop {
                 interval.tick().await;
-                let x = actor_ref.tell(PlayFrame {}).await;
+                let _x = actor_ref.tell(PlayFrame {}).await;
             }
         });
     }

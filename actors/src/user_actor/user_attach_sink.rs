@@ -1,4 +1,4 @@
-use player::audio_sink::AudioSink;
+use player::sink::AudioSink;
 
 pub struct UserAttachSink {
     pub track_id: String,

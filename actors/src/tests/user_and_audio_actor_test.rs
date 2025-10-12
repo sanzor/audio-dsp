@@ -24,7 +24,7 @@ use domain::{
 
 use kameo::{actor::ActorRef, Actor};
 use player::{
-    audio_sink::{queue_sink::QueueSink, AudioSink},
+    sink::{queue_sink::QueueSink, AudioSink},
     AudioFrame,
 };
 use tokio::sync::Mutex;

@@ -15,8 +15,8 @@ use domain::actors::messages::user_to_player::{
 };
 use kameo::actor::ActorRef;
 use player::{
-    audio_sink::queue_sink::QueueSink,
-    audio_source::{audio_source::AudioSource, queue_source::QueueSource},
+    sink::queue_sink::QueueSink,
+    source::{audio_source::AudioSource, queue_source::QueueSource},
     AudioFrame,
 };
 use serde::{Deserialize, Serialize};
@@ -54,19 +54,19 @@ async fn run_player(
     //fetch user
     let user = match get_user_actor_internal(&user.user_id, &app_state).await {
         Ok(u) => u,
-        Err(e) => return Ok(HttpResponse::NotFound().body("User not found")),
+        Err(_e) => return Ok(HttpResponse::NotFound().body("User not found")),
     };
 
-    ///create queue
+    //create queue
     let queue = Arc::new(Mutex::new(VecDeque::new()));
 
-    ///create sink
+    //create sink
     let sink = QueueSink {
         queue: Arc::clone(&queue),
     };
 
-    ///create source
-    let mut source = QueueSource { queue: queue };
+    //create source
+    let mut source = QueueSource { queue };
 
     let attach_sink_message = UserAttachSink {
         sink: Box::new(sink),
@@ -77,13 +77,13 @@ async fn run_player(
         .await
         .map_err(|e| e.to_string())
     {
-        Err(e) => {
+        Err(_e) => {
             return Ok(
                 HttpResponse::InternalServerError().body("Could not attach sink to audio player")
             )
         }
         Ok(r) => {
-            println!("Attached sink with result {:?}", r);
+            // println!("Attached sink with result {r:?}");
             r
         }
     };
@@ -99,7 +99,7 @@ async fn run_player(
                         Some(frame)=>{
 
                             if let Err(e)=send_audio_frame(&mut session,&frame).await{
-                                eprintln!("Failed to send audio frame {:?}",e)
+                                eprintln!("Failed to send audio frame {e}")
                             }
                         },
                         None=>{
@@ -113,7 +113,7 @@ async fn run_player(
                             if let Ok(text)= std::str::from_utf8(&data){
                                  if let Ok(message)= serde_json::from_str(text){
                                     if let Err(e) = handle_ws_message(message, &user).await {
-                                         eprintln!("Failed to handle message: {}", e);
+                                         eprintln!("Failed to handle message: {e}");
                                     }
                                 }
                             }
@@ -128,7 +128,7 @@ async fn run_player(
                             break;
                         },
                         Some(Err(e))=>{
-                            eprintln!("Websocket error {:?}",e)
+                            eprintln!("Websocket error {e}")
                         },
                         None=>{
                             eprintln!("Websocket closed");
@@ -149,32 +149,29 @@ async fn handle_ws_message(
 ) -> Result<(), String> {
     match message {
         WsMessage::Play { track_id } => {
-            let res = user_actor
+            user_actor
                 .tell(UserPlay { track_id })
                 .await
                 .map_err(|e| e.to_string())?;
             Ok(())
         }
         WsMessage::Pause { track_id } => {
-            let res = user_actor
-                .tell(UserPause { track_id: track_id })
+            user_actor
+                .tell(UserPause { track_id })
                 .await
                 .map_err(|e| e.to_string())?;
             Ok(())
         }
         WsMessage::Stop { track_id } => {
-            let res = user_actor
-                .tell(UserStop { track_id: track_id })
+            user_actor
+                .tell(UserStop { track_id })
                 .await
                 .map_err(|e| e.to_string())?;
             Ok(())
         }
         WsMessage::Seek { track_id, position } => {
-            let res = user_actor
-                .tell(UserSeek {
-                    track_id: track_id,
-                    position: position,
-                })
+            user_actor
+                .tell(UserSeek { track_id, position })
                 .await
                 .map_err(|e| e.to_string())?;
             Ok(())
@@ -190,7 +187,7 @@ async fn send_audio_frame(
         audio_frame: frame.clone(),
     })?;
 
-    let _ = session.text(payload).await;
+    session.text(payload).await;
     Ok(())
 }
 

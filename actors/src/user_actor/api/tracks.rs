@@ -44,10 +44,10 @@ impl Message<CopyTrack> for UserActor {
             .tracks_provider
             .copy_track(&msg.track_id, &msg.track_copy_name)
             .await?;
-        return Ok(CopyTrackResult {
+        Ok(CopyTrackResult {
             copied_track_id: result.track_id,
             track_copy_name: result.track_info.name,
-        });
+        })
     }
 }
 

@@ -103,7 +103,7 @@ async fn google_callback(
             {
                 Ok(u) => u,
                 Err(e) => {
-                    eprintln!("User resolution error: {}", e);
+                    eprintln!("User resolution error: {e}");
                     return HttpResponse::InternalServerError().body("User resolution failed");
                 }
             };
@@ -159,7 +159,7 @@ async fn google_callback(
                 .body(html)
         }
         Err(err) => {
-            eprintln!("OAuth error: {}", err);
+            eprintln!("OAuth error: {err}");
             HttpResponse::InternalServerError().body("OAuth failed")
         }
     }
