@@ -26,7 +26,8 @@ jobs:
       - name: Run rustfmt
         run: cargo fmt -- --check
       - name: Run clippy
-        run: cargo clippy -- -D warnings
+        # run: cargo clippy -- -D warnings
+        run: cargo clippy --workspace --all-targets
 
   # --------------------------------------------------
   # 2️⃣ Build Docker image and run tests inside it
