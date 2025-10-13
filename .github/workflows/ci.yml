@@ -63,7 +63,7 @@ jobs:
 
       - name: Build Docker image
         working-directory: api
-        run: docker build -t ${{ github.repository }}:test -f Dockerfile .
+        run: docker build -t ${{ github.repository }}:test -f api/Dockerfile .
 
       - name: Run tests inside container
         run: |
