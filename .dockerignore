@@ -1,0 +1,9 @@
+# Ignore unnecessary files to keep build context small
+target/
+.git/
+.gitignore
+Dockerfile
+**/Dockerfile
+node_modules/
+tmp/
+.env
