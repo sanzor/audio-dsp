@@ -62,7 +62,6 @@ jobs:
             libxi-dev
 
       - name: Build Docker image
-        working-directory: api
         run: docker build -t ${{ github.repository }}:test -f api/Dockerfile .
 
       - name: Run tests inside container
