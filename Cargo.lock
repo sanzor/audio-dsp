@@ -315,7 +315,7 @@ dependencies = [
  "audiolib",
  "data-provider",
  "domain",
- "kameo",
+ "kameo 0.18.0",
  "player",
  "rstest 0.26.1",
  "serde",
@@ -516,7 +516,7 @@ dependencies = [
  "futures-util",
  "httpmock",
  "jsonwebtoken",
- "kameo",
+ "kameo 0.18.0",
  "mime_guess",
  "mockall",
  "player",
@@ -1213,7 +1213,7 @@ dependencies = [
  "domain",
  "hound",
  "jsonwebtoken",
- "kameo",
+ "kameo 0.17.2",
  "serde",
  "serde_json",
  "tokio",
@@ -1343,7 +1343,7 @@ version = "0.1.0"
 dependencies = [
  "audiolib",
  "clap",
- "kameo",
+ "kameo 0.17.2",
  "serde",
  "serde_json",
 ]
@@ -1409,7 +1409,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "778e2ac28f6c47af28e4907f13ffd1e1ddbd400980a9abd7c8df189bf578a5ad"
 dependencies = [
  "libc",
- "windows-sys 0.60.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -2237,8 +2237,23 @@ dependencies = [
  "downcast-rs",
  "dyn-clone",
  "futures",
- "kameo_macros",
+ "kameo_macros 0.17.0",
  "once_cell",
+ "serde",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "kameo"
+version = "0.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ab031fd265d156f70b6af5b4c8738ef65007e9485d1d28aed5b041b1d4918688"
+dependencies = [
+ "downcast-rs",
+ "dyn-clone",
+ "futures",
+ "kameo_macros 0.18.0",
  "serde",
  "tokio",
  "tracing",
@@ -2255,6 +2270,18 @@ dependencies = [
  "quote",
  "syn 2.0.104",
  "uuid",
+]
+
+[[package]]
+name = "kameo_macros"
+version = "0.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "07992e638a2eb9e2007f3ce6376d6b0ce61e5bebc385201e8dabf37a1804f3e0"
+dependencies = [
+ "heck",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.104",
 ]
 
 [[package]]
@@ -2996,7 +3023,7 @@ dependencies = [
  "once_cell",
  "socket2 0.5.10",
  "tracing",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -3282,7 +3309,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -3644,7 +3671,7 @@ dependencies = [
  "getrandom 0.3.3",
  "once_cell",
  "rustix",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -4256,7 +4283,7 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf221c93e13a30d793f7645a0e7762c55d169dbb0a49671918a2319d289b10bb"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]

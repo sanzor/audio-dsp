@@ -5,9 +5,9 @@ use crate::{
 use data_provider::{region_set_provider::RegionSetsProvider, tracks_provider::TracksProvider};
 use domain::{domain_user::DomainUser, stored_track::StoredTrack};
 use kameo::{actor::ActorRef, Actor};
+
 use std::{collections::HashMap, sync::Arc};
 
-type Players = HashMap<String, ActorRef<AudioPlayerActor>>;
 #[derive(Actor)]
 #[actor(name = "UserActor")]
 pub struct UserActor {
