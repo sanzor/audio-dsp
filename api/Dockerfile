@@ -1,14 +1,22 @@
-# syntax=docker/dockerfile:1
-
 ### 🏗 Stage 1: Build ###
-FROM rust:slim AS builder
+FROM --platform=$BUILDPLATFORM rust:slim AS builder
 WORKDIR /app
 
-# Install system dependencies
+# Install build system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    pkg-config libssl-dev libudev-dev libasound2-dev \
-    libx11-dev libxcb1-dev libxrandr-dev libxi-dev \
+    pkg-config \
+    libasound2-dev \
+    libssl-dev \
+    libudev-dev \
+    libx11-dev \
+    libxcb1-dev \
+    libxrandr-dev \
+    libxi-dev \
+    build-essential \
  && rm -rf /var/lib/apt/lists/*
+
+# Verify that ALSA .pc file exists
+RUN find /usr -name alsa.pc || (echo "alsa.pc not found" && exit 1)
 
 # Copy and enforce pinned toolchain
 COPY rust-toolchain.toml ./

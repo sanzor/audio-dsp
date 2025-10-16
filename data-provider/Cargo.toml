@@ -7,12 +7,12 @@ edition = "2021"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 clap = { version = "4.4", features = ["derive"] }
-kameo="0.17.2"
+kameo="0.18.0"
 domain={path = "../domain"}
 tokio = { version = "1", features = ["full"] }
 async-trait = "0.1"
 ulid="1"
-jsonwebtoken = "9"
+jsonwebtoken = { version = "10", features = ["aws_lc_rs"] }
 chrono = "0.4"
 hound="3.5.1"
 audiolib={path = "../audiolib"}

@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 domain={path="../domain"}
 audiolib={path = "../audiolib"}
-rstest="0.25"
+rstest="0.26.1"
 cpal = "0.16.0"
 tokio = { version = "1", features = ["full"] }
 async-trait = "0.1"
