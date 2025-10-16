@@ -70,6 +70,7 @@ async fn can_insert_track() -> Result<(), String> {
         .set_json(&AddTrackParams { track: raw_track })
         .to_request();
     let _resp: AddTrackResult = test::call_and_read_body_json(&app, req).await;
+
     Ok(())
 }
 
