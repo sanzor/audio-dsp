@@ -28,7 +28,10 @@ use ulid::Ulid;
 use crate::{
     app_data::AppData,
     controllers::tracks_crud_controller::{self, AddTrackParams, AddTrackResult},
-    player_controller_test::utils::{insert_track, make_raw_track_from_samples},
+    player_controller_test::{
+        controllers::utils::make_test_auth_cookie,
+        utils::{insert_track, make_raw_track_from_samples},
+    },
     token::token_utils::create_access_token,
     user_and_actor_resolver::local_user_and_actor_resolver::LocalUserAndActorResolver,
 };
@@ -114,6 +117,7 @@ async fn can_get_track_metas() -> Result<(), String> {
     let insert2_result = insert_track(&mut app, insert2).await?;
     let req = test::TestRequest::get()
         .uri(&format!("/tracks/get-all?user_id={}", user_id))
+        .cookie(make_test_auth_cookie())
         .to_request();
     let resp: GetTracksResult = test::call_and_read_body_json(&app, req).await;
     assert!(resp.tracks.len() == 2);
