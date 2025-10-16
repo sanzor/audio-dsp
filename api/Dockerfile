@@ -15,6 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
  && rm -rf /var/lib/apt/lists/*
 
+ENV PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig
 # Verify that ALSA .pc file exists
 RUN find /usr -name alsa.pc || (echo "alsa.pc not found" && exit 1)
 
