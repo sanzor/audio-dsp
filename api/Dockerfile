@@ -10,11 +10,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libx11-dev libxcb1-dev libxrandr-dev libxi-dev \
  && rm -rf /var/lib/apt/lists/*
 
-# --- NEW: Enforce your pinned Rust toolchain ---
-# Copy the toolchain file if you have one
+# Copy and enforce pinned toolchain
 COPY rust-toolchain.toml ./
-# Ensure the right toolchain is installed
-RUN rustup show && rustup override set $(grep channel rust-toolchain.toml | cut -d '"' -f2)
+RUN RUST_VERSION=$(grep channel rust-toolchain.toml | cut -d '"' -f2) && \
+    rustup toolchain install "$RUST_VERSION" && \
+    rustup default "$RUST_VERSION" && \
+    rustc --version
 
 # Copy manifests for caching
 COPY Cargo.toml Cargo.lock ./
