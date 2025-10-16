@@ -1,5 +1,5 @@
+pub mod actor;
 pub mod attach_sink;
-pub mod audio_player_actor;
 pub mod control;
 pub mod create_audio_player_actor_params;
 pub mod player_track_payload;

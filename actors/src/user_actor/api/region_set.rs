@@ -18,7 +18,7 @@ use domain::{
 };
 use kameo::prelude::{Context, Message};
 
-use crate::user_actor::user_actor::UserActor;
+use crate::user_actor::actor::UserActor;
 
 impl Message<CreateRegionSet> for UserActor {
     type Reply = Result<CreateRegionSetResult, String>;
@@ -26,7 +26,7 @@ impl Message<CreateRegionSet> for UserActor {
     async fn handle(
         &mut self,
         msg: CreateRegionSet,
-        ctx: &mut Context<Self, Self::Reply>,
+        _ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
         let track_meta: TrackMeta = self.tracks_provider.get_track_meta(&msg.track_id).await?;
         let set: RegionSet = self
@@ -47,7 +47,7 @@ impl Message<GetRegionSet> for UserActor {
     async fn handle(
         &mut self,
         msg: GetRegionSet,
-        ctx: &mut Context<Self, Self::Reply>,
+        _ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
         let set: RegionSet = self
             .region_set_provider
@@ -62,8 +62,8 @@ impl Message<GetRegionSets> for UserActor {
 
     async fn handle(
         &mut self,
-        msg: GetRegionSets,
-        ctx: &mut Context<Self, Self::Reply>,
+        _msg: GetRegionSets,
+        _ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
         let sets = self.region_set_provider.get_region_sets().await?;
         Ok(GetRegionSetsResult {
@@ -78,7 +78,7 @@ impl Message<GetRegionSetsForTrack> for UserActor {
     async fn handle(
         &mut self,
         msg: GetRegionSetsForTrack,
-        ctx: &mut Context<Self, Self::Reply>,
+        _ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
         let sets = self
             .region_set_provider
@@ -97,7 +97,7 @@ impl Message<EditRegionSet> for UserActor {
     async fn handle(
         &mut self,
         msg: EditRegionSet,
-        ctx: &mut Context<Self, Self::Reply>,
+        _ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
         let result = self
             .region_set_provider
@@ -117,7 +117,7 @@ impl Message<DeleteRegionSet> for UserActor {
     async fn handle(
         &mut self,
         msg: DeleteRegionSet,
-        ctx: &mut Context<Self, Self::Reply>,
+        _ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
         self.region_set_provider
             .delete_region_set(&msg.region_set_id)
@@ -132,7 +132,7 @@ impl Message<CopyRegionSet> for UserActor {
     async fn handle(
         &mut self,
         msg: CopyRegionSet,
-        ctx: &mut Context<Self, Self::Reply>,
+        _ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
         let result = self
             .region_set_provider

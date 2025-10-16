@@ -1,7 +1,7 @@
 use kameo::Actor;
 
 use crate::audio_player_actor::{
-    audio_player_actor::AudioPlayerActor,
+    actor::AudioPlayerActor,
     create_audio_player_actor_params::{
         CreateAudioPlayerActorParams, CreateAudioPlayerActorResult,
     },

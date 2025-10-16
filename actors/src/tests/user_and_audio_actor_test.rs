@@ -23,38 +23,21 @@ use domain::{
 };
 
 use kameo::{actor::ActorRef, Actor};
-use player::{
-    sink::{queue_sink::QueueSink, AudioSink},
-    AudioFrame,
-};
+use player::sink::queue_sink::QueueSink;
 use tokio::sync::Mutex;
 use ulid::Ulid;
 
 use crate::user_actor::{
+    actor::UserActor,
     create_user_actor_params::CreateUserActorParams,
     player_factory::PlayerFactory,
-    user_actor::UserActor,
     user_actor_deps::UserActorDeps,
     user_attach_sink::{UserAttachSink, UserAttachSinkResult},
-    user_remove_sink::{UserRemoveSink, UserRemoveSinkResult},
 };
-struct TestSink {
-    pub queue: Arc<Mutex<VecDeque<AudioFrame>>>,
-}
-impl AudioSink for TestSink {
-    fn write_frame<'a>(
-        &'a mut self,
-        frame: AudioFrame,
-    ) -> std::pin::Pin<
-        Box<dyn std::prelude::rust_2024::Future<Output = Result<(), String>> + Send + 'a>,
-    > {
-        todo!()
-    }
-}
 
 fn create_user_actor(id: Ulid) -> ActorRef<UserActor> {
     let tracks_provider = Arc::new(LocalTrackStoreProvider::new());
-    let region_set_provider = Arc::new(InMemoryRegionSetProvider::new());
+    let region_sets_provider = Arc::new(InMemoryRegionSetProvider::new());
     let actor_params = CreateUserActorParams {
         user_data: DomainUser {
             email: id.to_string(),
@@ -65,25 +48,21 @@ fn create_user_actor(id: Ulid) -> ActorRef<UserActor> {
         },
         user_actor_deps: Arc::new(UserActorDeps {
             player_factory: Arc::new(PlayerFactory {}),
-            tracks_provider: tracks_provider,
-            region_sets_provider: region_set_provider,
+            tracks_provider,
+            region_sets_provider,
         }),
     };
-    let actor = UserActor::spawn(UserActor::new(actor_params));
-    let g = kameo::registry::ActorRegistry::new();
-
-    actor
+    UserActor::spawn(UserActor::new(actor_params))
 }
 
 #[tokio::test]
 async fn can_attach_sink_to_player() -> Result<(), String> {
     let track_name = "some_track";
     let track = sample_track(track_name);
-    let user_name = "my_user".to_string();
     let id = Ulid::new();
     let user_actor = create_user_actor(id);
     let insert_track_result = user_actor
-        .ask(InsertTrack { track: track })
+        .ask(InsertTrack { track })
         .await
         .map_err(|e| e.to_string())?;
     let sink = QueueSink {
@@ -104,10 +83,7 @@ async fn can_attach_sink_to_player() -> Result<(), String> {
         .unwrap()
         .clone()
         .sinks;
-    let attached_sink_exists = sinks
-        .iter()
-        .find(|s| **s == attach_sink_result.sink_id)
-        .is_some();
+    let attached_sink_exists = sinks.iter().any(|s| **s == attach_sink_result.sink_id);
     assert_eq!(sinks.len(), 1);
     assert!(attached_sink_exists);
     assert!(matches!(user_actor_state_result.players.len(), 1));
@@ -177,24 +153,23 @@ async fn can_attach_sink_to_player() -> Result<(), String> {
 async fn can_create_player_and_play() -> Result<(), String> {
     let track_name = "some_track";
     let track = sample_track(track_name);
-    let user_name = "my_user".to_string();
     let id = Ulid::new();
     let user_actor = create_user_actor(id);
     let insert_result = user_actor
-        .ask(InsertTrack { track: track })
+        .ask(InsertTrack { track })
         .await
         .map_err(|e| e.to_string())?;
     let sink = QueueSink {
         queue: Arc::new(Mutex::new(VecDeque::new())),
     };
-    let attach_result: UserAttachSinkResult = user_actor
+    user_actor
         .ask(UserAttachSink {
             sink: Box::new(sink),
             track_id: insert_result.track_id.clone(),
         })
         .await
         .map_err(|e| e.to_string())?;
-    let play = user_actor
+    user_actor
         .tell(UserPlay {
             track_id: insert_result.track_id.clone(),
         })
@@ -213,28 +188,28 @@ async fn can_create_player_and_play() -> Result<(), String> {
 async fn can_play_on_existing_player() -> Result<(), String> {
     let track_name = "some_track";
     let track = sample_track(track_name);
-    let user_name = "my_user".to_string();
     let id = Ulid::new();
     let user_actor = create_user_actor(id);
     let insert_result = user_actor
-        .ask(InsertTrack { track: track })
+        .ask(InsertTrack { track })
         .await
         .map_err(|e| e.to_string())?;
     let sink = QueueSink {
         queue: Arc::new(Mutex::new(VecDeque::new())),
     };
-    let attach_result: UserAttachSinkResult = user_actor
+    user_actor
         .ask(UserAttachSink {
             sink: Box::new(sink),
             track_id: insert_result.track_id.clone(),
         })
         .await
         .map_err(|e| e.to_string())?;
-    let play = user_actor
+    user_actor
         .tell(UserPlay {
             track_id: insert_result.track_id.clone(),
         })
-        .await;
+        .await
+        .map_err(|e| e.to_string())?;
     let user_actor_state_result = get_user_state(&user_actor).await?;
     assert!(matches!(user_actor_state_result.players.len(), 1));
     assert!(matches!(
@@ -245,12 +220,12 @@ async fn can_play_on_existing_player() -> Result<(), String> {
             .state,
         AudioPlayerState::Playing
     ));
-    let pause = user_actor
+    let _ = user_actor
         .tell(UserPause {
             track_id: insert_result.track_id.clone(),
         })
         .await;
-    let play_again = user_actor
+    let _ = user_actor
         .tell(UserPlay {
             track_id: insert_result.track_id,
         })
@@ -264,17 +239,17 @@ async fn can_play_on_existing_player() -> Result<(), String> {
 async fn can_create_player_and_stop() -> Result<(), String> {
     let track_name = "some_track";
     let track = sample_track(track_name);
-    let user_name = "my_user".to_string();
+
     let id = Ulid::new();
     let user_actor = create_user_actor(id);
     let insert_result = user_actor
-        .ask(InsertTrack { track: track })
+        .ask(InsertTrack { track })
         .await
         .map_err(|e| e.to_string())?;
     let sink = QueueSink {
         queue: Arc::new(Mutex::new(VecDeque::new())),
     };
-    let attach_result: UserAttachSinkResult = user_actor
+    let _: UserAttachSinkResult = user_actor
         .ask(UserAttachSink {
             sink: Box::new(sink),
             track_id: insert_result.track_id.clone(),
@@ -284,7 +259,7 @@ async fn can_create_player_and_stop() -> Result<(), String> {
     let player_id = insert_result.track_id.clone();
     let play = user_actor
         .tell(UserPlay {
-            track_id: insert_result.track_id.into(),
+            track_id: insert_result.track_id,
         })
         .await;
     assert!(play.is_ok());
@@ -294,7 +269,7 @@ async fn can_create_player_and_stop() -> Result<(), String> {
         user_actor_state_result.state,
         AudioPlayerState::Playing
     ));
-    let play = user_actor
+    let _play = user_actor
         .tell(UserStop {
             track_id: player_id.clone(),
         })
@@ -303,29 +278,25 @@ async fn can_create_player_and_stop() -> Result<(), String> {
     let state = get_player_state(&user_actor, &player_id.clone()).await;
     assert!(state.unwrap_err().contains("Could not find player"));
     let deleted = get_user_state(&user_actor).await?;
-    assert!(deleted.players.len() == 0);
+    assert!(deleted.players.is_empty());
     Ok(())
 }
 
 fn sample_track(track_name: &str) -> RawTrack {
     let samples = vec![1.1_f32; 500];
     let sample_rate = 1_f32;
-    let track = RawTrack {
+    RawTrack {
         info: TrackInfo {
             name: track_name.to_string(),
             extension: "wav".to_string(),
-            length: samples.len() as f32 / sample_rate as f32,
+            length: samples.len() as f32 / sample_rate,
         },
         data: AudioBuffer {
             channels: Channels::Mono,
-            samples: samples,
-            sample_rate: sample_rate,
+            samples,
+            sample_rate,
         },
-    };
-    track
-}
-fn to_string(track: &RawTrack) -> String {
-    serde_json::to_string(track).unwrap()
+    }
 }
 
 async fn get_player_state(
@@ -355,28 +326,28 @@ async fn get_user_state(user_actor: &ActorRef<UserActor>) -> Result<GetUserState
     Ok(rez)
 }
 
-async fn attach_sink(
-    user_actor: &ActorRef<UserActor>,
-    track_id: String,
-    sink: Box<dyn AudioSink + Send + Sync>,
-) -> Result<UserAttachSinkResult, String> {
-    let params = UserAttachSink {
-        sink: sink,
-        track_id: track_id,
-    };
-    let rez = user_actor.ask(params).await.map_err(|e| e.to_string())?;
-    Ok(rez)
-}
+// async fn attach_sink(
+//     user_actor: &ActorRef<UserActor>,
+//     track_id: String,
+//     sink: Box<dyn AudioSink + Send + Sync>,
+// ) -> Result<UserAttachSinkResult, String> {
+//     let params = UserAttachSink {
+//         sink: sink,
+//         track_id: track_id,
+//     };
+//     let rez = user_actor.ask(params).await.map_err(|e| e.to_string())?;
+//     Ok(rez)
+// }
 
-async fn remove_sink(
-    user_actor: &ActorRef<UserActor>,
-    sink_id: String,
-    track_id: String,
-) -> Result<UserRemoveSinkResult, String> {
-    let params = UserRemoveSink {
-        sink_id: sink_id,
-        track_id: track_id,
-    };
-    let rez = user_actor.ask(params).await.map_err(|e| e.to_string())?;
-    Ok(rez)
-}
+// async fn remove_sink(
+//     user_actor: &ActorRef<UserActor>,
+//     sink_id: String,
+//     track_id: String,
+// ) -> Result<UserRemoveSinkResult, String> {
+//     let params = UserRemoveSink {
+//         sink_id: sink_id,
+//         track_id: track_id,
+//     };
+//     let rez = user_actor.ask(params).await.map_err(|e| e.to_string())?;
+//     Ok(rez)
+// }

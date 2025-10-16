@@ -35,7 +35,7 @@ pub async fn can_resolve_new_user() -> Result<(), String> {
         .resolve_google_user_and_actor(&google_user_info, |domain_user| {
             Ok(CreateUserActorParams {
                 user_data: domain_user,
-                user_actor_deps: user_actor_deps,
+                user_actor_deps,
             })
         })
         .await?;
@@ -70,7 +70,7 @@ pub async fn can_resolve_existitng_user() -> Result<(), String> {
         .resolve_google_user_and_actor(&google_user_info, |domain_user| {
             Ok(CreateUserActorParams {
                 user_data: domain_user,
-                user_actor_deps: user_actor_deps,
+                user_actor_deps,
             })
         })
         .await?;

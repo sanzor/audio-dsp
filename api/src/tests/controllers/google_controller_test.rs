@@ -33,12 +33,12 @@ async fn test_exchange_code_for_user() -> Result<(), String> {
         "expires_in": 3600,
         "token_type": "Bearer",
     });
-    let token_mock = server.mock(|when, then| {
+    let _token_mock = server.mock(|when, then| {
         when.method(POST).path("/token");
         then.status(200).json_body_obj(json_body);
     });
 
-    let user_info_mock = server.mock(|when, then| {
+    let _user_info_mock = server.mock(|when, then| {
         when.method(GET).path("/userinfo");
         then.status(200).json_body(serde_json::json!({
             "sub":sub,
@@ -68,7 +68,7 @@ async fn test_exchange_code_for_user() -> Result<(), String> {
 
 pub async fn can_auth_integration_test() -> Result<(), String> {
     let user_id = Ulid::new();
-    let user_actor = create_user_actor(user_id.clone());
+    let user_actor = create_user_actor(user_id);
     let mut user_map = HashMap::new();
     let user_provider: Arc<dyn UserProvider> = Arc::new(InMemoryUserProvider::new());
     user_map.insert(user_id.to_string(), user_actor);
@@ -83,7 +83,7 @@ pub async fn can_auth_integration_test() -> Result<(), String> {
             Arc::new(UserActorRegistry::new()),
         )),
     };
-    let app = test::init_service(
+    let _app = test::init_service(
         App::new()
             .app_data(web::Data::new(app_data))
             .service(web::scope("/auth/google").configure(google_controller::init)),

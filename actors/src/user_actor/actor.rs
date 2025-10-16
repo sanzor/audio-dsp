@@ -1,5 +1,5 @@
 use crate::{
-    audio_player_actor::audio_player_actor::AudioPlayerActor,
+    audio_player_actor::actor::AudioPlayerActor,
     user_actor::{create_user_actor_params::CreateUserActorParams, player_factory::PlayerFactory},
 };
 use data_provider::{region_set_provider::RegionSetsProvider, tracks_provider::TracksProvider};

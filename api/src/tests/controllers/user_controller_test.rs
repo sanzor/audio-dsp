@@ -54,7 +54,7 @@ async fn can_get_user() -> Result<(), String> {
     .await?;
     let uri = format!("/user/get-user-state/{}", insert_result.user_id);
     let get_user_request: Request = test::TestRequest::get().uri(&uri).to_request();
-    let result: GetUserDataResult = test::call_and_read_body_json(&app, get_user_request).await;
+    let _result: GetUserDataResult = test::call_and_read_body_json(&app, get_user_request).await;
     Ok(())
 }
 
@@ -197,23 +197,4 @@ async fn insert_user(
         .to_request();
     let resp: CreateUserResult = test::call_and_read_body_json(&app, req).await;
     Ok(resp)
-}
-
-async fn remove_user(
-    app: &mut impl Service<
-        Request,
-        Response = actix_web::dev::ServiceResponse,
-        Error = actix_web::Error,
-    >,
-    user_id: &str,
-) -> Result<(), String> {
-    let req = test::TestRequest::delete()
-        .uri(&format!("/user/remove/{}", user_id))
-        .to_request();
-    let resp = test::call_service(&app, req).await;
-    let status = resp.status();
-    match status {
-        StatusCode::NO_CONTENT => Ok(()),
-        _ => Err("Could not delete".to_string()),
-    }
 }

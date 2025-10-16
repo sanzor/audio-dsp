@@ -1,4 +1,4 @@
-use actors::user_actor::user_actor::UserActor;
+use actors::user_actor::actor::UserActor;
 use domain::domain_user::DomainUser;
 use kameo::actor::ActorRef;
 

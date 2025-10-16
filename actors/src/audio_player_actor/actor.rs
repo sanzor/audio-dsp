@@ -6,6 +6,7 @@ use audiolib::decoded_audio::DecodedAudio;
 use domain::{actors::player_state::AudioPlayerState, track_meta::TrackMeta};
 use kameo::prelude::ActorRef;
 use player::sink::AudioSink;
+#[warn(dead_code)]
 pub struct AudioPlayerActor {
     pub(crate) state: AudioPlayerState,
     pub(crate) cursor: usize,
@@ -36,5 +37,8 @@ impl AudioPlayerActor {
             track_meta: params.track_payload.meta,
             sinks: params.sinks,
         }
+    }
+    pub fn get_meta(&self) -> TrackMeta {
+        self.track_meta.clone()
     }
 }

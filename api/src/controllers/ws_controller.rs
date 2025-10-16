@@ -6,7 +6,7 @@ use actix_web::{
     HttpRequest, HttpResponse,
 };
 use actors::user_actor::{
-    user_actor::UserActor,
+    actor::UserActor,
     user_attach_sink::{UserAttachSink, UserAttachSinkResult},
 };
 use async_std::stream::StreamExt;

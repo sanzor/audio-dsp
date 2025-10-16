@@ -3,7 +3,7 @@ use player::sink::AudioSink;
 use std::collections::HashMap;
 
 use crate::audio_player_actor::{
-    audio_player_actor::AudioPlayerActor, player_track_payload::PlayerTrackPayload,
+    actor::AudioPlayerActor, player_track_payload::PlayerTrackPayload,
 };
 
 pub struct CreateAudioPlayerActorParams {

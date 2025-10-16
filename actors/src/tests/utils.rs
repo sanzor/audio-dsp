@@ -1,8 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
-use audiolib::{
-    audio_buffer::AudioBuffer, decoded_audio::DecodedAudio, utils::encode_audio_buffer_as_wav,
-};
+use audiolib::{audio_buffer::AudioBuffer, decoded_audio::DecodedAudio};
 use domain::{
     actors::messages::player::get_player_state::{GetPlayerState, GetPlayerStateResult},
     track_meta::TrackMeta,
@@ -12,8 +10,7 @@ use kameo::{actor::ActorRef, Actor};
 use player::sink::AudioSink;
 
 use crate::audio_player_actor::{
-    audio_player_actor::AudioPlayerActor,
-    create_audio_player_actor_params::CreateAudioPlayerActorParams,
+    actor::AudioPlayerActor, create_audio_player_actor_params::CreateAudioPlayerActorParams,
     player_track_payload::PlayerTrackPayload,
 };
 
@@ -32,18 +29,15 @@ pub(crate) fn create_user_actor_with_track(
         samples: buffer.samples.clone(),
     };
     let audio_player_actor_params = CreateAudioPlayerActorParams {
-        sinks: sinks,
-        track_payload: PlayerTrackPayload {
-            audio: audio,
-            meta: meta,
-        },
+        sinks,
+        track_payload: PlayerTrackPayload { audio, meta },
         cursor: 0,
     };
 
     let audio_player_actor =
         AudioPlayerActor::spawn(AudioPlayerActor::new(audio_player_actor_params));
 
-    let g = kameo::registry::ActorRegistry::new();
+    let _ = kameo::registry::ActorRegistry::new();
 
     audio_player_actor
 }

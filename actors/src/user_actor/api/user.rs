@@ -13,15 +13,15 @@ use domain::{
 };
 use kameo::prelude::{Context, Message};
 
-use crate::user_actor::user_actor::UserActor;
+use crate::user_actor::actor::UserActor;
 
 impl Message<GetUserState> for UserActor {
     type Reply = Result<GetUserStateResult, String>;
 
     async fn handle(
         &mut self,
-        msg: GetUserState,
-        ctx: &mut Context<Self, Self::Reply>,
+        _msg: GetUserState,
+        _ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
         let mut player_list: HashMap<String, GetPlayerStateResult> = HashMap::new();
         let mut track_list: HashMap<String, TrackMeta> = HashMap::new();
@@ -49,8 +49,8 @@ impl Message<RemoveUser> for UserActor {
 
     async fn handle(
         &mut self,
-        msg: RemoveUser,
-        ctx: &mut Context<Self, Self::Reply>,
+        _msg: RemoveUser,
+        _ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
         Ok(RemoveUserResult {})
     }
@@ -62,7 +62,7 @@ impl Message<UpdateUser> for UserActor {
     async fn handle(
         &mut self,
         msg: UpdateUser,
-        ctx: &mut Context<Self, Self::Reply>,
+        _ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
         self.user_data.email = msg.email;
         self.user_data.name = msg.name;

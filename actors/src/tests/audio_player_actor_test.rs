@@ -77,7 +77,7 @@ async fn test_can_write() -> Result<(), String> {
     let _ = audio_player_actor.tell(Play {}).await;
     tokio::time::sleep(Duration::from_secs(10)).await;
     let val = &*written.lock().await;
-    assert!(val.len() > 0);
+    assert!(!val.is_empty());
 
     Ok(())
 }
@@ -94,12 +94,15 @@ async fn test_can_pause() -> Result<(), String> {
     let _ = actor_ref.tell(Play {}).await;
     tokio::time::sleep(Duration::from_secs(1)).await;
     let state_query_result = get_player_actor_state(&actor_ref).await?;
-    assert!(matches!(state_query_result.state, AudioPlayerState::Playing) == true);
+    assert!(matches!(
+        state_query_result.state,
+        AudioPlayerState::Playing
+    ));
     let _ = actor_ref.tell(Pause {}).await;
     tokio::time::sleep(Duration::from_millis(1)).await;
     let state_query_result = get_player_actor_state(&actor_ref).await?;
     tokio::time::sleep(Duration::from_secs(1)).await;
-    assert!(matches!(state_query_result.state, AudioPlayerState::Paused) == true);
+    assert!(matches!(state_query_result.state, AudioPlayerState::Paused));
     Ok(())
 }
 
@@ -116,16 +119,22 @@ async fn test_can_pause_and_resume() -> Result<(), String> {
     let _ = actor_ref.tell(Play {}).await;
     tokio::time::sleep(Duration::from_secs(1)).await;
     let state_query_result = get_player_actor_state(&actor_ref).await?;
-    assert!(matches!(state_query_result.state, AudioPlayerState::Playing) == true);
+    assert!(matches!(
+        state_query_result.state,
+        AudioPlayerState::Playing
+    ));
     let _ = actor_ref.tell(Pause {}).await;
     tokio::time::sleep(Duration::from_millis(10)).await;
     let state_query_result = get_player_actor_state(&actor_ref).await?;
     tokio::time::sleep(Duration::from_secs(1)).await;
-    assert!(matches!(state_query_result.state, AudioPlayerState::Paused) == true);
+    assert!(matches!(state_query_result.state, AudioPlayerState::Paused));
     let _ = actor_ref.tell(Play {}).await;
     tokio::time::sleep(Duration::from_secs(1)).await;
     let state_query_result = get_player_actor_state(&actor_ref).await?;
-    assert!(matches!(state_query_result.state, AudioPlayerState::Playing) == true);
+    assert!(matches!(
+        state_query_result.state,
+        AudioPlayerState::Playing
+    ));
     Ok(())
 }
 
@@ -239,9 +248,8 @@ fn create_meta(info: TrackInfo) -> TrackMeta {
         track_info: info,
     }
 }
-fn create_sink(written: Arc<Mutex<Vec<Vec<f32>>>>) -> Box<dyn AudioSink> {
-    let sink = Box::new(TestSink {
-        written: Arc::clone(&written),
-    });
-    sink
-}
+// fn create_sink(written: Arc<Mutex<Vec<Vec<f32>>>>) -> Box<dyn AudioSink> {
+//     Box::new(TestSink {
+//         written: Arc::clone(&written),
+//     })
+// }

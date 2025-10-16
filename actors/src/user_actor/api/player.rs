@@ -19,19 +19,23 @@ use kameo::prelude::{Context, Message};
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use crate::audio_player_actor::actor::AudioPlayerActor;
 use crate::audio_player_actor::attach_sink::AttachSink;
-use crate::audio_player_actor::audio_player_actor::AudioPlayerActor;
 use crate::audio_player_actor::create_audio_player_actor_params::CreateAudioPlayerActorParams;
 
 use crate::audio_player_actor::player_track_payload::PlayerTrackPayload;
-use crate::user_actor::user_actor::UserActor;
+use crate::user_actor::actor::UserActor;
 use crate::user_actor::user_attach_sink::{UserAttachSink, UserAttachSinkResult};
 use crate::user_actor::user_remove_sink::{UserRemoveSink, UserRemoveSinkResult};
 
 impl Message<UserPlay> for UserActor {
     type Reply = Result<UserPlayResult, String>;
 
-    async fn handle(&mut self, msg: UserPlay, ctx: &mut Context<Self, Self::Reply>) -> Self::Reply {
+    async fn handle(
+        &mut self,
+        msg: UserPlay,
+        _ctx: &mut Context<Self, Self::Reply>,
+    ) -> Self::Reply {
         let player_result = self.players_provider.get(&msg.track_id.clone());
 
         let _res = match player_result {
@@ -48,7 +52,7 @@ impl Message<UserPause> for UserActor {
     async fn handle(
         &mut self,
         msg: UserPause,
-        ctx: &mut Context<Self, Self::Reply>,
+        _ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
         if let Some(player) = self.players_provider.get(&msg.track_id) {
             player.tell(Pause {}).await.unwrap();
@@ -62,7 +66,11 @@ impl Message<UserPause> for UserActor {
 impl Message<UserStop> for UserActor {
     type Reply = Result<UserStopResult, String>;
 
-    async fn handle(&mut self, msg: UserStop, ctx: &mut Context<Self, Self::Reply>) -> Self::Reply {
+    async fn handle(
+        &mut self,
+        msg: UserStop,
+        _ctx: &mut Context<Self, Self::Reply>,
+    ) -> Self::Reply {
         if let Some(player) = self.players_provider.get(&msg.track_id.clone()) {
             player.tell(Stop {}).await.unwrap();
             let removed_player = self.players_provider.remove(&msg.track_id);
@@ -79,7 +87,11 @@ impl Message<UserStop> for UserActor {
 impl Message<UserSeek> for UserActor {
     type Reply = Result<UserSeekResult, String>;
 
-    async fn handle(&mut self, msg: UserSeek, ctx: &mut Context<Self, Self::Reply>) -> Self::Reply {
+    async fn handle(
+        &mut self,
+        msg: UserSeek,
+        _ctx: &mut Context<Self, Self::Reply>,
+    ) -> Self::Reply {
         if let Some(player) = self.players_provider.get(&msg.track_id) {
             player
                 .tell(Seek {
@@ -99,7 +111,7 @@ impl Message<UserAttachSink> for UserActor {
     async fn handle(
         &mut self,
         msg: UserAttachSink,
-        ctx: &mut Context<Self, Self::Reply>,
+        _ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
         let result = match self.players_provider.get(&msg.track_id.clone()) {
             Some(player) => {
@@ -119,7 +131,7 @@ impl Message<UserRemoveSink> for UserActor {
     async fn handle(
         &mut self,
         msg: UserRemoveSink,
-        ctx: &mut Context<Self, Self::Reply>,
+        _ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
         if let Some(player_result) = self.players_provider.get(&msg.track_id.clone()) {
             match player_result
@@ -143,7 +155,7 @@ impl Message<UserGetPlayerState> for UserActor {
     async fn handle(
         &mut self,
         msg: UserGetPlayerState,
-        ctx: &mut Context<Self, Self::Reply>,
+        _ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
         let player = self.players_provider.get(&msg.track_id);
         match player {

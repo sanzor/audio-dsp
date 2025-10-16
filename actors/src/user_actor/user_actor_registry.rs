@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use kameo::{actor::ActorRef, Actor};
 use tokio::sync::Mutex;
 
-use crate::user_actor::{create_user_actor_params::CreateUserActorParams, user_actor::UserActor};
+use crate::user_actor::{actor::UserActor, create_user_actor_params::CreateUserActorParams};
 
 pub struct UserActorRegistry {
     user_actors: Arc<Mutex<HashMap<String, ActorRef<UserActor>>>>,

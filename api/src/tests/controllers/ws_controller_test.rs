@@ -74,7 +74,7 @@ async fn can_start_player_ws() -> Result<(), String> {
     let bound = sv.bind(url).unwrap();
     let addr = bound.addrs()[0];
 
-    let server_handle = actix_rt::spawn(bound.run());
+    let _server_handle = actix_rt::spawn(bound.run());
 
     let mut app = test::init_service(
         App::new()
@@ -83,7 +83,7 @@ async fn can_start_player_ws() -> Result<(), String> {
     )
     .await;
 
-    let insert_result = insert_track(&mut app, AddTrackParams { track: track }).await?;
+    let insert_result = insert_track(&mut app, AddTrackParams { track }).await?;
 
     let url = format!(
         "ws://{}:{}/ws/run?user_id={}&track_id={}",
@@ -102,11 +102,10 @@ async fn can_start_player_ws() -> Result<(), String> {
     })
     .unwrap();
 
-    let v = write.send(Message::Text(play_request.into())).await;
+    let _v = write.send(Message::Text(play_request.into())).await;
     let msg = read::<WebsocketSendMessage>(&mut ws_reader).await?;
-    let frame = match msg {
+    let _frame = match msg {
         WebsocketSendMessage::AudioFrame { audio_frame } => audio_frame,
-        _ => panic!(),
     };
     Ok(())
 }
@@ -141,7 +140,7 @@ async fn can_stop_player_ws() -> Result<(), String> {
     let bound = sv.bind(url).unwrap();
     let addr = bound.addrs()[0];
 
-    let server_handle = actix_rt::spawn(bound.run());
+    let _server_handle = actix_rt::spawn(bound.run());
 
     let mut app = test::init_service(
         App::new()
@@ -151,7 +150,7 @@ async fn can_stop_player_ws() -> Result<(), String> {
     )
     .await;
 
-    let insert_result = insert_track(&mut app, AddTrackParams { track: track }).await?;
+    let insert_result = insert_track(&mut app, AddTrackParams { track }).await?;
     let _ = get_user_state(&mut app, user_id.to_string()).await?;
     let ws_url = format!(
         "ws://{}:{}/ws/run?user_id={}&track_id={}",
@@ -164,18 +163,17 @@ async fn can_stop_player_ws() -> Result<(), String> {
     let (ws_stream, _) = connect_async(&ws_url).await.expect("Failed to connect");
 
     let (mut write, mut ws_reader) = ws_stream.split();
-    let user_state = get_user_state(&mut app, user_id.to_string()).await?;
+    let _user_state = get_user_state(&mut app, user_id.to_string()).await?;
     let play_request = serde_json::to_string(&WsMessage::Play {
         track_id: insert_result.track_id.clone(),
     })
     .unwrap();
 
-    let v = write.send(Message::Text(play_request.into())).await;
+    let _v = write.send(Message::Text(play_request.into())).await;
 
     let msg = read::<WebsocketSendMessage>(&mut ws_reader).await?;
-    let frame = match msg {
+    let _frame = match msg {
         WebsocketSendMessage::AudioFrame { audio_frame } => audio_frame,
-        _ => panic!(),
     };
     let pause_request = serde_json::to_string(&WsMessage::Pause {
         track_id: insert_result.track_id.clone(),

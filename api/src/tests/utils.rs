@@ -3,8 +3,8 @@ use std::sync::Arc;
 use actix_http::{Request, StatusCode};
 use actix_web::{dev::Service, test};
 use actors::user_actor::{
-    create_user_actor_params::CreateUserActorParams, player_factory::PlayerFactory,
-    user_actor::UserActor, user_actor_deps::UserActorDeps,
+    actor::UserActor, create_user_actor_params::CreateUserActorParams,
+    player_factory::PlayerFactory, user_actor_deps::UserActorDeps,
 };
 use audiolib::{audio_buffer::AudioBuffer, Channels};
 use data_provider::{
@@ -52,7 +52,7 @@ pub fn create_user_actor(id: Ulid) -> ActorRef<UserActor> {
     };
     let actor = UserActor::spawn(UserActor::new(actor_params));
 
-    let g = kameo::registry::ActorRegistry::new();
+    let _g = kameo::registry::ActorRegistry::new();
     actor
 }
 
@@ -119,7 +119,6 @@ pub async fn remove_track(
         .uri(&format!("/tracks/remove/{}", track_id))
         .to_request();
     let resp = test::call_service(&app, remove_request).await;
-    let status = resp.status();
     assert!(matches!(resp.status(), StatusCode::OK));
     Ok(())
 }
@@ -130,7 +129,7 @@ pub fn make_raw_track_from_samples(samples: Vec<f32>, channels: Channels) -> Raw
             info: TrackInfo {
                 name: "some_name".to_string(),
                 extension: "wav".to_string(),
-                length: samples.len() as f32 / 1_f32 as f32,
+                length: samples.len() as f32 / 1_f32,
             },
             data: AudioBuffer {
                 channels: Channels::Mono,
@@ -142,7 +141,7 @@ pub fn make_raw_track_from_samples(samples: Vec<f32>, channels: Channels) -> Raw
             info: TrackInfo {
                 name: "some_name".to_string(),
                 extension: "wav".to_string(),
-                length: samples.len() as f32 / 1_f32 as f32,
+                length: samples.len() as f32 / 1_f32,
             },
             data: AudioBuffer {
                 samples: samples.clone(),
@@ -161,7 +160,7 @@ pub async fn get_user_state(
     user_id: String,
 ) -> Result<GetUserDataResult, String> {
     let get_user_state_request = actix_web::test::TestRequest::get()
-        .uri(&format!("/user/get-user-state/{}", user_id.to_string()))
+        .uri(&format!("/user/get-user-state/{}", user_id))
         .to_request();
 
     let user_state_result: GetUserDataResult =

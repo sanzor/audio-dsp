@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use crate::user_actor::create_user_actor_params::CreateUserActorParams;
 
+use crate::user_actor::actor::UserActor;
 use crate::user_actor::player_factory::PlayerFactory;
-use crate::user_actor::user_actor::UserActor;
 use crate::user_actor::user_actor_deps::UserActorDeps;
 use audiolib::{self, audio_buffer::AudioBuffer, Channels};
 use data_provider::in_memory_region_set_provider::InMemoryRegionSetProvider;
@@ -19,8 +19,6 @@ use kameo::{self, Actor};
 use ulid::Ulid;
 
 fn create_actor(id: Ulid) -> ActorRef<UserActor> {
-    let tracks_provider = Box::new(LocalTrackStoreProvider::new());
-
     let actor_params = CreateUserActorParams {
         user_data: DomainUser {
             email: id.to_string(),
@@ -35,10 +33,7 @@ fn create_actor(id: Ulid) -> ActorRef<UserActor> {
             region_sets_provider: Arc::new(InMemoryRegionSetProvider::new()),
         }),
     };
-    let actor = UserActor::spawn(UserActor::new(actor_params));
-    let g = kameo::registry::ActorRegistry::new();
-
-    actor
+    UserActor::spawn(UserActor::new(actor_params))
 }
 #[tokio::test]
 async fn can_run_insert() -> Result<(), String> {
@@ -50,15 +45,15 @@ async fn can_run_insert() -> Result<(), String> {
         info: TrackInfo {
             name: track_name,
             extension: "wav".to_string(),
-            length: samples.len() as f32 / sample_rate as f32,
+            length: samples.len() as f32 / sample_rate,
         },
         data: AudioBuffer {
             channels: Channels::Mono,
-            samples: samples,
-            sample_rate: sample_rate,
+            samples,
+            sample_rate,
         },
     };
-    let command = InsertTrack { track: track };
+    let command = InsertTrack { track };
     let addr = create_actor(id);
     let _: InsertTrackResult = addr.ask(command).await.map_err(|e| e.to_string())?;
 
@@ -76,12 +71,12 @@ async fn can_run_copy() -> Result<(), String> {
         info: TrackInfo {
             name: track_name.clone(),
             extension: "wav".to_string(),
-            length: samples.len() as f32 / sample_rate as f32,
+            length: samples.len() as f32 / sample_rate,
         },
         data: AudioBuffer {
             channels: Channels::Mono,
-            samples: samples,
-            sample_rate: sample_rate,
+            samples,
+            sample_rate,
         },
     };
     let id = Ulid::new();
@@ -110,12 +105,12 @@ async fn can_run_list() -> Result<(), String> {
         info: TrackInfo {
             name: track_name,
             extension: "wav".to_string(),
-            length: samples.len() as f32 / sample_rate as f32,
+            length: samples.len() as f32 / sample_rate,
         },
         data: AudioBuffer {
             channels: Channels::Mono,
-            samples: samples,
-            sample_rate: sample_rate,
+            samples,
+            sample_rate,
         },
     };
     let id = Ulid::new();
@@ -130,7 +125,7 @@ async fn can_run_list() -> Result<(), String> {
 
 async fn insert_track_command(
     addr: &ActorRef<UserActor>,
-    user_name: &str,
+    _user_name: &str,
     track: RawTrack,
 ) -> Result<InsertTrackResult, String> {
     let command = InsertTrack { track };
@@ -140,7 +135,7 @@ async fn insert_track_command(
 
 async fn list_command(
     addr: &ActorRef<UserActor>,
-    user_name: &str,
+    _user_name: &str,
 ) -> Result<Vec<TrackMeta>, String> {
     let rez = addr
         .ask(GetTrackMetas {})

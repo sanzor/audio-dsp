@@ -13,7 +13,7 @@ use domain::{
 };
 use kameo::prelude::{Context, Message};
 
-use crate::user_actor::user_actor::UserActor;
+use crate::user_actor::actor::UserActor;
 
 impl Message<AddRegion> for UserActor {
     type Reply = Result<AddRegionResult, String>;
@@ -21,7 +21,7 @@ impl Message<AddRegion> for UserActor {
     async fn handle(
         &mut self,
         msg: AddRegion,
-        ctx: &mut Context<Self, Self::Reply>,
+        _ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
         let set: RegionSet = self
             .region_set_provider
@@ -77,7 +77,7 @@ impl Message<EditRegion> for UserActor {
     async fn handle(
         &mut self,
         msg: EditRegion,
-        ctx: &mut Context<Self, Self::Reply>,
+        _ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
         let result: RegionSet = self
             .region_set_provider
@@ -116,7 +116,7 @@ impl Message<CopyRegion> for UserActor {
     async fn handle(
         &mut self,
         msg: CopyRegion,
-        ctx: &mut Context<Self, Self::Reply>,
+        _ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
         let region_set = self
             .region_set_provider

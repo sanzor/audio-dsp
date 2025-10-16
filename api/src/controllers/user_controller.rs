@@ -4,7 +4,7 @@ use actix_web::{
     web::{self},
     HttpResponse,
 };
-use actors::user_actor::user_actor::UserActor;
+use actors::user_actor::actor::UserActor;
 use domain::{
     actors::messages::{
         player::get_player_state::GetPlayerStateResult,
