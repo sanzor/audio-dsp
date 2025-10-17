@@ -23,7 +23,7 @@ actors={path = "../actors"}
 domain={path="../domain"}
 ulid="1"
 dotenv = "0.15"
-jsonwebtoken =  { version = "10", features = ["aws_lc_rs"] }
+jsonwebtoken =  "9"
 audiolib={path = "../audiolib"}
 player={path="../player"}
 bytemuck="1.23.1"

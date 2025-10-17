@@ -1,7 +1,7 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, env, sync::Arc};
 
 use actix_http::StatusCode;
-use actix_web::{test, web, App};
+use actix_web::{http::header, test, web, App};
 use actors::user_actor::{
     actor::UserActor, create_user_actor_params::CreateUserActorParams,
     player_factory::PlayerFactory, user_actor_deps::UserActorDeps,
@@ -39,6 +39,9 @@ use crate::{
 #[rstest]
 #[actix_web::test]
 async fn can_insert_track() -> Result<(), String> {
+    dotenvy::from_filename(concat!(env!("CARGO_MANIFEST_DIR"), "/dev.env")).ok();
+    let jwt_secret = std::env::var("JWT_SECRET").expect("JWT_SECRET not loaded");
+    assert_eq!(jwt_secret, "test-secret");
     let raw_track = make_raw_track_from_samples(vec![1_f32; 500], Channels::Mono);
     let user_id = Ulid::new();
     let user_actor_deps = Arc::new(UserActorDeps {
@@ -67,13 +70,15 @@ async fn can_insert_track() -> Result<(), String> {
             .service(web::scope("/tracks").configure(tracks_crud_controller::init)),
     )
     .await;
-
+    std::env::set_var("JWT_SECRET", "test-secret");
+    let cookie = make_test_auth_cookie();
     let req = test::TestRequest::post()
         .uri("/tracks/add-track")
         .set_json(&AddTrackParams { track: raw_track })
+        .cookie(cookie)
         .to_request();
     let _resp: AddTrackResult = test::call_and_read_body_json(&app, req).await;
-
+    std::env::remove_var("JWT_SECRET");
     Ok(())
 }
 
@@ -115,9 +120,17 @@ async fn can_get_track_metas() -> Result<(), String> {
     let insert2 = AddTrackParams { track };
     let insert1_result = insert_track(&mut app, insert1).await?;
     let insert2_result = insert_track(&mut app, insert2).await?;
+    let cookie = make_test_auth_cookie();
+    // let req = test::TestRequest::get()
+    //     .uri(&format!("/tracks/get-all?user_id={}", user_id))
+    //     .cookie(cookie)
+    //     .to_request();
     let req = test::TestRequest::get()
         .uri(&format!("/tracks/get-all?user_id={}", user_id))
-        .cookie(make_test_auth_cookie())
+        .insert_header((
+            header::COOKIE,
+            format!("{}={}", cookie.name(), cookie.value()),
+        )) // 👈 manually set the Cookie header
         .to_request();
     let resp: GetTracksResult = test::call_and_read_body_json(&app, req).await;
     assert!(resp.tracks.len() == 2);
