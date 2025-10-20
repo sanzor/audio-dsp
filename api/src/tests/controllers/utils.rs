@@ -17,7 +17,7 @@ pub fn make_test_auth_cookie(secret: String, user_id: String) -> Cookie<'static>
     use crate::dtos::claims::Claims;
 
     let claims = Claims {
-        user_id: user_id,
+        user_id,
         name: Some("tester".into()),
         email: Some("test@example.com".into()),
         roles: Some(vec!["tester".into()]),
