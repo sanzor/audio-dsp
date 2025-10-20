@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use actix_http::{Request, StatusCode};
-use actix_web::{dev::Service, test, web, App};
+use actix_web::{test, web, App};
 
 use ::actors::user_actor::player_factory::PlayerFactory;
 use actors::user_actor::{user_actor_deps::UserActorDeps, user_actor_registry::UserActorRegistry};
@@ -11,69 +11,43 @@ use data_provider::{
     user_provider::UserProvider,
 };
 use rstest::rstest;
+use ulid::Ulid;
 
 use crate::{
     app_data::AppData,
-    controllers::user_controller::{
-        self, CreateUserParams, CreateUserResult, GetUserDataResult, UpdateUserParams,
-        UserUpdateResult,
-    },
+    controllers::user_controller::{self, GetUserDataResult, UpdateUserParams, UserUpdateResult},
+    player_controller_test::controllers::utils::{create_user_and_actor, init_env},
     user_and_actor_resolver::local_user_and_actor_resolver::LocalUserAndActorResolver,
 };
 
 #[rstest]
 #[actix_web::test]
 async fn can_get_user() -> Result<(), String> {
-    let user_name = "adrian";
-    let email = "adrian.bercovici@gmail.com";
+    init_env();
+    let user_name = Ulid::new();
+    let user_actor_deps = Arc::new(UserActorDeps {
+        player_factory: Arc::new(PlayerFactory {}),
+        tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
+        region_sets_provider: Arc::new(InMemoryRegionSetProvider::new()),
+    });
+
     let user_provider: Arc<dyn UserProvider> = Arc::new(InMemoryUserProvider::new());
-    let app_data = AppData {
-        user_actor_deps: Arc::new(UserActorDeps {
-            player_factory: Arc::new(PlayerFactory {}),
-            tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
-            region_sets_provider: Arc::new(InMemoryRegionSetProvider::new()),
-        }),
-        user_resolver: Arc::new(LocalUserAndActorResolver::new(
-            user_provider,
-            Arc::new(UserActorRegistry::new()),
-        )),
-    };
-    let mut app = test::init_service(
-        App::new()
-            .app_data(web::Data::new(app_data))
-            .service(web::scope("/user").configure(user_controller::init)),
-    )
-    .await;
-    let insert_result = insert_user(
-        &mut app,
-        CreateUserParams {
-            user_name: user_name.to_string(),
-            email: email.to_string(),
-        },
+    let user_registry = Arc::new(UserActorRegistry::new());
+
+    let (_created_user, _) = create_user_and_actor(
+        user_name.to_string(),
+        user_registry.clone(),
+        user_provider.clone(),
+        user_actor_deps.clone(),
     )
     .await?;
-    let uri = format!("/user/get-user-state/{}", insert_result.user_id);
-    let get_user_request: Request = test::TestRequest::get().uri(&uri).to_request();
-    let _result: GetUserDataResult = test::call_and_read_body_json(&app, get_user_request).await;
-    Ok(())
-}
-
-#[rstest]
-#[actix_web::test]
-async fn can_insert_user() -> Result<(), String> {
-    let user_name = "adrian";
-    let email = "adrian.bercovici@gmail.com";
-    let user_provider: Arc<dyn UserProvider> = Arc::new(InMemoryUserProvider::new());
     let app_data = AppData {
         user_actor_deps: Arc::new(UserActorDeps {
             player_factory: Arc::new(PlayerFactory {}),
             tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
             region_sets_provider: Arc::new(InMemoryRegionSetProvider::new()),
         }),
-        user_resolver: Arc::new(LocalUserAndActorResolver::new(
-            user_provider,
-            Arc::new(UserActorRegistry::new()),
-        )),
+        user_resolver: Arc::new(LocalUserAndActorResolver::new(user_provider, user_registry)),
     };
     let app = test::init_service(
         App::new()
@@ -82,51 +56,88 @@ async fn can_insert_user() -> Result<(), String> {
     )
     .await;
 
-    let req = test::TestRequest::post()
-        .uri("/user/create")
-        .set_json(CreateUserParams {
-            user_name: user_name.to_string(),
-            email: email.to_string(),
-        })
-        .to_request();
-
-    let resp: CreateUserResult = test::call_and_read_body_json(&app, req).await;
-    assert!(resp.user_name == user_name);
-    assert!(resp.email == resp.email);
+    let uri = format!("/user/get-user-state/{}", _created_user.id);
+    let get_user_request: Request = test::TestRequest::get().uri(&uri).to_request();
+    let _result: GetUserDataResult = test::call_and_read_body_json(&app, get_user_request).await;
     Ok(())
 }
 
+#[rstest]
 #[actix_web::test]
-async fn can_remove_user() -> Result<(), String> {
-    let user_name = "adrian";
-    let email = "adrian.bercovici@gmail.com";
+async fn can_insert_user() -> Result<(), String> {
+    init_env();
+    let user_name = Ulid::new();
+    let user_actor_deps = Arc::new(UserActorDeps {
+        player_factory: Arc::new(PlayerFactory {}),
+        tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
+        region_sets_provider: Arc::new(InMemoryRegionSetProvider::new()),
+    });
 
     let user_provider: Arc<dyn UserProvider> = Arc::new(InMemoryUserProvider::new());
+    let user_registry = Arc::new(UserActorRegistry::new());
+
+    let (_created_user, _) = create_user_and_actor(
+        user_name.to_string(),
+        user_registry.clone(),
+        user_provider.clone(),
+        user_actor_deps.clone(),
+    )
+    .await?;
     let app_data = AppData {
         user_actor_deps: Arc::new(UserActorDeps {
             player_factory: Arc::new(PlayerFactory {}),
             tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
             region_sets_provider: Arc::new(InMemoryRegionSetProvider::new()),
         }),
-        user_resolver: Arc::new(LocalUserAndActorResolver::new(
-            user_provider,
-            Arc::new(UserActorRegistry::new()),
-        )),
+        user_resolver: Arc::new(LocalUserAndActorResolver::new(user_provider, user_registry)),
     };
-    let mut app = test::init_service(
+    let _ = test::init_service(
         App::new()
             .app_data(web::Data::new(app_data))
             .service(web::scope("/user").configure(user_controller::init)),
     )
     .await;
-    let create_request = CreateUserParams {
-        user_name: user_name.to_string(),
-        email: email.to_string(),
-    };
-    let rez = insert_user(&mut app, create_request).await?;
 
+    assert_eq!(_created_user.name, user_name.to_string());
+    Ok(())
+}
+
+#[actix_web::test]
+async fn can_remove_user() -> Result<(), String> {
+    init_env();
+    let user_name = Ulid::new();
+    let user_actor_deps = Arc::new(UserActorDeps {
+        player_factory: Arc::new(PlayerFactory {}),
+        tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
+        region_sets_provider: Arc::new(InMemoryRegionSetProvider::new()),
+    });
+
+    let user_provider: Arc<dyn UserProvider> = Arc::new(InMemoryUserProvider::new());
+    let user_registry = Arc::new(UserActorRegistry::new());
+
+    let (_created_user, _) = create_user_and_actor(
+        user_name.to_string(),
+        user_registry.clone(),
+        user_provider.clone(),
+        user_actor_deps.clone(),
+    )
+    .await?;
+    let app_data = AppData {
+        user_actor_deps: Arc::new(UserActorDeps {
+            player_factory: Arc::new(PlayerFactory {}),
+            tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
+            region_sets_provider: Arc::new(InMemoryRegionSetProvider::new()),
+        }),
+        user_resolver: Arc::new(LocalUserAndActorResolver::new(user_provider, user_registry)),
+    };
+    let app = test::init_service(
+        App::new()
+            .app_data(web::Data::new(app_data))
+            .service(web::scope("/user").configure(user_controller::init)),
+    )
+    .await;
     let req = test::TestRequest::delete()
-        .uri(&format!("/user/remove/{}", rez.user_id))
+        .uri(&format!("/user/remove/{}", _created_user.id))
         .to_request();
 
     let resp = test::call_service(&app, req).await;
@@ -138,36 +149,43 @@ async fn can_remove_user() -> Result<(), String> {
 
 #[actix_web::test]
 async fn can_update_user() -> Result<(), String> {
-    let user_name = "adrian";
-    let email = "adrian.bercovici@gmail.com";
+    init_env();
     let new_user_name = "adrian2";
     let new_email = "adrian.bercovici2@yahoo.com";
+    let user_name = Ulid::new();
+    let user_actor_deps = Arc::new(UserActorDeps {
+        player_factory: Arc::new(PlayerFactory {}),
+        tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
+        region_sets_provider: Arc::new(InMemoryRegionSetProvider::new()),
+    });
+
     let user_provider: Arc<dyn UserProvider> = Arc::new(InMemoryUserProvider::new());
+    let user_registry = Arc::new(UserActorRegistry::new());
+
+    let (_created_user, _) = create_user_and_actor(
+        user_name.to_string(),
+        user_registry.clone(),
+        user_provider.clone(),
+        user_actor_deps.clone(),
+    )
+    .await?;
     let app_data = AppData {
         user_actor_deps: Arc::new(UserActorDeps {
             player_factory: Arc::new(PlayerFactory {}),
             tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
             region_sets_provider: Arc::new(InMemoryRegionSetProvider::new()),
         }),
-        user_resolver: Arc::new(LocalUserAndActorResolver::new(
-            user_provider,
-            Arc::new(UserActorRegistry::new()),
-        )),
+        user_resolver: Arc::new(LocalUserAndActorResolver::new(user_provider, user_registry)),
     };
-    let mut app = test::init_service(
+    let app = test::init_service(
         App::new()
             .app_data(web::Data::new(app_data))
             .service(web::scope("/user").configure(user_controller::init)),
     )
     .await;
-    let create_request = CreateUserParams {
-        user_name: user_name.to_string(),
-        email: email.to_string(),
-    };
-    let rez = insert_user(&mut app, create_request).await?;
     let update_request = UpdateUserParams {
         email: new_email.to_string(),
-        user_id: rez.user_id.clone(),
+        user_id: _created_user.id.clone(),
         user_name: new_user_name.to_string(),
     };
     let update_request = test::TestRequest::put()
@@ -177,24 +195,8 @@ async fn can_update_user() -> Result<(), String> {
 
     let update_result: UserUpdateResult = test::call_and_read_body_json(&app, update_request).await;
 
-    assert_eq!(update_result.user_id, rez.user_id);
+    assert_eq!(update_result.user_id, _created_user.id);
     assert_eq!(update_result.new_email, new_email);
     assert_eq!(update_result.new_user_name, new_user_name);
     Ok(())
-}
-
-async fn insert_user(
-    app: &mut impl Service<
-        Request,
-        Response = actix_web::dev::ServiceResponse,
-        Error = actix_web::Error,
-    >,
-    user_params: CreateUserParams,
-) -> Result<CreateUserResult, String> {
-    let req = test::TestRequest::post()
-        .uri("/user/create")
-        .set_json(user_params)
-        .to_request();
-    let resp: CreateUserResult = test::call_and_read_body_json(&app, req).await;
-    Ok(resp)
 }

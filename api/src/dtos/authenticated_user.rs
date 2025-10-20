@@ -16,18 +16,19 @@ impl FromRequest for AuthenticatedUser {
     type Future = Ready<Result<Self, Self::Error>>;
 
     fn from_request(req: &actix_web::HttpRequest, _: &mut actix_http::Payload) -> Self::Future {
-        let result = req
-            .cookie("auth_token")
-            .ok_or_else(|| actix_web::error::ErrorUnauthorized("No auth token"))
-            .and_then(|cookie| {
-                verify_token(cookie.value())
-                    .map_err(|_e| actix_web::error::ErrorUnauthorized("Invalid token"))
-            })
-            .map(|claims| AuthenticatedUser {
-                email: claims.email,
-                roles: claims.roles,
-                user_id: claims.user_id,
-            });
-        ready(result)
+        let cookie = match req.cookie("auth_token") {
+            Some(c) => c,
+            None => return ready(Err(actix_web::error::ErrorUnauthorized("No auth token"))),
+        };
+        let claims = match verify_token(cookie.value()) {
+            Err(_e) => return ready(Err(actix_web::error::ErrorUnauthorized("Invalid token"))),
+            Ok(tk) => tk,
+        };
+
+        ready(Ok(AuthenticatedUser {
+            email: claims.email,
+            roles: claims.roles,
+            user_id: claims.user_id,
+        }))
     }
 }

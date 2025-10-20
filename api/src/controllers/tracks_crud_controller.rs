@@ -221,7 +221,7 @@ pub struct GetTrackParams {
     pub track_id: String,
 }
 #[get("/get-stored-track")]
-async fn get_raw(
+async fn get_stored_track(
     user: AuthenticatedUser,
     query: web::Query<GetTrackParams>,
     app_state: web::Data<AppData>,
@@ -336,7 +336,7 @@ pub fn init(cfg: &mut web::ServiceConfig) {
         .service(add_track_multi)
         .service(update_track_info)
         .service(remove_track)
-        .service(get_raw)
+        .service(get_stored_track)
         .service(get_track_info)
         .service(get_meta)
         .service(get_tracks)
