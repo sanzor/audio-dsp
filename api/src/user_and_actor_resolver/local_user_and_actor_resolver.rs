@@ -18,11 +18,11 @@ pub struct LocalUserAndActorResolver {
 impl LocalUserAndActorResolver {
     pub fn new(
         user_provider: Arc<dyn UserProvider>,
-        user_registry: Arc<UserActorRegistry>,
+        actor_registry: Arc<UserActorRegistry>,
     ) -> LocalUserAndActorResolver {
         LocalUserAndActorResolver {
             user_provider: Arc::clone(&user_provider),
-            user_registry: Arc::clone(&user_registry),
+            user_registry: Arc::clone(&actor_registry),
         }
     }
 

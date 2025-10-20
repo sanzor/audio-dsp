@@ -1,5 +1,5 @@
 use core::panic;
-use std::{collections::HashMap, sync::Arc, time::Duration};
+use std::{sync::Arc, time::Duration};
 
 use actix_web::{
     test,
@@ -24,7 +24,9 @@ use serde::de::DeserializeOwned;
 use tokio::net::TcpStream;
 use tokio_tungstenite::{
     connect_async,
-    tungstenite::{Message, Utf8Bytes},
+    tungstenite::{
+        client::IntoClientRequest, handshake::client::Request, http, Message, Utf8Bytes,
+    },
     MaybeTlsStream, WebSocketStream,
 };
 use ulid::Ulid;
@@ -36,8 +38,9 @@ use crate::{
         user_controller,
         ws_controller::{self, WebsocketSendMessage, WsMessage},
     },
-    player_controller_test::utils::{
-        create_user_actor, get_user_state, insert_track, make_raw_track_from_samples,
+    player_controller_test::{
+        controllers::utils::{create_user_and_actor, init_env, make_test_auth_cookie},
+        utils::{get_user_state, insert_track, make_raw_track_from_samples},
     },
     user_and_actor_resolver::local_user_and_actor_resolver::LocalUserAndActorResolver,
 };
@@ -46,22 +49,33 @@ use crate::{
 #[actix_web::test]
 async fn can_start_player_ws() -> Result<(), String> {
     let track = make_raw_track_from_samples(vec![1_f32, 2_f32], Channels::Mono);
-    let id = Ulid::new();
-    let user = create_user_actor(id);
-    let user_provider: Arc<dyn UserProvider> = Arc::new(InMemoryUserProvider::new());
-    let mut user_map = HashMap::new();
+    init_env();
+    let secret = std::env::var("JWT_SECRET").expect("JWT_SECRET not set");
+    let user_name = Ulid::new();
+    let user_actor_deps = Arc::new(UserActorDeps {
+        player_factory: Arc::new(PlayerFactory {}),
+        tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
+        region_sets_provider: Arc::new(InMemoryRegionSetProvider::new()),
+    });
 
-    user_map.insert(id.to_string(), user);
+    let user_provider: Arc<dyn UserProvider> = Arc::new(InMemoryUserProvider::new());
+    let user_registry = Arc::new(UserActorRegistry::new());
+
+    let (created_user, _) = create_user_and_actor(
+        user_name.to_string(),
+        user_registry.clone(),
+        user_provider.clone(),
+        user_actor_deps.clone(),
+    )
+    .await?;
+
     let app_data = AppData {
         user_actor_deps: Arc::new(UserActorDeps {
             player_factory: Arc::new(PlayerFactory {}),
             tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
             region_sets_provider: Arc::new(InMemoryRegionSetProvider::new()),
         }),
-        user_resolver: Arc::new(LocalUserAndActorResolver::new(
-            user_provider,
-            Arc::new(UserActorRegistry::new()),
-        )),
+        user_resolver: Arc::new(LocalUserAndActorResolver::new(user_provider, user_registry)),
     };
     let url = "127.0.0.1:0";
     let server_app_data = app_data.clone();
@@ -82,19 +96,30 @@ async fn can_start_player_ws() -> Result<(), String> {
             .service(web::scope("/tracks").configure(tracks_crud_controller::init)),
     )
     .await;
+    let cookie = make_test_auth_cookie(secret, created_user.id.clone());
+    let insert_result = insert_track(cookie.clone(), &mut app, AddTrackParams { track }).await?;
 
-    let insert_result = insert_track(&mut app, AddTrackParams { track }).await?;
-
-    let url = format!(
+    let ws_url = format!(
         "ws://{}:{}/ws/run?user_id={}&track_id={}",
         addr.ip(),
         addr.port(),
-        id,
+        created_user.id,
         insert_result.track_id
     );
 
-    let (ws_stream, _) = connect_async(&url).await.expect("Failed to connect");
+    // Create a raw tungstenite request from the URL
+    let mut request: Request = ws_url.clone().into_client_request().unwrap();
 
+    // Insert Cookie header (this is the only one we override)
+    request.headers_mut().insert(
+        http::header::COOKIE,
+        format!("{}={}", cookie.name(), cookie.value())
+            .parse()
+            .unwrap(),
+    );
+
+    // Now connect using connect_async
+    let (ws_stream, _) = connect_async(request).await.expect("Failed to connect");
     let (mut write, mut ws_reader) = ws_stream.split();
 
     let play_request = serde_json::to_string(&WsMessage::Play {
@@ -114,22 +139,35 @@ async fn can_start_player_ws() -> Result<(), String> {
 #[actix_web::test]
 async fn can_stop_player_ws() -> Result<(), String> {
     let track = make_raw_track_from_samples(vec![1_f32; 512], Channels::Mono);
-    let user_id = Ulid::new();
-    let user = create_user_actor(user_id);
+    init_env();
+    let secret = std::env::var("JWT_SECRET").expect("JWT_SECRET not set");
+    let user_name = Ulid::new();
+    let user_actor_deps = Arc::new(UserActorDeps {
+        player_factory: Arc::new(PlayerFactory {}),
+        tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
+        region_sets_provider: Arc::new(InMemoryRegionSetProvider::new()),
+    });
+
     let user_provider: Arc<dyn UserProvider> = Arc::new(InMemoryUserProvider::new());
-    let mut user_map = HashMap::new();
-    user_map.insert(user_id.to_string(), user);
+    let user_registry = Arc::new(UserActorRegistry::new());
+
+    let (created_user, _) = create_user_and_actor(
+        user_name.to_string(),
+        user_registry.clone(),
+        user_provider.clone(),
+        user_actor_deps.clone(),
+    )
+    .await?;
+
     let app_data = AppData {
         user_actor_deps: Arc::new(UserActorDeps {
             player_factory: Arc::new(PlayerFactory {}),
             tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
             region_sets_provider: Arc::new(InMemoryRegionSetProvider::new()),
         }),
-        user_resolver: Arc::new(LocalUserAndActorResolver::new(
-            user_provider,
-            Arc::new(UserActorRegistry::new()),
-        )),
+        user_resolver: Arc::new(LocalUserAndActorResolver::new(user_provider, user_registry)),
     };
+    let cookie = make_test_auth_cookie(secret, created_user.id.clone());
     let url = "127.0.0.1:0";
     let server_app_data = app_data.clone();
     let sv = HttpServer::new(move || {
@@ -150,20 +188,31 @@ async fn can_stop_player_ws() -> Result<(), String> {
     )
     .await;
 
-    let insert_result = insert_track(&mut app, AddTrackParams { track }).await?;
-    let _ = get_user_state(&mut app, user_id.to_string()).await?;
+    let insert_result = insert_track(cookie.clone(), &mut app, AddTrackParams { track }).await?;
+
     let ws_url = format!(
         "ws://{}:{}/ws/run?user_id={}&track_id={}",
         addr.ip(),
         addr.port(),
-        user_id.to_string(),
+        created_user.id,
         insert_result.track_id
     );
 
-    let (ws_stream, _) = connect_async(&ws_url).await.expect("Failed to connect");
+    // Create a raw tungstenite request from the URL
+    let mut request: Request = ws_url.clone().into_client_request().unwrap();
 
+    // Insert Cookie header (this is the only one we override)
+    request.headers_mut().insert(
+        http::header::COOKIE,
+        format!("{}={}", cookie.name(), cookie.value())
+            .parse()
+            .unwrap(),
+    );
+
+    // Now connect using connect_async
+    let (ws_stream, _) = connect_async(request).await.expect("Failed to connect");
     let (mut write, mut ws_reader) = ws_stream.split();
-    let _user_state = get_user_state(&mut app, user_id.to_string()).await?;
+
     let play_request = serde_json::to_string(&WsMessage::Play {
         track_id: insert_result.track_id.clone(),
     })
@@ -182,7 +231,7 @@ async fn can_stop_player_ws() -> Result<(), String> {
 
     let _ = write.send(Message::Text(pause_request.into())).await;
     tokio::time::sleep(Duration::from_secs(1)).await;
-    let user_state = get_user_state(&mut app, user_id.to_string()).await?;
+    let user_state = get_user_state(cookie, &mut app, created_user.id).await?;
     let player = user_state.players.get(&insert_result.track_id).unwrap();
     assert!(matches!(player.state, AudioPlayerState::Paused));
     Ok(())

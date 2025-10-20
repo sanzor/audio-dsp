@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use actix_http::{Request, StatusCode};
-use actix_web::{dev::Service, test};
+use actix_web::{cookie::Cookie, dev::Service, http::header, test};
 use actors::user_actor::{
     actor::UserActor, create_user_actor_params::CreateUserActorParams,
     player_factory::PlayerFactory, user_actor_deps::UserActorDeps,
@@ -20,16 +20,9 @@ use domain::{
 use kameo::{actor::ActorRef, Actor};
 use ulid::Ulid;
 
-use crate::{
-    controllers::{
-        tracks_crud_controller::{AddTrackParams, AddTrackResult},
-        user_controller::GetUserDataResult,
-    },
-    dtos::google_user_info::GoogleUserInfo,
-    user_and_actor_resolver::{
-        local_user_and_actor_resolver::LocalUserAndActorResolver,
-        resolved_user_and_actor::ResolvedUserAndActor,
-    },
+use crate::controllers::{
+    tracks_crud_controller::{AddTrackParams, AddTrackResult},
+    user_controller::GetUserDataResult,
 };
 
 pub fn create_user_actor(id: Ulid) -> ActorRef<UserActor> {
@@ -56,42 +49,27 @@ pub fn create_user_actor(id: Ulid) -> ActorRef<UserActor> {
     actor
 }
 
-pub async fn create_user_and_actor(
-    id: Ulid,
-    user_resolver: LocalUserAndActorResolver,
-    user_actor_deps: Arc<UserActorDeps>,
-) -> Result<ResolvedUserAndActor, String> {
-    let google_info = GoogleUserInfo {
-        email: "some email".into(),
-        name: "some_name".into(),
-        picture: "some picture".into(),
-        sub: id.to_string(),
-    };
-    let rez = user_resolver
-        .resolve_google_user_and_actor(&google_info, |p| {
-            let domain_user_create_params = CreateUserActorParams {
-                user_data: p,
-                user_actor_deps: Arc::clone(&user_actor_deps),
-            };
-            Ok(domain_user_create_params)
-        })
-        .await;
-    rez
-}
-
 pub async fn get_tracks(
+    cookie: Cookie<'static>,
     app: &mut impl Service<
         Request,
         Response = actix_web::dev::ServiceResponse,
         Error = actix_web::Error,
     >,
 ) -> Result<GetTracksResult, String> {
-    let req = test::TestRequest::get().uri("/tracks/get-all").to_request();
+    let req = test::TestRequest::get()
+        .uri("/tracks/get-all")
+        .insert_header((
+            header::COOKIE,
+            format!("{}={}", cookie.name(), cookie.value()),
+        ))
+        .to_request();
     let resp: GetTracksResult = test::call_and_read_body_json(&app, req).await;
     Ok(resp)
 }
 
 pub async fn insert_track(
+    cookie: Cookie<'static>,
     app: &mut impl Service<
         Request,
         Response = actix_web::dev::ServiceResponse,
@@ -101,13 +79,18 @@ pub async fn insert_track(
 ) -> Result<AddTrackResult, String> {
     let req = test::TestRequest::post()
         .uri("/tracks/add-track")
-        .set_json(track_params)
+        .set_json(&AddTrackParams {
+            track: track_params.track,
+        })
+        .cookie(cookie)
         .to_request();
+
     let resp: AddTrackResult = test::call_and_read_body_json(&app, req).await;
     Ok(resp)
 }
 
 pub async fn remove_track(
+    cookie: Cookie<'static>,
     app: &mut impl Service<
         Request,
         Response = actix_web::dev::ServiceResponse,
@@ -117,6 +100,10 @@ pub async fn remove_track(
 ) -> Result<(), String> {
     let remove_request = test::TestRequest::delete()
         .uri(&format!("/tracks/remove/{}", track_id))
+        .insert_header((
+            header::COOKIE,
+            format!("{}={}", cookie.name(), cookie.value()),
+        ))
         .to_request();
     let resp = test::call_service(&app, remove_request).await;
     assert!(matches!(resp.status(), StatusCode::OK));
@@ -152,6 +139,7 @@ pub fn make_raw_track_from_samples(samples: Vec<f32>, channels: Channels) -> Raw
     }
 }
 pub async fn get_user_state(
+    cookie: Cookie<'static>,
     app: &mut impl Service<
         Request,
         Response = actix_web::dev::ServiceResponse,
@@ -161,6 +149,10 @@ pub async fn get_user_state(
 ) -> Result<GetUserDataResult, String> {
     let get_user_state_request = actix_web::test::TestRequest::get()
         .uri(&format!("/user/get-user-state/{}", user_id))
+        .insert_header((
+            header::COOKIE,
+            format!("{}={}", cookie.name(), cookie.value()),
+        ))
         .to_request();
 
     let user_state_result: GetUserDataResult =

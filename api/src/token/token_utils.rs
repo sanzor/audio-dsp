@@ -54,10 +54,16 @@ pub(crate) fn create_token(
 
 pub(crate) fn verify_token(token: &str) -> Result<Claims, jsonwebtoken::errors::Error> {
     let secret = env::var("JWT_SECRET").expect("JWT_SECRET not set");
-    let token_data = decode::<Claims>(
+
+    match decode::<Claims>(
         token,
         &DecodingKey::from_secret(secret.as_bytes()),
         &Validation::new(Algorithm::HS256),
-    )?;
-    Ok(token_data.claims)
+    ) {
+        Ok(data) => Ok(data.claims),
+        Err(e) => {
+            println!("JWT decode error: {:?}", e);
+            Err(e)
+        }
+    }
 }
