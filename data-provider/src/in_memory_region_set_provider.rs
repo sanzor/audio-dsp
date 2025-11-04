@@ -132,6 +132,7 @@ impl RegionSetsProvider for InMemoryRegionSetProvider {
             region_set_id: params.region_set_id,
             end_time: params.end_time,
             start_time: params.start_time,
+            graph: None,
         };
         set.regions.push(region);
         Ok(set.clone())

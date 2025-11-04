@@ -1,6 +1,7 @@
 pub mod actors;
 pub mod create_domain_user_params;
 pub mod domain_user;
+pub mod graphs;
 pub mod raw_track;
 pub mod region_set;
 pub mod regions;
