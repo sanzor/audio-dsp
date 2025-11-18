@@ -191,12 +191,12 @@ impl RegionSetsProvider for InMemoryRegionSetProvider {
 
     async fn copy_region(&self, params: CopyRegionParams) -> Result<RegionSet, String> {
         let mut guard = self.region_sets.lock().await;
-        let set = match guard.get_mut(&params.region_set_id) {
+        let set = match guard.get_mut(&params.source_region_set_id) {
             Some(set) => set,
             None => {
                 return Err(format!(
                     "Could not find set with id {:?}",
-                    params.region_set_id
+                    params.source_region_set_id
                 ))
             }
         };
@@ -204,15 +204,15 @@ impl RegionSetsProvider for InMemoryRegionSetProvider {
         let region = set
             .regions
             .iter()
-            .find(|e| e.region_id == params.region_id)
+            .find(|e| e.region_id == params.source_region_id)
             .ok_or_else(|| {
                 format!(
-                    "Could not find region with id {:?} in set {:?}",
-                    params.region_set_id, params.region_id
+                    "Could not find region with id {:?} in set {:?} in track {:?}",
+                    params.source_region_id, params.source_region_set_id, params.source_track_id
                 )
             })?;
         let mut copy = region.clone();
-        copy.name = params.copy_name;
+        copy.name = params.region_copy_name;
         set.regions.push(copy);
         Ok(set.clone())
     }

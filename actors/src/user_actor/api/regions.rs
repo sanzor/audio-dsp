@@ -121,9 +121,12 @@ impl Message<CopyRegion> for UserActor {
         let region_set = self
             .region_set_provider
             .copy_region(CopyRegionParams {
-                region_set_id: msg.region_set_id,
-                region_id: msg.region_id,
-                copy_name: msg.copy_name,
+                source_region_set_id: msg.source_region_set_id,
+                source_region_id: msg.source_region_id,
+                source_track_id: msg.source_track_id,
+                destination_region_set_id: msg.destination_region_set_id,
+                destination_track_id: msg.destination_track_id,
+                region_copy_name: msg.copy_name,
             })
             .await?;
         Ok(CopyRegionResult { region_set })

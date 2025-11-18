@@ -131,8 +131,11 @@ pub async fn remove_region(
 
 #[derive(Deserialize)]
 pub struct CopyRegionParams {
-    pub region_id: String,
-    pub region_set_id: String,
+    pub source_region_id: String,
+    pub source_region_set_id: String,
+    pub source_track_id: String,
+    pub destination_region_set_id: String,
+    pub destination_track_id: String,
     pub copy_name: String,
 }
 #[derive(Serialize)]
@@ -154,8 +157,11 @@ pub async fn copy_region(
     let rez = match resolved_user
         .ask(CopyRegion {
             copy_name: request.copy_name,
-            region_id: request.region_id,
-            region_set_id: request.region_set_id,
+            source_region_id: request.source_region_id,
+            source_region_set_id: request.source_region_set_id,
+            source_track_id: request.source_track_id,
+            destination_region_set_id: request.destination_region_set_id,
+            destination_track_id: request.destination_track_id,
         })
         .await
     {
