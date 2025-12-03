@@ -22,7 +22,7 @@ use domain::{
     raw_track::{RawTrack, TrackInfo},
 };
 
-use kameo::{actor::ActorRef, Actor};
+use kameo::actor::{ActorRef, Spawn};
 use player::sink::queue_sink::QueueSink;
 use tokio::sync::Mutex;
 use ulid::Ulid;

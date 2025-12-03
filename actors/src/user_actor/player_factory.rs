@@ -1,4 +1,4 @@
-use kameo::Actor;
+use kameo::actor::Spawn;
 
 use crate::audio_player_actor::{
     actor::AudioPlayerActor,

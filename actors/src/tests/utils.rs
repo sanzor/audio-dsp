@@ -6,7 +6,7 @@ use domain::{
     track_meta::TrackMeta,
 };
 
-use kameo::{actor::ActorRef, Actor};
+use kameo::actor::{ActorRef, Spawn};
 use player::sink::AudioSink;
 
 use crate::audio_player_actor::{

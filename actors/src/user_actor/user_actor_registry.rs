@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
-use kameo::{actor::ActorRef, Actor};
+use kameo::actor::{ActorRef, Spawn};
 use tokio::sync::Mutex;
 
 use crate::user_actor::{actor::UserActor, create_user_actor_params::CreateUserActorParams};

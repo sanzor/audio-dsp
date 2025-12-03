@@ -16,8 +16,7 @@ use domain::{
     domain_user::DomainUser,
     raw_track::{RawTrack, TrackInfo},
 };
-
-use kameo::{actor::ActorRef, Actor};
+use kameo::actor::{ActorRef, Spawn};
 use ulid::Ulid;
 
 use crate::controllers::{

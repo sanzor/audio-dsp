@@ -16,12 +16,15 @@ use crate::{
 };
 #[derive(Deserialize)]
 pub struct CreateRegionSetParams {
+    #[serde(rename = "trackId")]
     pub track_id: String,
+    #[serde(rename = "name")]
     pub name: Option<String>,
 }
 
 #[derive(Serialize)]
 pub struct AddRegionResult {
+    #[serde(rename = "regionSet")]
     region_set: RegionSet,
 }
 #[post("/create")]
@@ -60,6 +63,7 @@ pub struct EditRegionSetParams {
 
 #[derive(Serialize)]
 pub struct EditRegionSetResult {
+    #[serde(rename = "regionSet")]
     pub region_set: RegionSet,
 }
 
@@ -139,6 +143,7 @@ pub async fn get_region_sets(
 
 #[derive(Deserialize)]
 pub struct GetRegionsForTrackParams {
+    #[serde(rename = "trackId")]
     pub track_id: String,
 }
 
@@ -168,6 +173,7 @@ pub async fn get_region_sets_for_track(
 
 #[derive(Deserialize)]
 pub struct DeleteRegionSetParams {
+    #[serde(rename = "regionSetId")]
     pub region_set_id: String,
 }
 
@@ -197,13 +203,16 @@ pub async fn delete_region_set(
 
 #[derive(Deserialize)]
 pub struct CopyRegionSetParams {
-    pub track_id: String,
+    #[serde(rename = "regionSetId")]
     pub region_set_id: String,
+
+    #[serde(rename = "copyName")]
     pub copy_region_set_name: String,
 }
 
 #[derive(Serialize)]
 pub struct CopyRegionSetResult {
+    #[serde(rename = "regionSet")]
     pub region_set: RegionSet,
 }
 
@@ -222,7 +231,6 @@ async fn copy_region_set(
 
     let rez = match user
         .ask(CopyRegionSet {
-            track_id: request.track_id,
             region_set_id: request.region_set_id,
             region_set_copy_name: request.copy_region_set_name,
         })

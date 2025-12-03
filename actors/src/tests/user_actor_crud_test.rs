@@ -14,8 +14,7 @@ use domain::actors::messages::tracks::insert_track::{InsertTrack, InsertTrackRes
 use domain::domain_user::DomainUser;
 use domain::raw_track::{RawTrack, TrackInfo};
 use domain::track_meta::TrackMeta;
-use kameo::actor::ActorRef;
-use kameo::{self, Actor};
+use kameo::actor::{ActorRef, Spawn};
 use ulid::Ulid;
 
 fn create_actor(id: Ulid) -> ActorRef<UserActor> {

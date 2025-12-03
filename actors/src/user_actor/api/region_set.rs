@@ -137,7 +137,6 @@ impl Message<CopyRegionSet> for UserActor {
         let result = self
             .region_set_provider
             .copy_region_set(CopyRegionSetParams {
-                track_id: msg.track_id,
                 region_set_id: msg.region_set_id,
                 region_set_name: msg.region_set_copy_name,
             })
