@@ -1,16 +1,18 @@
-use audiolib::utils::encode_audio_buffer_as_wav;
+use data_provider::{
+    get_all_track_infos_result::GetAllTrackInfosResult,
+    tracks_provider::{LocalTrackStoreProvider, TracksProvider},
+};
 use domain::{
     raw_track::RawTrack, stored_track::StoredTrack, track_meta::TrackMeta,
     update_track_info_params::UpdateTrackInfoParams,
 };
+use dtos::db::track_subtree::TrackSubtree;
 use std::collections::HashMap;
 use tokio::sync::Mutex;
 use ulid::Ulid;
-
-use crate::{
-    get_all_track_infos_result::GetAllTrackInfosResult,
-    tracks_provider::{LocalTrackStoreProvider, TracksProvider},
-};
+pub struct LocalTrackStoreProvider {
+    pub tracks: Mutex<HashMap<String, StoredTrack>>,
+}
 
 impl LocalTrackStoreProvider {
     pub fn new() -> LocalTrackStoreProvider {
@@ -24,6 +26,9 @@ impl Default for LocalTrackStoreProvider {
         Self::new()
     }
 }
+unsafe impl Send for LocalTrackStoreProvider {}
+unsafe impl Sync for LocalTrackStoreProvider {}
+
 #[async_trait::async_trait]
 impl TracksProvider for LocalTrackStoreProvider {
     async fn get_track_meta(&self, track_name: &str) -> Result<TrackMeta, String> {
@@ -53,7 +58,7 @@ impl TracksProvider for LocalTrackStoreProvider {
         })
     }
 
-    async fn copy_track(&self, track_id: &str, new_name: &str) -> Result<TrackMeta, String> {
+    async fn copy_track(&self, track_id: &str, new_name: &str) -> Result<TrackSubtree, String> {
         let mut guard = self.tracks.lock().await;
         let original = match guard.get(track_id) {
             Some(tr) => tr,
@@ -72,11 +77,25 @@ impl TracksProvider for LocalTrackStoreProvider {
 
         match guard.insert(new_track_id.to_string(), copy) {
             Some(_) => Err("Could not insert new track".into()),
-            None => Ok(TrackMeta {
-                track_info: new_track_info,
-                track_id: new_track_id.to_string(),
+            None => Ok(TrackSubtree {
+                id: new_track_id.to_string(),
+                name: new_track_info.name,
+                region_sets: Vec::new(),
             }),
         }
+    }
+
+    async fn fetch_subtree(&self, track_id: &str) -> Result<TrackSubtree, String> {
+        let guard = self.tracks.lock().await;
+        let track = guard
+            .get(track_id)
+            .ok_or_else(|| "Could not find track".to_string())?;
+
+        Ok(TrackSubtree {
+            id: track_id.to_string(),
+            name: track.track_info.name.clone(),
+            region_sets: Vec::new(),
+        })
     }
     async fn update_track_info(
         &self,

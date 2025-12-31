@@ -23,13 +23,13 @@ impl Message<AddRegion> for UserActor {
         msg: AddRegion,
         _ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
-        let set: RegionSet = self
+        let set = self
             .region_set_provider
             .get_region_set(&msg.region_set_id)
             .await?;
         let resolved_time = UserActor::resolve_end_time(&set, msg.start_time, msg.end_time_policy)?;
 
-        let rez: RegionSet = self
+        let rez = self
             .region_set_provider
             .add_region(AddRegionParams {
                 name: msg.name,
@@ -43,7 +43,7 @@ impl Message<AddRegion> for UserActor {
 }
 impl UserActor {
     pub fn resolve_end_time(
-        set: &RegionSet,
+        set: &RegionSetDto,
         new_region_start_time: f32,
         end_time_policy: EndTimePolicy,
     ) -> Result<f32, String> {
@@ -84,7 +84,6 @@ impl Message<EditRegion> for UserActor {
             .edit_region(EditRegionParams {
                 name: msg.name,
                 region_id: msg.region_id,
-                region_set_id: msg.region_set_id,
                 end_time: msg.end_time,
                 start_time: msg.start_time,
             })
@@ -104,7 +103,6 @@ impl Message<DeleteRegion> for UserActor {
         self.region_set_provider
             .delete_region(DeleteRegionParams {
                 region_id: msg.region_id,
-                region_set_id: msg.region_set_id,
             })
             .await?;
         Ok(DeleteRegionResult {})
@@ -121,11 +119,8 @@ impl Message<CopyRegion> for UserActor {
         let region_set = self
             .region_set_provider
             .copy_region(CopyRegionParams {
-                source_region_set_id: msg.source_region_set_id,
                 source_region_id: msg.source_region_id,
-                source_track_id: msg.source_track_id,
                 destination_region_set_id: msg.destination_region_set_id,
-                destination_track_id: msg.destination_track_id,
                 region_copy_name: msg.copy_name,
             })
             .await?;

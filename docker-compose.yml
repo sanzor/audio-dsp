@@ -1,0 +1,23 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+  postgres:
+    # We use the standard PostgreSQL image. No custom Dockerfile needed!
+    image: postgres:15-alpine 
+    restart: always
+    environment:
+      # Local Dev Credentials (These should match the details in db-setup.sh and your .env)
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: my_daw_db
+    ports:
+      # Maps container port 5432 to host port 5432
+      - "5432:5432" 
+    volumes:
+      # **CRITICAL:** This volume persists the data, so your database schema 
+      # and data are not lost when you stop and restart the container.
+      - db_data:/var/lib/postgresql/data 
+      
+volumes:
+  db_data:

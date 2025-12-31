@@ -16,3 +16,5 @@ jsonwebtoken = { version = "10", features = ["aws_lc_rs"] }
 chrono = "0.4"
 hound="3.5.1"
 audiolib={path = "../audiolib"}
+dtos={path="../dtos"}
+diesel = { version = "2.3.4", features = ["postgres","r2d2"] }

@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use data_provider::region_set_provider::RegionSetsProvider;
 use domain::{
     region_set::{
         copy_region_set_params::CopyRegionSetParams,
@@ -13,13 +14,12 @@ use domain::{
     },
 };
 
+use dtos::db::{region_set_db_dto::RegionSetDbDto, region_set_subtree::RegionSetSubtree};
 use tokio::sync::Mutex;
 use ulid::Ulid;
 
-use crate::region_set_provider::RegionSetsProvider;
-
 pub struct InMemoryRegionSetProvider {
-    pub region_sets: Mutex<HashMap<String, RegionSet>>,
+    pub region_sets: Mutex<HashMap<String, RegionSetDbDto>>,
 }
 
 impl InMemoryRegionSetProvider {
@@ -38,14 +38,20 @@ impl Default for InMemoryRegionSetProvider {
 
 #[async_trait::async_trait]
 impl RegionSetsProvider for InMemoryRegionSetProvider {
-    async fn create_region_set(&self, params: CreateRegionSetParams) -> Result<RegionSet, String> {
+
+    async fn fetch_subtree(&self,id:&str)->Result<RegionSetSubtree,String>{
+        todo!()
+    }
+    async fn create_region_set(
+        &self,
+        params: CreateRegionSetParams,
+    ) -> Result<RegionSetDbDto, String> {
         let region_set_id = Ulid::new();
-        let region_set = RegionSet {
+        let region_set = RegionSetDbDto {
             track_length: params.track_length,
             track_id: params.track_id,
-            regions: Vec::new(),
             name: params.name.unwrap_or(Ulid::new().to_string()),
-            region_set_id: region_set_id.to_string(),
+            id: region_set_id.to_string(),
         };
         let mut guard = self.region_sets.lock().await;
         match guard.insert(region_set_id.to_string(), region_set.clone()) {
@@ -54,7 +60,7 @@ impl RegionSetsProvider for InMemoryRegionSetProvider {
         }
     }
 
-    async fn get_region_set(&self, set_id: &str) -> Result<RegionSet, String> {
+    async fn get_region_set(&self, set_id: &str) -> Result<RegionSetDbDto, String> {
         let guard = self.region_sets.lock().await;
         let set = match guard.get(set_id) {
             Some(set) => Ok(set.clone()),
@@ -63,7 +69,10 @@ impl RegionSetsProvider for InMemoryRegionSetProvider {
         return set;
     }
 
-    async fn get_region_sets_for_track(&self, track_id: &str) -> Result<Vec<RegionSet>, String> {
+    async fn get_region_sets_for_track(
+        &self,
+        track_id: &str,
+    ) -> Result<Vec<RegionSetDbDto>, String> {
         let guard = self.region_sets.lock().await;
         let sets = guard
             .values()
@@ -74,10 +83,10 @@ impl RegionSetsProvider for InMemoryRegionSetProvider {
         return Ok(sets);
     }
 
-    async fn get_region_sets(&self) -> Result<HashMap<String, Vec<RegionSet>>, String> {
+    async fn get_region_sets(&self) -> Result<HashMap<String, Vec<RegionSetDbDto>>, String> {
         let guard = self.region_sets.lock().await;
 
-        let mut rez: HashMap<String, Vec<RegionSet>> = HashMap::new();
+        let mut rez: HashMap<String, Vec<RegionSetDbDto>> = HashMap::new();
 
         for elem in guard.values() {
             rez.entry(elem.track_id.clone()) // clone the String here
@@ -138,7 +147,7 @@ impl RegionSetsProvider for InMemoryRegionSetProvider {
         Ok(set.clone())
     }
 
-    async fn edit_region(&self, params: EditRegionParams) -> Result<RegionSet, String> {
+    async fn edit_region(&self, params: EditRegionParams) -> Result<RegionSetDbDto, String> {
         let mut guard = self.region_sets.lock().await;
         let set = match guard.get_mut(&params.region_set_id) {
             Some(set) => set,

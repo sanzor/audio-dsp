@@ -29,7 +29,7 @@ impl Message<CreateRegionSet> for UserActor {
         _ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
         let track_meta: TrackMeta = self.tracks_provider.get_track_meta(&msg.track_id).await?;
-        let set: RegionSet = self
+        let set = self
             .region_set_provider
             .create_region_set(CreateRegionSetParams {
                 name: msg.name,
@@ -49,7 +49,7 @@ impl Message<GetRegionSet> for UserActor {
         msg: GetRegionSet,
         _ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
-        let set: RegionSet = self
+        let set = self
             .region_set_provider
             .get_region_set(&msg.region_set_id)
             .await?;

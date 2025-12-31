@@ -3,6 +3,8 @@ resolver = "2"
 members=[
     "audiolib",
     "domain",
+    "dtos",
+    "infra",
     "player",
     "actors",
     "api",

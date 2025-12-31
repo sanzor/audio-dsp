@@ -1,6 +1,5 @@
+use dtos::db::region_set_db_dto::RegionSetDbDto;
 use serde::Serialize;
-
-use crate::regions::region_set::RegionSet;
 
 pub struct GetRegionSetsForTrack {
     pub track_id: String,
@@ -9,5 +8,5 @@ pub struct GetRegionSetsForTrack {
 #[derive(Serialize, Debug, Clone)]
 pub struct GetRegionSetsForTrackResult {
     pub track_id: String,
-    pub region_sets: Vec<RegionSet>,
+    pub region_sets: Vec<RegionSetDbDto>,
 }

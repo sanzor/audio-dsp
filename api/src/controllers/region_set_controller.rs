@@ -57,7 +57,6 @@ pub async fn create_region_set(
 #[derive(Deserialize)]
 pub struct EditRegionSetParams {
     pub region_set_id: String,
-    pub track_id: String,
     pub name: Option<String>,
 }
 
@@ -83,7 +82,6 @@ pub async fn edit_region_set(
         .ask(EditRegionSet {
             name: request.name,
             region_set_id: request.region_set_id,
-            track_id: request.track_id,
         })
         .await
     {

@@ -16,8 +16,9 @@ use crate::{
 };
 #[derive(Deserialize)]
 pub struct AddRegionParams {
-    pub track_id: String,
+    pub region_set_id: String,
     pub start_time: f32,
+    pub end_time: Option<f32>,
     pub name: String,
     pub end_time_policy: String,
 }
@@ -57,7 +58,6 @@ pub async fn add_region(
 #[derive(Deserialize)]
 pub struct EditRegionParams {
     pub region_id: String,
-    pub region_set_id: String,
     pub start_time: Option<f32>,
     pub end_time: Option<f32>,
     pub name: Option<String>,
@@ -101,7 +101,6 @@ pub async fn edit_region(
 #[derive(Deserialize)]
 pub struct DeleteRegionParams {
     pub region_id: String,
-    pub region_set_id: String,
 }
 
 #[delete("/remove")]
@@ -119,7 +118,6 @@ pub async fn remove_region(
     let rez = match resolved_user
         .ask(DeleteRegion {
             region_id: request.region_id,
-            region_set_id: request.region_set_id,
         })
         .await
     {
@@ -132,10 +130,7 @@ pub async fn remove_region(
 #[derive(Deserialize)]
 pub struct CopyRegionParams {
     pub source_region_id: String,
-    pub source_region_set_id: String,
-    pub source_track_id: String,
     pub destination_region_set_id: String,
-    pub destination_track_id: String,
     pub copy_name: String,
 }
 #[derive(Serialize)]
@@ -158,10 +153,7 @@ pub async fn copy_region(
         .ask(CopyRegion {
             copy_name: request.copy_name,
             source_region_id: request.source_region_id,
-            source_region_set_id: request.source_region_set_id,
-            source_track_id: request.source_track_id,
             destination_region_set_id: request.destination_region_set_id,
-            destination_track_id: request.destination_track_id,
         })
         .await
     {

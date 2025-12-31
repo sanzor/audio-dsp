@@ -1,6 +1,5 @@
+use dtos::db::region_set_subtree::RegionSetSubtree;
 use serde::Serialize;
-
-use crate::regions::region_set::RegionSet;
 
 pub struct CopyRegionSet {
     pub region_set_id: String,
@@ -8,5 +7,5 @@ pub struct CopyRegionSet {
 }
 #[derive(Serialize)]
 pub struct CopyRegionSetResult {
-    pub region_set: RegionSet,
+    pub region_set: RegionSetSubtree,
 }

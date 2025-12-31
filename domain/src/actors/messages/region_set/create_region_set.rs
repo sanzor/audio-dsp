@@ -1,4 +1,4 @@
-use crate::regions::region_set::RegionSet;
+use dtos::db::region_set_db_dto::RegionSetDbDto;
 
 pub struct CreateRegionSet {
     pub track_id: String,
@@ -6,5 +6,5 @@ pub struct CreateRegionSet {
 }
 
 pub struct CreateRegionSetResult {
-    pub region_set: RegionSet,
+    pub region_set: RegionSetDbDto,
 }
