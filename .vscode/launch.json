@@ -1,22 +1,22 @@
 {
-    "version": "0.2.0",
-    "configurations": [
-    
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Rust: Debug API",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/backend/target/debug/api",
+      "cwd": "${workspaceFolder}/backend",
+      "sourceLanguages": ["rust"],
+      "env": { "RUST_LOG": "debug" }
+    },
+    {
+      "name": "Frontend: Vite (Chrome)",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:3000",
+      "webRoot": "${workspaceFolder}/frontend"
+    }
+  ]
+}
 
-    
-      {
-        "name": "Debug audio_buffer_test",
-        "type": "lldb",
-        "request": "launch",
-        "program": "${workspaceFolder}/target/debug/api",
-        "args": [],
-        "cwd": "${workspaceFolder}",
-        "stopOnEntry": false,
-        "sourceLanguages": ["rust"],
-        "env": {
-          "RUST_LOG": "debug"
-        },
-      }
-    ]
-  }
-  

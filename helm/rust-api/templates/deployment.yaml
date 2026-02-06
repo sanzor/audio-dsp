@@ -20,7 +20,7 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
-            - containerPort: 8080
+            - containerPort: 3080
           env:
             # --- Non-secret env vars (safe defaults in values.yaml) ---
             - name: FRONTEND_REDIRECT

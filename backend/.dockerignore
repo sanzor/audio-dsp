@@ -1,0 +1,12 @@
+target/
+.git/
+.github/
+.vscode/
+**/*.wav
+**/*.mp3
+**/*.flac
+**/*.aiff
+.env
+api/.env
+api/dev.env
+

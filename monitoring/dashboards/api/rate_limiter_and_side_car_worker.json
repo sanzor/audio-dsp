@@ -1,0 +1,259 @@
+{
+  "title": "Rate Limiter & Sidecar Worker",
+  "uid": "rate-limiter-sidecar",
+  "editable": true,
+  "refresh": "5s",
+  "schemaVersion": 39,
+  "time": { "from": "now-6h", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "interval",
+        "type": "interval",
+        "query": "1s,5s,15s,1m,5m,15m,1h",
+        "auto": true
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Hot Path Verdicts (RPS)",
+      "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "expr": "sum(rate(rate_limiter_hot_path_total[$__rate_interval])) by (verdict)",
+          "legendFormat": "{{verdict}}"
+        }
+      ],
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": { "displayMode": "table", "placement": "bottom" }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Denied Rate (%)",
+      "type": "gauge",
+      "gridPos": { "h": 9, "w": 6, "x": 12, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 1 },
+              { "color": "red", "value": 5 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "expr": "100 * sum(rate(rate_limiter_hot_path_total{verdict=\"denied\"}[$__rate_interval])) / clamp_min(sum(rate(rate_limiter_hot_path_total[$__rate_interval])), 1)"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Refill Attempts (RPS)",
+      "type": "timeseries",
+      "gridPos": { "h": 9, "w": 6, "x": 18, "y": 0 },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "expr": "sum(rate(rate_limiter_refill_attempts_total[$__rate_interval]))",
+          "legendFormat": "attempts/s"
+        }
+      ],
+      "options": {
+        "tooltip": { "mode": "single" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      }
+    },
+    {
+      "id": 4,
+      "title": "Refill Send Outcomes (RPS)",
+      "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 9 },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "expr": "sum(rate(rate_limiter_refill_send_total[$__rate_interval])) by (outcome)",
+          "legendFormat": "{{outcome}}"
+        }
+      ],
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": { "displayMode": "table", "placement": "bottom" }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Worker Processed (RPS) - Success vs Failed",
+      "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 9 },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "expr": "sum(rate(rate_limiter_refill_processed_total[$__rate_interval])) by (status)",
+          "legendFormat": "{{status}}"
+        }
+      ],
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": { "displayMode": "table", "placement": "bottom" }
+      }
+    },
+    {
+      "id": 6,
+      "title": "Refill Queue Max Length (Gauge Over Time)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 18 },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "expr": "max_over_time(rate_limiter_refill_queue_max_length[$__rate_interval])",
+          "legendFormat": "max queue len"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        }
+      }
+    },
+    {
+      "id": 7,
+      "title": "Worker Keep-up Ratio (processed / attempts)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 18 },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "expr": "sum(rate(rate_limiter_refill_processed_total[$__rate_interval])) / clamp_min(sum(rate(rate_limiter_refill_attempts_total[$__rate_interval])), 1)",
+          "legendFormat": "keep-up"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 2
+        }
+      }
+    },
+    {
+      "id": 8,
+      "title": "Dropped Send Rate (RPS) - Full vs Closed",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 18 },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "expr": "sum(rate(rate_limiter_refill_send_total{outcome=~\"dropped_.*\"}[$__rate_interval])) by (outcome)",
+          "legendFormat": "{{outcome}}"
+        }
+      ],
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      }
+    },
+    {
+      "id": 9,
+      "title": "Refill Processing Time (seconds per second)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 26 },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "expr": "sum(rate(rate_limiter_refill_latency_seconds_total[$__rate_interval]))",
+          "legendFormat": "processing_time_s_per_s"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0
+        }
+      },
+      "options": {
+        "tooltip": { "mode": "single" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      }
+    },
+    {
+      "id": 10,
+      "title": "Reconciliation (Sync) Errors (RPS)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 26 },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "expr": "sum(rate(rate_limiter_sync_errors_total[$__rate_interval]))",
+          "legendFormat": "sync_errors/s"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "ops", "min": 0 }
+      }
+    },
+    {
+      "id": 11,
+      "title": "Drift Corrections (RPS)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 26 },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "expr": "sum(rate(rate_limiter_sync_drift_corrections_total[$__rate_interval]))",
+          "legendFormat": "drift_corrections/s"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "ops", "min": 0 }
+      }
+    },
+    {
+      "id": 12,
+      "title": "Sync Duration (seconds per second)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 34 },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "expr": "sum(rate(rate_limiter_sync_duration_seconds_total[$__rate_interval]))",
+          "legendFormat": "sync_time_s_per_s"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "s", "min": 0 }
+      }
+    },
+    {
+      "id": 13,
+      "title": "State Ops (RPS) - Create/Update/Remove",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 34 },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "expr": "sum(rate(rate_limiter_ops_total[$__rate_interval])) by (operation)",
+          "legendFormat": "{{operation}}"
+        }
+      ],
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": { "displayMode": "table", "placement": "bottom" }
+      }
+    }
+  ]
+}

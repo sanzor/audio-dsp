@@ -1,0 +1,96 @@
+{
+  "title": "Worker: Cache Filler (Enrichment) - V2",
+  "uid": "worker-cache-filler-v2",
+  "editable": true,
+  "panels": [
+    {
+      "id": 1,
+      "title": "Throughput: Consumed vs Acked",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        { "expr": "rate(worker_messages_consumed_total[1m])", "legendFormat": "Consumed/s" },
+        { "expr": "rate(worker_messages_acked_total[1m])", "legendFormat": "Acked/s" }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Processing Success Rate",
+      "type": "gauge",
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 0 },
+      "targets": [
+        { "expr": "sum(rate(worker_messages_acked_total[1m])) / sum(rate(worker_messages_consumed_total[1m])) * 100" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 98 }] }
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Error Count (Per Minute)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 0 },
+      "targets": [
+        { "expr": "increase(worker_errors_total[1m])", "legendFormat": "Errors/min" }
+      ],
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "red" } } }
+    },
+    {
+      "id": 4,
+      "title": "Bottleneck Breakdown: Where is the time spent?",
+      "type": "timeseries",
+      "gridPos": { "h": 10, "w": 16, "x": 0, "y": 8 },
+      "targets": [
+        { "expr": "rate(worker_aggregation_seconds_total[1m])", "legendFormat": "Rust Logic (Aggregation)" },
+        { "expr": "rate(worker_redis_seconds_total[1m])", "legendFormat": "Redis I/O & Lua" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": { "drawStyle": "area", "stacking": { "group": "A", "mode": "normal" } }
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Stream Lag (Pending)",
+      "type": "gauge",
+      "gridPos": { "h": 10, "w": 8, "x": 16, "y": 8 },
+      "targets": [
+        { "expr": "redis_stream_length{stream=\"cache-filler\"} - redis_stream_group_last_delivered_id{group=\"cache-filler-group\"}" }
+      ],
+      "fieldConfig": {
+        "defaults": { "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 1000 }, { "color": "red", "value": 5000 }] } }
+      }
+    },
+    {
+      "id": 6,
+      "title": "Processing Efficiency (Msgs/Sec-Work)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 18 },
+      "targets": [
+        { 
+          "expr": "rate(worker_messages_consumed_total[1m]) / rate(worker_processing_seconds_total[1m])", 
+          "legendFormat": "Efficiency Index" 
+        }
+      ],
+      "description": "How many messages are processed per 1 second of actual work time. A drop here means the worker is getting slower/less efficient."
+    },
+    {
+      "id": 7,
+      "title": "Cache Filler Logs",
+      "type": "logs",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 26 },
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "Loki" },
+          "expr": "{service=\"cache-filler-runner\"}"
+        }
+      ],
+      "options": { "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true }
+    }
+  ]
+}

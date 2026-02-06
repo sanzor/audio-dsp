@@ -1,0 +1,16 @@
+services:
+  backend:
+    build:
+      context: ../backend
+      dockerfile: api/Dockerfile
+    env_file:
+      - ../backend/api/dev.env
+    environment:
+      HOST: ${BACKEND_HOST:-0.0.0.0}
+      PORT: ${BACKEND_PORT_INTERNAL:-3080}
+      RUST_LOG: ${RUST_LOG:-info}
+      DATABASE_URL: ${DATABASE_URL:-postgres://postgres:postgres@postgres:5432/audio_dsp}
+    ports:
+      - "${BACKEND_PORT:-3080}:3080"
+    depends_on:
+      - postgres

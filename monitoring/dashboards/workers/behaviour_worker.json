@@ -1,0 +1,61 @@
+{
+  "title": "Worker: Behaviour (Event Ingestion) - V2",
+  "uid": "worker-behaviour-v2",
+  "editable": true,
+  "panels": [
+    {
+      "id": 1,
+      "title": "Messaging Throughput (Consumed vs Acked)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
+      "targets": [
+        { "expr": "sum(rate(worker_messages_consumed_total{service=\"behaviour\"}[1m]))", "legendFormat": "Consumed" },
+        { "expr": "sum(rate(worker_messages_acked_total{service=\"behaviour\"}[1m]))", "legendFormat": "Acked" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "pps", "custom": { "drawStyle": "line", "fillOpacity": 10 } } }
+    },
+    {
+      "id": 2,
+      "title": "Latency Breakdown (Logic vs Redis)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        { 
+          "expr": "sum(rate(worker_aggregation_seconds_total{service=\"behaviour\"}[1m])) / sum(rate(worker_messages_consumed_total{service=\"behaviour\"}[1m]))", 
+          "legendFormat": "Avg Aggregation (Rust)", "refId": "A" 
+        },
+        { 
+          "expr": "sum(rate(worker_redis_seconds_total{service=\"behaviour\"}[1m])) / sum(rate(worker_messages_consumed_total{service=\"behaviour\"}[1m]))", 
+          "legendFormat": "Avg Redis/Lua (I/O)", "refId": "B" 
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": { "drawStyle": "area", "stacking": { "mode": "normal", "group": "A" } }
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Error Rate",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [
+        { "expr": "sum(rate(worker_errors_total{service=\"behaviour\"}[1m])) or on() vector(0)", "legendFormat": "Errors/s" }
+      ],
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "red" }, "unit": "errorsps" } }
+    },
+    {
+      "id": 4,
+      "title": "Ingestion Logs (Audit Trail)",
+      "type": "logs",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 16 },
+      "targets": [{ "expr": "{service=\"behaviour\"}", "refId": "A" }],
+      "options": { "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true }
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 38,
+  "timezone": "browser"
+}

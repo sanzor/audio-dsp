@@ -14,4 +14,18 @@ Currently supported operations:
 - Stream audio tracks with supporting controls (play/pause/stop/seek)
 
 # First-time setup
-./scripts/setup-dev.sh
+./backend/scripts/setup-dev.sh
+
+# Local dev (Docker Compose)
+make up
+
+# URLs
+- Frontend: `http://localhost:3000`
+- Backend: `http://localhost:3080`
+- API docs (Swagger UI): `http://localhost:3080/docs`
+- Prometheus: `http://localhost:9090` (or `PROMETHEUS_PORT`)
+- Grafana: `http://localhost:3001` (or `GRAFANA_PORT`, default login `admin/admin`)
+
+# Local dev (manual)
+- Backend: `cargo run -p api` (from `./backend`)
+- Frontend: `pnpm install && pnpm dev` (from `./frontend`)

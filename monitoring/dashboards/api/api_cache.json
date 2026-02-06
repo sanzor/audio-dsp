@@ -1,0 +1,239 @@
+{
+  "title": "Cache & Ingestion Stats",
+  "uid": "api-cache",
+  "editable": true,
+  "schemaVersion": 36,
+  "panels": [
+    {
+      "id": 1,
+      "title": "Cache Hit Ratio",
+      "type": "gauge",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "expr": "100 * sum(scoring_api_cache_hits_total) / clamp_min(sum(scoring_api_cache_hits_total) + sum(scoring_api_cache_misses_total), 1)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "orange", "value": 70 },
+              { "color": "green", "value": 90 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Cache Source Distribution (Total)",
+      "type": "piechart",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 0 },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "expr": "sum(scoring_api_cache_hits_total{level=\"l1\"})",
+          "legendFormat": "L1 Hit",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "expr": "sum(scoring_api_cache_hits_total{level=\"l2\"})",
+          "legendFormat": "L2 Hit",
+          "refId": "B"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "expr": "sum(scoring_api_cache_misses_total)",
+          "legendFormat": "Miss",
+          "refId": "C"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "values": false, "calcs": ["lastNotNull"] },
+        "pieType": "donut",
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "single" }
+      }
+    },
+    {
+      "id": 4,
+      "title": "Cache Lookups (Cumulative)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "expr": "sum(scoring_api_cache_hits_total{level=\"l1\"})",
+          "legendFormat": "L1 Hit/s"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "expr": "sum(scoring_api_cache_hits_total{level=\"l2\"})",
+          "legendFormat": "L2 Hit/s"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "expr": "sum(scoring_api_cache_misses_total)",
+          "legendFormat": "Miss/s"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Freshness Distribution (Total)",
+      "type": "piechart",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "expr": "sum(scoring_api_response_freshness_total{state=\"fresh\"})",
+          "legendFormat": "Fresh",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "expr": "sum(scoring_api_response_freshness_total{state=\"stale\"})",
+          "legendFormat": "Stale",
+          "refId": "B"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "expr": "sum(scoring_api_response_freshness_total{state=\"missing\"})",
+          "legendFormat": "Missing",
+          "refId": "C"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "values": false, "calcs": ["lastNotNull"] },
+        "pieType": "donut",
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "single" }
+      }
+    },
+    {
+      "id": 6,
+      "title": "Stale Rate (%)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 8 },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "expr": "100 * sum(scoring_api_response_freshness_total{state=\"stale\"}) / clamp_min(sum(scoring_api_response_freshness_total), 1)",
+          "legendFormat": "Stale %"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Expired Encountered (L1 vs L2) / sec",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 8 },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "expr": "sum(scoring_api_cache_expired_total{level=\"l1\"})",
+          "legendFormat": "L1 Expired/s"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "expr": "sum(scoring_api_cache_expired_total{level=\"l2\"})",
+          "legendFormat": "L2 Expired/s"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Cache Age Percentiles (p50 / p95 / p99)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(scoring_api_cache_age_seconds_bucket[5m])))",
+          "legendFormat": "p50"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(scoring_api_cache_age_seconds_bucket[5m])))",
+          "legendFormat": "p95"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(scoring_api_cache_age_seconds_bucket[5m])))",
+          "legendFormat": "p99"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "title": "Cache Age Average",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 16 },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "expr": "rate(scoring_api_cache_age_seconds_sum[5m]) / rate(scoring_api_cache_age_seconds_count[5m])",
+          "legendFormat": "avg age"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      }
+    },
+    {
+      "id": 10,
+      "title": "Cache Freshness SLA (< 24h)",
+      "type": "gauge",
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 16 },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "expr": "sum(rate(scoring_api_cache_age_seconds_bucket{le=\"86400\"}[5m])) / sum(rate(scoring_api_cache_age_seconds_count[5m]))"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "orange", "value": 0.9 },
+              { "color": "green", "value": 0.99 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 11,
+      "title": "Cache Age Heatmap",
+      "type": "heatmap",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 24 },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "expr": "sum by (le) (rate(scoring_api_cache_age_seconds_bucket[5m]))",
+          "format": "heatmap"
+        }
+      ]
+    }
+  ]
+}

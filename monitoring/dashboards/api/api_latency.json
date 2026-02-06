@@ -1,0 +1,88 @@
+{
+  "title": "API Latency & SLO",
+  "uid": "api-latency",
+  "editable": true,
+  "refresh": "5s",
+  "panels": [
+    {
+      "id": 1,
+      "title": "Latency Percentiles (p50, p90, p95, p99)",
+      "type": "timeseries",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(scoring_service_response_time_bucket[$__rate_interval])))",
+          "legendFormat": "p99 (Worst Case)"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(scoring_service_response_time_bucket[$__rate_interval])))",
+          "legendFormat": "p95 (High)"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "expr": "histogram_quantile(0.90, sum by (le) (rate(scoring_service_response_time_bucket[$__rate_interval])))",
+          "legendFormat": "p90 (Slow)"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(scoring_service_response_time_bucket[$__rate_interval])))",
+          "legendFormat": "p50 (Median)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { 
+          "unit": "s", 
+          "color": { "mode": "palette-classic" },
+          "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 } 
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Cache Age Average",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 10 },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "expr": "rate(scoring_api_cache_age_seconds_sum[$__rate_interval]) / rate(scoring_api_cache_age_seconds_count[$__rate_interval])",
+          "legendFormat": "avg age"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "s" }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Cache Age Heatmap",
+      "type": "heatmap",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 10 },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "expr": "sum by (le) (rate(scoring_api_cache_age_seconds_bucket[$__rate_interval]))",
+          "format": "heatmap"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Performance by Endpoint (Avg)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 18 },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "expr": "sum by (endpoint) (rate(scoring_service_response_time_sum[$__rate_interval])) / sum by (endpoint) (rate(scoring_service_response_time_count[$__rate_interval]))",
+          "legendFormat": "{{endpoint}} Avg Latency"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "s" }
+      }
+    }
+  ]
+}

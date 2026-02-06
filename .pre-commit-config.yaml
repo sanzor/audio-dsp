@@ -4,7 +4,7 @@ repos:
       # 🧹 Auto-format (fix silently, never block)
       - id: rust-fmt
         name: Rust Format
-        entry: bash -c "cargo fmt || (echo 'format failed but continuing')"
+        entry: bash -c "cd backend && cargo fmt || (echo 'format failed but continuing')"
         language: system
         pass_filenames: false
         always_run: true
@@ -14,7 +14,7 @@ repos:
       # 🧩 Clippy - block commit on error
       - id: rust-lint
         name: Rust Clippy
-        entry: cargo clippy --workspace --all-targets
+        entry: bash -c "cd backend && cargo clippy --workspace --all-targets"
         language: system
         args: []
         pass_filenames: false
@@ -22,7 +22,7 @@ repos:
       # 🧪 Compile - block
       - id: rust-check
         name: Rust Check
-        entry: cargo check --workspace --all-targets
+        entry: bash -c "cd backend && cargo check --workspace --all-targets"
         args: []
         language: system
         pass_filenames: false

@@ -1,0 +1,28 @@
+{
+  "title": "Worker: IP Update (Maintenance)",
+  "uid": "worker-ip-update",
+  "editable": true,
+  "panels": [
+    {
+      "id": 1, "title": "IP Range Updates (Success vs Fail)", "type": "timeseries",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 0 },
+      "targets": [
+        { "expr": "rate(worker_tasks_total{service=\"ip-update\", status=\"success\"}[5m])", "legendFormat": "Success" },
+        { "expr": "rate(worker_tasks_total{service=\"ip-update\", status=\"error\"}[5m])", "legendFormat": "Fail" }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "IP Update Logs",
+      "type": "logs",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 10 },
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "Loki" },
+          "expr": "{service=\"ip-update-runner\"}"
+        }
+      ],
+      "options": { "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true }
+    }
+  ]
+}
