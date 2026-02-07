@@ -13,9 +13,7 @@ use actors::user_actor::{
 };
 use audiolib::Channels;
 use data_provider::{
-    in_memory_region_set_provider::InMemoryRegionSetProvider,
-    in_memory_user_provider::InMemoryUserProvider, tracks_provider::LocalTrackStoreProvider,
-    user_provider::UserProvider,
+    in_memory_user_provider::InMemoryUserProvider, user_provider::UserProvider,
 };
 use domain::actors::player_state::AudioPlayerState;
 use futures_util::{stream::SplitStream, SinkExt, StreamExt};
@@ -42,6 +40,7 @@ use crate::{
         controllers::utils::{create_user_and_actor, init_env, make_test_auth_cookie},
         utils::{get_user_state, insert_track, make_raw_track_from_samples},
     },
+    tests::test_providers::{StubRegionSetsProvider, StubTracksProvider},
     user_and_actor_resolver::local_user_and_actor_resolver::LocalUserAndActorResolver,
 };
 
@@ -54,8 +53,8 @@ async fn can_start_player_ws() -> Result<(), String> {
     let user_name = Ulid::new();
     let user_actor_deps = Arc::new(UserActorDeps {
         player_factory: Arc::new(PlayerFactory {}),
-        tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
-        region_sets_provider: Arc::new(InMemoryRegionSetProvider::new()),
+        tracks_provider: Arc::new(StubTracksProvider::new()),
+        region_sets_provider: Arc::new(StubRegionSetsProvider::new()),
     });
 
     let user_provider: Arc<dyn UserProvider> = Arc::new(InMemoryUserProvider::new());
@@ -72,8 +71,8 @@ async fn can_start_player_ws() -> Result<(), String> {
     let app_data = AppData {
         user_actor_deps: Arc::new(UserActorDeps {
             player_factory: Arc::new(PlayerFactory {}),
-            tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
-            region_sets_provider: Arc::new(InMemoryRegionSetProvider::new()),
+            tracks_provider: Arc::new(StubTracksProvider::new()),
+            region_sets_provider: Arc::new(StubRegionSetsProvider::new()),
         }),
         user_resolver: Arc::new(LocalUserAndActorResolver::new(user_provider, user_registry)),
     };
@@ -144,8 +143,8 @@ async fn can_stop_player_ws() -> Result<(), String> {
     let user_name = Ulid::new();
     let user_actor_deps = Arc::new(UserActorDeps {
         player_factory: Arc::new(PlayerFactory {}),
-        tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
-        region_sets_provider: Arc::new(InMemoryRegionSetProvider::new()),
+        tracks_provider: Arc::new(StubTracksProvider::new()),
+        region_sets_provider: Arc::new(StubRegionSetsProvider::new()),
     });
 
     let user_provider: Arc<dyn UserProvider> = Arc::new(InMemoryUserProvider::new());
@@ -162,8 +161,8 @@ async fn can_stop_player_ws() -> Result<(), String> {
     let app_data = AppData {
         user_actor_deps: Arc::new(UserActorDeps {
             player_factory: Arc::new(PlayerFactory {}),
-            tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
-            region_sets_provider: Arc::new(InMemoryRegionSetProvider::new()),
+            tracks_provider: Arc::new(StubTracksProvider::new()),
+            region_sets_provider: Arc::new(StubRegionSetsProvider::new()),
         }),
         user_resolver: Arc::new(LocalUserAndActorResolver::new(user_provider, user_registry)),
     };

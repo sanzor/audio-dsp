@@ -8,6 +8,9 @@ use domain::{
         insert_track::{InsertTrack, InsertTrackResult},
         update_track_info::{UpdateTrackInfo, UpdateTrackInfoResult},
     },
+    db::db_track::DbTrack,
+    raw_track::TrackInfo,
+    stored_track::StoredTrack,
     track_meta::TrackMeta,
     update_track_info_params::UpdateTrackInfoParams,
 };
@@ -15,6 +18,29 @@ use domain::{
 use crate::user_actor::actor::UserActor;
 use kameo::prelude::Context;
 use kameo::prelude::Message;
+
+fn db_track_to_track_meta(track: &DbTrack) -> TrackMeta {
+    TrackMeta {
+        track_info: TrackInfo {
+            name: track.name.clone(),
+            extension: track.extension.clone(),
+            length: track.length_seconds,
+        },
+        track_id: track.track_id.clone(),
+    }
+}
+
+fn db_track_to_stored_track(track: DbTrack) -> StoredTrack {
+    StoredTrack {
+        track_id: track.track_id,
+        track_info: TrackInfo {
+            name: track.name,
+            extension: track.extension,
+            length: track.length_seconds,
+        },
+        canonical_audio: track.canonical_audio,
+    }
+}
 
 impl Message<GetStoredTrack> for UserActor {
     type Reply = Result<GetStoredTrackResult, String>;
@@ -24,11 +50,10 @@ impl Message<GetStoredTrack> for UserActor {
         msg: GetStoredTrack,
         _ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
-        let track = self.tracks_provider.get_stored_track(&msg.track_id).await;
-        match track {
-            Err(_e) => Err("Could not find track".to_string()),
-            Ok(track) => Ok(GetStoredTrackResult { track }),
-        }
+        let track = self.tracks_provider.get_track(&msg.track_id).await?;
+        Ok(GetStoredTrackResult {
+            track: db_track_to_stored_track(track),
+        })
     }
 }
 
@@ -40,13 +65,14 @@ impl Message<CopyTrack> for UserActor {
         msg: CopyTrack,
         _ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
-        let result: TrackMeta = self
+        let result = self
             .tracks_provider
             .copy_track(&msg.track_id, &msg.track_copy_name)
             .await?;
+        let result_meta = db_track_to_track_meta(&result);
         Ok(CopyTrackResult {
-            copied_track_id: result.track_id,
-            track_copy_name: result.track_info.name,
+            copied_track_id: result_meta.track_id,
+            track_copy_name: result_meta.track_info.name,
         })
     }
 }
@@ -59,9 +85,9 @@ impl Message<GetTrackMeta> for UserActor {
         msg: GetTrackMeta,
         _ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
-        let get_info_result = self.tracks_provider.get_track_meta(&msg.track_id).await?;
+        let get_info_result = self.tracks_provider.get_track(&msg.track_id).await?;
         Ok(GetTrackMetaResult {
-            track_meta: get_info_result,
+            track_meta: db_track_to_track_meta(&get_info_result),
         })
     }
 }
@@ -74,8 +100,8 @@ impl Message<GetTrackMetas> for UserActor {
         _msg: GetTrackMetas,
         _ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
-        let tracks_info_result = self.tracks_provider.get_all_track_infos().await?;
-        let result: Vec<TrackMeta> = tracks_info_result.track_infos.into_values().collect();
+        let tracks = self.tracks_provider.get_all_tracks().await?;
+        let result: Vec<TrackMeta> = tracks.iter().map(db_track_to_track_meta).collect();
         Ok(GetTracksResult { tracks: result })
     }
 }
@@ -88,7 +114,8 @@ impl Message<InsertTrack> for UserActor {
         msg: InsertTrack,
         _ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
-        let track_meta = self.tracks_provider.upsert_track(msg.track).await?;
+        let track = self.tracks_provider.upsert_track(msg.track).await?;
+        let track_meta = db_track_to_track_meta(&track);
         Ok(InsertTrackResult {
             track_id: track_meta.track_id.clone(),
             user_id: self.user_data.id.to_string(),
@@ -104,8 +131,8 @@ impl Message<DeleteTrack> for UserActor {
         msg: DeleteTrack,
         _ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
-        let del_result = self.tracks_provider.delete_track(&msg.track_id).await;
-        del_result.map(|()| DeleteTrackResult {})
+        self.tracks_provider.delete_track(&msg.track_id).await?;
+        Ok(DeleteTrackResult {})
     }
 }
 
@@ -117,7 +144,7 @@ impl Message<UpdateTrackInfo> for UserActor {
         msg: domain::actors::messages::tracks::update_track_info::UpdateTrackInfo,
         _ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
-        let update_result = self
+        let update_track = self
             .tracks_provider
             .update_track_info(
                 &msg.track_id,
@@ -127,7 +154,7 @@ impl Message<UpdateTrackInfo> for UserActor {
             )
             .await?;
         Ok(UpdateTrackInfoResult {
-            track_meta: update_result,
+            track_meta: db_track_to_track_meta(&update_track),
         })
     }
 }

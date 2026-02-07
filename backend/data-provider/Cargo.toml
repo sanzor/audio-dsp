@@ -16,3 +16,4 @@ jsonwebtoken = { version = "10", features = ["aws_lc_rs"] }
 chrono = "0.4"
 hound="3.5.1"
 audiolib={path = "../audiolib"}
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "chrono"] }

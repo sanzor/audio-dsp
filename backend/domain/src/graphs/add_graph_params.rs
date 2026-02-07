@@ -1,7 +1,8 @@
 use crate::graphs::graph::Graph;
+use crate::db::RegionId;
 
 pub struct AddGraphParams {
-    pub region_id: String,
+    pub region_id: RegionId,
     pub name: String,
 }
 

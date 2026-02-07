@@ -23,6 +23,8 @@ use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use utoipa::{IntoParams, ToSchema};
 
+use domain::db::TrackId;
+
 #[derive(Deserialize, Serialize)]
 pub struct AddTrackParams {
     pub track: RawTrack,
@@ -30,7 +32,7 @@ pub struct AddTrackParams {
 
 #[derive(Serialize, Deserialize)]
 pub struct AddTrackResult {
-    pub track_id: String,
+    pub track_id: TrackId,
 }
 
 #[utoipa::path(
@@ -145,7 +147,7 @@ pub async fn add_track_multi(
 
 #[derive(Deserialize, ToSchema)]
 pub struct CopyTrackParams {
-    pub track_id: String,
+    pub track_id: TrackId,
     pub copy_track_name: String,
 }
 
@@ -184,7 +186,7 @@ pub async fn copy_track(
 
 #[derive(Deserialize, ToSchema)]
 pub struct UpdateTrackParams {
-    pub track_id: String,
+    pub track_id: TrackId,
     pub track_name: String,
 }
 #[utoipa::path(
@@ -221,7 +223,7 @@ pub async fn update_track_info(
 }
 #[derive(Deserialize, IntoParams)]
 pub struct RemoveTrackParams {
-    pub track_id: String,
+    pub track_id: TrackId,
 }
 
 #[utoipa::path(
@@ -257,7 +259,7 @@ pub async fn remove_track(
 }
 #[derive(Deserialize, IntoParams)]
 pub struct GetTrackParams {
-    pub track_id: String,
+    pub track_id: TrackId,
 }
 #[utoipa::path(
     get,
@@ -359,7 +361,7 @@ pub async fn get_tracks(user: AuthenticatedUser, app_state: web::Data<AppData>) 
 
 #[derive(Deserialize, ToSchema)]
 pub struct GetTrackInfoParams {
-    pub track_id: String,
+    pub track_id: TrackId,
 }
 #[utoipa::path(
     get,

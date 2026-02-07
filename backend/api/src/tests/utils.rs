@@ -7,10 +7,7 @@ use actors::user_actor::{
     player_factory::PlayerFactory, user_actor_deps::UserActorDeps,
 };
 use audiolib::{audio_buffer::AudioBuffer, Channels};
-use data_provider::{
-    in_memory_region_set_provider::InMemoryRegionSetProvider,
-    tracks_provider::{LocalTrackStoreProvider, TracksProvider},
-};
+use data_provider::tracks_provider::TracksProvider;
 use domain::{
     actors::messages::tracks::get_tracks::GetTracksResult,
     domain_user::DomainUser,
@@ -23,10 +20,10 @@ use crate::controllers::{
     tracks_crud_controller::{AddTrackParams, AddTrackResult},
     user_controller::GetUserDataResult,
 };
+use crate::tests::test_providers::{StubRegionSetsProvider, StubTracksProvider};
 
 pub fn create_user_actor(id: Ulid) -> ActorRef<UserActor> {
-    let tracks_provider: Arc<dyn TracksProvider + Send + Sync> =
-        Arc::new(LocalTrackStoreProvider::new());
+    let tracks_provider: Arc<dyn TracksProvider + Send + Sync> = Arc::new(StubTracksProvider::new());
     let player_factory = PlayerFactory {};
     let actor_params = CreateUserActorParams {
         user_data: DomainUser {
@@ -39,7 +36,7 @@ pub fn create_user_actor(id: Ulid) -> ActorRef<UserActor> {
         user_actor_deps: Arc::new(UserActorDeps {
             player_factory: Arc::new(player_factory),
             tracks_provider: Arc::clone(&tracks_provider),
-            region_sets_provider: Arc::new(InMemoryRegionSetProvider::new()),
+            region_sets_provider: Arc::new(StubRegionSetsProvider::new()),
         }),
     };
     let actor = UserActor::spawn(UserActor::new(actor_params));

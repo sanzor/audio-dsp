@@ -1,9 +1,10 @@
 use serde::Serialize;
 
+use crate::db::RegionSetId;
 use crate::regions::region_set::RegionSet;
 
 pub struct CopyRegionSet {
-    pub region_set_id: String,
+    pub region_set_id: RegionSetId,
     pub region_set_copy_name: String,
 }
 #[derive(Serialize)]

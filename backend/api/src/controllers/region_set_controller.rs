@@ -6,6 +6,7 @@ use domain::{
         get_region_set::GetRegionSet, get_region_sets_for_track::GetRegionSetsForTrack,
         get_regions_sets::GetRegionSets,
     },
+    db::{RegionSetId, TrackId},
     regions::region_set::RegionSet,
 };
 use serde::{Deserialize, Serialize};
@@ -18,7 +19,7 @@ use crate::{
 #[derive(Deserialize, ToSchema)]
 pub struct CreateRegionSetParams {
     #[serde(rename = "trackId")]
-    pub track_id: String,
+    pub track_id: TrackId,
     #[serde(rename = "name")]
     pub name: Option<String>,
 }
@@ -70,8 +71,8 @@ pub async fn create_region_set(
 
 #[derive(Deserialize, ToSchema)]
 pub struct EditRegionSetParams {
-    pub region_set_id: String,
-    pub track_id: String,
+    pub region_set_id: RegionSetId,
+    pub track_id: TrackId,
     pub name: Option<String>,
 }
 
@@ -118,7 +119,7 @@ pub async fn edit_region_set(
 
 #[derive(Deserialize, IntoParams)]
 pub struct GetRegionSetParams {
-    pub region_set_id: String,
+    pub region_set_id: RegionSetId,
 }
 
 #[utoipa::path(
@@ -178,7 +179,7 @@ pub async fn get_region_sets(
 #[derive(Deserialize, IntoParams)]
 pub struct GetRegionsForTrackParams {
     #[serde(rename = "trackId")]
-    pub track_id: String,
+    pub track_id: TrackId,
 }
 
 #[utoipa::path(
@@ -215,7 +216,7 @@ pub async fn get_region_sets_for_track(
 #[derive(Deserialize, IntoParams)]
 pub struct DeleteRegionSetParams {
     #[serde(rename = "regionSetId")]
-    pub region_set_id: String,
+    pub region_set_id: RegionSetId,
 }
 
 #[utoipa::path(
@@ -252,7 +253,7 @@ pub async fn delete_region_set(
 #[derive(Deserialize, ToSchema)]
 pub struct CopyRegionSetParams {
     #[serde(rename = "regionSetId")]
-    pub region_set_id: String,
+    pub region_set_id: RegionSetId,
 
     #[serde(rename = "copyName")]
     pub copy_region_set_name: String,

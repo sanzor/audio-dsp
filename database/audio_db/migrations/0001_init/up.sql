@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS tracks (
   name TEXT NOT NULL,
   extension TEXT NOT NULL,
   length_seconds REAL NOT NULL CHECK (length_seconds >= 0),
+  canonical_audio BYTEA NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -59,4 +60,3 @@ CREATE TABLE IF NOT EXISTS graph_edges (
 CREATE INDEX IF NOT EXISTS idx_graph_edges_graph_id ON graph_edges(graph_id);
 
 COMMIT;
-

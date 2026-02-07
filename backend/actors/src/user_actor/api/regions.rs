@@ -5,6 +5,7 @@ use domain::{
         delete_region::{DeleteRegion, DeleteRegionResult},
         edit_region::{EditRegion, EditRegionResult},
     },
+    db::db_region::DbRegion,
     regions::{
         add_region_params::AddRegionParams, copy_region_params::CopyRegionParams,
         delete_region_params::DeleteRegionParams, edit_region_params::EditRegionParams,
@@ -23,13 +24,10 @@ impl Message<AddRegion> for UserActor {
         msg: AddRegion,
         _ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
-        let set: RegionSet = self
-            .region_set_provider
-            .get_region_set(&msg.region_set_id)
-            .await?;
+        let set: RegionSet = self.load_region_set_domain(&msg.region_set_id).await?;
         let resolved_time = UserActor::resolve_end_time(&set, msg.start_time, msg.end_time_policy)?;
 
-        let rez: RegionSet = self
+        let _region: DbRegion = self
             .region_set_provider
             .add_region(AddRegionParams {
                 name: msg.name,
@@ -38,6 +36,7 @@ impl Message<AddRegion> for UserActor {
                 region_set_id: msg.region_set_id,
             })
             .await?;
+        let rez = self.load_region_set_domain(&set.region_set_id).await?;
         Ok(AddRegionResult { region_set: rez })
     }
 }
@@ -79,7 +78,7 @@ impl Message<EditRegion> for UserActor {
         msg: EditRegion,
         _ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
-        let result: RegionSet = self
+        let _region: DbRegion = self
             .region_set_provider
             .edit_region(EditRegionParams {
                 name: msg.name,
@@ -89,6 +88,7 @@ impl Message<EditRegion> for UserActor {
                 start_time: msg.start_time,
             })
             .await?;
+        let result = self.load_region_set_domain(&msg.region_set_id).await?;
         Ok(EditRegionResult { region_set: result })
     }
 }
@@ -118,7 +118,7 @@ impl Message<CopyRegion> for UserActor {
         msg: CopyRegion,
         _ctx: &mut Context<Self, Self::Reply>,
     ) -> Self::Reply {
-        let region_set = self
+        let _region: DbRegion = self
             .region_set_provider
             .copy_region(CopyRegionParams {
                 source_region_set_id: msg.source_region_set_id,
@@ -128,6 +128,9 @@ impl Message<CopyRegion> for UserActor {
                 destination_track_id: msg.destination_track_id,
                 region_copy_name: msg.copy_name,
             })
+            .await?;
+        let region_set = self
+            .load_region_set_domain(&msg.destination_region_set_id)
             .await?;
         Ok(CopyRegionResult { region_set })
     }

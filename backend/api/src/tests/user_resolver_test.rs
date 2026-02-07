@@ -5,14 +5,13 @@ use actors::user_actor::{
     user_actor_deps::UserActorDeps, user_actor_registry::UserActorRegistry,
 };
 use data_provider::{
-    in_memory_region_set_provider::InMemoryRegionSetProvider,
-    in_memory_user_provider::InMemoryUserProvider, tracks_provider::LocalTrackStoreProvider,
-    user_provider::UserProvider,
+    in_memory_user_provider::InMemoryUserProvider, user_provider::UserProvider,
 };
 use rstest::rstest;
 
 use crate::{
     dtos::google_user_info::GoogleUserInfo,
+    tests::test_providers::{StubRegionSetsProvider, StubTracksProvider},
     user_and_actor_resolver::local_user_and_actor_resolver::LocalUserAndActorResolver,
 };
 
@@ -110,7 +109,7 @@ pub async fn can_get_existing_user() -> Result<(), String> {
 fn create_user_deps() -> UserActorDeps {
     UserActorDeps {
         player_factory: Arc::new(PlayerFactory {}),
-        tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
-        region_sets_provider: Arc::new(InMemoryRegionSetProvider::new()),
+        tracks_provider: Arc::new(StubTracksProvider::new()),
+        region_sets_provider: Arc::new(StubRegionSetsProvider::new()),
     }
 }

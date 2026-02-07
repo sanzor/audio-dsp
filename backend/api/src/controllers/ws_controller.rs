@@ -10,6 +10,7 @@ use actors::user_actor::{
     user_attach_sink::{UserAttachSink, UserAttachSinkResult},
 };
 use async_std::stream::StreamExt;
+use domain::db::TrackId;
 use domain::actors::messages::user_to_player::{
     user_pause::UserPause, user_play::UserPlay, user_seek::UserSeek, user_stop::UserStop,
 };
@@ -34,15 +35,15 @@ pub enum WebsocketSendMessage {
 }
 #[derive(Deserialize, IntoParams)]
 pub struct PlayRequest {
-    pub track_id: String,
+    pub track_id: TrackId,
 }
 #[derive(Deserialize, Serialize)]
 #[serde(tag = "type")]
 pub enum WsMessage {
-    Play { track_id: String },
-    Stop { track_id: String },
-    Pause { track_id: String },
-    Seek { track_id: String, position: u32 },
+    Play { track_id: TrackId },
+    Stop { track_id: TrackId },
+    Pause { track_id: TrackId },
+    Seek { track_id: TrackId, position: u32 },
 }
 #[utoipa::path(
     get,

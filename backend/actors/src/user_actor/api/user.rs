@@ -9,11 +9,24 @@ use domain::{
             update_user::{UpdateUser, UpdateUserResult},
         },
     },
+    db::db_track::DbTrack,
+    raw_track::TrackInfo,
     track_meta::TrackMeta,
 };
 use kameo::prelude::{Context, Message};
 
 use crate::user_actor::actor::UserActor;
+
+fn db_track_to_track_meta(track: &DbTrack) -> TrackMeta {
+    TrackMeta {
+        track_info: TrackInfo {
+            name: track.name.clone(),
+            extension: track.extension.clone(),
+            length: track.length_seconds,
+        },
+        track_id: track.track_id.clone(),
+    }
+}
 
 impl Message<GetUserState> for UserActor {
     type Reply = Result<GetUserStateResult, String>;
@@ -26,9 +39,10 @@ impl Message<GetUserState> for UserActor {
         let mut player_list: HashMap<String, GetPlayerStateResult> = HashMap::new();
         let mut track_list: HashMap<String, TrackMeta> = HashMap::new();
 
-        let tracks_result = self.tracks_provider.get_all_track_infos().await?;
-        for (key, track_info) in tracks_result.track_infos {
-            track_list.insert(key, track_info);
+        let tracks = self.tracks_provider.get_all_tracks().await?;
+        for track in tracks {
+            let meta = db_track_to_track_meta(&track);
+            track_list.insert(meta.track_id.clone(), meta);
         }
         for (k, element) in &self.players_provider {
             let player_state = element

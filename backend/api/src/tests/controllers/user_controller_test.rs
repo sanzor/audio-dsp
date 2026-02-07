@@ -6,9 +6,7 @@ use actix_web::{test, web, App};
 use ::actors::user_actor::player_factory::PlayerFactory;
 use actors::user_actor::{user_actor_deps::UserActorDeps, user_actor_registry::UserActorRegistry};
 use data_provider::{
-    in_memory_region_set_provider::InMemoryRegionSetProvider,
-    in_memory_user_provider::InMemoryUserProvider, tracks_provider::LocalTrackStoreProvider,
-    user_provider::UserProvider,
+    in_memory_user_provider::InMemoryUserProvider, user_provider::UserProvider,
 };
 use rstest::rstest;
 use ulid::Ulid;
@@ -17,6 +15,7 @@ use crate::{
     app_data::AppData,
     controllers::user_controller::{self, GetUserDataResult, UpdateUserParams, UserUpdateResult},
     player_controller_test::controllers::utils::{create_user_and_actor, init_env},
+    tests::test_providers::{StubRegionSetsProvider, StubTracksProvider},
     user_and_actor_resolver::local_user_and_actor_resolver::LocalUserAndActorResolver,
 };
 
@@ -27,8 +26,8 @@ async fn can_get_user() -> Result<(), String> {
     let user_name = Ulid::new();
     let user_actor_deps = Arc::new(UserActorDeps {
         player_factory: Arc::new(PlayerFactory {}),
-        tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
-        region_sets_provider: Arc::new(InMemoryRegionSetProvider::new()),
+        tracks_provider: Arc::new(StubTracksProvider::new()),
+        region_sets_provider: Arc::new(StubRegionSetsProvider::new()),
     });
 
     let user_provider: Arc<dyn UserProvider> = Arc::new(InMemoryUserProvider::new());
@@ -44,8 +43,8 @@ async fn can_get_user() -> Result<(), String> {
     let app_data = AppData {
         user_actor_deps: Arc::new(UserActorDeps {
             player_factory: Arc::new(PlayerFactory {}),
-            tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
-            region_sets_provider: Arc::new(InMemoryRegionSetProvider::new()),
+            tracks_provider: Arc::new(StubTracksProvider::new()),
+            region_sets_provider: Arc::new(StubRegionSetsProvider::new()),
         }),
         user_resolver: Arc::new(LocalUserAndActorResolver::new(user_provider, user_registry)),
     };
@@ -69,8 +68,8 @@ async fn can_insert_user() -> Result<(), String> {
     let user_name = Ulid::new();
     let user_actor_deps = Arc::new(UserActorDeps {
         player_factory: Arc::new(PlayerFactory {}),
-        tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
-        region_sets_provider: Arc::new(InMemoryRegionSetProvider::new()),
+        tracks_provider: Arc::new(StubTracksProvider::new()),
+        region_sets_provider: Arc::new(StubRegionSetsProvider::new()),
     });
 
     let user_provider: Arc<dyn UserProvider> = Arc::new(InMemoryUserProvider::new());
@@ -86,8 +85,8 @@ async fn can_insert_user() -> Result<(), String> {
     let app_data = AppData {
         user_actor_deps: Arc::new(UserActorDeps {
             player_factory: Arc::new(PlayerFactory {}),
-            tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
-            region_sets_provider: Arc::new(InMemoryRegionSetProvider::new()),
+            tracks_provider: Arc::new(StubTracksProvider::new()),
+            region_sets_provider: Arc::new(StubRegionSetsProvider::new()),
         }),
         user_resolver: Arc::new(LocalUserAndActorResolver::new(user_provider, user_registry)),
     };
@@ -108,8 +107,8 @@ async fn can_remove_user() -> Result<(), String> {
     let user_name = Ulid::new();
     let user_actor_deps = Arc::new(UserActorDeps {
         player_factory: Arc::new(PlayerFactory {}),
-        tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
-        region_sets_provider: Arc::new(InMemoryRegionSetProvider::new()),
+        tracks_provider: Arc::new(StubTracksProvider::new()),
+        region_sets_provider: Arc::new(StubRegionSetsProvider::new()),
     });
 
     let user_provider: Arc<dyn UserProvider> = Arc::new(InMemoryUserProvider::new());
@@ -125,8 +124,8 @@ async fn can_remove_user() -> Result<(), String> {
     let app_data = AppData {
         user_actor_deps: Arc::new(UserActorDeps {
             player_factory: Arc::new(PlayerFactory {}),
-            tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
-            region_sets_provider: Arc::new(InMemoryRegionSetProvider::new()),
+            tracks_provider: Arc::new(StubTracksProvider::new()),
+            region_sets_provider: Arc::new(StubRegionSetsProvider::new()),
         }),
         user_resolver: Arc::new(LocalUserAndActorResolver::new(user_provider, user_registry)),
     };
@@ -155,8 +154,8 @@ async fn can_update_user() -> Result<(), String> {
     let user_name = Ulid::new();
     let user_actor_deps = Arc::new(UserActorDeps {
         player_factory: Arc::new(PlayerFactory {}),
-        tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
-        region_sets_provider: Arc::new(InMemoryRegionSetProvider::new()),
+        tracks_provider: Arc::new(StubTracksProvider::new()),
+        region_sets_provider: Arc::new(StubRegionSetsProvider::new()),
     });
 
     let user_provider: Arc<dyn UserProvider> = Arc::new(InMemoryUserProvider::new());
@@ -172,8 +171,8 @@ async fn can_update_user() -> Result<(), String> {
     let app_data = AppData {
         user_actor_deps: Arc::new(UserActorDeps {
             player_factory: Arc::new(PlayerFactory {}),
-            tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
-            region_sets_provider: Arc::new(InMemoryRegionSetProvider::new()),
+            tracks_provider: Arc::new(StubTracksProvider::new()),
+            region_sets_provider: Arc::new(StubRegionSetsProvider::new()),
         }),
         user_resolver: Arc::new(LocalUserAndActorResolver::new(user_provider, user_registry)),
     };

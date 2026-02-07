@@ -1,7 +1,8 @@
+use crate::db::TrackId;
 use crate::actors::player_state::AudioPlayerState;
 
 pub struct UserGetPlayerState {
-    pub track_id: String,
+    pub track_id: TrackId,
 }
 
 pub struct UserGetPlayerStateResult {

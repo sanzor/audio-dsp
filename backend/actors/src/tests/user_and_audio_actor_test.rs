@@ -1,10 +1,7 @@
 use std::{collections::VecDeque, sync::Arc};
 
 use audiolib::{audio_buffer::AudioBuffer, Channels};
-use data_provider::{
-    in_memory_region_set_provider::InMemoryRegionSetProvider,
-    tracks_provider::LocalTrackStoreProvider,
-};
+use crate::tests::test_providers::{StubRegionSetsProvider, StubTracksProvider};
 use domain::{
     actors::{
         messages::{
@@ -36,8 +33,8 @@ use crate::user_actor::{
 };
 
 fn create_user_actor(id: Ulid) -> ActorRef<UserActor> {
-    let tracks_provider = Arc::new(LocalTrackStoreProvider::new());
-    let region_sets_provider = Arc::new(InMemoryRegionSetProvider::new());
+    let tracks_provider = Arc::new(StubTracksProvider::new());
+    let region_sets_provider = Arc::new(StubRegionSetsProvider::new());
     let actor_params = CreateUserActorParams {
         user_data: DomainUser {
             email: id.to_string(),

@@ -13,9 +13,8 @@ use api::{
     user_and_actor_resolver::local_user_and_actor_resolver::LocalUserAndActorResolver,
 };
 use data_provider::{
-    in_memory_region_set_provider::InMemoryRegionSetProvider,
-    in_memory_user_provider::InMemoryUserProvider, tracks_provider::LocalTrackStoreProvider,
-    user_provider::UserProvider,
+    in_memory_user_provider::InMemoryUserProvider, postgres_region_set_provider::PostgresRegionSetsProvider,
+    postgres_tracks_provider::PostgresTracksProvider, user_provider::UserProvider,
 };
 use std::sync::Arc;
 
@@ -33,6 +32,13 @@ async fn start_server() -> std::io::Result<()> {
         .ok()
         .and_then(|v| v.parse().ok())
         .unwrap_or(3080);
+    let database_url = std::env::var("DATABASE_URL")
+        .unwrap_or_else(|_| "postgres://postgres:postgres@localhost:5432/audio_dsp".to_string());
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(10)
+        .connect(&database_url)
+        .await
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
 
     let user_provider: Arc<dyn UserProvider> = Arc::new(InMemoryUserProvider::new());
     let user_registry = Arc::new(UserActorRegistry::new());
@@ -43,8 +49,8 @@ async fn start_server() -> std::io::Result<()> {
         )),
         user_actor_deps: Arc::new(UserActorDeps {
             player_factory: Arc::new(PlayerFactory {}),
-            tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
-            region_sets_provider: Arc::new(InMemoryRegionSetProvider::new()),
+            tracks_provider: Arc::new(PostgresTracksProvider::new(pool.clone())),
+            region_sets_provider: Arc::new(PostgresRegionSetsProvider::new(pool.clone())),
         }),
     };
     println!("Server running at http://{host}:{port}");

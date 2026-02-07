@@ -6,9 +6,7 @@ use actors::user_actor::{
     user_actor_registry::UserActorRegistry,
 };
 use data_provider::{
-    in_memory_region_set_provider::InMemoryRegionSetProvider,
-    in_memory_user_provider::InMemoryUserProvider, tracks_provider::LocalTrackStoreProvider,
-    user_provider::UserProvider,
+    in_memory_user_provider::InMemoryUserProvider, user_provider::UserProvider,
 };
 use httpmock::prelude::*;
 
@@ -18,6 +16,7 @@ use crate::{
     app_data::AppData,
     controllers::google_controller::{self, exchange_code_for_user},
     player_controller_test::utils::create_user_actor,
+    tests::test_providers::{StubRegionSetsProvider, StubTracksProvider},
     user_and_actor_resolver::local_user_and_actor_resolver::LocalUserAndActorResolver,
 };
 
@@ -75,8 +74,8 @@ pub async fn can_auth_integration_test() -> Result<(), String> {
     let app_data = AppData {
         user_actor_deps: Arc::new(UserActorDeps {
             player_factory: Arc::new(PlayerFactory {}),
-            tracks_provider: Arc::new(LocalTrackStoreProvider::new()),
-            region_sets_provider: Arc::new(InMemoryRegionSetProvider::new()),
+            tracks_provider: Arc::new(StubTracksProvider::new()),
+            region_sets_provider: Arc::new(StubRegionSetsProvider::new()),
         }),
         user_resolver: Arc::new(LocalUserAndActorResolver::new(
             user_provider,

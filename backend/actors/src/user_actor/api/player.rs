@@ -179,8 +179,16 @@ impl UserActor {
         let payload = match self.cached_tracks.get(track_id) {
             Some(payload) => Arc::clone(payload),
             None => {
-                let track_copy: StoredTrack =
-                    self.tracks_provider.get_stored_track(track_id).await?;
+                let db_track = self.tracks_provider.get_track(&track_id.to_string()).await?;
+                let track_copy = StoredTrack {
+                    track_id: db_track.track_id,
+                    track_info: domain::raw_track::TrackInfo {
+                        name: db_track.name,
+                        extension: db_track.extension,
+                        length: db_track.length_seconds,
+                    },
+                    canonical_audio: db_track.canonical_audio,
+                };
 
                 let payload_ref = Arc::new(track_copy);
                 self.cached_tracks
@@ -198,7 +206,15 @@ impl UserActor {
         &mut self,
         msg: UserAttachSink,
     ) -> Result<UserAttachSinkResult, String> {
-        let meta = self.tracks_provider.get_track_meta(&msg.track_id).await?;
+        let db_track = self.tracks_provider.get_track(&msg.track_id).await?;
+        let meta = domain::track_meta::TrackMeta {
+            track_info: domain::raw_track::TrackInfo {
+                name: db_track.name.clone(),
+                extension: db_track.extension.clone(),
+                length: db_track.length_seconds,
+            },
+            track_id: db_track.track_id.clone(),
+        };
         let sink_id = ulid::Ulid::new().to_string();
         let mut sinks = HashMap::new();
         sinks.insert(sink_id.clone(), msg.sink);
