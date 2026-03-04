@@ -1,7 +1,7 @@
 use audiolib::utils::encode_audio_buffer_as_wav;
 use domain::{
     db::db_track::{DbTrack, TrackId},
-    raw_track::RawTrack,
+    tracks::raw_track::RawTrack,
     update_track_info_params::UpdateTrackInfoParams,
 };
 use sqlx::PgPool;

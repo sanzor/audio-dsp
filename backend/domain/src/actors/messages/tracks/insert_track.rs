@@ -1,7 +1,7 @@
 use serde::Serialize;
 
 use crate::db::TrackId;
-use crate::raw_track::RawTrack;
+use crate::tracks::raw_track::RawTrack;
 
 pub struct InsertTrack {
     pub track: RawTrack,

@@ -3,7 +3,8 @@ use std::collections::HashMap;
 use serde::Deserialize;
 
 use crate::{
-    actors::messages::player::get_player_state::GetPlayerStateResult, track_meta::TrackMeta,
+    actors::messages::player::get_player_state::GetPlayerStateResult,
+    tracks::track_meta::TrackMeta,
 };
 
 pub struct GetUserState {}

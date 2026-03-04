@@ -1,5 +1,5 @@
-use crate::db::TrackId;
-use crate::regions::region_set::RegionSet;
+use crate::db::{DbRegionSet, TrackId};
+
 
 pub struct CreateRegionSet {
     pub track_id: TrackId,
@@ -7,5 +7,5 @@ pub struct CreateRegionSet {
 }
 
 pub struct CreateRegionSetResult {
-    pub region_set: RegionSet,
+    pub region_set: DbRegionSet,
 }

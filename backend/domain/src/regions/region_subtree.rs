@@ -1,3 +1,4 @@
-pub struct RegionSubtree{
-    
-}
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RegionSubtree {}

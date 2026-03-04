@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::track_meta::TrackMeta;
+use crate::tracks::track_meta::TrackMeta;
 
 pub struct GetTrackMetas {}
 

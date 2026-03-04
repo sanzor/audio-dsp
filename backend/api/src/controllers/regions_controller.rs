@@ -1,4 +1,5 @@
 use actix_web::{delete, patch, post, web, HttpResponse};
+use chrono::{DateTime, Utc};
 use domain::{
     actors::messages::regions::{
         add_region::{AddRegion, EndTimePolicy},
@@ -6,8 +7,7 @@ use domain::{
         delete_region::DeleteRegion,
         edit_region::EditRegion,
     },
-    db::{RegionId, RegionSetId, TrackId},
-    regions::region_set::RegionSet,
+    db::{DbRegionSet, RegionId, RegionSetId, TrackId},
 };
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
@@ -16,16 +16,53 @@ use crate::{
     app_data::AppData, controllers::utils::get_user_actor_internal,
     dtos::authenticated_user::AuthenticatedUser,
 };
+
+// Shared region-set result fields (1:1 with DbRegionSet)
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RegionSetResult {
+    pub region_set_id: RegionSetId,
+    pub track_id: TrackId,
+    pub name: String,
+    pub track_length_seconds: f32,
+    pub created_at: DateTime<Utc>,
+}
+
+impl From<DbRegionSet> for RegionSetResult {
+    fn from(db: DbRegionSet) -> Self {
+        RegionSetResult {
+            region_set_id: db.region_set_id,
+            track_id: db.track_id,
+            name: db.name,
+            track_length_seconds: db.track_length_seconds,
+            created_at: db.created_at,
+        }
+    }
+}
+
+// ── add ───────────────────────────────────────────────────────────────────────
+
 #[derive(Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct AddRegionParams {
-    pub track_id: RegionSetId,
+    pub region_set_id: RegionSetId,
     pub start_time: f32,
     pub name: String,
     pub end_time_policy: String,
 }
+
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AddRegionResult {
-    region_set: RegionSet,
+    pub region_set: RegionSetResult,
+}
+
+impl From<DbRegionSet> for AddRegionResult {
+    fn from(db: DbRegionSet) -> Self {
+        AddRegionResult {
+            region_set: RegionSetResult::from(db),
+        }
+    }
 }
 
 #[utoipa::path(
@@ -47,24 +84,24 @@ pub async fn add_region(
         Err(_e) => return HttpResponse::NotFound().body("User not found"),
     };
 
-    let rez = match resolved_user
+    match resolved_user
         .ask(AddRegion {
             name: request.name,
-            region_set_id: request.track_id,
+            region_set_id: request.region_set_id,
             start_time: request.start_time,
             end_time_policy: EndTimePolicy::NextRegionOrEnd,
         })
         .await
     {
-        Ok(r) => HttpResponse::Created().json(AddRegionResult {
-            region_set: r.region_set,
-        }),
-        Err(_e) => return HttpResponse::InternalServerError().body("Could not add region"),
-    };
-    rez
+        Ok(r) => HttpResponse::Created().json(AddRegionResult::from(r.region_set)),
+        Err(_e) => HttpResponse::InternalServerError().body("Could not add region"),
+    }
 }
 
+// ── edit ──────────────────────────────────────────────────────────────────────
+
 #[derive(Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct EditRegionParams {
     pub region_id: RegionId,
     pub region_set_id: RegionSetId,
@@ -74,8 +111,17 @@ pub struct EditRegionParams {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct EditRegionResult {
-    pub region_set: RegionSet,
+    pub region_set: RegionSetResult,
+}
+
+impl From<DbRegionSet> for EditRegionResult {
+    fn from(db: DbRegionSet) -> Self {
+        EditRegionResult {
+            region_set: RegionSetResult::from(db),
+        }
+    }
 }
 
 #[utoipa::path(
@@ -97,7 +143,7 @@ pub async fn edit_region(
         Err(_e) => return HttpResponse::NotFound().body("User not found"),
     };
 
-    let rez = match resolved_user
+    match resolved_user
         .ask(EditRegion {
             name: request.name,
             region_set_id: request.region_set_id,
@@ -107,15 +153,15 @@ pub async fn edit_region(
         })
         .await
     {
-        Ok(r) => HttpResponse::Ok().json(EditRegionResult {
-            region_set: r.region_set,
-        }),
-        Err(_e) => return HttpResponse::InternalServerError().body("Could not edit region"),
-    };
-    rez
+        Ok(r) => HttpResponse::Ok().json(EditRegionResult::from(r.region_set)),
+        Err(_e) => HttpResponse::InternalServerError().body("Could not edit region"),
+    }
 }
 
+// ── delete ────────────────────────────────────────────────────────────────────
+
 #[derive(Deserialize, IntoParams)]
+#[serde(rename_all = "camelCase")]
 pub struct DeleteRegionParams {
     pub region_id: RegionId,
     pub region_set_id: RegionSetId,
@@ -140,7 +186,7 @@ pub async fn remove_region(
         Err(_e) => return HttpResponse::NotFound().body("User not found"),
     };
 
-    let rez = match resolved_user
+    match resolved_user
         .ask(DeleteRegion {
             region_id: request.region_id,
             region_set_id: request.region_set_id,
@@ -148,12 +194,14 @@ pub async fn remove_region(
         .await
     {
         Ok(_r) => HttpResponse::Ok().body("Region deleted"),
-        Err(_e) => return HttpResponse::InternalServerError().body("Could not edit region"),
-    };
-    rez
+        Err(_e) => HttpResponse::InternalServerError().body("Could not delete region"),
+    }
 }
 
+// ── copy ──────────────────────────────────────────────────────────────────────
+
 #[derive(Deserialize, IntoParams)]
+#[serde(rename_all = "camelCase")]
 pub struct CopyRegionParams {
     pub source_region_id: RegionId,
     pub source_region_set_id: RegionSetId,
@@ -162,9 +210,19 @@ pub struct CopyRegionParams {
     pub destination_track_id: TrackId,
     pub copy_name: String,
 }
+
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CopyRegionResult {
-    pub region_set: RegionSet,
+    pub region_set: RegionSetResult,
+}
+
+impl From<DbRegionSet> for CopyRegionResult {
+    fn from(db: DbRegionSet) -> Self {
+        CopyRegionResult {
+            region_set: RegionSetResult::from(db),
+        }
+    }
 }
 
 #[utoipa::path(
@@ -185,7 +243,8 @@ pub async fn copy_region(
         Ok(u) => u,
         Err(_e) => return HttpResponse::NotFound().body("User not found"),
     };
-    let rez = match resolved_user
+
+    match resolved_user
         .ask(CopyRegion {
             copy_name: request.copy_name,
             source_region_id: request.source_region_id,
@@ -196,16 +255,14 @@ pub async fn copy_region(
         })
         .await
     {
-        Ok(r) => HttpResponse::Ok().json(CopyRegionResult {
-            region_set: r.region_set,
-        }),
+        Ok(r) => HttpResponse::Ok().json(CopyRegionResult::from(r.region_set)),
         Err(e) => {
-            return HttpResponse::InternalServerError()
+            HttpResponse::InternalServerError()
                 .body(format!("Could not copy region with reason {e}"))
         }
-    };
-    rez
+    }
 }
+
 pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(add_region)
         .service(remove_region)

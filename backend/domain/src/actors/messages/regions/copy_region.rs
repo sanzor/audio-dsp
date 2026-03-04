@@ -1,5 +1,4 @@
-use crate::db::{RegionId, RegionSetId, TrackId};
-use crate::regions::region_set::RegionSet;
+use crate::db::{DbRegionSet, RegionId, RegionSetId, TrackId};
 
 pub struct CopyRegion {
     pub copy_name: String,
@@ -11,5 +10,5 @@ pub struct CopyRegion {
 }
 
 pub struct CopyRegionResult {
-    pub region_set: RegionSet,
+    pub region_set: DbRegionSet
 }

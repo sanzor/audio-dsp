@@ -1,5 +1,4 @@
-use crate::db::RegionSetId;
-use crate::regions::region_set::RegionSet;
+use crate::db::{DbRegionSet, RegionSetId};
 
 pub struct AddRegion {
     pub name: String,
@@ -9,7 +8,7 @@ pub struct AddRegion {
 }
 
 pub struct AddRegionResult {
-    pub region_set: RegionSet,
+    pub region_set: DbRegionSet,
 }
 
 pub enum EndTimePolicy {

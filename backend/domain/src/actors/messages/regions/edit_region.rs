@@ -1,5 +1,4 @@
-use crate::db::{RegionId, RegionSetId};
-use crate::regions::region_set::RegionSet;
+use crate::db::{DbRegionSet, RegionId, RegionSetId};
 
 pub struct EditRegion {
     pub region_id: RegionId,
@@ -10,5 +9,5 @@ pub struct EditRegion {
 }
 
 pub struct EditRegionResult {
-    pub region_set: RegionSet,
+    pub region_set: DbRegionSet,
 }
