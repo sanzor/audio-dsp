@@ -4,8 +4,8 @@ import { useTrackStore } from "@/Stores/TrackStore";
 import { apiGetTracks, apiGetTrackInfo, type GetTrackParams, type GetTrackResult } from "@/Services/TracksService";
 import { normalizeTrackWithCascade } from "./mutations";
 import { QUERY_KEYS } from "@/constants/queryKeys";
-import type { TrackMeta } from "@/Domain/Track/TrackMeta";
-import type { NormalizedTrackMeta } from "@/Domain/Track/NormalizedTrackMeta";
+import type { TrackMeta } from "@/domain/Track/TrackMeta";
+import type { NormalizedTrackMeta } from "@/domain/Track/NormalizedTrackMeta";
 
 export const useListTracks = () => {
   const query = useQuery<TrackMeta[], Error, NormalizedTrackMeta[]>({

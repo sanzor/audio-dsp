@@ -1,4 +1,4 @@
-import type { NormalizedTrackMeta } from '@/Domain/Track/NormalizedTrackMeta';
+import type { NormalizedTrackMeta } from '@/domain/Track/NormalizedTrackMeta';
 import { create, type StoreApi, type UseBoundStore } from 'zustand';
 
 type TrackCache = Map<string, NormalizedTrackMeta>;

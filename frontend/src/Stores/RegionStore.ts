@@ -1,4 +1,4 @@
-import type { NormalizedTrackRegion } from '@/Domain/Region/NormalizedTrackRegion';
+import type { NormalizedTrackRegion } from '@/domain/Region/NormalizedTrackRegion';
 import { create, type StoreApi, type UseBoundStore } from 'zustand';
 
 type RegionCache = Map<string, NormalizedTrackRegion>;

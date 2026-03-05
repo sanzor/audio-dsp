@@ -17,8 +17,8 @@ import {
   type RemoveRegionResult,
 } from '@/Services/RegionsService';
 import { cascadeDeleteGraph } from '@/hooks/graphs/mutations';
-import type { NormalizedTrackRegion } from '@/Domain/Region/NormalizedTrackRegion';
-import type { TrackRegion } from '@/Domain/Region/TrackRegion';
+import type { NormalizedTrackRegion } from '@/domain/Region/NormalizedTrackRegion';
+import type { TrackRegion } from '@/domain/Region/TrackRegion';
 
 // ─── Normalize / cascade helpers ────────────────────────────────────────────
 

@@ -1,9 +1,9 @@
-import type { Command } from "@/Domain/Commands/Command";
+import type { Command } from "@/domain/commands/Command";
 import { PLAY_COMMAND, PAUSE_COMMAND, SEEK_COMMAND, STOP_COMMAND } from "../Events";
-import type { PlayCommand } from "@/Domain/Commands/PlayCommand";
-import type { PauseCommand } from "@/Domain/Commands/PauseCommand";
-import type { SeekCommand } from "@/Domain/Commands/SeekCommand";
-import type { StopCommand } from "@/Domain/Commands/StopCommand";
+import type { PlayCommand } from "@/domain/commands/PlayCommand";
+import type { PauseCommand } from "@/domain/commands/PauseCommand";
+import type { SeekCommand } from "@/domain/commands/SeekCommand";
+import type { StopCommand } from "@/domain/commands/StopCommand";
 
 // ─── Socket Command Types ────────────────────────────────────────────────────
 

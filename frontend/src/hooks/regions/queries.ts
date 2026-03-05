@@ -3,10 +3,10 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/Auth/UseAuth";
 import { useRegionStore } from "@/Stores/RegionStore";
 import { apiGetRegion, apiGetRegionsForRegionSet } from "@/Services/RegionsService";
-import { normalizeRegion } from "@/Domain/Region/Mappers";
+import { normalizeRegion } from "@/domain/Region/Mappers";
 import { QUERY_KEYS } from "@/constants/queryKeys";
-import type { TrackRegion } from "@/Domain/Region/TrackRegion";
-import type { NormalizedTrackRegion } from "@/Domain/Region/NormalizedTrackRegion";
+import type { TrackRegion } from "@/domain/Region/TrackRegion";
+import type { NormalizedTrackRegion } from "@/domain/Region/NormalizedTrackRegion";
 
 export const useGetRegion = (regionId: string) => {
   const { user } = useAuth();

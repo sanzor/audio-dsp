@@ -5,8 +5,8 @@ import { useRegionSetStore } from "@/Stores/RegionSetStore";
 import { apiGetRegionSet, apiGetRegionSetsForTrack } from "@/Services/RegionSetsService";
 import { normalizeRegionSetWithCascade } from "./mutations";
 import { QUERY_KEYS } from "@/constants/queryKeys";
-import type { TrackRegionSet } from "@/Domain/RegionSet/TrackRegionSet";
-import type { NormalizedTrackRegionSet } from "@/Domain/RegionSet/NormalizedTrackRegionSet";
+import type { TrackRegionSet } from "@/domain/RegionSet/TrackRegionSet";
+import type { NormalizedTrackRegionSet } from "@/domain/RegionSet/NormalizedTrackRegionSet";
 
 export const useGetRegionSet = (regionSetId: string) => {
   const { user } = useAuth();

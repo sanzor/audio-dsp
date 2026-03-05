@@ -6,7 +6,7 @@ import {
 } from "@/components/ui/collapsible";
 import { SidebarMenuItem, SidebarMenuButton, SidebarMenuSub } from "@/components/ui/sidebar";
 import { RegionItem } from "./region-item";
-import type { TrackRegionSetViewModel } from "@/Domain/RegionSet/TrackRegionSetViewModel";
+import type { TrackRegionSetViewModel } from "@/domain/RegionSet/TrackRegionSetViewModel";
 import type { OpenedContext, RightClickContext, SelectedContext } from "@/Stores/UIStore";
 
 interface Props {

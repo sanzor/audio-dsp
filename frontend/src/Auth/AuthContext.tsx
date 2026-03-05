@@ -7,7 +7,7 @@ import {
 } from '../Services/AuthService';
 import type { SessionResponse, RefreshResponse } from './AuthTypes';
 import { createContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import type { User } from '@/Domain/User';
+import type { User } from '@/domain/User';
 
 // Define context interface
 interface AuthServiceContext {

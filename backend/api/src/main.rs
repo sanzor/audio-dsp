@@ -13,9 +13,14 @@ use api::{
     user_and_actor_resolver::local_user_and_actor_resolver::LocalUserAndActorResolver,
 };
 use data_provider::{
-    in_memory_user_provider::InMemoryUserProvider, postgres_region_set_provider::PostgresRegionSetsProvider,
-    postgres_tracks_provider::PostgresTracksProvider, user_provider::UserProvider,
+    region_sets::region_sets_provider_service::PostgresRegionSetsProvider,
+    tracks::tracks_provider_service::PostgresTracksProvider,
+    users::{in_memory_user_provider::InMemoryUserProvider, user_provider::UserProvider},
 };
+
+
+
+
 use std::sync::Arc;
 
 fn main() -> std::io::Result<()> {

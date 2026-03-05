@@ -4,7 +4,7 @@ import {
   SidebarMenuSubItem,
   SidebarMenuSubButton,
 } from "@/components/ui/sidebar";
-import type { TrackRegionViewModel } from "@/Domain/Region/TrackRegionViewModel";
+import type { TrackRegionViewModel } from "@/domain/Region/TrackRegionViewModel";
 import type { OpenedContext, RightClickContext, SelectedContext } from "@/Stores/UIStore";
 
 

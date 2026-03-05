@@ -6,7 +6,7 @@ use actors::user_actor::{
     user_actor_registry::UserActorRegistry,
 };
 use data_provider::{
-    in_memory_user_provider::InMemoryUserProvider, user_provider::UserProvider,
+    users::{in_memory_user_provider::InMemoryUserProvider, user_provider::UserProvider},
 };
 use httpmock::prelude::*;
 

@@ -1,6 +1,6 @@
 
 import type { CanonicalAudio } from "./CanonicalAudio";
-import type { ABuffer } from "@/Domain/ABuffer";
+import type { ABuffer } from "@/domain/ABuffer";
 
 export async function toCanonicalAudio(
   input: File | Float32Array[], // file (upload) OR raw samples (recorded)

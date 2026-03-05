@@ -1,6 +1,6 @@
 // /src/Stores/useRegionSetStore.ts
 
-import type { Graph } from '@/Domain/Graph/Graph';
+import type { Graph } from '@/domain/Graph/Graph';
 import { create, type StoreApi, type UseBoundStore } from 'zustand';
 
 

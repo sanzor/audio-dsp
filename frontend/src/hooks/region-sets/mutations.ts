@@ -13,9 +13,9 @@ import {
 } from '@/Services/RegionSetsService';
 import { normalizeRegionWithCascade, cascadeDeleteRegion } from '@/hooks/regions/mutations';
 import { QUERY_KEYS } from '@/constants/queryKeys';
-import type { NormalizedTrackRegionSet } from '@/Domain/RegionSet/NormalizedTrackRegionSet';
-import type { NormalizedTrackRegion } from '@/Domain/Region/NormalizedTrackRegion';
-import type { TrackRegionSet } from '@/Domain/RegionSet/TrackRegionSet';
+import type { NormalizedTrackRegionSet } from '@/domain/RegionSet/NormalizedTrackRegionSet';
+import type { NormalizedTrackRegion } from '@/domain/Region/NormalizedTrackRegion';
+import type { TrackRegionSet } from '@/domain/RegionSet/TrackRegionSet';
 
 // ─── Normalize / cascade helpers ────────────────────────────────────────────
 

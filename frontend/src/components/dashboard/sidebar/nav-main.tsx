@@ -5,7 +5,7 @@ import {
   SidebarGroupLabel,
   SidebarMenu,
 } from "@/components/ui/sidebar";
-import type { TrackMetaViewModel } from "@/Domain/Track/TrackMetaViewModel";
+import type { TrackMetaViewModel } from "@/domain/Track/TrackMetaViewModel";
 import type { OpenedContext, RightClickContext, SelectedContext } from "@/Stores/UIStore";
 import { TrackItem } from "./track-item";
 

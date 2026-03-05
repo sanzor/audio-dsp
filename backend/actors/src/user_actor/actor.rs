@@ -2,7 +2,10 @@ use crate::{
     audio_player_actor::actor::AudioPlayerActor,
     user_actor::{create_user_actor_params::CreateUserActorParams, player_factory::PlayerFactory},
 };
-use data_provider::{region_set_provider::RegionSetsProvider, tracks_provider::TracksProvider};
+use data_provider::{
+    region_sets::region_sets_provider::RegionSetsProvider,
+    tracks::tracks_provider::TracksProvider,
+};
 use domain::{domain_user::DomainUser, stored_track::StoredTrack};
 use kameo::{actor::ActorRef, Actor};
 

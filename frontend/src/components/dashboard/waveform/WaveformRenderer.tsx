@@ -3,8 +3,8 @@ import {  useEffect, useRef, useState } from "react"
 import WaveSurfer from "wavesurfer.js"
 import RegionsPlugin, { type Region } from 'wavesurfer.js/dist/plugins/regions.esm.js'
 import Minimap from 'wavesurfer.js/dist/plugins/minimap.esm.js'
-import type { TrackRegionViewModel } from "@/Domain/Region/TrackRegionViewModel";
-import type { TrackRegionSetViewModel } from "@/Domain/RegionSet/TrackRegionSetViewModel";
+import type { TrackRegionViewModel } from "@/domain/Region/TrackRegionViewModel";
+import type { TrackRegionSetViewModel } from "@/domain/RegionSet/TrackRegionSetViewModel";
 import { useUIStore, type RightClickContext } from "@/Stores/UIStore";
 
 

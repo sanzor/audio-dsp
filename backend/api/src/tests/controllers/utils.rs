@@ -6,7 +6,7 @@ use actors::user_actor::{
     actor::UserActor, create_user_actor_params::CreateUserActorParams,
     user_actor_deps::UserActorDeps, user_actor_registry::UserActorRegistry,
 };
-use data_provider::user_provider::UserProvider;
+use data_provider::users::user_provider::UserProvider;
 use domain::{create_domain_user_params::CreateDomainUserParams, domain_user::DomainUser};
 use jsonwebtoken::encode;
 use kameo::actor::ActorRef;

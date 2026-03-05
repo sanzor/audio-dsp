@@ -6,7 +6,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import type { TrackMetaViewModel } from "@/Domain/Track/TrackMetaViewModel";
+import type { TrackMetaViewModel } from "@/domain/Track/TrackMetaViewModel";
 import { useEffect } from "react";
 
 

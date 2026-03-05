@@ -14,8 +14,8 @@ import {
 } from '@/Services/TracksService';
 import { normalizeRegionSetWithCascade, cascadeDeleteRegionSet } from '@/hooks/region-sets/mutations';
 import { QUERY_KEYS } from '@/constants/queryKeys';
-import type { NormalizedTrackMeta } from '@/Domain/Track/NormalizedTrackMeta';
-import type { TrackMeta } from '@/Domain/Track/TrackMeta';
+import type { NormalizedTrackMeta } from '@/domain/Track/NormalizedTrackMeta';
+import type { TrackMeta } from '@/domain/Track/TrackMeta';
 
 // ─── Normalize / cascade helpers ────────────────────────────────────────────
 

@@ -6,27 +6,28 @@ use domain::{
         db_region::RegionId,
     },
     graphs::{
-        add_graph_params::AddGraphParams, delete_graph_params::DeleteGraphParams,
+        add_graph_params::AddGraphParams,
+        delete_graph_params::DeleteGraphParams,
         edit_graph_params::EditGraphParams,
     },
 };
 use sqlx::PgPool;
 use ulid::Ulid;
 
-use crate::graphs_provider::GraphsProvider;
+use super::graphs_data_provider::GraphsDataProvider;
 
-pub struct PostgresGraphsProvider {
+pub struct PostgresGraphsDataProvider {
     pool: PgPool,
 }
 
-impl PostgresGraphsProvider {
+impl PostgresGraphsDataProvider {
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
 }
 
 #[async_trait::async_trait]
-impl GraphsProvider for PostgresGraphsProvider {
+impl GraphsDataProvider for PostgresGraphsDataProvider {
     async fn create_graph(&self, params: AddGraphParams) -> Result<DbGraph, String> {
         let graph_id: GraphId = Ulid::new().to_string();
 

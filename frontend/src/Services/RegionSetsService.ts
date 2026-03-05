@@ -1,4 +1,4 @@
-import type { TrackRegionSet } from "@/Domain/RegionSet/TrackRegionSet";
+import type { TrackRegionSet } from "@/domain/RegionSet/TrackRegionSet";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 

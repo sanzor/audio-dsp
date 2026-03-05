@@ -13,7 +13,7 @@ use actors::user_actor::{
 };
 use audiolib::Channels;
 use data_provider::{
-    in_memory_user_provider::InMemoryUserProvider, user_provider::UserProvider,
+    users::{in_memory_user_provider::InMemoryUserProvider, user_provider::UserProvider},
 };
 use domain::actors::messages::tracks::{
     get_track_info::GetTrackMetaResult, get_tracks::GetTracksResult,

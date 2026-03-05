@@ -4,7 +4,7 @@ import { useAuth } from "@/Auth/UseAuth";
 import { useGraphStore } from "@/Stores/GraphStore";
 import { apiGetGraph } from "@/Services/GraphService";
 import { QUERY_KEYS } from "@/constants/queryKeys";
-import type { Graph } from "@/Domain/Graph/Graph";
+import type { Graph } from "@/domain/Graph/Graph";
 
 export const useGetGraph = (graphId: string) => {
   const cachedGraph = useGraphStore((state) => state.getGraph(graphId));

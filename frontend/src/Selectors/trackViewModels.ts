@@ -1,11 +1,11 @@
 import { useMemo } from "react";
-import type { TrackMetaViewModel } from "@/Domain/Track/TrackMetaViewModel";
-import type { TrackRegionSetViewModel } from "@/Domain/RegionSet/TrackRegionSetViewModel";
-import type { TrackRegionViewModel } from "@/Domain/Region/TrackRegionViewModel";
-import type { Graph } from "@/Domain/Graph/Graph";
-import type { NormalizedTrackMeta } from "@/Domain/Track/NormalizedTrackMeta";
-import type { NormalizedTrackRegionSet } from "@/Domain/RegionSet/NormalizedTrackRegionSet";
-import type { NormalizedTrackRegion } from "@/Domain/Region/NormalizedTrackRegion";
+import type { TrackMetaViewModel } from "@/domain/Track/TrackMetaViewModel";
+import type { TrackRegionSetViewModel } from "@/domain/RegionSet/TrackRegionSetViewModel";
+import type { TrackRegionViewModel } from "@/domain/Region/TrackRegionViewModel";
+import type { Graph } from "@/domain/Graph/Graph";
+import type { NormalizedTrackMeta } from "@/domain/Track/NormalizedTrackMeta";
+import type { NormalizedTrackRegionSet } from "@/domain/RegionSet/NormalizedTrackRegionSet";
+import type { NormalizedTrackRegion } from "@/domain/Region/NormalizedTrackRegion";
 import { useTrackStore } from "@/Stores/TrackStore";
 import { useRegionSetStore } from "@/Stores/RegionSetStore";
 import { useRegionStore } from "@/Stores/RegionStore";

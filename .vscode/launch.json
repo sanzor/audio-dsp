@@ -8,15 +8,23 @@
       "program": "${workspaceFolder}/backend/target/debug/api",
       "cwd": "${workspaceFolder}/backend",
       "sourceLanguages": ["rust"],
-      "env": { "RUST_LOG": "debug" }
+      "env": { "RUST_LOG": "debug" },
+      "preLaunchTask": "Backend: cargo build api"
     },
     {
       "name": "Frontend: Vite (Chrome)",
       "type": "chrome",
       "request": "launch",
       "url": "http://localhost:3000",
-      "webRoot": "${workspaceFolder}/frontend"
+      "webRoot": "${workspaceFolder}/frontend",
+      "preLaunchTask": "Frontend: pnpm dev"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Dev: Backend + Frontend",
+      "configurations": ["Rust: Debug API", "Frontend: Vite (Chrome)"],
+      "stopAll": true
     }
   ]
 }
-

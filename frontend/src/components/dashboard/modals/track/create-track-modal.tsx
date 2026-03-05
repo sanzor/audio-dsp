@@ -11,7 +11,7 @@ import {
 } from "../../../ui/dialog"
 import type { CreateTrackParams } from "@/Services/TracksService"
 import type { CanonicalAudio } from "@/Audio/CanonicalAudio"
-import type { ABuffer } from "@/Domain/ABuffer"
+import type { ABuffer } from "@/domain/ABuffer"
 
 import { toAudioBuffer, interleave, encodeWav } from "@/Audio/Utils"
 import { getFileExtension } from "@/Utils/AudioUtils"

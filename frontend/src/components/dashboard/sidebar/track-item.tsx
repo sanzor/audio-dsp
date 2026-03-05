@@ -5,7 +5,7 @@ import {
   CollapsibleContent,
 } from "@/components/ui/collapsible";
 import { SidebarMenuItem, SidebarMenuButton, SidebarMenuSub } from "@/components/ui/sidebar";
-import type { TrackMetaViewModel } from "@/Domain/Track/TrackMetaViewModel";
+import type { TrackMetaViewModel } from "@/domain/Track/TrackMetaViewModel";
 import { RegionSetItem } from "./region-set-item";
 import type { OpenedContext, RightClickContext, SelectedContext } from "@/Stores/UIStore";
 

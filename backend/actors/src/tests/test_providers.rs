@@ -22,7 +22,10 @@ use domain::{
 use tokio::sync::Mutex;
 use ulid::Ulid;
 
-use data_provider::{region_set_provider::RegionSetsProvider, tracks_provider::TracksProvider};
+use data_provider::{
+    region_sets::region_sets_provider::RegionSetsProvider,
+    tracks::tracks_provider::TracksProvider,
+};
 
 pub struct StubTracksProvider {
     tracks: Mutex<HashMap<TrackId, DbTrack>>,

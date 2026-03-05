@@ -1,6 +1,6 @@
-import type { TrackMeta } from '@/Domain/Track/TrackMeta';
-import type { TrackInfo } from '@/Domain/Track/TrackInfo';
-import type { ABuffer } from '@/Domain/ABuffer';
+import type { TrackMeta } from '@/domain/Track/TrackMeta';
+import type { TrackInfo } from '@/domain/Track/TrackInfo';
+import type { ABuffer } from '@/domain/ABuffer';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 

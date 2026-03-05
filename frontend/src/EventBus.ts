@@ -1,5 +1,5 @@
 import { SOCKET_COMMAND } from "./Constants";
-import type { Command } from "./Domain/Commands/Command";
+import type { Command } from "./domain/commands/Command";
 
 
   export type EventCallback<T = unknown> = (event: CustomEvent<T>) => void;

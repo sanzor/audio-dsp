@@ -13,7 +13,7 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar"
 
-import type { TrackMetaViewModel } from "@/Domain/Track/TrackMetaViewModel"
+import type { TrackMetaViewModel } from "@/domain/Track/TrackMetaViewModel"
 import { Button } from "../../ui/button"
 import type { OpenedContext, RightClickContext, SelectedContext } from "@/Stores/UIStore"
 

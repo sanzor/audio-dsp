@@ -1,13 +1,19 @@
 use audiolib::utils::encode_audio_buffer_as_wav;
 use domain::{
-    db::db_track::{DbTrack, TrackId},
-    tracks::raw_track::RawTrack,
+    db::{
+        db_region::DbRegion,
+        db_region_set::{DbRegionSet, RegionSetId},
+        db_track::{DbTrack, TrackId},
+    },
+    region_set::region_set_subtree::RegionSetSubtree,
+    regions::region_subtree::RegionSubtree,
+    tracks::{raw_track::RawTrack, track_subtree::TrackSubtree},
     update_track_info_params::UpdateTrackInfoParams,
 };
 use sqlx::PgPool;
 use ulid::Ulid;
 
-use crate::tracks_provider::TracksProvider;
+use super::tracks_provider::TracksProvider;
 
 pub struct PostgresTracksProvider {
     pool: PgPool,
@@ -103,7 +109,7 @@ impl TracksProvider for PostgresTracksProvider {
     async fn update_track_info(
         &self,
         track_id: &TrackId,
-        updated_track_info: UpdateTrackInfoParams,
+        params: UpdateTrackInfoParams,
     ) -> Result<DbTrack, String> {
         sqlx::query_as::<_, DbTrack>(
             r#"
@@ -114,9 +120,78 @@ impl TracksProvider for PostgresTracksProvider {
             "#,
         )
         .bind(track_id)
-        .bind(updated_track_info.track_name)
+        .bind(params.track_name)
         .fetch_one(&self.pool)
         .await
         .map_err(|e| e.to_string())
+    }
+
+    async fn get_track_subtree(&self, track_id: &TrackId) -> Result<TrackSubtree, String> {
+        let track = self.get_track(track_id).await?;
+
+        let region_sets: Vec<DbRegionSet> = sqlx::query_as::<_, DbRegionSet>(
+            r#"
+            SELECT region_set_id, track_id, name, track_length_seconds, created_at
+            FROM region_sets
+            WHERE track_id = $1
+            ORDER BY created_at DESC
+            "#,
+        )
+        .bind(track_id)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| e.to_string())?;
+
+        let set_ids: Vec<RegionSetId> = region_sets.iter().map(|s| s.region_set_id.clone()).collect();
+
+        let all_regions: Vec<DbRegion> = if set_ids.is_empty() {
+            vec![]
+        } else {
+            sqlx::query_as::<_, DbRegion>(
+                r#"
+                SELECT region_id, region_set_id, name, start_time_seconds, end_time_seconds, created_at
+                FROM regions
+                WHERE region_set_id = ANY($1)
+                ORDER BY start_time_seconds ASC
+                "#,
+            )
+            .bind(&set_ids)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|e| e.to_string())?
+        };
+
+        let assembled_sets: Vec<RegionSetSubtree> = region_sets
+            .into_iter()
+            .map(|set| {
+                let regions: Vec<RegionSubtree> = all_regions
+                    .iter()
+                    .filter(|r| r.region_set_id == set.region_set_id)
+                    .map(|r| RegionSubtree {
+                        region_id: r.region_id.clone(),
+                        region_set_id: r.region_set_id.clone(),
+                        name: r.name.clone(),
+                        start_time: r.start_time_seconds,
+                        end_time: r.end_time_seconds,
+                        graph: None,
+                    })
+                    .collect();
+                RegionSetSubtree {
+                    track_id: set.track_id,
+                    track_length: set.track_length_seconds,
+                    region_set_id: set.region_set_id,
+                    name: set.name,
+                    regions,
+                }
+            })
+            .collect();
+
+        Ok(TrackSubtree {
+            track_id: track.track_id,
+            name: track.name,
+            extension: track.extension,
+            length_seconds: track.length_seconds,
+            region_sets: assembled_sets,
+        })
     }
 }

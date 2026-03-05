@@ -13,7 +13,7 @@ use actors::user_actor::{
 };
 use audiolib::Channels;
 use data_provider::{
-    in_memory_user_provider::InMemoryUserProvider, user_provider::UserProvider,
+    users::{in_memory_user_provider::InMemoryUserProvider, user_provider::UserProvider},
 };
 use domain::actors::player_state::AudioPlayerState;
 use futures_util::{stream::SplitStream, SinkExt, StreamExt};

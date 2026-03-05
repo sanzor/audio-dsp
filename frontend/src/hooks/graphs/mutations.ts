@@ -15,7 +15,7 @@ import {
 import { useGraphStore } from "@/Stores/GraphStore";
 import { useRegionStore } from "@/Stores/RegionStore";
 import { QUERY_KEYS } from "@/constants/queryKeys";
-import type { Graph } from "@/Domain/Graph/Graph";
+import type { Graph } from "@/domain/Graph/Graph";
 
 // ─── Cascade helpers ─────────────────────────────────────────────────────────
 

@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 
 use audiolib::utils::encode_audio_buffer_as_wav;
-use data_provider::{region_set_provider::RegionSetsProvider, tracks_provider::TracksProvider};
+use data_provider::{
+    region_sets::region_sets_provider::RegionSetsProvider,
+    tracks::tracks_provider::TracksProvider,
+};
 use domain::{
     db::{
         db_region::{DbRegion, RegionId},

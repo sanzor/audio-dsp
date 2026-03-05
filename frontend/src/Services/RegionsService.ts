@@ -1,4 +1,4 @@
-import type { TrackRegion } from "@/Domain/Region/TrackRegion";
+import type { TrackRegion } from "@/domain/Region/TrackRegion";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 

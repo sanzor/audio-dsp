@@ -1,6 +1,6 @@
 use domain::{
     db::db_track::{DbTrack, TrackId},
-    tracks::raw_track::RawTrack,
+    tracks::{raw_track::RawTrack, track_subtree::TrackSubtree},
     update_track_info_params::UpdateTrackInfoParams,
 };
 
@@ -14,7 +14,7 @@ pub trait TracksProvider: Send + Sync {
     async fn update_track_info(
         &self,
         track_id: &TrackId,
-        updated_track_info: UpdateTrackInfoParams,
+        params: UpdateTrackInfoParams,
     ) -> Result<DbTrack, String>;
+    async fn get_track_subtree(&self, track_id: &TrackId) -> Result<TrackSubtree, String>;
 }
-

@@ -8,16 +8,20 @@ use domain::{
         copy_region_set_params::CopyRegionSetParams,
         create_region_set_params::CreateRegionSetParams,
         edit_region_set_params::EditRegionSetParams,
+        region_set_subtree::RegionSetSubtree,
     },
     regions::{
-        add_region_params::AddRegionParams, copy_region_params::CopyRegionParams,
-        delete_region_params::DeleteRegionParams, edit_region_params::EditRegionParams,
+        add_region_params::AddRegionParams,
+        copy_region_params::CopyRegionParams,
+        delete_region_params::DeleteRegionParams,
+        edit_region_params::EditRegionParams,
+        region_subtree::RegionSubtree,
     },
 };
 use sqlx::PgPool;
 use ulid::Ulid;
 
-use crate::region_set_provider::RegionSetsProvider;
+use super::region_sets_provider::RegionSetsProvider;
 
 pub struct PostgresRegionSetsProvider {
     pool: PgPool,
@@ -300,5 +304,28 @@ impl RegionSetsProvider for PostgresRegionSetsProvider {
         .fetch_one(&self.pool)
         .await
         .map_err(|e| e.to_string())
+    }
+
+    async fn get_region_set_subtree(&self, set_id: &RegionSetId) -> Result<RegionSetSubtree, String> {
+        let set = self.get_region_set(set_id).await?;
+        let regions = self.get_regions_for_region_set(set_id).await?;
+
+        Ok(RegionSetSubtree {
+            track_id: set.track_id,
+            track_length: set.track_length_seconds,
+            region_set_id: set.region_set_id,
+            name: set.name,
+            regions: regions
+                .into_iter()
+                .map(|r| RegionSubtree {
+                    region_id: r.region_id,
+                    region_set_id: r.region_set_id,
+                    name: r.name,
+                    start_time: r.start_time_seconds,
+                    end_time: r.end_time_seconds,
+                    graph: None,
+                })
+                .collect(),
+        })
     }
 }

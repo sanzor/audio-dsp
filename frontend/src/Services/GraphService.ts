@@ -1,5 +1,5 @@
-import type { Graph } from "@/Domain/Graph/Graph";
-import type { Edge } from "@/Domain/Graph/Edge";
+import type { Graph } from "@/domain/Graph/Graph";
+import type { Edge } from "@/domain/Graph/Edge";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 

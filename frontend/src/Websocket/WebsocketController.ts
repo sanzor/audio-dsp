@@ -3,8 +3,8 @@ import type { EventBus } from "@/EventBus.ts";
 import { SOCKET_CLOSED, SOCKET_COMMAND } from "../Constants.ts";
 import { MessageService } from "./MessageService";
 import { close, connect, onClose, onMessage, send } from "./Websocket";
-import type { Command } from "@/Domain/Commands/Command.ts";
-import { createSocketCommand } from "@/Adapters/CommandAdapter";
+import type { Command } from "@/domain/commands/Command.ts";
+import { createSocketCommand } from "@/adapters/CommandAdapter.ts";
 
 export class WebSocketController {
   private socket: WebSocket | null = null;

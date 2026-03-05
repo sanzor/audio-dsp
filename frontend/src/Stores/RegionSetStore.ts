@@ -1,6 +1,6 @@
 // /src/Stores/useRegionSetStore.ts
 
-import type { NormalizedTrackRegionSet } from '@/Domain/RegionSet/NormalizedTrackRegionSet';
+import type { NormalizedTrackRegionSet } from '@/domain/RegionSet/NormalizedTrackRegionSet';
 import { create, type StoreApi, type UseBoundStore } from 'zustand';
 
 type RegionSetCache = Map<string, NormalizedTrackRegionSet>;

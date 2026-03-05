@@ -1,9 +1,8 @@
 use std::{future::Future, pin::Pin};
 
-use async_trait::async_trait;
 use domain::{create_domain_user_params::CreateDomainUserParams, domain_user::DomainUser};
 
-#[async_trait]
+#[async_trait::async_trait]
 pub trait UserProvider: Send + Sync {
     fn get_user_by_id<'a>(
         &'a self,
