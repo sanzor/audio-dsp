@@ -9,7 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../../ui/dialog"
-import type { CreateTrackParams } from "@/Dtos/Tracks/AddTrackParams"
+import type { CreateTrackParams } from "@/Services/TracksService"
 import type { CanonicalAudio } from "@/Audio/CanonicalAudio"
 import type { ABuffer } from "@/Domain/ABuffer"
 

@@ -9,7 +9,7 @@ import {
   DialogTitle,
 } from "../../../ui/dialog"
 
-import type { CreateRegionSetParams } from "@/Dtos/RegionSets/CreateRegionSetParams"
+import type { CreateRegionSetParams } from "@/Services/RegionSetsService"
 import { useState } from "react"
 
 interface CreateRegionSetModalProps {

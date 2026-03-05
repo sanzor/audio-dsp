@@ -1,7 +1,7 @@
 // hooks/useGraphController.ts
 
 import { useUIStore } from "@/Stores/UIStore";
-import { useDeleteGraph, useEditGraph } from "@/Orchestrators/Graphs/useGraphMutations";
+import { useDeleteGraph, useEditGraph } from "@/hooks/graphs/mutations";
 import { useGraphStore } from "@/Stores/GraphStore";
 
 export function useGraphController() {

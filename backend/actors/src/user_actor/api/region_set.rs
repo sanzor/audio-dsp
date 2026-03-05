@@ -42,7 +42,17 @@ impl UserActor {
             track_length: set.track_length_seconds,
             region_set_id: set.region_set_id.clone(),
             name: set.name.clone(),
-            regions: regions.into_iter().map(|_r| RegionSubtree {}).collect(),
+            regions: regions
+                .into_iter()
+                .map(|r| RegionSubtree {
+                    region_id: r.region_id,
+                    region_set_id: r.region_set_id,
+                    name: r.name,
+                    start_time: r.start_time_seconds,
+                    end_time: r.end_time_seconds,
+                    graph: None,
+                })
+                .collect(),
         })
     }
 }

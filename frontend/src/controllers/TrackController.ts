@@ -1,11 +1,11 @@
 // hooks/useTrackController.ts
-import { useCreateRegionSet } from "@/Orchestrators/RegionSets/useRegionSetsMutations";
+import { useCreateRegionSet } from "@/hooks/region-sets/mutations";
 import { useUIStore } from "@/Stores/UIStore";
-import type { CreateRegionSetParams } from "@/Dtos/RegionSets/CreateRegionSetParams";
-import { useCopyTrack, useCreateTrack, useDeleteTrack, useRenameTrack } from "@/Orchestrators/Tracks/useTrackMutations";
+import type { CreateRegionSetParams } from "@/Services/RegionSetsService";
+import { useCopyTrack, useCreateTrack, useDeleteTrack, useRenameTrack } from "@/hooks/tracks/mutations";
 import { useTrackStore } from "@/Stores/TrackStore";
-import type { CreateTrackParams } from "@/Dtos/Tracks/AddTrackParams";
-import type { CreateTrackResult } from "@/Dtos/Tracks/AddTrackResult";
+import type { CreateTrackParams } from "@/Services/TracksService";
+import type { CreateTrackResult } from "@/Services/TracksService";
 import type { CanonicalAudio } from "@/Audio/CanonicalAudio";
 
 

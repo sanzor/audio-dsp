@@ -1,6 +1,6 @@
 // /src/Stores/useRegionSetStore.ts
 
-import type { NormalizedGraph } from '@/Domain/Graph/NormalizedGraph';
+import type { Graph } from '@/Domain/Graph/Graph';
 import { create, type StoreApi, type UseBoundStore } from 'zustand';
 
 
@@ -10,7 +10,7 @@ import { create, type StoreApi, type UseBoundStore } from 'zustand';
 // 1. Normalized State & Action Definitions
 // ----------------------------------------------------
 
-type GraphCache = Map<string, NormalizedGraph>;
+type GraphCache = Map<string, Graph>;
 
 interface GraphState {
     graphs: GraphCache;
@@ -19,11 +19,11 @@ interface GraphState {
 
 interface GraphActions {
     // CRUD Operations for the Set itself
-    getGraph: (graphId: string) => NormalizedGraph | undefined;
-    setAllGraphs: (graphs: NormalizedGraph[]) => void;
-    addGraph: (graph: NormalizedGraph) => void;
+    getGraph: (graphId: string) => Graph | undefined;
+    setAllGraphs: (graphs: Graph[]) => void;
+    addGraph: (graph: Graph) => void;
     removeGraph: (graphId: string) => void;
-    updateGraph: (graphId: string, updates: Partial<NormalizedGraph>) => void;
+    updateGraph: (graphId: string, updates: Partial<Graph>) => void;
 }
 
 type GraphStore = GraphState & GraphActions;
@@ -38,8 +38,8 @@ export const useGraphStore: UseBoundStore<StoreApi<GraphStore>> = create<GraphSt
 
     // --- CRUD ---
 
-    setAllGraphs: (newGraphs: NormalizedGraph[]) => {
-        const setMap = new Map<string, NormalizedGraph>();
+    setAllGraphs: (newGraphs: Graph[]) => {
+        const setMap = new Map<string, Graph>();
         newGraphs.forEach(s => setMap.set(s.id, s));
         set({ graphs: setMap, loading: false });
     },
@@ -48,7 +48,7 @@ export const useGraphStore: UseBoundStore<StoreApi<GraphStore>> = create<GraphSt
         return get().graphs.get(graphId);
     },
 
-    addGraph: (graphToAdd: NormalizedGraph) => set((state: GraphState) => {
+    addGraph: (graphToAdd: Graph) => set((state: GraphState) => {
         const newMap = new Map(state.graphs);
         newMap.set(graphToAdd.id, graphToAdd);
         return { graphs: newMap };
@@ -60,7 +60,7 @@ export const useGraphStore: UseBoundStore<StoreApi<GraphStore>> = create<GraphSt
         return { graphs: newMap };
     }),
 
-    updateGraph: (graphId: string, updates: Partial<NormalizedGraph>) => set((state: GraphState) => {
+    updateGraph: (graphId: string, updates: Partial<Graph>) => set((state: GraphState) => {
         const setEntity = state.graphs.get(graphId);
         if (!setEntity) return state;
 

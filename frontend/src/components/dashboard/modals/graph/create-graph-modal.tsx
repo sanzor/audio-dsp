@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { useRegionStore } from "@/Stores/RegionStore";
-import type { CreateGraphParams } from "@/Dtos/Graphs/CreateGraphParams";
+import type { CreateGraphParams } from "@/Services/GraphService";
 
 interface CreateGraphModalProps {
   regionId: string;

@@ -1,14 +1,14 @@
 // hooks/useRegionSetController.ts
 import { useUIStore } from "@/Stores/UIStore";
 import type { PasteRegionParams, PasteRegionSetParams } from "@/Stores/PasteParams";
-import { useCopyRegion, useCreateRegion, } from "@/Orchestrators/Regions/useRegionMutations";
+import { useCopyRegion, useCreateRegion, } from "@/hooks/regions/mutations";
 
 import { useRegionStore } from "@/Stores/RegionStore";
 import { useTrackStore } from "@/Stores/TrackStore";
 
 import { useRegionSetStore } from "@/Stores/RegionSetStore";
-import { useCopyRegionSet, useDeleteRegionSet, useRenameRegionSet } from "@/Orchestrators/RegionSets/useRegionSetsMutations";
-import type { CreateRegionParams } from "@/Dtos/Regions/CreateRegionParams";
+import { useCopyRegionSet, useDeleteRegionSet, useRenameRegionSet } from "@/hooks/region-sets/mutations";
+import type { CreateRegionParams } from "@/Services/RegionsService";
 
 
 export function useRegionSetController() {

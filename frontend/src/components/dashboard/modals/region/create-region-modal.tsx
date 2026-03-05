@@ -14,7 +14,7 @@ import { useEffect, useState } from "react";
 import { useRegionSetStore } from "@/Stores/RegionSetStore";
 import { useTrackStore } from "@/Stores/TrackStore";
 
-import type { CreateRegionParams } from "@/Dtos/Regions/CreateRegionParams";
+import type { CreateRegionParams } from "@/Services/RegionsService";
 
 interface CreateRegionModalProps {
   regionSetId: string;

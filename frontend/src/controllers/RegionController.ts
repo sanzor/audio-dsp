@@ -1,9 +1,9 @@
 // hooks/useRegionSetController.ts
 import { useUIStore } from "@/Stores/UIStore";
 import type { PasteGraphParams } from "@/Stores/PasteParams";
-import { useCopyGraph, useCreateGraph } from "@/Orchestrators/Graphs/useGraphMutations";
-import { useDeleteRegion, useEditRegion } from "@/Orchestrators/Regions/useRegionMutations";
-import type { CreateGraphParams } from "@/Dtos/Graphs/CreateGraphParams";
+import { useCopyGraph, useCreateGraph } from "@/hooks/graphs/mutations";
+import { useDeleteRegion, useEditRegion } from "@/hooks/regions/mutations";
+import type { CreateGraphParams } from "@/Services/GraphService";
 import { useRegionStore } from "@/Stores/RegionStore";
 import { useGraphStore } from "@/Stores/GraphStore";
 
