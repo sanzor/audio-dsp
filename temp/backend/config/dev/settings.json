@@ -1,0 +1,50 @@
+{
+  "server": {
+    "address": "0.0.0.0:3091",
+    "worker_count": 4
+  },
+  "redis": {
+    "url": "redis://:dev_rd_pass@127.0.0.1:6379"
+  },
+  "database": {
+    "url": "postgres://dev_pg_admin:dev_pg_pass@127.0.0.1:5432/portal_db"
+  },
+  "usage_worker": {
+    "update_every_seconds": 1
+  },
+  "sync_worker": {
+    "update_every_seconds": 10
+  },
+  "auth": {
+    "jwt_secret": "dev-insecure-secret-change-me",
+    "access_token_ttl_seconds": 3600,
+    "verification_token_ttl_seconds": 86400,
+    "issuer": "backend",
+    "audience": "frontend"
+  },
+  "smtp": {
+    "enabled": false,
+    "host": "localhost",
+    "port": 1025,
+    "username": "",
+    "password": "",
+    "from_address": "noreply@dev.example.com",
+    "verification_base_url": "http://localhost:3000/verify",
+    "use_starttls": false
+  },
+  "stripe": {
+    "secret_key": "sk_test_placeholder",
+    "webhook_secret": "whsec_placeholder",
+    "portal_url": "http://localhost:5173"
+  },
+  "organization": {
+    "default_token_bucket_size": 1000
+  },
+  "telemetry_config": {
+    "loki_url": "http://loki:3100",
+    "sampling_ratio": 1.0,
+    "log_level": "info",
+    "verbose_fields": false,
+    "loki_buffer_limit": 1000
+  }
+}

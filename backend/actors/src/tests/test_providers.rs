@@ -22,7 +22,7 @@ use domain::{
 use tokio::sync::Mutex;
 use ulid::Ulid;
 
-use data_provider::{
+use crate::{
     region_sets::region_sets_provider::RegionSetsProvider,
     tracks::tracks_provider::TracksProvider,
 };

@@ -12,9 +12,7 @@ use actors::user_actor::{
     user_actor_registry::UserActorRegistry,
 };
 use audiolib::Channels;
-use data_provider::{
-    users::{in_memory_user_provider::InMemoryUserProvider, user_provider::UserProvider},
-};
+use crate::users::{in_memory_user_provider::InMemoryUserProvider, user_provider::UserProvider};
 use domain::actors::messages::tracks::{
     get_track_info::GetTrackMetaResult, get_tracks::GetTracksResult,
 };

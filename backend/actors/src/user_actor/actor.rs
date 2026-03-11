@@ -2,7 +2,7 @@ use crate::{
     audio_player_actor::actor::AudioPlayerActor,
     user_actor::{create_user_actor_params::CreateUserActorParams, player_factory::PlayerFactory},
 };
-use data_provider::{
+use crate::{
     region_sets::region_sets_provider::RegionSetsProvider,
     tracks::tracks_provider::TracksProvider,
 };

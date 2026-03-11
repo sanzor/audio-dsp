@@ -1,0 +1,47 @@
+{
+  "server": {
+    "address": "0.0.0.0:3090",
+    "worker_count": 4
+  },
+  "redis": {
+    "url": "redis://:prod_rd_pass@redis_server:6379"
+  },
+  "database": {
+    "url": "postgres://prod_pg_admin:prod_pg_pass_secure_99@postgres:5432/prod_portal_db"
+  },
+  "usage_worker": {
+    "update_every_seconds": 1
+  },
+  "sync_worker": {
+    "update_every_seconds": 10
+  },
+  "auth": {
+    "jwt_secret": "",
+    "access_token_ttl_seconds": 3600,
+    "verification_token_ttl_seconds": 86400,
+    "issuer": "backend",
+    "audience": "frontend"
+  },
+  "smtp": {
+    "enabled": false,
+    "host": "",
+    "port": 587,
+    "username": "",
+    "password": "",
+    "from_address": "",
+    "verification_base_url": "",
+    "use_starttls": true
+  },
+  "stripe": {
+    "secret_key": "",
+    "webhook_secret": "",
+    "portal_url": ""
+  },
+  "telemetry_config": {
+    "loki_url": "http://loki:3100",
+    "sampling_ratio": 1.0,
+    "log_level": "info",
+    "verbose_fields": false,
+    "loki_buffer_limit": 1000
+  }
+}

@@ -5,9 +5,7 @@ use actix_web::{test, web, App};
 
 use ::actors::user_actor::player_factory::PlayerFactory;
 use actors::user_actor::{user_actor_deps::UserActorDeps, user_actor_registry::UserActorRegistry};
-use data_provider::{
-    users::{in_memory_user_provider::InMemoryUserProvider, user_provider::UserProvider},
-};
+use crate::users::{in_memory_user_provider::InMemoryUserProvider, user_provider::UserProvider};
 use rstest::rstest;
 use ulid::Ulid;
 

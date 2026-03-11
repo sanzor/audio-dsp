@@ -3,7 +3,7 @@ use std::sync::Arc;
 use actors::user_actor::{
     create_user_actor_params::CreateUserActorParams, user_actor_registry::UserActorRegistry,
 };
-use data_provider::users::user_provider::UserProvider;
+use crate::users::user_provider::UserProvider;
 use domain::{create_domain_user_params::CreateDomainUserParams, domain_user::DomainUser};
 
 use crate::{

@@ -3,23 +3,40 @@ use actix_web::{
     web::{self},
     App, HttpServer,
 };
-use actors::user_actor::{
-    player_factory::PlayerFactory, user_actor_deps::UserActorDeps,
-    user_actor_registry::UserActorRegistry,
+use actors::{
+    audio_player_actor::registry::AudioPlayerRegistry,
+    user_actor::{
+        player_factory::PlayerFactory, user_actor_deps::UserActorDeps,
+        user_actor_registry::UserActorRegistry,
+    },
 };
 use api::{
     app_data::AppData,
     controllers::{self, google_controller, ws_controller},
+    graphs::{
+        data_provider::graphs_data_provider_service::PostgresGraphsDataProvider,
+        graphs_provider_service::GraphsProviderService,
+    },
+    player::player_service::PlayerService,
+    region_sets::{
+        data_provider::region_sets_data_provider_service::PostgresRegionSetsDataProvider,
+        region_sets_provider_service::RegionSetsProviderService,
+    },
+    regions::{
+        data_provider::regions_data_provider_service::PostgresRegionsDataProvider,
+        regions_provider_service::RegionsProviderService,
+    },
+    tracks::{
+        data_provider::tracks_data_provider_service::PostgresTracksDataProvider,
+        tracks_provider_service::TracksProviderService,
+    },
     user_and_actor_resolver::local_user_and_actor_resolver::LocalUserAndActorResolver,
 };
-use data_provider::{
+use actors::{
     region_sets::region_sets_provider_service::PostgresRegionSetsProvider,
     tracks::tracks_provider_service::PostgresTracksProvider,
-    users::{in_memory_user_provider::InMemoryUserProvider, user_provider::UserProvider},
 };
-
-
-
+use crate::users::{in_memory_user_provider::InMemoryUserProvider, user_provider::UserProvider};
 
 use std::sync::Arc;
 
@@ -28,9 +45,9 @@ fn main() -> std::io::Result<()> {
     let _ = dotenvy::from_filename("api/dev.env");
     let _ = dotenvy::dotenv();
 
-    // ✅ Manually start Actix runtime
     actix_web::rt::System::new().block_on(async { start_server().await })
 }
+
 async fn start_server() -> std::io::Result<()> {
     let host = std::env::var("HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
     let port: u16 = std::env::var("PORT")
@@ -47,6 +64,15 @@ async fn start_server() -> std::io::Result<()> {
 
     let user_provider: Arc<dyn UserProvider> = Arc::new(InMemoryUserProvider::new());
     let user_registry = Arc::new(UserActorRegistry::new());
+
+    let tracks_service = Arc::new(TracksProviderService::new(Arc::new(
+        PostgresTracksDataProvider::new(pool.clone()),
+    )));
+    let player_service = Arc::new(PlayerService::new(
+        Arc::new(AudioPlayerRegistry::new()),
+        Arc::clone(&tracks_service) as Arc<dyn api::tracks::tracks_provider::TracksProvider>,
+    ));
+
     let registry = AppData {
         user_resolver: Arc::new(LocalUserAndActorResolver::new(
             Arc::clone(&user_provider),
@@ -57,12 +83,22 @@ async fn start_server() -> std::io::Result<()> {
             tracks_provider: Arc::new(PostgresTracksProvider::new(pool.clone())),
             region_sets_provider: Arc::new(PostgresRegionSetsProvider::new(pool.clone())),
         }),
+        player_service,
+        tracks_service,
+        region_sets_service: Arc::new(RegionSetsProviderService::new(Arc::new(
+            PostgresRegionSetsDataProvider::new(pool.clone()),
+        ))),
+        regions_service: Arc::new(RegionsProviderService::new(Arc::new(
+            PostgresRegionsDataProvider::new(pool.clone()),
+        ))),
+        graphs_service: Arc::new(GraphsProviderService::new(Arc::new(
+            PostgresGraphsDataProvider::new(pool.clone()),
+        ))),
     };
     println!("Server running at http://{host}:{port}");
 
     HttpServer::new(move || {
         let cors = actix_cors::Cors::default()
-            // allow any localhost/127.0.0.1 *with* credentials
             .allowed_origin_fn(|origin, _| {
                 let o = origin.as_bytes();
                 o.starts_with(b"http://localhost:") || o.starts_with(b"http://127.0.0.1:")

@@ -7,7 +7,7 @@ use actors::user_actor::{
     player_factory::PlayerFactory, user_actor_deps::UserActorDeps,
 };
 use audiolib::{audio_buffer::AudioBuffer, Channels};
-use data_provider::tracks::tracks_provider::TracksProvider;
+use actors::tracks::tracks_provider::TracksProvider;
 use domain::{
     actors::messages::tracks::get_tracks::GetTracksResult,
     domain_user::DomainUser,

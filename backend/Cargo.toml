@@ -5,6 +5,5 @@ members=[
     "domain",
     "player",
     "actors",
-    "api",
-    "data-provider"]
+    "api"]
 

@@ -1,7 +1,4 @@
-use crate::{
-    app_data::AppData, controllers::utils::get_user_actor_internal,
-    dtos::authenticated_user::AuthenticatedUser,
-};
+use crate::{app_data::AppData, dtos::authenticated_user::AuthenticatedUser};
 use actix_multipart::Multipart;
 use actix_web::{
     delete, get, post,
@@ -10,12 +7,8 @@ use actix_web::{
 };
 use audiolib::{audio_buffer::AudioBuffer, Channels};
 use domain::{
-    actors::messages::tracks::{
-        copy_track::CopyTrack, delete_track::DeleteTrack, get_stored_track::GetStoredTrack,
-        get_track_info::GetTrackMeta, get_tracks::GetTrackMetas, insert_track::InsertTrack,
-        update_track_info::UpdateTrackInfo,
-    },
     raw_track::{RawTrack, TrackInfo},
+    update_track_info_params::UpdateTrackInfoParams,
 };
 use futures_util::StreamExt;
 use mime_guess::from_ext;
@@ -44,7 +37,7 @@ pub struct AddTrackResult {
 )]
 #[post("/add-track")]
 pub async fn add_track(
-    user: AuthenticatedUser,
+    _user: AuthenticatedUser,
     path: web::Json<serde_json::Value>,
     app_state: web::Data<AppData>,
 ) -> HttpResponse {
@@ -53,23 +46,10 @@ pub async fn add_track(
         Err(_) => return HttpResponse::BadRequest().body("Invalid payload"),
     };
 
-    let found_user = match get_user_actor_internal(&user.user_id, &app_state).await {
-        Ok(u) => u,
-        Err(_e) => return HttpResponse::NotFound().body("User not found"),
-    };
-
-    let rez = match found_user
-        .ask(InsertTrack {
-            track: request.track,
-        })
-        .await
-    {
-        Ok(smth) => HttpResponse::Ok().json(AddTrackResult {
-            track_id: smth.track_id,
-        }),
-        Err(_e) => return HttpResponse::InternalServerError().body("Could not insert track"),
-    };
-    rez
+    match app_state.tracks_service.insert_track(request.track).await {
+        Ok(meta) => HttpResponse::Ok().json(AddTrackResult { track_id: meta.track_id }),
+        Err(_e) => HttpResponse::InternalServerError().body("Could not insert track"),
+    }
 }
 
 #[utoipa::path(
@@ -81,14 +61,14 @@ pub async fn add_track(
 )]
 #[post("/add-track-multi")]
 pub async fn add_track_multi(
-    user: AuthenticatedUser,
+    _user: AuthenticatedUser,
     mut payload: Multipart,
     app_state: web::Data<AppData>,
 ) -> HttpResponse {
     let mut name: Option<String> = None;
     let mut extension: Option<String> = None;
-    let mut sample_rate: Option<f32> = None; // ✅ f32 now
-    let mut channels: Option<Channels> = None; // ✅ Enum now
+    let mut sample_rate: Option<f32> = None;
+    let mut channels: Option<Channels> = None;
     let mut samples_bytes: Vec<u8> = vec![];
 
     while let Some(Ok(mut field)) = payload.next().await {
@@ -111,36 +91,16 @@ pub async fn add_track_multi(
 
     if samples_bytes.is_empty() {
         return HttpResponse::BadRequest().body("Missing samples data");
-    };
+    }
     let samples: Vec<f32> = bytes_to_f32(samples_bytes);
     let length = samples.len() as f32 / sample_rate;
-    let audio_buffer = AudioBuffer {
-        samples,
-        sample_rate,
-        channels,
-    };
-
     let raw_track = RawTrack {
-        info: TrackInfo {
-            name,
-            extension,
-            length,
-        },
-        data: audio_buffer,
+        info: TrackInfo { name, extension, length },
+        data: AudioBuffer { samples, sample_rate, channels },
     };
 
-    // ✅ Continue same as before
-    let found_user = match get_user_actor_internal(&user.user_id, &app_state).await {
-        Ok(u) => u,
-        Err(_) => return HttpResponse::NotFound().body("User not found"),
-    };
-
-    let result = found_user.ask(InsertTrack { track: raw_track }).await;
-
-    match result {
-        Ok(smth) => HttpResponse::Ok().json(AddTrackResult {
-            track_id: smth.track_id,
-        }),
+    match app_state.tracks_service.insert_track(raw_track).await {
+        Ok(meta) => HttpResponse::Ok().json(AddTrackResult { track_id: meta.track_id }),
         Err(_) => HttpResponse::InternalServerError().body("Could not insert track"),
     }
 }
@@ -160,28 +120,19 @@ pub struct CopyTrackParams {
 )]
 #[post("/copy-track")]
 pub async fn copy_track(
-    user: AuthenticatedUser,
+    _user: AuthenticatedUser,
     request_raw: web::Json<CopyTrackParams>,
     app_state: web::Data<AppData>,
 ) -> HttpResponse {
     let request = request_raw.into_inner();
-
-    let user = match get_user_actor_internal(&user.user_id, &app_state).await {
-        Ok(u) => u,
-        Err(_e) => return HttpResponse::NotFound().body("User not found"),
-    };
-
-    let rez = match user
-        .ask(CopyTrack {
-            track_id: request.track_id,
-            track_copy_name: request.copy_track_name,
-        })
+    match app_state
+        .tracks_service
+        .copy_track(&request.track_id, request.copy_track_name)
         .await
     {
-        Ok(_smth) => HttpResponse::Ok().json("track copied"),
-        Err(_e) => return HttpResponse::InternalServerError().body("Could not copy track"),
-    };
-    rez
+        Ok(_) => HttpResponse::Ok().json("track copied"),
+        Err(_e) => HttpResponse::InternalServerError().body("Could not copy track"),
+    }
 }
 
 #[derive(Deserialize, ToSchema)]
@@ -189,6 +140,7 @@ pub struct UpdateTrackParams {
     pub track_id: TrackId,
     pub track_name: String,
 }
+
 #[utoipa::path(
     post,
     path = "/tracks/update-track-info",
@@ -198,29 +150,24 @@ pub struct UpdateTrackParams {
 )]
 #[post("/update-track-info")]
 pub async fn update_track_info(
-    user: AuthenticatedUser,
+    _user: AuthenticatedUser,
     path: web::Json<UpdateTrackParams>,
     app_state: web::Data<AppData>,
 ) -> HttpResponse {
     let request = path.into_inner();
-
-    let user = match get_user_actor_internal(&user.user_id, &app_state).await {
-        Ok(u) => u,
-        Err(_e) => return HttpResponse::NotFound().body("User not found"),
-    };
-
-    let rez = match user
-        .ask(UpdateTrackInfo {
-            name: request.track_name,
-            track_id: request.track_id,
-        })
+    match app_state
+        .tracks_service
+        .update_track_info(
+            &request.track_id,
+            UpdateTrackInfoParams { track_name: request.track_name },
+        )
         .await
     {
-        Ok(_smth) => HttpResponse::Ok().json("track updated"),
-        Err(_e) => return HttpResponse::InternalServerError().body("Could not insert track"),
-    };
-    rez
+        Ok(_) => HttpResponse::Ok().json("track updated"),
+        Err(_e) => HttpResponse::InternalServerError().body("Could not update track"),
+    }
 }
+
 #[derive(Deserialize, IntoParams)]
 pub struct RemoveTrackParams {
     pub track_id: TrackId,
@@ -235,32 +182,22 @@ pub struct RemoveTrackParams {
 )]
 #[delete("/remove")]
 pub async fn remove_track(
-    user: AuthenticatedUser,
+    _user: AuthenticatedUser,
     path: web::Query<RemoveTrackParams>,
     app_state: web::Data<AppData>,
 ) -> HttpResponse {
     let request = path.into_inner();
-
-    let user = match get_user_actor_internal(&user.user_id, &app_state).await {
-        Ok(u) => u,
-        Err(_e) => return HttpResponse::NotFound().body("User not found"),
-    };
-
-    let rez = match user
-        .ask(DeleteTrack {
-            track_id: request.track_id,
-        })
-        .await
-    {
-        Ok(_smth) => HttpResponse::Ok().json("track removed"),
-        Err(_e) => return HttpResponse::InternalServerError().body("Could not remove track"),
-    };
-    rez
+    match app_state.tracks_service.delete_track(&request.track_id).await {
+        Ok(_) => HttpResponse::Ok().json("track removed"),
+        Err(_e) => HttpResponse::InternalServerError().body("Could not remove track"),
+    }
 }
+
 #[derive(Deserialize, IntoParams)]
 pub struct GetTrackParams {
     pub track_id: TrackId,
 }
+
 #[utoipa::path(
     get,
     path = "/tracks/get-stored-track",
@@ -270,41 +207,24 @@ pub struct GetTrackParams {
 )]
 #[get("/get-stored-track")]
 pub async fn get_stored_track(
-    user: AuthenticatedUser,
+    _user: AuthenticatedUser,
     query: web::Query<GetTrackParams>,
     app_state: web::Data<AppData>,
 ) -> HttpResponse {
     let request = query.into_inner();
-
-    let user = match get_user_actor_internal(&user.user_id, &app_state).await {
-        Ok(u) => u,
-        Err(_e) => return HttpResponse::NotFound().body("User not found"),
-    };
-
-    let stored_track = match user
-        .ask(GetStoredTrack {
-            track_id: request.track_id,
-        })
-        .await
-    {
-        Ok(track) => track,
+    let stored_track = match app_state.tracks_service.get_stored_track(&request.track_id).await {
+        Ok(t) => t,
         Err(_e) => return HttpResponse::NotFound().body("Could not find track"),
     };
-    let ext = stored_track.track.track_info.extension.to_lowercase();
-    let mime_type = from_ext(&ext)
-        .first_or_octet_stream()
-        .essence_str()
-        .to_owned();
+    let ext = stored_track.track_info.extension.to_lowercase();
+    let mime_type = from_ext(&ext).first_or_octet_stream().essence_str().to_owned();
     HttpResponse::Ok()
         .insert_header(("Content-Type", mime_type))
         .insert_header((
             "Content-Disposition",
-            format!(
-                "inline; filename=\"{}.{}\"",
-                stored_track.track.track_info.name, ext
-            ),
+            format!("inline; filename=\"{}.{}\"", stored_track.track_info.name, ext),
         ))
-        .body(stored_track.track.canonical_audio)
+        .body(stored_track.canonical_audio)
 }
 
 #[utoipa::path(
@@ -316,27 +236,15 @@ pub async fn get_stored_track(
 )]
 #[get("/get-meta")]
 pub async fn get_meta(
-    user: AuthenticatedUser,
+    _user: AuthenticatedUser,
     query: web::Query<GetTrackParams>,
     app_state: web::Data<AppData>,
 ) -> HttpResponse {
     let request = query.into_inner();
-
-    let user = match get_user_actor_internal(&user.user_id, &app_state).await {
-        Ok(u) => u,
-        Err(_e) => return HttpResponse::NotFound().body("User not found"),
-    };
-
-    let rez = match user
-        .ask(GetTrackMeta {
-            track_id: request.track_id,
-        })
-        .await
-    {
-        Ok(smth) => HttpResponse::Ok().json(smth),
-        Err(_e) => return HttpResponse::InternalServerError().body("Could not get track"),
-    };
-    rez
+    match app_state.tracks_service.get_track_meta(&request.track_id).await {
+        Ok(meta) => HttpResponse::Ok().json(meta),
+        Err(_e) => HttpResponse::InternalServerError().body("Could not get track"),
+    }
 }
 
 #[utoipa::path(
@@ -346,23 +254,18 @@ pub async fn get_meta(
     responses((status = 200, description = "All track metas", body = serde_json::Value))
 )]
 #[get("/get-all")]
-pub async fn get_tracks(user: AuthenticatedUser, app_state: web::Data<AppData>) -> HttpResponse {
-    let user = match get_user_actor_internal(&user.user_id, &app_state).await {
-        Ok(u) => u,
-        Err(_e) => return HttpResponse::NotFound().body("User not found"),
-    };
-
-    let rez = match user.ask(GetTrackMetas {}).await {
-        Ok(smth) => HttpResponse::Ok().json(smth),
-        Err(_e) => return HttpResponse::InternalServerError().body("Could not get tracks"),
-    };
-    rez
+pub async fn get_tracks(_user: AuthenticatedUser, app_state: web::Data<AppData>) -> HttpResponse {
+    match app_state.tracks_service.get_all_track_metas().await {
+        Ok(metas) => HttpResponse::Ok().json(metas),
+        Err(_e) => HttpResponse::InternalServerError().body("Could not get tracks"),
+    }
 }
 
 #[derive(Deserialize, ToSchema)]
 pub struct GetTrackInfoParams {
     pub track_id: TrackId,
 }
+
 #[utoipa::path(
     get,
     path = "/tracks/get-track-info",
@@ -372,31 +275,15 @@ pub struct GetTrackInfoParams {
 )]
 #[get("/get-track-info")]
 pub async fn get_track_info(
-    user: AuthenticatedUser,
+    _user: AuthenticatedUser,
     query: web::Json<GetTrackInfoParams>,
     app_state: web::Data<AppData>,
 ) -> HttpResponse {
     let request = query.into_inner();
-    let resolved_user = app_state
-        .user_resolver
-        .resolve_existing_user_and_actor(&user.user_id)
-        .await;
-
-    let user_actor = match resolved_user {
-        Ok(u) => u.actor,
-        Err(_e) => return HttpResponse::NotFound().body("User not found"),
-    };
-
-    let rez = match user_actor
-        .ask(GetTrackMeta {
-            track_id: request.track_id,
-        })
-        .await
-    {
-        Ok(smth) => HttpResponse::Ok().json(smth),
-        Err(_e) => return HttpResponse::InternalServerError().body("Could not get track info"),
-    };
-    rez
+    match app_state.tracks_service.get_track_meta(&request.track_id).await {
+        Ok(meta) => HttpResponse::Ok().json(meta),
+        Err(_e) => HttpResponse::InternalServerError().body("Could not get track info"),
+    }
 }
 
 pub fn init(cfg: &mut web::ServiceConfig) {
@@ -410,17 +297,14 @@ pub fn init(cfg: &mut web::ServiceConfig) {
         .service(get_tracks)
         .service(copy_track);
 }
+
 fn bytes_to_f32(bytes: Vec<u8>) -> Vec<f32> {
     use std::convert::TryInto;
-
-    // Each f32 is 4 bytes
     let mut out = Vec::with_capacity(bytes.len() / 4);
-
     for chunk in bytes.chunks_exact(4) {
         let arr: [u8; 4] = chunk.try_into().unwrap();
-        out.push(f32::from_le_bytes(arr)); // little-endian decode
+        out.push(f32::from_le_bytes(arr));
     }
-
     out
 }
 

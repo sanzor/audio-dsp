@@ -1,18 +1,6 @@
 use actix_web::{delete, get, patch, post, web, HttpResponse};
 use chrono::{DateTime, Utc};
 use domain::{
-    actors::messages::region_set::{
-        copy_region_set::CopyRegionSet,
-        create_region_set::CreateRegionSet,
-        delete_region_set::DeleteRegionSet,
-        edit_region_set::EditRegionSet,
-        get_region_set::GetRegionSet,
-        get_region_sets_for_track::{
-            GetRegionSetsForTrack,
-            GetRegionSetsForTrackResult as ActorGetRegionSetsForTrackResult,
-        },
-        get_regions_sets::{GetRegionSets, GetRegionSetsResult as ActorGetRegionSetsResult},
-    },
     db::{DbRegionSet, RegionSetId, TrackId},
     region_set::region_set_subtree::RegionSetSubtree,
     regions::region_subtree::RegionSubtree,
@@ -22,14 +10,17 @@ use std::collections::HashMap;
 use utoipa::{IntoParams, ToSchema};
 
 use crate::{
-    app_data::AppData, controllers::utils::get_user_actor_internal,
+    app_data::AppData,
     dtos::authenticated_user::AuthenticatedUser,
+    region_sets::region_sets_provider::{
+        CopyRegionSetParams, CreateRegionSetParams, EditRegionSetParams,
+    },
 };
 
 // ── create ────────────────────────────────────────────────────────────────────
 
 #[derive(Deserialize, ToSchema)]
-pub struct CreateRegionSetParams {
+pub struct CreateRegionSetRequest {
     #[serde(rename = "trackId")]
     pub track_id: TrackId,
     pub name: Option<String>,
@@ -61,33 +52,28 @@ impl From<DbRegionSet> for CreateRegionSetResult {
     post,
     path = "/region-sets/create",
     tag = "region-sets",
-    request_body = CreateRegionSetParams,
+    request_body = CreateRegionSetRequest,
     responses(
         (status = 201, description = "Region Set Created", body = serde_json::Value),
-        (status = 400, description = "Invalid input parameters"),
         (status = 500, description = "Internal server error"),
     )
 )]
 #[post("/create")]
 pub async fn create_region_set(
-    user: AuthenticatedUser,
-    request: web::Json<CreateRegionSetParams>,
+    _user: AuthenticatedUser,
+    request: web::Json<CreateRegionSetRequest>,
     app_state: web::Data<AppData>,
 ) -> HttpResponse {
     let request = request.into_inner();
-    let resolved_user = match get_user_actor_internal(&user.user_id, &app_state).await {
-        Ok(u) => u,
-        Err(_e) => return HttpResponse::NotFound().body("User not found"),
-    };
-
-    match resolved_user
-        .ask(CreateRegionSet {
-            name: request.name,
+    match app_state
+        .region_sets_service
+        .create_region_set(CreateRegionSetParams {
             track_id: request.track_id,
+            name: request.name,
         })
         .await
     {
-        Ok(r) => HttpResponse::Created().json(CreateRegionSetResult::from(r.region_set)),
+        Ok(r) => HttpResponse::Created().json(CreateRegionSetResult::from(r)),
         Err(_e) => HttpResponse::InternalServerError().body("Could not create region set"),
     }
 }
@@ -96,7 +82,7 @@ pub async fn create_region_set(
 
 #[derive(Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct EditRegionSetParams {
+pub struct EditRegionSetRequest {
     pub region_set_id: RegionSetId,
     pub track_id: TrackId,
     pub name: Option<String>,
@@ -128,30 +114,26 @@ impl From<DbRegionSet> for EditRegionSetResult {
     patch,
     path = "/region-sets/edit",
     tag = "region-sets",
-    request_body = EditRegionSetParams,
+    request_body = EditRegionSetRequest,
     responses((status = 200, description = "Region set edited", body = serde_json::Value))
 )]
 #[patch("/edit")]
 pub async fn edit_region_set(
-    user: AuthenticatedUser,
-    request: web::Json<EditRegionSetParams>,
+    _user: AuthenticatedUser,
+    request: web::Json<EditRegionSetRequest>,
     app_state: web::Data<AppData>,
 ) -> HttpResponse {
     let request = request.into_inner();
-    let resolved_user = match get_user_actor_internal(&user.user_id, &app_state).await {
-        Ok(u) => u,
-        Err(_e) => return HttpResponse::NotFound().body("User not found"),
-    };
-
-    match resolved_user
-        .ask(EditRegionSet {
+    match app_state
+        .region_sets_service
+        .edit_region_set(EditRegionSetParams {
             name: request.name,
             region_set_id: request.region_set_id,
             track_id: request.track_id,
         })
         .await
     {
-        Ok(r) => HttpResponse::Ok().json(EditRegionSetResult::from(r.region_set)),
+        Ok(r) => HttpResponse::Ok().json(EditRegionSetResult::from(r)),
         Err(_e) => HttpResponse::InternalServerError().body("Could not edit region set"),
     }
 }
@@ -194,23 +176,13 @@ impl From<DbRegionSet> for GetRegionSetResult {
 )]
 #[get("/get")]
 pub async fn get_region_set(
-    user: AuthenticatedUser,
+    _user: AuthenticatedUser,
     request: web::Query<GetRegionSetParams>,
     app_state: web::Data<AppData>,
 ) -> HttpResponse {
     let request = request.into_inner();
-    let resolved_user = match get_user_actor_internal(&user.user_id, &app_state).await {
-        Ok(u) => u,
-        Err(_e) => return HttpResponse::NotFound().body("User not found"),
-    };
-
-    match resolved_user
-        .ask(GetRegionSet {
-            region_set_id: request.region_set_id,
-        })
-        .await
-    {
-        Ok(r) => HttpResponse::Ok().json(GetRegionSetResult::from(r.region_set)),
+    match app_state.region_sets_service.get_region_set(&request.region_set_id).await {
+        Ok(r) => HttpResponse::Ok().json(GetRegionSetResult::from(r)),
         Err(_e) => HttpResponse::InternalServerError().body("Could not find region set"),
     }
 }
@@ -223,18 +195,6 @@ pub struct GetRegionSetsResult {
     pub track_region_sets_map: HashMap<TrackId, Vec<GetRegionSetResult>>,
 }
 
-impl From<ActorGetRegionSetsResult> for GetRegionSetsResult {
-    fn from(r: ActorGetRegionSetsResult) -> Self {
-        GetRegionSetsResult {
-            track_region_sets_map: r
-                .track_region_sets_map
-                .into_iter()
-                .map(|(k, v)| (k, v.into_iter().map(GetRegionSetResult::from).collect()))
-                .collect(),
-        }
-    }
-}
-
 #[utoipa::path(
     get,
     path = "/region-sets/get-all",
@@ -243,16 +203,16 @@ impl From<ActorGetRegionSetsResult> for GetRegionSetsResult {
 )]
 #[get("/get-all")]
 pub async fn get_region_sets(
-    user: AuthenticatedUser,
+    _user: AuthenticatedUser,
     app_state: web::Data<AppData>,
 ) -> HttpResponse {
-    let resolved_user = match get_user_actor_internal(&user.user_id, &app_state).await {
-        Ok(u) => u,
-        Err(_e) => return HttpResponse::NotFound().body("User not found"),
-    };
-
-    match resolved_user.ask(GetRegionSets {}).await {
-        Ok(r) => HttpResponse::Ok().json(GetRegionSetsResult::from(r)),
+    match app_state.region_sets_service.get_region_sets().await {
+        Ok(map) => HttpResponse::Ok().json(GetRegionSetsResult {
+            track_region_sets_map: map
+                .into_iter()
+                .map(|(k, v)| (k, v.into_iter().map(GetRegionSetResult::from).collect()))
+                .collect(),
+        }),
         Err(_e) => HttpResponse::InternalServerError().body("Could not get region sets"),
     }
 }
@@ -272,15 +232,6 @@ pub struct GetRegionSetsForTrackResult {
     pub region_sets: Vec<GetRegionSetResult>,
 }
 
-impl From<ActorGetRegionSetsForTrackResult> for GetRegionSetsForTrackResult {
-    fn from(r: ActorGetRegionSetsForTrackResult) -> Self {
-        GetRegionSetsForTrackResult {
-            track_id: r.track_id,
-            region_sets: r.region_sets.into_iter().map(GetRegionSetResult::from).collect(),
-        }
-    }
-}
-
 #[utoipa::path(
     get,
     path = "/region-sets/get-all-for-track",
@@ -290,23 +241,16 @@ impl From<ActorGetRegionSetsForTrackResult> for GetRegionSetsForTrackResult {
 )]
 #[get("/get-all-for-track")]
 pub async fn get_region_sets_for_track(
-    user: AuthenticatedUser,
+    _user: AuthenticatedUser,
     request: web::Query<GetRegionsForTrackParams>,
     app_state: web::Data<AppData>,
 ) -> HttpResponse {
     let request = request.into_inner();
-    let resolved_user = match get_user_actor_internal(&user.user_id, &app_state).await {
-        Ok(u) => u,
-        Err(_e) => return HttpResponse::NotFound().body("User not found"),
-    };
-
-    match resolved_user
-        .ask(GetRegionSetsForTrack {
+    match app_state.region_sets_service.get_region_sets_for_track(&request.track_id).await {
+        Ok(sets) => HttpResponse::Ok().json(GetRegionSetsForTrackResult {
             track_id: request.track_id,
-        })
-        .await
-    {
-        Ok(r) => HttpResponse::Ok().json(GetRegionSetsForTrackResult::from(r)),
+            region_sets: sets.into_iter().map(GetRegionSetResult::from).collect(),
+        }),
         Err(_e) => HttpResponse::InternalServerError().body("Could not get region sets for track"),
     }
 }
@@ -328,23 +272,13 @@ pub struct DeleteRegionSetParams {
 )]
 #[delete("/delete")]
 pub async fn delete_region_set(
-    user: AuthenticatedUser,
+    _user: AuthenticatedUser,
     request: web::Query<DeleteRegionSetParams>,
     app_state: web::Data<AppData>,
 ) -> HttpResponse {
     let request = request.into_inner();
-    let resolved_user = match get_user_actor_internal(&user.user_id, &app_state).await {
-        Ok(u) => u,
-        Err(_e) => return HttpResponse::NotFound().body("User not found"),
-    };
-
-    match resolved_user
-        .ask(DeleteRegionSet {
-            region_set_id: request.region_set_id,
-        })
-        .await
-    {
-        Ok(_r) => HttpResponse::Ok().body("Region set deleted"),
+    match app_state.region_sets_service.delete_region_set(&request.region_set_id).await {
+        Ok(_) => HttpResponse::Ok().body("Region set deleted"),
         Err(_e) => HttpResponse::InternalServerError().body("Could not delete region set"),
     }
 }
@@ -352,10 +286,9 @@ pub async fn delete_region_set(
 // ── copy ──────────────────────────────────────────────────────────────────────
 
 #[derive(Deserialize, ToSchema)]
-pub struct CopyRegionSetParams {
+pub struct CopyRegionSetRequest {
     #[serde(rename = "regionSetId")]
     pub region_set_id: RegionSetId,
-
     #[serde(rename = "copyName")]
     pub copy_region_set_name: String,
 }
@@ -386,30 +319,25 @@ impl From<RegionSetSubtree> for CopyRegionSetResult {
     post,
     path = "/region-sets/copy-region-set",
     tag = "region-sets",
-    request_body = CopyRegionSetParams,
+    request_body = CopyRegionSetRequest,
     responses((status = 200, description = "Region set copied", body = serde_json::Value))
 )]
 #[post("/copy-region-set")]
 pub async fn copy_region_set(
-    user: AuthenticatedUser,
-    request_raw: web::Json<CopyRegionSetParams>,
+    _user: AuthenticatedUser,
+    request_raw: web::Json<CopyRegionSetRequest>,
     app_state: web::Data<AppData>,
 ) -> HttpResponse {
     let request = request_raw.into_inner();
-
-    let user = match get_user_actor_internal(&user.user_id, &app_state).await {
-        Ok(u) => u,
-        Err(_e) => return HttpResponse::NotFound().body("User not found"),
-    };
-
-    match user
-        .ask(CopyRegionSet {
+    match app_state
+        .region_sets_service
+        .copy_region_set(CopyRegionSetParams {
             region_set_id: request.region_set_id,
-            region_set_copy_name: request.copy_region_set_name,
+            copy_name: request.copy_region_set_name,
         })
         .await
     {
-        Ok(r) => HttpResponse::Ok().json(CopyRegionSetResult::from(r.region_set_subtree)),
+        Ok(r) => HttpResponse::Ok().json(CopyRegionSetResult::from(r)),
         Err(_e) => HttpResponse::InternalServerError().body("Could not copy region set"),
     }
 }

@@ -5,9 +5,7 @@ use actors::user_actor::{
     player_factory::PlayerFactory, user_actor_deps::UserActorDeps,
     user_actor_registry::UserActorRegistry,
 };
-use data_provider::{
-    users::{in_memory_user_provider::InMemoryUserProvider, user_provider::UserProvider},
-};
+use crate::users::{in_memory_user_provider::InMemoryUserProvider, user_provider::UserProvider};
 use httpmock::prelude::*;
 
 use ulid::Ulid;

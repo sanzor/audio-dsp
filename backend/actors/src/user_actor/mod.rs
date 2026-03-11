@@ -1,9 +1,6 @@
 pub mod actor;
 pub mod api;
 pub mod create_user_actor_params;
-pub mod create_user_data;
-pub mod get_all_players_result;
-pub mod get_player_result;
 pub mod player_factory;
 pub mod user_actor_deps;
 pub mod user_actor_registry;

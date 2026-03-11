@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use data_provider::{
+use crate::{
     region_sets::region_sets_provider::RegionSetsProvider,
     tracks::tracks_provider::TracksProvider,
 };
