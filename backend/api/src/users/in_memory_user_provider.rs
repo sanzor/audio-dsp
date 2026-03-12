@@ -11,16 +11,12 @@ pub struct InMemoryUserProvider {
 
 impl InMemoryUserProvider {
     pub fn new() -> Self {
-        Self {
-            users: Mutex::new(HashMap::new()),
-        }
+        Self { users: Mutex::new(HashMap::new()) }
     }
 }
 
 impl Default for InMemoryUserProvider {
-    fn default() -> Self {
-        Self::new()
-    }
+    fn default() -> Self { Self::new() }
 }
 
 impl UserProvider for InMemoryUserProvider {
@@ -28,12 +24,7 @@ impl UserProvider for InMemoryUserProvider {
         &'a self,
         id: &'a str,
     ) -> Pin<Box<dyn Future<Output = Option<DomainUser>> + Send + 'a>> {
-        let result = self
-            .users
-            .lock()
-            .unwrap()
-            .get(id)
-            .cloned();
+        let result = self.users.lock().unwrap().get(id).cloned();
         Box::pin(async move { result })
     }
 
@@ -42,11 +33,21 @@ impl UserProvider for InMemoryUserProvider {
         sub_id: &'a str,
     ) -> Pin<Box<dyn Future<Output = Option<DomainUser>> + Send + 'a>> {
         let result = self
-            .users
-            .lock()
-            .unwrap()
+            .users.lock().unwrap()
             .values()
             .find(|u| u.google_sub_id.as_deref() == Some(sub_id))
+            .cloned();
+        Box::pin(async move { result })
+    }
+
+    fn get_user_by_email<'a>(
+        &'a self,
+        email: &'a str,
+    ) -> Pin<Box<dyn Future<Output = Option<DomainUser>> + Send + 'a>> {
+        let result = self
+            .users.lock().unwrap()
+            .values()
+            .find(|u| u.email == email)
             .cloned();
         Box::pin(async move { result })
     }
@@ -59,7 +60,13 @@ impl UserProvider for InMemoryUserProvider {
         let user = DomainUser {
             id: id.clone(),
             email: user_params.email,
+            name: user_params.name,
+            picture: user_params.picture,
             google_sub_id: user_params.google_sub_id,
+            is_admin: false,
+            is_active: true,
+            password_hash: user_params.password_hash,
+            is_verified: false,
         };
         self.users.lock().unwrap().insert(id, user.clone());
         Box::pin(async move { Ok(user) })
@@ -78,9 +85,7 @@ impl UserProvider for InMemoryUserProvider {
         id: &'a str,
     ) -> Pin<Box<dyn Future<Output = Result<DomainUser, String>> + Send + 'a>> {
         let result = self
-            .users
-            .lock()
-            .unwrap()
+            .users.lock().unwrap()
             .remove(id)
             .ok_or_else(|| format!("User {} not found", id));
         Box::pin(async move { result })

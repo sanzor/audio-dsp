@@ -7,16 +7,14 @@ pub struct DomainUser {
     pub name: String,
     pub email: String,
     pub picture: String,
+    pub is_admin: bool,
+    pub is_active: bool,
+    pub password_hash: Option<String>,
+    pub is_verified: bool,
 }
 
 impl User for DomainUser {
-    fn id(&self) -> &str {
-        &self.id
-    }
-    fn name(&self) -> &str {
-        &self.name
-    }
-    fn email(&self) -> &str {
-        &self.email
-    }
+    fn id(&self) -> &str { &self.id }
+    fn name(&self) -> &str { &self.name }
+    fn email(&self) -> &str { &self.email }
 }

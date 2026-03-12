@@ -1,8 +1,12 @@
 pub mod app_data;
+pub mod auth;
 pub mod controllers;
 pub mod graphs;
+pub mod memberships;
+pub mod middlewares;
 pub mod openapi;
 pub mod player;
+pub mod projects;
 pub mod region_sets;
 pub mod regions;
 pub mod tracks;

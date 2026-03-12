@@ -20,7 +20,10 @@ pub fn make_test_auth_cookie(secret: String, user_id: String) -> Cookie<'static>
         user_id,
         name: Some("tester".into()),
         email: Some("test@example.com".into()),
-        roles: Some(vec!["tester".into()]),
+        is_admin: false,
+        project_id: None,
+        purpose: Some("access".into()),
+        invited_role: None,
         exp: 2_000_000_000, // far future expiration
     };
 
@@ -49,6 +52,7 @@ pub async fn create_user_and_actor(
             name: id.clone(),
             email: id,
             picture: "some pic".into(),
+            password_hash: None,
         })
         .await?;
     let actor = user_registry

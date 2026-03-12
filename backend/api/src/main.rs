@@ -12,12 +12,32 @@ use actors::{
 };
 use api::{
     app_data::AppData,
+    auth::{
+        auth_app_data::AuthAppData,
+        auth_provider_service::AuthProviderService,
+        jwt_provider_service::JwtProviderService,
+        mock_email_sender::MockEmailSender,
+    },
     controllers::{self, google_controller, ws_controller},
     graphs::{
         data_provider::graphs_data_provider_service::PostgresGraphsDataProvider,
         graphs_provider_service::GraphsProviderService,
     },
+    memberships::{
+        data_provider::memberships_data_provider_service::PostgresMembershipsDataProvider,
+        memberships_provider::MembershipsProvider,
+        memberships_provider_service::MembershipsProviderService,
+    },
+    middlewares::{
+        jwt::JwtAuthMiddleware,
+        role_context::RoleContextMiddleware,
+    },
     player::player_service::PlayerService,
+    projects::{
+        data_provider::projects_data_provider_service::PostgresProjectsDataProvider,
+        projects_provider::ProjectsProvider,
+        projects_provider_service::ProjectsProviderService,
+    },
     region_sets::{
         data_provider::region_sets_data_provider_service::PostgresRegionSetsDataProvider,
         region_sets_provider_service::RegionSetsProviderService,
@@ -31,12 +51,16 @@ use api::{
         tracks_provider_service::TracksProviderService,
     },
     user_and_actor_resolver::local_user_and_actor_resolver::LocalUserAndActorResolver,
+    users::{
+        postgres_user_provider::PostgresUserProvider,
+        user_provider::UserProvider,
+    },
 };
 use actors::{
     region_sets::region_sets_provider_service::PostgresRegionSetsProvider,
     tracks::tracks_provider_service::PostgresTracksProvider,
 };
-use crate::users::{in_memory_user_provider::InMemoryUserProvider, user_provider::UserProvider};
+use crate::users::in_memory_user_provider::InMemoryUserProvider;
 
 use std::sync::Arc;
 
@@ -62,7 +86,10 @@ async fn start_server() -> std::io::Result<()> {
         .await
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
 
-    let user_provider: Arc<dyn UserProvider> = Arc::new(InMemoryUserProvider::new());
+    // User provider: Postgres-backed for real persistence
+    let user_provider: Arc<dyn UserProvider> =
+        Arc::new(PostgresUserProvider::new(pool.clone()));
+
     let user_registry = Arc::new(UserActorRegistry::new());
 
     let tracks_service = Arc::new(TracksProviderService::new(Arc::new(
@@ -72,6 +99,34 @@ async fn start_server() -> std::io::Result<()> {
         Arc::new(AudioPlayerRegistry::new()),
         Arc::clone(&tracks_service) as Arc<dyn api::tracks::tracks_provider::TracksProvider>,
     ));
+
+    let projects_service: Arc<dyn ProjectsProvider> = Arc::new(ProjectsProviderService::new(
+        Arc::new(PostgresProjectsDataProvider::new(pool.clone())),
+    ));
+    let memberships_service: Arc<dyn MembershipsProvider> =
+        Arc::new(MembershipsProviderService::new(Arc::new(
+            PostgresMembershipsDataProvider::new(pool.clone()),
+        )));
+
+    // Auth
+    let jwt_provider = Arc::new(JwtProviderService);
+    let email_sender = Arc::new(MockEmailSender);
+    let auth_provider = Arc::new(AuthProviderService::new(
+        Arc::clone(&user_provider),
+        Arc::clone(&memberships_service),
+        Arc::clone(&jwt_provider) as Arc<dyn api::auth::jwt_provider::JwtProvider>,
+        Arc::clone(&email_sender) as Arc<dyn api::auth::email_sender::EmailSender>,
+    ));
+    let auth_app_data = AuthAppData {
+        auth_provider,
+        jwt_provider: Arc::clone(&jwt_provider) as Arc<dyn api::auth::jwt_provider::JwtProvider>,
+    };
+
+    let jwt_middleware = JwtAuthMiddleware;
+    let role_middleware = RoleContextMiddleware {
+        memberships: Arc::clone(&memberships_service),
+        user_provider: Arc::clone(&user_provider),
+    };
 
     let registry = AppData {
         user_resolver: Arc::new(LocalUserAndActorResolver::new(
@@ -94,6 +149,9 @@ async fn start_server() -> std::io::Result<()> {
         graphs_service: Arc::new(GraphsProviderService::new(Arc::new(
             PostgresGraphsDataProvider::new(pool.clone()),
         ))),
+        projects_service,
+        memberships_service,
+        user_provider,
     };
     println!("Server running at http://{host}:{port}");
 
@@ -120,13 +178,35 @@ async fn start_server() -> std::io::Result<()> {
                 srv.call(req)
             })
             .app_data(web::Data::new(registry.clone()))
+            .app_data(web::Data::new(auth_app_data.clone()))
             .configure(controllers::openapi_controller::init)
             .service(web::scope("/metrics").configure(controllers::metrics_controller::init))
-            .service(web::scope("/player").configure(controllers::player_controller::init))
+            .service(web::scope("/auth").configure(controllers::auth_controller::init))
+            .service(
+                web::scope("/player")
+                    .wrap(role_middleware.clone())
+                    .wrap(jwt_middleware.clone())
+                    .configure(controllers::player_controller::init),
+            )
             .service(web::scope("/user").configure(controllers::user_controller::init))
-            .service(web::scope("/tracks").configure(controllers::tracks_crud_controller::init))
-            .service(web::scope("/regions").configure(controllers::regions_controller::init))
-            .service(web::scope("/region-sets").configure(controllers::region_set_controller::init))
+            .service(
+                web::scope("/tracks")
+                    .wrap(role_middleware.clone())
+                    .wrap(jwt_middleware.clone())
+                    .configure(controllers::tracks_crud_controller::init),
+            )
+            .service(
+                web::scope("/regions")
+                    .wrap(role_middleware.clone())
+                    .wrap(jwt_middleware.clone())
+                    .configure(controllers::regions_controller::init),
+            )
+            .service(
+                web::scope("/region-sets")
+                    .wrap(role_middleware.clone())
+                    .wrap(jwt_middleware.clone())
+                    .configure(controllers::region_set_controller::init),
+            )
             .service(web::scope("/auth/google").configure(google_controller::init))
             .service(web::scope("/ws").configure(ws_controller::init))
     })

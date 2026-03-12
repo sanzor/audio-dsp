@@ -12,6 +12,10 @@ pub trait UserProvider: Send + Sync {
         &'a self,
         sub_id: &'a str,
     ) -> Pin<Box<dyn Future<Output = Option<DomainUser>> + Send + 'a>>;
+    fn get_user_by_email<'a>(
+        &'a self,
+        email: &'a str,
+    ) -> Pin<Box<dyn Future<Output = Option<DomainUser>> + Send + 'a>>;
     fn create_domain_user<'a>(
         &'a self,
         user_params: CreateDomainUserParams,

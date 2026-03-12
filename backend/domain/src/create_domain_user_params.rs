@@ -4,4 +4,5 @@ pub struct CreateDomainUserParams {
     pub name: String,
     pub email: String,
     pub picture: String,
+    pub password_hash: Option<String>,
 }

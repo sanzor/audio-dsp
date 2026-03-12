@@ -46,6 +46,7 @@ impl LocalUserAndActorResolver {
                     name: google_user_info.name.clone(),
                     picture: google_user_info.picture.clone(),
                     google_sub_id: Some(google_user_info.sub.clone()),
+                    password_hash: None,
                 };
                 self.user_provider
                     .create_domain_user(new_user_params)

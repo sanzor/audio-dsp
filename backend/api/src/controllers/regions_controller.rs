@@ -6,7 +6,7 @@ use utoipa::{IntoParams, ToSchema};
 
 use crate::{
     app_data::AppData,
-    dtos::authenticated_user::AuthenticatedUser,
+    middlewares::role_context::role_context::RoleContext,
     regions::regions_provider::{
         AddRegionParams, CopyRegionParams, DeleteRegionParams, EditRegionParams, EndTimePolicy,
     },
@@ -69,10 +69,13 @@ impl From<DbRegionSet> for AddRegionResult {
 )]
 #[post("/add")]
 pub async fn add_region(
-    _user: AuthenticatedUser,
+    role: RoleContext,
     request: web::Json<AddRegionRequest>,
     app_state: web::Data<AppData>,
 ) -> HttpResponse {
+    if !role.can_edit() {
+        return HttpResponse::Forbidden().body("Forbidden");
+    }
     let request = request.into_inner();
     match app_state
         .regions_service
@@ -124,10 +127,13 @@ impl From<DbRegionSet> for EditRegionResult {
 )]
 #[patch("/edit")]
 pub async fn edit_region(
-    _user: AuthenticatedUser,
+    role: RoleContext,
     request: web::Json<EditRegionRequest>,
     app_state: web::Data<AppData>,
 ) -> HttpResponse {
+    if !role.can_edit() {
+        return HttpResponse::Forbidden().body("Forbidden");
+    }
     let request = request.into_inner();
     match app_state
         .regions_service
@@ -163,10 +169,13 @@ pub struct DeleteRegionRequest {
 )]
 #[delete("/remove")]
 pub async fn remove_region(
-    _user: AuthenticatedUser,
+    role: RoleContext,
     request: web::Query<DeleteRegionRequest>,
     app_state: web::Data<AppData>,
 ) -> HttpResponse {
+    if !role.can_edit() {
+        return HttpResponse::Forbidden().body("Forbidden");
+    }
     let request = request.into_inner();
     match app_state
         .regions_service
@@ -217,10 +226,13 @@ impl From<DbRegionSet> for CopyRegionResult {
 )]
 #[post("/copy")]
 pub async fn copy_region(
-    _user: AuthenticatedUser,
+    role: RoleContext,
     request: web::Query<CopyRegionRequest>,
     app_state: web::Data<AppData>,
 ) -> HttpResponse {
+    if !role.can_edit() {
+        return HttpResponse::Forbidden().body("Forbidden");
+    }
     let request = request.into_inner();
     match app_state
         .regions_service

@@ -154,7 +154,7 @@ pub async fn google_callback(
                 &user_and_actor.user.id,
                 Some(&google_user.name),
                 Some(google_user.email.as_str()),
-                None,
+                user_and_actor.user.is_admin,
             );
             let refresh_token = create_refresh_token(&user_and_actor.user.id);
             let csrf_token = generate_csrf_token();
@@ -228,7 +228,7 @@ pub async fn refresh(req: HttpRequest) -> HttpResponse {
     let email = claims.email.unwrap_or_default();
 
     let new_access_token =
-        create_access_token(&user_id, claims.name.as_deref(), Some(&email), None);
+        create_access_token(&user_id, claims.name.as_deref(), Some(&email), claims.is_admin);
     let new_crsf_token = generate_csrf_token();
     HttpResponse::Ok()
         .append_header((

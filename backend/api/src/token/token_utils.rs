@@ -10,24 +10,46 @@ pub(crate) fn create_access_token(
     user_id: &str,
     name: Option<&str>,
     email: Option<&str>,
-    roles: Option<Vec<String>>,
+    is_admin: bool,
 ) -> String {
-    create_token(user_id, email, name, roles, 15)
+    create_token(user_id, email, name, is_admin, None, None, None, 15)
+}
+
+pub(crate) fn create_project_token(
+    user_id: &str,
+    name: Option<&str>,
+    email: Option<&str>,
+    is_admin: bool,
+    project_id: &str,
+) -> String {
+    create_token(user_id, email, name, is_admin, Some(project_id), None, None, 60)
 }
 
 pub(crate) fn create_refresh_token(user_id: &str) -> String {
-    create_token(user_id, None, None, None, 60 * 24 * 7)
+    create_token(user_id, None, None, false, None, Some("refresh"), None, 60 * 24 * 7)
+}
+
+pub(crate) fn create_verification_token(user_id: &str) -> String {
+    create_token(user_id, None, None, false, None, Some("verification"), None, 60 * 24)
+}
+
+pub(crate) fn create_invite_token(user_id: &str, project_id: &str, role: &str) -> String {
+    create_token(user_id, None, None, false, Some(project_id), Some("invite"), Some(role), 60 * 24 * 7)
 }
 
 pub(crate) fn generate_csrf_token() -> String {
     let bytes: [u8; 32] = rand::rng().random();
     general_purpose::STANDARD_NO_PAD.encode(bytes)
 }
+
 pub(crate) fn create_token(
     user_id: &str,
     email: Option<&str>,
     name: Option<&str>,
-    roles: Option<Vec<String>>,
+    is_admin: bool,
+    project_id: Option<&str>,
+    purpose: Option<&str>,
+    invited_role: Option<&str>,
     minutes: i64,
 ) -> String {
     let secret = std::env::var("JWT_SECRET").expect("Missing JWT_SECRET in env");
@@ -41,7 +63,10 @@ pub(crate) fn create_token(
         exp: expiration,
         name: name.map(|e| e.to_owned()),
         email: email.map(|e| e.to_owned()),
-        roles,
+        is_admin,
+        project_id: project_id.map(|p| p.to_owned()),
+        purpose: purpose.map(|p| p.to_owned()),
+        invited_role: invited_role.map(|r| r.to_owned()),
     };
 
     encode(
