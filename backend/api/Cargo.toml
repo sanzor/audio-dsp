@@ -22,7 +22,7 @@ kameo="0.19.2"
 actors={path = "../actors"}
 domain={path="../domain"}
 ulid="1"
-jsonwebtoken =  "10.2.0"
+jsonwebtoken = { version = "10.2.0", features = ["rust_crypto"] }
 audiolib={path = "../audiolib"}
 player={path="../player"}
 bytemuck="1.23.1"

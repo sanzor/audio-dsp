@@ -19,6 +19,7 @@ use api::{
         mock_email_sender::MockEmailSender,
     },
     controllers::{self, google_controller, ws_controller},
+    me::{me_app_data::MeAppData, me_provider_service::MeProviderService},
     graphs::{
         data_provider::graphs_data_provider_service::PostgresGraphsDataProvider,
         graphs_provider_service::GraphsProviderService,
@@ -122,6 +123,15 @@ async fn start_server() -> std::io::Result<()> {
         jwt_provider: Arc::clone(&jwt_provider) as Arc<dyn api::auth::jwt_provider::JwtProvider>,
     };
 
+    let me_app_data = MeAppData {
+        me_data_provider: Arc::new(MeProviderService::new(
+            Arc::clone(&user_provider),
+            Arc::clone(&memberships_service),
+            Arc::clone(&projects_service),
+            Arc::clone(&jwt_provider) as Arc<dyn api::auth::jwt_provider::JwtProvider>,
+        )),
+    };
+
     let jwt_middleware = JwtAuthMiddleware;
     let role_middleware = RoleContextMiddleware {
         memberships: Arc::clone(&memberships_service),
@@ -179,9 +189,15 @@ async fn start_server() -> std::io::Result<()> {
             })
             .app_data(web::Data::new(registry.clone()))
             .app_data(web::Data::new(auth_app_data.clone()))
+            .app_data(web::Data::new(me_app_data.clone()))
             .configure(controllers::openapi_controller::init)
             .service(web::scope("/metrics").configure(controllers::metrics_controller::init))
             .service(web::scope("/auth").configure(controllers::auth_controller::init))
+            .service(
+                web::scope("/v1/me")
+                    .wrap(jwt_middleware.clone())
+                    .configure(controllers::me_controller::init),
+            )
             .service(
                 web::scope("/player")
                     .wrap(role_middleware.clone())

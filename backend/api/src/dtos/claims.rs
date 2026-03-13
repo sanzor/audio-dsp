@@ -10,6 +10,6 @@ pub struct Claims {
     pub exp: usize,
     /// "access" | "refresh" | "verification" | "invite"
     pub purpose: Option<String>,
-    /// role embedded in invite tokens
-    pub invited_role: Option<String>,
+    /// role embedded in invite and project-scoped tokens
+    pub role: Option<String>,
 }

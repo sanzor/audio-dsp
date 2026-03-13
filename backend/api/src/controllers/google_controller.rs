@@ -5,29 +5,7 @@ use actix_web::{
     web::{self},
     HttpRequest, HttpResponse,
 };
-pub  struct Client<C=A>{
 
-    _marker:PhantomData<C>
-}
-pub struct A{}
-pub struct B{}
-impl Client<A>{
-    pub fn new()->Self{
-        Self{
-            _marker:PhantomData
-        }
-    
-    }
-}
-impl Client<B>{
-    pub fn stuff(){
-        todo!()
-    }
-}
-pub fn main(){
-    let c=Client::new();
-    
-}
 use actors::user_actor::create_user_actor_params::CreateUserActorParams;
 use serde::{Deserialize, Serialize};
 use utoipa::IntoParams;

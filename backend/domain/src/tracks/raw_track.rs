@@ -1,7 +1,7 @@
 use audiolib::audio_buffer::AudioBuffer;
 use serde::{Deserialize, Serialize};
 
-use crate::tracks::track_info::TrackInfo;
+pub use crate::tracks::track_info::TrackInfo;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RawTrack {

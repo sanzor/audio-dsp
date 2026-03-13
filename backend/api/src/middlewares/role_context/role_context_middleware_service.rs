@@ -1,11 +1,9 @@
 use actix_web::{
-    dev::{Service, ServiceRequest, ServiceResponse},
-    Error,
+    Error, HttpMessage, dev::{Service, ServiceRequest, ServiceResponse}
 };
 use std::{future::Future, pin::Pin, rc::Rc, sync::Arc};
 
 use crate::{
-    memberships::memberships_provider::MembershipsProvider,
     middlewares::{
         jwt::jwt_context::JwtContext,
         role_context::role_context::RoleContext,
@@ -15,7 +13,6 @@ use crate::{
 
 pub struct RoleContextMiddlewareService<S> {
     pub service: Rc<S>,
-    pub memberships: Arc<dyn MembershipsProvider>,
     pub user_provider: Arc<dyn UserProvider>,
 }
 
@@ -33,7 +30,6 @@ where
 
     fn call(&self, req: ServiceRequest) -> Self::Future {
         let srv = Rc::clone(&self.service);
-        let memberships = Arc::clone(&self.memberships);
         let user_provider = Arc::clone(&self.user_provider);
 
         Box::pin(async move {
@@ -58,14 +54,8 @@ where
 
             let role_ctx = if jwt_ctx.is_admin {
                 RoleContext { role: None, is_admin: true }
-            } else if let Some(project_id) = &jwt_ctx.project_id {
-                let role = memberships
-                    .get_role(&jwt_ctx.user_id, project_id)
-                    .await
-                    .unwrap_or(None);
-                RoleContext { role, is_admin: false }
             } else {
-                RoleContext { role: None, is_admin: false }
+                RoleContext { role: jwt_ctx.role, is_admin: false }
             };
 
             req.extensions_mut().insert(role_ctx);

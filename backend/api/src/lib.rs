@@ -1,6 +1,7 @@
 pub mod app_data;
 pub mod auth;
 pub mod controllers;
+pub mod me;
 pub mod graphs;
 pub mod memberships;
 pub mod middlewares;

@@ -1,4 +1,5 @@
 pub mod auth_controller;
+pub mod me_controller;
 pub mod facebook_controller;
 pub mod google_controller;
 pub mod metrics_controller;

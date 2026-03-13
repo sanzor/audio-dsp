@@ -1,4 +1,4 @@
-use actix_web::{dev::Payload, Error, FromRequest, HttpRequest};
+use actix_web::{Error, FromRequest, HttpMessage, HttpRequest, dev::Payload};
 use std::future::{ready, Ready};
 
 use domain::project_role::ProjectRole;

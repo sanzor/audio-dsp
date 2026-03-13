@@ -1,0 +1,9 @@
+[workspace]
+resolver = "2"
+members = [
+    "backend/audiolib",
+    "backend/domain",
+    "backend/player",
+    "backend/actors",
+    "backend/api",
+]

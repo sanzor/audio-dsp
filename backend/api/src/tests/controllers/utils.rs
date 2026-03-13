@@ -23,7 +23,7 @@ pub fn make_test_auth_cookie(secret: String, user_id: String) -> Cookie<'static>
         is_admin: false,
         project_id: None,
         purpose: Some("access".into()),
-        invited_role: None,
+        role: None,
         exp: 2_000_000_000, // far future expiration
     };
 

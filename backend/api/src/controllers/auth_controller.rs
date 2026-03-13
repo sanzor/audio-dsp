@@ -172,7 +172,7 @@ pub async fn invite_user(
     match app_state.auth_provider.invite_user(InviteUserParams {
         email: input.email,
         project_id: input.project_id,
-        role: input.role.as_str().to_owned(),
+        role: input.role,
     }).await {
         Ok(r) => HttpResponse::Ok().json(InviteOutput { user_id: r.user_id }),
         Err(ServiceError::NotFound) => HttpResponse::NotFound().body("user not found"),

@@ -21,8 +21,9 @@ pub(crate) fn create_project_token(
     email: Option<&str>,
     is_admin: bool,
     project_id: &str,
+    role: &str,
 ) -> String {
-    create_token(user_id, email, name, is_admin, Some(project_id), None, None, 60)
+    create_token(user_id, email, name, is_admin, Some(project_id), Some("project"), Some(role), 60)
 }
 
 pub(crate) fn create_refresh_token(user_id: &str) -> String {
@@ -49,7 +50,7 @@ pub(crate) fn create_token(
     is_admin: bool,
     project_id: Option<&str>,
     purpose: Option<&str>,
-    invited_role: Option<&str>,
+    role: Option<&str>,
     minutes: i64,
 ) -> String {
     let secret = std::env::var("JWT_SECRET").expect("Missing JWT_SECRET in env");
@@ -66,7 +67,7 @@ pub(crate) fn create_token(
         is_admin,
         project_id: project_id.map(|p| p.to_owned()),
         purpose: purpose.map(|p| p.to_owned()),
-        invited_role: invited_role.map(|r| r.to_owned()),
+        role: role.map(|r| r.to_owned()),
     };
 
     encode(

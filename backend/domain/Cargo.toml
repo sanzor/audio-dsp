@@ -11,3 +11,4 @@ clap = { version = "4.4", features = ["derive"] }
 kameo="0.19.2"
 chrono = { version = "0.4", features = ["serde"] }
 sqlx = { version = "0.7", default-features = false, features = ["macros", "postgres", "chrono"] }
+utoipa = { version = "5", features = ["actix_extras"] }

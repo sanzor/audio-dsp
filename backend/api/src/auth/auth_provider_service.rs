@@ -139,7 +139,7 @@ impl AuthProvider for AuthProviderService {
         let user = self.user_provider.get_user_by_email(&params.email).await
             .ok_or(ServiceError::NotFound)?;
 
-        let token = self.jwt_provider.issue_invite_token(&user.id, &params.project_id, &params.role)?;
+        let token = self.jwt_provider.issue_invite_token(&user.id, &params.project_id, &params.role.to_string())?;
         let body = format!(
             "You've been invited to a project.\n\nUse this token to accept:\n\n{token}\n\nExpires in 7 days."
         );
@@ -159,7 +159,7 @@ impl AuthProvider for AuthProviderService {
 
         let project_id = claims.project_id
             .ok_or_else(|| ServiceError::Internal("missing project_id in token".to_string()))?;
-        let role_str = claims.invited_role
+        let role_str = claims.role
             .ok_or_else(|| ServiceError::Internal("missing role in token".to_string()))?;
         let role = ProjectRole::from_str(&role_str)
             .ok_or_else(|| ServiceError::Internal(format!("unknown role: {role_str}")))?;
@@ -179,6 +179,7 @@ impl AuthProvider for AuthProviderService {
             Some(&user.email),
             user.is_admin,
             &project_id,
+            &role.to_string(),
         )?;
 
         Ok(AcceptInviteResult {

@@ -20,7 +20,7 @@ use crate::controllers::{
     tracks_crud_controller::{AddTrackParams, AddTrackResult},
     user_controller::GetUserDataResult,
 };
-use crate::tests::test_providers::{StubRegionSetsProvider, StubTracksProvider};
+
 
 pub fn create_user_actor(id: Ulid) -> ActorRef<UserActor> {
     let tracks_provider: Arc<dyn TracksProvider + Send + Sync> = Arc::new(StubTracksProvider::new());

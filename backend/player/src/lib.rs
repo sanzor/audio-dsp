@@ -1,4 +1,4 @@
-pub mod player_params;
+
 pub mod sink;
 
 pub type AudioFrame = Vec<f32>;

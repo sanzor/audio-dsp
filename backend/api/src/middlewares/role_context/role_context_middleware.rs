@@ -1,16 +1,12 @@
 use actix_web::dev::{Service, ServiceRequest, ServiceResponse, Transform};
 use std::{future::{ready, Ready}, sync::Arc};
 
-use crate::{
-    memberships::memberships_provider::MembershipsProvider,
-    users::user_provider::UserProvider,
-};
+use crate::users::user_provider::UserProvider;
 
 use super::role_context_middleware_service::RoleContextMiddlewareService;
 
 #[derive(Clone)]
 pub struct RoleContextMiddleware {
-    pub memberships: Arc<dyn MembershipsProvider>,
     pub user_provider: Arc<dyn UserProvider>,
 }
 
@@ -29,7 +25,6 @@ where
     fn new_transform(&self, service: S) -> Self::Future {
         ready(Ok(RoleContextMiddlewareService {
             service: std::rc::Rc::new(service),
-            memberships: Arc::clone(&self.memberships),
             user_provider: Arc::clone(&self.user_provider),
         }))
     }

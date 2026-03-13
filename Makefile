@@ -41,6 +41,7 @@ ALL := $(DB) $(BE) $(FE) $(MON)
         status clean pull \
         migrate migrate-down migrate-info migrate-redo \
         db-cli db-reinit db-reset \
+        check-backend \
         dev-backend dev-frontend \
         lint lint-backend lint-frontend \
         test test-backend test-frontend
@@ -238,6 +239,9 @@ db-reset: migrate-down migrate
 	@echo "Database reset complete."
 
 # ─── Local Development ───────────────────────────────────────────────────────
+
+check-backend:
+	ALSA_NO_PKG_CONFIG=1 cargo check -p api
 
 dev-backend:
 	@command -v cargo-watch >/dev/null 2>&1 || (echo "Install cargo-watch: cargo install cargo-watch" && exit 1)

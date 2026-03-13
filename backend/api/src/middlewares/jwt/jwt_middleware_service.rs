@@ -1,12 +1,13 @@
 use actix_web::{
-    dev::{Service, ServiceRequest, ServiceResponse},
-    Error,
+    Error, HttpMessage, dev::{Service, ServiceRequest, ServiceResponse}
 };
 use std::{
     future::Future,
     pin::Pin,
     rc::Rc,
 };
+
+use domain::project_role::ProjectRole;
 
 use crate::token::token_utils::verify_token;
 
@@ -48,10 +49,12 @@ where
                 },
             };
 
+            let role = claims.role.as_deref().and_then(ProjectRole::from_str);
             let ctx = JwtContext {
                 user_id: claims.user_id,
                 project_id: claims.project_id,
                 is_admin: claims.is_admin,
+                role,
             };
 
             req.extensions_mut().insert(ctx);
