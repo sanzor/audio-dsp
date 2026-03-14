@@ -1,7 +1,7 @@
 use crate::{
     dtos::claims::Claims,
     token::token_utils::{
-        create_access_token, create_invite_token, create_project_token,
+        create_access_token, create_invite_token,
         create_verification_token, verify_token,
     },
 };
@@ -20,10 +20,6 @@ impl JwtProvider for JwtProviderService {
 
     fn issue_invite_token(&self, user_id: &str, project_id: &str, role: &str) -> Result<String, String> {
         Ok(create_invite_token(user_id, project_id, role))
-    }
-
-    fn issue_project_token(&self, user_id: &str, name: Option<&str>, email: Option<&str>, is_admin: bool, project_id: &str, role: &str) -> Result<String, String> {
-        Ok(create_project_token(user_id, name, email, is_admin, project_id, role))
     }
 
     fn verify(&self, token: &str) -> Result<Claims, String> {

@@ -15,16 +15,6 @@ pub(crate) fn create_access_token(
     create_token(user_id, email, name, is_admin, None, None, None, 15)
 }
 
-pub(crate) fn create_project_token(
-    user_id: &str,
-    name: Option<&str>,
-    email: Option<&str>,
-    is_admin: bool,
-    project_id: &str,
-    role: &str,
-) -> String {
-    create_token(user_id, email, name, is_admin, Some(project_id), Some("project"), Some(role), 60)
-}
 
 pub(crate) fn create_refresh_token(user_id: &str) -> String {
     create_token(user_id, None, None, false, None, Some("refresh"), None, 60 * 24 * 7)

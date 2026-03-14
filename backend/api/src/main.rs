@@ -128,14 +128,12 @@ async fn start_server() -> std::io::Result<()> {
             Arc::clone(&user_provider),
             Arc::clone(&memberships_service),
             Arc::clone(&projects_service),
-            Arc::clone(&jwt_provider) as Arc<dyn api::auth::jwt_provider::JwtProvider>,
         )),
     };
 
     let jwt_middleware = JwtAuthMiddleware;
     let role_middleware = RoleContextMiddleware {
         memberships: Arc::clone(&memberships_service),
-        user_provider: Arc::clone(&user_provider),
     };
 
     let registry = AppData {
@@ -177,6 +175,7 @@ async fn start_server() -> std::io::Result<()> {
                 header::AUTHORIZATION,
                 header::ACCEPT,
                 header::CONTENT_TYPE,
+                actix_web::http::header::HeaderName::from_static("x-project-id"),
             ])
             .supports_credentials()
             .max_age(3600);

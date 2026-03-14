@@ -9,16 +9,18 @@ use crate::{
         jwt::jwt_context::JwtContext,
         role_context::role_context::RoleContext,
     },
+    users::user_provider::UserProvider,
 };
 
 pub const PROJECT_ID_HEADER: &str = "x-project-id";
 
-pub struct RoleContextMiddlewareService<S> {
+pub struct ProjectGuardMiddlewareService<S> {
     pub service: Rc<S>,
     pub memberships: Arc<dyn MembershipsProvider>,
+    pub user_provider: Arc<dyn UserProvider>,
 }
 
-impl<S, B> Service<ServiceRequest> for RoleContextMiddlewareService<S>
+impl<S, B> Service<ServiceRequest> for ProjectGuardMiddlewareService<S>
 where
     S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error> + 'static,
     S::Future: 'static,
@@ -33,27 +35,38 @@ where
     fn call(&self, req: ServiceRequest) -> Self::Future {
         let srv = Rc::clone(&self.service);
         let memberships = Arc::clone(&self.memberships);
+        let user_provider = Arc::clone(&self.user_provider);
 
         Box::pin(async move {
             if req.method() == actix_web::http::Method::OPTIONS {
                 return srv.call(req).await;
             }
 
-            // 1. Identity from JWT (deposited by JwtAuthMiddleware)
-            let jwt_ctx = req.extensions().get::<JwtContext>().cloned()
-                .ok_or_else(|| actix_web::error::ErrorUnauthorized("Unauthorized"))?;
+            let jwt_ctx = req.extensions().get::<JwtContext>().cloned();
+            let jwt_ctx = match jwt_ctx {
+                Some(ctx) => ctx,
+                None => return Err(actix_web::error::ErrorUnauthorized("Unauthorized")),
+            };
 
-            // 2. Project context from header
-            let project_id = req
-                .headers()
-                .get(PROJECT_ID_HEADER)
-                .and_then(|v| v.to_str().ok())
-                .map(|s| s.to_owned());
+            // is_active check
+            let user = user_provider.get_user_by_id(&jwt_ctx.user_id).await;
+            match user {
+                None => return Err(actix_web::error::ErrorUnauthorized("User not found")),
+                Some(u) if !u.is_active => {
+                    return Err(actix_web::error::ErrorForbidden("Account inactive"))
+                }
+                _ => {}
+            }
 
-            // 3. Resolve role
             let role_ctx = if jwt_ctx.is_admin {
                 RoleContext { role: None, is_admin: true }
             } else {
+                let project_id = req
+                    .headers()
+                    .get(PROJECT_ID_HEADER)
+                    .and_then(|v| v.to_str().ok())
+                    .map(|s| s.to_owned());
+
                 match project_id {
                     None => return Err(actix_web::error::ErrorBadRequest("Missing X-Project-ID header")),
                     Some(pid) => {
@@ -61,15 +74,11 @@ where
                             .get_role(&pid, &jwt_ctx.user_id)
                             .await
                             .unwrap_or(None);
-                        if role.is_none() {
-                            return Err(actix_web::error::ErrorForbidden("Access denied to this project"));
-                        }
                         RoleContext { role, is_admin: false }
                     }
                 }
             };
 
-            // 4. Attach to request
             req.extensions_mut().insert(role_ctx);
             srv.call(req).await
         })

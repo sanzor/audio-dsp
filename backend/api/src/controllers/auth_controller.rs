@@ -190,7 +190,6 @@ pub struct AcceptInviteOutput {
     pub user_id: String,
     pub project_id: String,
     pub role: ProjectRole,
-    pub token: String,
 }
 
 #[utoipa::path(post, path = "/auth/accept-invite", tag = "Auth",
@@ -210,7 +209,6 @@ pub async fn accept_invite(
             user_id: r.user_id,
             project_id: r.project_id,
             role: r.role,
-            token: r.token,
         }),
         Err(e) => { error!(error = %e, "accept-invite failed"); HttpResponse::InternalServerError().body("accept-invite failed") }
     }

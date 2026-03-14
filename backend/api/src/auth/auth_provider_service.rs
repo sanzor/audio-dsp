@@ -169,24 +169,11 @@ impl AuthProvider for AuthProviderService {
             project_id: project_id.clone(),
             role: role.clone(),
         }).await?;
-
-        let user = self.user_provider.get_user_by_id(&claims.user_id).await
-            .ok_or(ServiceError::NotFound)?;
-
-        let token = self.jwt_provider.issue_project_token(
-            &user.id,
-            Some(&user.name),
-            Some(&user.email),
-            user.is_admin,
-            &project_id,
-            &role.to_string(),
-        )?;
-
+        
         Ok(AcceptInviteResult {
-            user_id: user.id,
+            user_id: claims.user_id,
             project_id,
             role,
-            token,
         })
     }
 }
