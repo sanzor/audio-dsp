@@ -37,8 +37,7 @@ use utoipa::OpenApi;
         crate::controllers::user_controller::get_user_state,
         crate::controllers::user_controller::delete,
         crate::controllers::user_controller::update,
-        crate::controllers::ws_controller::run_player,
-        crate::controllers::metrics_controller::metrics
+        crate::controllers::ws_controller::run_player
     ),
     tags(
         (name = "auth", description = "Authentication (Google OAuth)"),
@@ -47,8 +46,7 @@ use utoipa::OpenApi;
         (name = "regions", description = "Regions CRUD"),
         (name = "region-sets", description = "Region sets CRUD"),
         (name = "user", description = "User operations"),
-        (name = "ws", description = "Websocket endpoints"),
-        (name = "metrics", description = "Prometheus metrics")
+        (name = "ws", description = "Websocket endpoints")
     )
 )]
 pub struct ApiDoc;

@@ -61,7 +61,6 @@ use actors::{
     region_sets::region_sets_provider_service::PostgresRegionSetsProvider,
     tracks::tracks_provider_service::PostgresTracksProvider,
 };
-use crate::users::in_memory_user_provider::InMemoryUserProvider;
 
 use std::sync::Arc;
 
@@ -74,6 +73,7 @@ fn main() -> std::io::Result<()> {
 }
 
 async fn start_server() -> std::io::Result<()> {
+    
     let host = std::env::var("HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
     let port: u16 = std::env::var("PORT")
         .ok()
@@ -182,15 +182,10 @@ async fn start_server() -> std::io::Result<()> {
 
         App::new()
             .wrap(cors)
-            .wrap_fn(|req, srv| {
-                controllers::metrics_controller::inc_http_requests_total();
-                srv.call(req)
-            })
             .app_data(web::Data::new(registry.clone()))
             .app_data(web::Data::new(auth_app_data.clone()))
             .app_data(web::Data::new(me_app_data.clone()))
             .configure(controllers::openapi_controller::init)
-            .service(web::scope("/metrics").configure(controllers::metrics_controller::init))
             .service(web::scope("/auth").configure(controllers::auth_controller::init))
             .service(
                 web::scope("/v1/me")
