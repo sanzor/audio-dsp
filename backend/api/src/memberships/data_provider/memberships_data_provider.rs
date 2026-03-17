@@ -24,4 +24,10 @@ pub trait MembershipsDataProvider: Send + Sync {
         project_id: &str,
         user_id: &str,
     ) -> Result<Option<ProjectRole>, String>;
+    async fn update_role(
+        &self,
+        project_id: &str,
+        user_id: &str,
+        role: ProjectRole,
+    ) -> Result<Option<DbMembership>, String>;
 }

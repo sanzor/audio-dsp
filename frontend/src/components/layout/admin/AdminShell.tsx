@@ -2,6 +2,7 @@ import { Outlet } from "react-router-dom";
 import AdminSidebar from "./AdminSidebar";
 import { UserMenu } from "../UserMenu";
 
+
 export default function AdminShell() {
   return (
     <div className="flex min-h-screen">

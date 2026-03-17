@@ -24,8 +24,10 @@ pub(crate) fn create_verification_token(user_id: &str) -> String {
     create_token(user_id, None, None, false, None, Some("verification"), None, 60 * 24)
 }
 
-pub(crate) fn create_invite_token(user_id: &str, project_id: &str, role: &str) -> String {
-    create_token(user_id, None, None, false, Some(project_id), Some("invite"), Some(role), 60 * 24 * 7)
+/// Invite token embeds the invitee's email in the `email` field.
+/// The `user_id` field is set to an empty string because the invitee may not have an account yet.
+pub(crate) fn create_invite_token(invitee_email: &str, project_id: &str, role: &str) -> String {
+    create_token("", Some(invitee_email), None, false, Some(project_id), Some("invite"), Some(role), 60 * 24 * 7)
 }
 
 pub(crate) fn generate_csrf_token() -> String {

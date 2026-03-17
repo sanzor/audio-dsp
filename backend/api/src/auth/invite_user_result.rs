@@ -1,4 +1,4 @@
 #[derive(Clone, Debug)]
 pub struct InviteUserResult {
-    pub user_id: String,
+    pub invitee_email: String,
 }

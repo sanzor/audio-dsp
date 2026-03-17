@@ -10,10 +10,10 @@ use std::collections::HashMap;
 use utoipa::{IntoParams, ToSchema};
 
 use crate::{
-    app_data::AppData,
     middlewares::role_context::role_context::RoleContext,
-    region_sets::region_sets_provider::{
-        CopyRegionSetParams, CreateRegionSetParams, EditRegionSetParams,
+    region_sets::{
+        region_sets_app_data::RegionSetsAppData,
+        region_sets_provider::{CopyRegionSetParams, CreateRegionSetParams, EditRegionSetParams},
     },
 };
 
@@ -62,7 +62,7 @@ impl From<DbRegionSet> for CreateRegionSetResult {
 pub async fn create_region_set(
     role: RoleContext,
     request: web::Json<CreateRegionSetRequest>,
-    app_state: web::Data<AppData>,
+    app_state: web::Data<RegionSetsAppData>,
 ) -> HttpResponse {
     if !role.can_edit() {
         return HttpResponse::Forbidden().body("Forbidden");
@@ -124,7 +124,7 @@ impl From<DbRegionSet> for EditRegionSetResult {
 pub async fn edit_region_set(
     role: RoleContext,
     request: web::Json<EditRegionSetRequest>,
-    app_state: web::Data<AppData>,
+    app_state: web::Data<RegionSetsAppData>,
 ) -> HttpResponse {
     if !role.can_edit() {
         return HttpResponse::Forbidden().body("Forbidden");
@@ -184,7 +184,7 @@ impl From<DbRegionSet> for GetRegionSetResult {
 pub async fn get_region_set(
     role: RoleContext,
     request: web::Query<GetRegionSetParams>,
-    app_state: web::Data<AppData>,
+    app_state: web::Data<RegionSetsAppData>,
 ) -> HttpResponse {
     if !role.can_view() {
         return HttpResponse::Forbidden().body("Forbidden");
@@ -213,7 +213,7 @@ pub struct GetRegionSetsResult {
 #[get("/get-all")]
 pub async fn get_region_sets(
     role: RoleContext,
-    app_state: web::Data<AppData>,
+    app_state: web::Data<RegionSetsAppData>,
 ) -> HttpResponse {
     if !role.can_view() {
         return HttpResponse::Forbidden().body("Forbidden");
@@ -255,7 +255,7 @@ pub struct GetRegionSetsForTrackResult {
 pub async fn get_region_sets_for_track(
     role: RoleContext,
     request: web::Query<GetRegionsForTrackParams>,
-    app_state: web::Data<AppData>,
+    app_state: web::Data<RegionSetsAppData>,
 ) -> HttpResponse {
     if !role.can_view() {
         return HttpResponse::Forbidden().body("Forbidden");
@@ -289,7 +289,7 @@ pub struct DeleteRegionSetParams {
 pub async fn delete_region_set(
     role: RoleContext,
     request: web::Query<DeleteRegionSetParams>,
-    app_state: web::Data<AppData>,
+    app_state: web::Data<RegionSetsAppData>,
 ) -> HttpResponse {
     if !role.is_owner() {
         return HttpResponse::Forbidden().body("Forbidden");
@@ -344,7 +344,7 @@ impl From<RegionSetSubtree> for CopyRegionSetResult {
 pub async fn copy_region_set(
     role: RoleContext,
     request_raw: web::Json<CopyRegionSetRequest>,
-    app_state: web::Data<AppData>,
+    app_state: web::Data<RegionSetsAppData>,
 ) -> HttpResponse {
     if !role.can_edit() {
         return HttpResponse::Forbidden().body("Forbidden");

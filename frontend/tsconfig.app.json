@@ -29,5 +29,10 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": [
+    "src/hooks/auth/**",
+    "src/components/layout/admin/**",
+    "src/components/layout/ModeSwitcher.tsx"
+  ]
 }

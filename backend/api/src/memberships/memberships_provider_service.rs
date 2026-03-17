@@ -53,4 +53,13 @@ impl MembershipsProvider for MembershipsProviderService {
     ) -> Result<Option<ProjectRole>, String> {
         self.data_provider.get_role(project_id, user_id).await
     }
+
+    async fn update_role(
+        &self,
+        project_id: &str,
+        user_id: &str,
+        role: ProjectRole,
+    ) -> Result<Option<DbMembership>, String> {
+        self.data_provider.update_role(project_id, user_id, role).await
+    }
 }

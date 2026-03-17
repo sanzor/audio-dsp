@@ -5,10 +5,10 @@ use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 
 use crate::{
-    app_data::AppData,
     middlewares::role_context::role_context::RoleContext,
-    regions::regions_provider::{
-        AddRegionParams, CopyRegionParams, DeleteRegionParams, EditRegionParams, EndTimePolicy,
+    regions::{
+        regions_app_data::RegionsAppData,
+        regions_provider::{AddRegionParams, CopyRegionParams, DeleteRegionParams, EditRegionParams, EndTimePolicy},
     },
 };
 
@@ -71,7 +71,7 @@ impl From<DbRegionSet> for AddRegionResult {
 pub async fn add_region(
     role: RoleContext,
     request: web::Json<AddRegionRequest>,
-    app_state: web::Data<AppData>,
+    app_state: web::Data<RegionsAppData>,
 ) -> HttpResponse {
     if !role.can_edit() {
         return HttpResponse::Forbidden().body("Forbidden");
@@ -129,7 +129,7 @@ impl From<DbRegionSet> for EditRegionResult {
 pub async fn edit_region(
     role: RoleContext,
     request: web::Json<EditRegionRequest>,
-    app_state: web::Data<AppData>,
+    app_state: web::Data<RegionsAppData>,
 ) -> HttpResponse {
     if !role.can_edit() {
         return HttpResponse::Forbidden().body("Forbidden");
@@ -171,7 +171,7 @@ pub struct DeleteRegionRequest {
 pub async fn remove_region(
     role: RoleContext,
     request: web::Query<DeleteRegionRequest>,
-    app_state: web::Data<AppData>,
+    app_state: web::Data<RegionsAppData>,
 ) -> HttpResponse {
     if !role.can_edit() {
         return HttpResponse::Forbidden().body("Forbidden");
@@ -228,7 +228,7 @@ impl From<DbRegionSet> for CopyRegionResult {
 pub async fn copy_region(
     role: RoleContext,
     request: web::Query<CopyRegionRequest>,
-    app_state: web::Data<AppData>,
+    app_state: web::Data<RegionsAppData>,
 ) -> HttpResponse {
     if !role.can_edit() {
         return HttpResponse::Forbidden().body("Forbidden");

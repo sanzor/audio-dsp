@@ -1,19 +1,28 @@
 use actix_web::{post, web, HttpResponse};
-use domain::project_role::ProjectRole;
 use serde::{Deserialize, Serialize};
 use tracing::{error, info, warn};
 use utoipa::ToSchema;
 
 use crate::auth::{
-    accept_invite_params::AcceptInviteParams,
     auth_app_data::AuthAppData,
-    invite_user_params::InviteUserParams,
     login_params::LoginParams,
     register_user_params::RegisterUserParams,
     service_error::ServiceError,
     user::AuthUser,
     verify_user_params::VerifyUserParams,
 };
+
+fn cookie_settings() -> &'static str {
+    if cfg!(debug_assertions) { "SameSite=Lax; Path=/" } else { "SameSite=None; Secure; Path=/" }
+}
+
+fn set_auth_cookie(token: &str) -> String {
+    format!("auth_token={}; HttpOnly; {}; Max-Age={}", token, cookie_settings(), 60 * 60 * 24)
+}
+
+fn clear_auth_cookie() -> &'static str {
+    "auth_token=deleted; HttpOnly; Path=/; Max-Age=0"
+}
 
 // ── login ─────────────────────────────────────────────────────────────────────
 
@@ -26,12 +35,11 @@ pub struct LoginInput {
 #[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
 pub struct LoginOutput {
     pub user: AuthUser,
-    pub token: String,
 }
 
 #[utoipa::path(post, path = "/auth/login", tag = "Auth",
     request_body = LoginInput,
-    responses((status = 200, body = LoginOutput), (status = 404)))]
+    responses((status = 200, body = LoginOutput), (status = 401)))]
 #[post("/login")]
 pub async fn login(
     payload: web::Json<LoginInput>,
@@ -43,8 +51,10 @@ pub async fn login(
     if input.password_hash.trim().is_empty() { return HttpResponse::BadRequest().body("password_hash required"); }
 
     match app_state.auth_provider.login(LoginParams { email: input.email, password_hash: input.password_hash }).await {
-        Ok(r) => HttpResponse::Ok().json(LoginOutput { user: r.user, token: r.token }),
-        Err(ServiceError::NotFound) => HttpResponse::NotFound().body("invalid credentials"),
+        Ok(r) => HttpResponse::Ok()
+            .append_header(("Set-Cookie", set_auth_cookie(&r.token)))
+            .json(LoginOutput { user: r.user }),
+        Err(ServiceError::NotFound) => HttpResponse::Unauthorized().body("invalid credentials"),
         Err(e) => { error!(error = %e, "login failed"); HttpResponse::InternalServerError().body("login failed") }
     }
 }
@@ -61,7 +71,6 @@ pub struct RegisterInput {
 #[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
 pub struct RegisterOutput {
     pub user: AuthUser,
-    pub token: String,
 }
 
 #[utoipa::path(post, path = "/auth/register", tag = "Auth",
@@ -81,7 +90,10 @@ pub async fn register(
     match app_state.auth_provider.register(RegisterUserParams {
         email: input.email, password_hash: input.password_hash, name: input.name,
     }).await {
-        Ok(r) => HttpResponse::Created().json(RegisterOutput { user: r.user, token: r.token }),
+        Ok(r) => HttpResponse::Created()
+            .append_header(("Set-Cookie", set_auth_cookie(&r.token)))
+            .json(RegisterOutput { user: r.user }),
+        Err(ServiceError::Conflict(msg)) => HttpResponse::Conflict().body(msg),
         Err(e) => { error!(error = %e, "register failed"); HttpResponse::InternalServerError().body("register failed") }
     }
 }
@@ -144,83 +156,14 @@ pub async fn resend_verification(
     }
 }
 
-// ── invite ────────────────────────────────────────────────────────────────────
-
-#[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
-pub struct InviteInput {
-    pub email: String,
-    pub project_id: String,
-    pub role: ProjectRole,
-}
-
-#[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
-pub struct InviteOutput { pub user_id: String }
-
-#[utoipa::path(post, path = "/auth/invite", tag = "Auth",
-    request_body = InviteInput,
-    responses((status = 200, body = InviteOutput), (status = 404)))]
-#[post("/invite")]
-pub async fn invite_user(
-    payload: web::Json<InviteInput>,
-    app_state: web::Data<AuthAppData>,
-) -> HttpResponse {
-    info!("auth invite");
-    let input = payload.into_inner();
-    if input.email.trim().is_empty() { return HttpResponse::BadRequest().body("email required"); }
-    if input.project_id.trim().is_empty() { return HttpResponse::BadRequest().body("project_id required"); }
-
-    match app_state.auth_provider.invite_user(InviteUserParams {
-        email: input.email,
-        project_id: input.project_id,
-        role: input.role,
-    }).await {
-        Ok(r) => HttpResponse::Ok().json(InviteOutput { user_id: r.user_id }),
-        Err(ServiceError::NotFound) => HttpResponse::NotFound().body("user not found"),
-        Err(e) => { error!(error = %e, "invite failed"); HttpResponse::InternalServerError().body("invite failed") }
-    }
-}
-
-// ── accept-invite ─────────────────────────────────────────────────────────────
-
-#[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
-pub struct AcceptInviteInput { pub invite_token: String }
-
-#[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
-pub struct AcceptInviteOutput {
-    pub user_id: String,
-    pub project_id: String,
-    pub role: ProjectRole,
-}
-
-#[utoipa::path(post, path = "/auth/accept-invite", tag = "Auth",
-    request_body = AcceptInviteInput,
-    responses((status = 200, body = AcceptInviteOutput)))]
-#[post("/accept-invite")]
-pub async fn accept_invite(
-    payload: web::Json<AcceptInviteInput>,
-    app_state: web::Data<AuthAppData>,
-) -> HttpResponse {
-    info!("auth accept-invite");
-    let input = payload.into_inner();
-    if input.invite_token.trim().is_empty() { return HttpResponse::BadRequest().body("invite_token required"); }
-
-    match app_state.auth_provider.accept_invite(AcceptInviteParams { invite_token: input.invite_token }).await {
-        Ok(r) => HttpResponse::Ok().json(AcceptInviteOutput {
-            user_id: r.user_id,
-            project_id: r.project_id,
-            role: r.role,
-        }),
-        Err(e) => { error!(error = %e, "accept-invite failed"); HttpResponse::InternalServerError().body("accept-invite failed") }
-    }
-}
-
 // ── logout ────────────────────────────────────────────────────────────────────
 
-#[utoipa::path(post, path = "/auth/logout", tag = "Auth",
-    responses((status = 200)))]
+#[utoipa::path(post, path = "/auth/logout", tag = "Auth", responses((status = 200)))]
 #[post("/logout")]
 pub async fn logout() -> HttpResponse {
-    HttpResponse::Ok().finish()
+    HttpResponse::Ok()
+        .append_header(("Set-Cookie", clear_auth_cookie()))
+        .finish()
 }
 
 pub fn init(cfg: &mut web::ServiceConfig) {
@@ -228,7 +171,5 @@ pub fn init(cfg: &mut web::ServiceConfig) {
         .service(register)
         .service(verify)
         .service(resend_verification)
-        .service(invite_user)
-        .service(accept_invite)
         .service(logout);
 }

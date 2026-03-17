@@ -7,11 +7,11 @@ use serde::Deserialize;
 use utoipa::{IntoParams, ToSchema};
 
 use crate::{
-    app_data::AppData,
     middlewares::{
         jwt::jwt_context::JwtContext,
         role_context::role_context::RoleContext,
     },
+    player::player_app_data::PlayerAppData,
 };
 
 #[derive(Debug, Deserialize, IntoParams)]
@@ -31,7 +31,7 @@ pub async fn get_player_state(
     jwt: JwtContext,
     role: RoleContext,
     query: web::Query<GetPlayerStateQuery>,
-    app_state: web::Data<AppData>,
+    app_state: web::Data<PlayerAppData>,
 ) -> HttpResponse {
     if !role.can_view() {
         return HttpResponse::Forbidden().body("Forbidden");
@@ -60,7 +60,7 @@ pub async fn play(
     jwt: JwtContext,
     role: RoleContext,
     body: web::Json<PlayRequest>,
-    app_state: web::Data<AppData>,
+    app_state: web::Data<PlayerAppData>,
 ) -> HttpResponse {
     if !role.can_edit() {
         return HttpResponse::Forbidden().body("Forbidden");
@@ -89,7 +89,7 @@ pub async fn pause(
     jwt: JwtContext,
     role: RoleContext,
     body: web::Json<PauseRequest>,
-    app_state: web::Data<AppData>,
+    app_state: web::Data<PlayerAppData>,
 ) -> HttpResponse {
     if !role.can_edit() {
         return HttpResponse::Forbidden().body("Forbidden");
@@ -119,7 +119,7 @@ pub async fn seek(
     jwt: JwtContext,
     role: RoleContext,
     body: web::Json<SeekRequest>,
-    app_state: web::Data<AppData>,
+    app_state: web::Data<PlayerAppData>,
 ) -> HttpResponse {
     if !role.can_edit() {
         return HttpResponse::Forbidden().body("Forbidden");
@@ -148,7 +148,7 @@ pub async fn stop(
     jwt: JwtContext,
     role: RoleContext,
     body: web::Json<StopRequest>,
-    app_state: web::Data<AppData>,
+    app_state: web::Data<PlayerAppData>,
 ) -> HttpResponse {
     if !role.can_edit() {
         return HttpResponse::Forbidden().body("Forbidden");

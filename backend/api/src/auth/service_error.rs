@@ -4,6 +4,7 @@ use std::fmt;
 pub enum ServiceError {
     NotFound,
     Conflict(String),
+    Forbidden,
     Internal(String),
 }
 
@@ -12,6 +13,7 @@ impl fmt::Display for ServiceError {
         match self {
             ServiceError::NotFound => write!(f, "not found"),
             ServiceError::Conflict(msg) => write!(f, "conflict: {msg}"),
+            ServiceError::Forbidden => write!(f, "forbidden"),
             ServiceError::Internal(msg) => write!(f, "internal: {msg}"),
         }
     }

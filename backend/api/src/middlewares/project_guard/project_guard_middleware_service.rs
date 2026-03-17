@@ -3,6 +3,8 @@ use actix_web::{
 };
 use std::{future::Future, pin::Pin, rc::Rc, sync::Arc};
 
+use domain::project_role::ProjectRole;
+
 use crate::{
     memberships::memberships_provider::MembershipsProvider,
     middlewares::{
@@ -59,7 +61,7 @@ where
             }
 
             let role_ctx = if jwt_ctx.is_admin {
-                RoleContext { role: None, is_admin: true }
+                RoleContext(ProjectRole::SuperAdmin)
             } else {
                 let project_id = req
                     .headers()
@@ -74,7 +76,10 @@ where
                             .get_role(&pid, &jwt_ctx.user_id)
                             .await
                             .unwrap_or(None);
-                        RoleContext { role, is_admin: false }
+                        match role {
+                            None => return Err(actix_web::error::ErrorForbidden("Access denied to this project")),
+                            Some(r) => RoleContext(r),
+                        }
                     }
                 }
             };

@@ -11,50 +11,60 @@ use actors::{
     },
 };
 use api::{
-    app_data::AppData,
     auth::{
         auth_app_data::AuthAppData,
         auth_provider_service::AuthProviderService,
+        google_app_data::GoogleAppData,
         jwt_provider_service::JwtProviderService,
         mock_email_sender::MockEmailSender,
     },
     controllers::{self, google_controller, ws_controller},
-    me::{me_app_data::MeAppData, me_provider_service::MeProviderService},
     graphs::{
         data_provider::graphs_data_provider_service::PostgresGraphsDataProvider,
+        graphs_app_data::GraphsAppData,
         graphs_provider_service::GraphsProviderService,
     },
+    me::{me_app_data::MeAppData, me_provider_service::MeProviderService},
     memberships::{
         data_provider::memberships_data_provider_service::PostgresMembershipsDataProvider,
+        memberships_app_data::MembershipsAppData,
         memberships_provider::MembershipsProvider,
         memberships_provider_service::MembershipsProviderService,
     },
     middlewares::{
         jwt::JwtAuthMiddleware,
+        permissions_context::permissions_context_middleware::PermissionsContextMiddleware,
         role_context::RoleContextMiddleware,
     },
-    player::player_service::PlayerService,
+    player::{player_app_data::PlayerAppData, player_service::PlayerService},
     projects::{
         data_provider::projects_data_provider_service::PostgresProjectsDataProvider,
+        project_app_data::ProjectAppData,
         projects_provider::ProjectsProvider,
         projects_provider_service::ProjectsProviderService,
     },
     region_sets::{
         data_provider::region_sets_data_provider_service::PostgresRegionSetsDataProvider,
+        region_sets_app_data::RegionSetsAppData,
         region_sets_provider_service::RegionSetsProviderService,
     },
     regions::{
         data_provider::regions_data_provider_service::PostgresRegionsDataProvider,
+        regions_app_data::RegionsAppData,
         regions_provider_service::RegionsProviderService,
     },
     tracks::{
         data_provider::tracks_data_provider_service::PostgresTracksDataProvider,
+        tracks_app_data::TracksAppData,
         tracks_provider_service::TracksProviderService,
     },
     user_and_actor_resolver::local_user_and_actor_resolver::LocalUserAndActorResolver,
     users::{
+        data_provider::user_data_provider_service::UserDataProviderService,
         postgres_user_provider::PostgresUserProvider,
+        user_crud_provider_service::UserCrudProviderService,
         user_provider::UserProvider,
+        users_app_data::UsersAppData,
     },
 };
 use actors::{
@@ -73,7 +83,6 @@ fn main() -> std::io::Result<()> {
 }
 
 async fn start_server() -> std::io::Result<()> {
-    
     let host = std::env::var("HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
     let port: u16 = std::env::var("PORT")
         .ok()
@@ -87,10 +96,8 @@ async fn start_server() -> std::io::Result<()> {
         .await
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
 
-    // User provider: Postgres-backed for real persistence
-    let user_provider: Arc<dyn UserProvider> =
-        Arc::new(PostgresUserProvider::new(pool.clone()));
-
+    // Auth-facing user provider (used by auth / me / google)
+    let user_provider: Arc<dyn UserProvider> = Arc::new(PostgresUserProvider::new(pool.clone()));
     let user_registry = Arc::new(UserActorRegistry::new());
 
     let tracks_service = Arc::new(TracksProviderService::new(Arc::new(
@@ -100,7 +107,15 @@ async fn start_server() -> std::io::Result<()> {
         Arc::new(AudioPlayerRegistry::new()),
         Arc::clone(&tracks_service) as Arc<dyn api::tracks::tracks_provider::TracksProvider>,
     ));
-
+    let region_sets_service = Arc::new(RegionSetsProviderService::new(Arc::new(
+        PostgresRegionSetsDataProvider::new(pool.clone()),
+    )));
+    let regions_service = Arc::new(RegionsProviderService::new(Arc::new(
+        PostgresRegionsDataProvider::new(pool.clone()),
+    )));
+    let graphs_service = Arc::new(GraphsProviderService::new(Arc::new(
+        PostgresGraphsDataProvider::new(pool.clone()),
+    )));
     let projects_service: Arc<dyn ProjectsProvider> = Arc::new(ProjectsProviderService::new(
         Arc::new(PostgresProjectsDataProvider::new(pool.clone())),
     ));
@@ -109,7 +124,6 @@ async fn start_server() -> std::io::Result<()> {
             PostgresMembershipsDataProvider::new(pool.clone()),
         )));
 
-    // Auth
     let jwt_provider = Arc::new(JwtProviderService);
     let email_sender = Arc::new(MockEmailSender);
     let auth_provider = Arc::new(AuthProviderService::new(
@@ -118,11 +132,22 @@ async fn start_server() -> std::io::Result<()> {
         Arc::clone(&jwt_provider) as Arc<dyn api::auth::jwt_provider::JwtProvider>,
         Arc::clone(&email_sender) as Arc<dyn api::auth::email_sender::EmailSender>,
     ));
+
+    let user_resolver = Arc::new(LocalUserAndActorResolver::new(
+        Arc::clone(&user_provider),
+        Arc::clone(&user_registry),
+    ));
+    let user_actor_deps = Arc::new(UserActorDeps {
+        player_factory: Arc::new(PlayerFactory {}),
+        tracks_provider: Arc::new(PostgresTracksProvider::new(pool.clone())),
+        region_sets_provider: Arc::new(PostgresRegionSetsProvider::new(pool.clone())),
+    });
+
+    // Focused app_data instances
     let auth_app_data = AuthAppData {
         auth_provider,
         jwt_provider: Arc::clone(&jwt_provider) as Arc<dyn api::auth::jwt_provider::JwtProvider>,
     };
-
     let me_app_data = MeAppData {
         me_data_provider: Arc::new(MeProviderService::new(
             Arc::clone(&user_provider),
@@ -130,37 +155,49 @@ async fn start_server() -> std::io::Result<()> {
             Arc::clone(&projects_service),
         )),
     };
+    let tracks_app_data = TracksAppData {
+        tracks_service: Arc::clone(&tracks_service)
+            as Arc<dyn api::tracks::tracks_provider::TracksProvider>,
+    };
+    let regions_app_data = RegionsAppData {
+        regions_service: Arc::clone(&regions_service)
+            as Arc<dyn api::regions::regions_provider::RegionsProvider>,
+    };
+    let region_sets_app_data = RegionSetsAppData {
+        region_sets_service: Arc::clone(&region_sets_service)
+            as Arc<dyn api::region_sets::region_sets_provider::RegionSetsProvider>,
+    };
+    let player_app_data = PlayerAppData {
+        player_service: Arc::clone(&player_service)
+            as Arc<dyn api::player::player_provider::PlayerProvider>,
+    };
+    let project_app_data = ProjectAppData {
+        projects_service: Arc::clone(&projects_service),
+        memberships_service: Arc::clone(&memberships_service),
+    };
+    let users_app_data = UsersAppData {
+        user_provider: Arc::new(UserCrudProviderService::new(Arc::new(
+            UserDataProviderService::new(pool.clone()),
+        ))),
+    };
+    let graphs_app_data = GraphsAppData {
+        graphs_service: Arc::clone(&graphs_service)
+            as Arc<dyn api::graphs::graphs_provider::GraphsProvider>,
+    };
+    let memberships_app_data = MembershipsAppData {
+        memberships_service: Arc::clone(&memberships_service),
+    };
+    let google_app_data = GoogleAppData {
+        user_resolver: Arc::clone(&user_resolver),
+        user_actor_deps: Arc::clone(&user_actor_deps),
+    };
 
     let jwt_middleware = JwtAuthMiddleware;
     let role_middleware = RoleContextMiddleware {
         memberships: Arc::clone(&memberships_service),
     };
+    let users_permissions_middleware = PermissionsContextMiddleware::allow_all();
 
-    let registry = AppData {
-        user_resolver: Arc::new(LocalUserAndActorResolver::new(
-            Arc::clone(&user_provider),
-            user_registry,
-        )),
-        user_actor_deps: Arc::new(UserActorDeps {
-            player_factory: Arc::new(PlayerFactory {}),
-            tracks_provider: Arc::new(PostgresTracksProvider::new(pool.clone())),
-            region_sets_provider: Arc::new(PostgresRegionSetsProvider::new(pool.clone())),
-        }),
-        player_service,
-        tracks_service,
-        region_sets_service: Arc::new(RegionSetsProviderService::new(Arc::new(
-            PostgresRegionSetsDataProvider::new(pool.clone()),
-        ))),
-        regions_service: Arc::new(RegionsProviderService::new(Arc::new(
-            PostgresRegionsDataProvider::new(pool.clone()),
-        ))),
-        graphs_service: Arc::new(GraphsProviderService::new(Arc::new(
-            PostgresGraphsDataProvider::new(pool.clone()),
-        ))),
-        projects_service,
-        memberships_service,
-        user_provider,
-    };
     println!("Server running at http://{host}:{port}");
 
     HttpServer::new(move || {
@@ -182,9 +219,17 @@ async fn start_server() -> std::io::Result<()> {
 
         App::new()
             .wrap(cors)
-            .app_data(web::Data::new(registry.clone()))
             .app_data(web::Data::new(auth_app_data.clone()))
             .app_data(web::Data::new(me_app_data.clone()))
+            .app_data(web::Data::new(tracks_app_data.clone()))
+            .app_data(web::Data::new(regions_app_data.clone()))
+            .app_data(web::Data::new(region_sets_app_data.clone()))
+            .app_data(web::Data::new(player_app_data.clone()))
+            .app_data(web::Data::new(project_app_data.clone()))
+            .app_data(web::Data::new(users_app_data.clone()))
+            .app_data(web::Data::new(graphs_app_data.clone()))
+            .app_data(web::Data::new(memberships_app_data.clone()))
+            .app_data(web::Data::new(google_app_data.clone()))
             .configure(controllers::openapi_controller::init)
             .service(web::scope("/auth").configure(controllers::auth_controller::init))
             .service(
@@ -198,7 +243,11 @@ async fn start_server() -> std::io::Result<()> {
                     .wrap(jwt_middleware.clone())
                     .configure(controllers::player_controller::init),
             )
-            .service(web::scope("/user").configure(controllers::user_controller::init))
+            .service(
+                web::scope("/users")
+                    .wrap(users_permissions_middleware.clone())
+                    .configure(controllers::user_controller::init),
+            )
             .service(
                 web::scope("/tracks")
                     .wrap(role_middleware.clone())
@@ -216,6 +265,12 @@ async fn start_server() -> std::io::Result<()> {
                     .wrap(role_middleware.clone())
                     .wrap(jwt_middleware.clone())
                     .configure(controllers::region_set_controller::init),
+            )
+            .service(
+                web::scope("/v1/projects")
+                    .wrap(role_middleware.clone())
+                    .wrap(jwt_middleware.clone())
+                    .configure(controllers::project_controller::init),
             )
             .service(web::scope("/auth/google").configure(google_controller::init))
             .service(web::scope("/ws").configure(ws_controller::init))

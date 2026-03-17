@@ -136,20 +136,23 @@ impl AuthProvider for AuthProviderService {
     async fn invite_user(&self, params: InviteUserParams) -> Result<InviteUserResult, ServiceError> {
         info!(email = %params.email, project_id = %params.project_id, role = %params.role, "invite requested");
 
-        let user = self.user_provider.get_user_by_email(&params.email).await
-            .ok_or(ServiceError::NotFound)?;
+        // Issue token with invitee email — user does not need to exist yet
+        let token = self.jwt_provider.issue_invite_token(&params.email, &params.project_id, &params.role.to_string())?;
 
-        let token = self.jwt_provider.issue_invite_token(&user.id, &params.project_id, &params.role.to_string())?;
+        let frontend_url = std::env::var("FRONTEND_URL").unwrap_or_else(|_| "http://localhost:5173".to_string());
+        let accept_link = format!("{frontend_url}/accept-invite?token={token}");
         let body = format!(
-            "You've been invited to a project.\n\nUse this token to accept:\n\n{token}\n\nExpires in 7 days."
+            "You've been invited to a project.\n\nAccept your invitation here:\n\n{accept_link}\n\nExpires in 7 days."
         );
-        self.email_sender.send_email(&user.email, "Project invitation", &body).await?;
+        if let Err(e) = self.email_sender.send_email(&params.email, "Project invitation", &body).await {
+            error!(error = %e, "failed to send invite email");
+        }
 
-        Ok(InviteUserResult { user_id: user.id })
+        Ok(InviteUserResult { invitee_email: params.email })
     }
 
     async fn accept_invite(&self, params: AcceptInviteParams) -> Result<AcceptInviteResult, ServiceError> {
-        info!("accept-invite requested");
+        info!(caller_user_id = %params.caller_user_id, "accept-invite requested");
 
         let claims = self.jwt_provider.verify(&params.invite_token)?;
 
@@ -157,6 +160,8 @@ impl AuthProvider for AuthProviderService {
             return Err(ServiceError::Internal("invalid token purpose".to_string()));
         }
 
+        let invitee_email = claims.email
+            .ok_or_else(|| ServiceError::Internal("missing email in invite token".to_string()))?;
         let project_id = claims.project_id
             .ok_or_else(|| ServiceError::Internal("missing project_id in token".to_string()))?;
         let role_str = claims.role
@@ -164,14 +169,22 @@ impl AuthProvider for AuthProviderService {
         let role = ProjectRole::from_str(&role_str)
             .ok_or_else(|| ServiceError::Internal(format!("unknown role: {role_str}")))?;
 
+        // Verify that the authenticated caller's email matches the invite
+        let caller = self.user_provider.get_user_by_id(&params.caller_user_id).await
+            .ok_or(ServiceError::NotFound)?;
+        if caller.email.to_lowercase() != invitee_email.to_lowercase() {
+            warn!(caller_email = %caller.email, invitee_email = %invitee_email, "email mismatch on accept-invite");
+            return Err(ServiceError::Forbidden);
+        }
+
         self.memberships_provider.create_membership(CreateMembershipParams {
-            user_id: claims.user_id.clone(),
+            user_id: caller.id.clone(),
             project_id: project_id.clone(),
             role: role.clone(),
         }).await?;
-        
+
         Ok(AcceptInviteResult {
-            user_id: claims.user_id,
+            user_id: caller.id,
             project_id,
             role,
         })

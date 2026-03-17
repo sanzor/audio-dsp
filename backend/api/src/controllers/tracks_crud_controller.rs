@@ -1,6 +1,6 @@
 use crate::{
-    app_data::AppData,
     middlewares::role_context::role_context::RoleContext,
+    tracks::tracks_app_data::TracksAppData,
 };
 use actix_multipart::Multipart;
 use actix_web::{
@@ -42,7 +42,7 @@ pub struct AddTrackResult {
 pub async fn add_track(
     role: RoleContext,
     path: web::Json<serde_json::Value>,
-    app_state: web::Data<AppData>,
+    app_state: web::Data<TracksAppData>,
 ) -> HttpResponse {
     if !role.can_edit() {
         return HttpResponse::Forbidden().body("Forbidden");
@@ -69,7 +69,7 @@ pub async fn add_track(
 pub async fn add_track_multi(
     role: RoleContext,
     mut payload: Multipart,
-    app_state: web::Data<AppData>,
+    app_state: web::Data<TracksAppData>,
 ) -> HttpResponse {
     if !role.can_edit() {
         return HttpResponse::Forbidden().body("Forbidden");
@@ -131,7 +131,7 @@ pub struct CopyTrackParams {
 pub async fn copy_track(
     role: RoleContext,
     request_raw: web::Json<CopyTrackParams>,
-    app_state: web::Data<AppData>,
+    app_state: web::Data<TracksAppData>,
 ) -> HttpResponse {
     if !role.can_edit() {
         return HttpResponse::Forbidden().body("Forbidden");
@@ -164,7 +164,7 @@ pub struct UpdateTrackParams {
 pub async fn update_track_info(
     role: RoleContext,
     path: web::Json<UpdateTrackParams>,
-    app_state: web::Data<AppData>,
+    app_state: web::Data<TracksAppData>,
 ) -> HttpResponse {
     if !role.can_edit() {
         return HttpResponse::Forbidden().body("Forbidden");
@@ -199,7 +199,7 @@ pub struct RemoveTrackParams {
 pub async fn remove_track(
     role: RoleContext,
     path: web::Query<RemoveTrackParams>,
-    app_state: web::Data<AppData>,
+    app_state: web::Data<TracksAppData>,
 ) -> HttpResponse {
     if !role.can_edit() {
         return HttpResponse::Forbidden().body("Forbidden");
@@ -227,7 +227,7 @@ pub struct GetTrackParams {
 pub async fn get_stored_track(
     role: RoleContext,
     query: web::Query<GetTrackParams>,
-    app_state: web::Data<AppData>,
+    app_state: web::Data<TracksAppData>,
 ) -> HttpResponse {
     if !role.can_view() {
         return HttpResponse::Forbidden().body("Forbidden");
@@ -259,7 +259,7 @@ pub async fn get_stored_track(
 pub async fn get_meta(
     role: RoleContext,
     query: web::Query<GetTrackParams>,
-    app_state: web::Data<AppData>,
+    app_state: web::Data<TracksAppData>,
 ) -> HttpResponse {
     if !role.can_view() {
         return HttpResponse::Forbidden().body("Forbidden");
@@ -278,7 +278,7 @@ pub async fn get_meta(
     responses((status = 200, description = "All track metas", body = serde_json::Value))
 )]
 #[get("/get-all")]
-pub async fn get_tracks(role: RoleContext, app_state: web::Data<AppData>) -> HttpResponse {
+pub async fn get_tracks(role: RoleContext, app_state: web::Data<TracksAppData>) -> HttpResponse {
     if !role.can_view() {
         return HttpResponse::Forbidden().body("Forbidden");
     }
@@ -304,7 +304,7 @@ pub struct GetTrackInfoParams {
 pub async fn get_track_info(
     role: RoleContext,
     query: web::Json<GetTrackInfoParams>,
-    app_state: web::Data<AppData>,
+    app_state: web::Data<TracksAppData>,
 ) -> HttpResponse {
     if !role.can_view() {
         return HttpResponse::Forbidden().body("Forbidden");

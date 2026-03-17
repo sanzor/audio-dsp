@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTrackStore } from "@/Stores/TrackStore";
-import { apiGetTracks, apiGetTrackInfo, type GetTrackParams, type GetTrackResult } from "@/Services/TracksService";
+import { apiGetTracks, apiGetTrackInfo } from "@/Services/TracksService";
 import { normalizeTrackWithCascade } from "./mutations";
 import { QUERY_KEYS } from "@/constants/queryKeys";
 import type { TrackMeta } from "@/domain/Track/TrackMeta";

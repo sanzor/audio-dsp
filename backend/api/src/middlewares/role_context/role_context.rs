@@ -1,26 +1,15 @@
 use actix_web::{Error, FromRequest, HttpMessage, HttpRequest, dev::Payload};
-use std::future::{ready, Ready};
+use std::{future::{ready, Ready}, ops::Deref};
 
 use domain::project_role::ProjectRole;
 
 #[derive(Debug, Clone)]
-pub struct RoleContext {
-    pub role: Option<ProjectRole>,
-    pub is_admin: bool,
-}
+pub struct RoleContext(pub ProjectRole);
 
-impl RoleContext {
-    pub fn can_view(&self) -> bool {
-        self.is_admin || self.role.is_some()
-    }
-
-    pub fn can_edit(&self) -> bool {
-        self.is_admin
-            || matches!(self.role, Some(ProjectRole::Owner) | Some(ProjectRole::Editor))
-    }
-
-    pub fn is_owner(&self) -> bool {
-        self.is_admin || matches!(self.role, Some(ProjectRole::Owner))
+impl Deref for RoleContext {
+    type Target = ProjectRole;
+    fn deref(&self) -> &ProjectRole {
+        &self.0
     }
 }
 

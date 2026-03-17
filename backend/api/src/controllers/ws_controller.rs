@@ -17,9 +17,8 @@ use tokio::sync::Mutex;
 use utoipa::IntoParams;
 
 use crate::{
-    app_data::AppData,
     middlewares::jwt::jwt_context::JwtContext,
-    player::player_provider::{AttachSinkParams, PlayerProvider},
+    player::{player_app_data::PlayerAppData, player_provider::{AttachSinkParams, PlayerProvider}},
 };
 
 #[derive(Serialize, Debug, Clone, Deserialize)]
@@ -54,7 +53,7 @@ pub async fn run_player(
     req: HttpRequest,
     stream: web::Payload,
     query: web::Query<PlayRequest>,
-    app_state: web::Data<AppData>,
+    app_state: web::Data<PlayerAppData>,
 ) -> Result<HttpResponse, actix_web::Error> {
     let user_id = jwt.user_id.clone();
     let track_id = query.track_id.clone();

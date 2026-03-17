@@ -34,9 +34,11 @@ use utoipa::OpenApi;
         crate::controllers::region_set_controller::get_region_sets_for_track,
         crate::controllers::region_set_controller::delete_region_set,
         crate::controllers::region_set_controller::copy_region_set,
-        crate::controllers::user_controller::get_user_state,
-        crate::controllers::user_controller::delete,
-        crate::controllers::user_controller::update,
+        crate::controllers::user_controller::create_user,
+        crate::controllers::user_controller::update_user,
+        crate::controllers::user_controller::delete_user,
+        crate::controllers::user_controller::get_user,
+        crate::controllers::user_controller::get_all_users,
         crate::controllers::ws_controller::run_player
     ),
     tags(

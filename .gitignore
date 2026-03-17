@@ -10,3 +10,4 @@
 .VSCodeCounter
 frt/*
 frontend/node_modules/*
+/temp/

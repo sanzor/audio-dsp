@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::IntoParams;
 
 use crate::{
-    app_data::AppData,
+    auth::google_app_data::GoogleAppData,
     dtos::{claims::Claims, google_user_info::GoogleUserInfo, token_response::TokenResponse},
     token::token_utils::{
         create_access_token, create_refresh_token, generate_csrf_token, verify_token,
@@ -53,7 +53,7 @@ pub async fn google_auth_redirect() -> HttpResponse {
     responses((status = 200, description = "Session info (or null user)", body = serde_json::Value))
 )]
 #[get("/session")]
-pub async fn session(req: HttpRequest, app_data: web::Data<AppData>) -> HttpResponse {
+pub async fn session(req: HttpRequest, app_data: web::Data<GoogleAppData>) -> HttpResponse {
     let Some(auth) = req.cookie("auth_token") else {
         return HttpResponse::Ok().json(serde_json::json!({"user":null}));
     };
@@ -104,7 +104,7 @@ pub struct GoogleLoginResult {
 #[get("/callback")]
 pub async fn google_callback(
     query: web::Query<AuthRequest>,
-    app_data: web::Data<AppData>,
+    app_data: web::Data<GoogleAppData>,
 ) -> HttpResponse {
     let token_url = "https://oauth2.googleapis.com/token";
     let userinfo_url = "https://www.googleapis.com/oauth2/v3/userinfo";

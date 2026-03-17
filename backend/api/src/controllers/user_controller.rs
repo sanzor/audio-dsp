@@ -1,160 +1,293 @@
-use crate::app_data::AppData;
-use actix_web::{
-    delete, get, put,
-    web::{self},
-    HttpResponse,
-};
-use actors::user_actor::actor::UserActor;
-use domain::{
-    actors::messages::{
-        player::get_player_state::GetPlayerStateResult,
-        user::{get_user_state::GetUserState, remove_user::RemoveUser, update_user::UpdateUser},
-    },
-    track_meta::TrackMeta,
-};
-use std::collections::HashMap;
-
-use kameo::actor::ActorRef;
+use actix_web::{delete, get, post, put, web, HttpResponse};
 use serde::{Deserialize, Serialize};
+use tracing::{error, info, warn};
 use utoipa::ToSchema;
 
-#[derive(Deserialize, Clone, Debug, Serialize)]
-pub struct GetUserDataResult {
-    pub players: HashMap<String, GetPlayerStateResult>,
-    pub tracks: HashMap<String, TrackMeta>,
-}
-#[utoipa::path(
-    get,
-    path = "/user/get-user-state/{user_id}",
-    tag = "user",
-    params(("user_id" = String, Path, description = "User id")),
-    responses((status = 200, description = "User state", body = serde_json::Value))
-)]
-#[get("/get-user-state/{user_id}")]
-pub async fn get_user_state(path: web::Path<String>, app_state: web::Data<AppData>) -> HttpResponse {
-    let user_id = path.into_inner();
-    let guard = app_state
-        .user_resolver
-        .resolve_existing_user_and_actor(&user_id)
-        .await;
-    let user = match guard {
-        Ok(u) => u.actor,
-        Err(_e) => return HttpResponse::BadRequest().body("Could not find user"),
-    };
-    let user_data = match user.ask(GetUserState {}).await {
-        Ok(data) => data,
-        Err(e) => return HttpResponse::InternalServerError().body(e.to_string()),
-    };
-    let result = GetUserDataResult {
-        players: user_data.players,
-        tracks: user_data.tracks,
-    };
-    HttpResponse::Ok().json(result)
+use crate::domain::db::db_user::UserId;
+use crate::domain::service_error::ServiceError;
+use crate::middlewares::permissions_context::permissions_context::PermissionsContext;
+use crate::users::user_result::UserResult;
+use crate::users::{
+    create_user_params::CreateUserParams, update_user_params::UpdateUserParams,
+    users_app_data::UsersAppData,
+};
+
+fn map_service_error(err: ServiceError) -> HttpResponse {
+    match err {
+        ServiceError::NotFound => HttpResponse::NotFound().body("not found"),
+        ServiceError::Conflict(msg) => HttpResponse::Conflict().body(msg),
+        ServiceError::Validation(msg) => HttpResponse::BadRequest().body(msg),
+        ServiceError::Internal(msg) => {
+            error!(error = %msg, "internal error");
+            HttpResponse::InternalServerError().body("internal server error")
+        }
+    }
 }
 
-#[derive(Deserialize, Clone, Debug, Serialize, ToSchema)]
-pub struct CreateUserParams {
-    pub user_name: String,
+#[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
+pub struct UsersResult {
+    pub users: Vec<UserResult>,
+    pub total: i64,
+}
+
+#[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
+pub struct UserListQuery {
+    pub index: Option<i64>,
+    pub count: Option<i64>,
+    pub search: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
+pub struct CreateUserInput {
     pub email: String,
+    pub password_hash: String,
+    pub full_name: String,
+    pub is_active: Option<bool>,
 }
 
-#[derive(Serialize, Clone, Debug, Deserialize, ToSchema)]
+#[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
 pub struct CreateUserResult {
-    pub user_id: String,
-    pub email: String,
-    pub user_name: String,
+    pub user: UserResult,
 }
 
-#[derive(Deserialize)]
-pub struct RemoveUserParams {
-    pub user_id: String,
+#[utoipa::path(
+    post,
+    path = "/users",
+    tag = "Users",
+    request_body = CreateUserInput,
+    responses(
+        (status = 201, description = "User created", body = CreateUserResult),
+        (status = 400, description = "Invalid input parameters"),
+        (status = 500, description = "Internal server error"),
+    )
+)]
+#[post("")]
+pub async fn create_user(
+    perms: PermissionsContext,
+    payload: web::Json<CreateUserInput>,
+    app_state: web::Data<UsersAppData>,
+) -> HttpResponse {
+    if !perms.has("users:create") {
+        return HttpResponse::Forbidden().body("missing required permission: users:create");
+    }
+    info!("create user request received");
+    let input = payload.into_inner();
+    if input.email.trim().is_empty() {
+        warn!("create user rejected: missing email");
+        return HttpResponse::BadRequest().body("email is required");
+    }
+    if input.password_hash.trim().is_empty() {
+        warn!("create user rejected: missing password_hash");
+        return HttpResponse::BadRequest().body("password_hash is required");
+    }
+    if input.full_name.trim().is_empty() {
+        warn!("create user rejected: missing full_name");
+        return HttpResponse::BadRequest().body("full_name is required");
+    }
+
+    let params = CreateUserParams {
+        email: input.email,
+        password_hash: input.password_hash,
+        full_name: input.full_name,
+        is_active: input.is_active,
+        is_verified: Some(false),
+    };
+
+    match app_state.user_provider.create_user(params).await {
+        Ok(result) => HttpResponse::Created().json(CreateUserResult { user: result.user }),
+        Err(e) => map_service_error(e),
+    }
+}
+
+#[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
+pub struct UpdateUserInput {
+    pub email: Option<String>,
+    pub password_hash: Option<String>,
+    pub full_name: Option<String>,
+    pub is_active: Option<bool>,
+}
+
+#[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
+pub struct UpdateUserResult {
+    pub user: UserResult,
+}
+
+#[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
+pub struct UpdateUserPath {
+    pub user_id: UserId,
+}
+
+#[utoipa::path(
+    put,
+    path = "/users/{user_id}",
+    tag = "Users",
+    request_body = UpdateUserInput,
+    params(("user_id" = UserId, Path, description = "User id")),
+    responses(
+        (status = 200, description = "User updated", body = UpdateUserResult),
+        (status = 404, description = "User not found"),
+        (status = 500, description = "Internal server error"),
+    )
+)]
+#[put("/{user_id}")]
+pub async fn update_user(
+    perms: PermissionsContext,
+    path: web::Path<UpdateUserPath>,
+    payload: web::Json<UpdateUserInput>,
+    app_state: web::Data<UsersAppData>,
+) -> HttpResponse {
+    if !perms.has("users:update") {
+        return HttpResponse::Forbidden().body("missing required permission: users:update");
+    }
+    let user_id = path.into_inner().user_id;
+    info!(user_id, "update user request received");
+    let input = payload.into_inner();
+
+    if input.email.is_none()
+        && input.password_hash.is_none()
+        && input.full_name.is_none()
+        && input.is_active.is_none()
+    {
+        warn!(user_id, "update user rejected: no fields provided");
+        return HttpResponse::BadRequest().body("at least one field is required");
+    }
+
+    let params = UpdateUserParams {
+        email: input.email,
+        password_hash: input.password_hash,
+        full_name: input.full_name,
+        is_active: input.is_active,
+        is_verified: None,
+    };
+
+    match app_state.user_provider.update_user(user_id, params).await {
+        Ok(Some(result)) => HttpResponse::Ok().json(UpdateUserResult { user: result.user }),
+        Ok(None) => HttpResponse::NotFound().body("user not found"),
+        Err(e) => map_service_error(e),
+    }
+}
+
+#[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
+pub struct DeleteUserPath {
+    pub user_id: UserId,
 }
 
 #[utoipa::path(
     delete,
-    path = "/user/remove/{user_id}",
-    tag = "user",
-    params(("user_id" = String, Path, description = "User id")),
-    responses((status = 204, description = "User removed"))
+    path = "/users/{user_id}",
+    tag = "Users",
+    params(("user_id" = UserId, Path, description = "User id")),
+    responses(
+        (status = 204, description = "User deleted"),
+        (status = 404, description = "User not found"),
+        (status = 500, description = "Internal server error"),
+    )
 )]
-#[delete("/remove/{user_id}")]
-pub async fn delete(path: web::Path<String>, app_state: web::Data<AppData>) -> HttpResponse {
-    let user_id = path.into_inner();
-    let user = match get_user_internal(&user_id, &app_state).await {
-        Ok(u) => u,
-        Err(e) if e.contains("Could not find") => {
-            return HttpResponse::NotFound().body("Could not find user")
-        }
-        _ => return HttpResponse::InternalServerError().body("Could not search user"),
-    };
-    let _result = user.ask(RemoveUser {}).await;
-    HttpResponse::NoContent().body("User deleted")
-}
+#[delete("/{user_id}")]
+pub async fn delete_user(
+    perms: PermissionsContext,
+    path: web::Path<DeleteUserPath>,
+    app_state: web::Data<UsersAppData>,
+) -> HttpResponse {
+    if !perms.has("users:delete") {
+        return HttpResponse::Forbidden().body("missing required permission: users:delete");
+    }
+    let user_id = path.into_inner().user_id;
+    info!(user_id, "delete user request received");
 
-#[derive(Deserialize, Debug, Serialize, ToSchema)]
-pub struct UpdateUserParams {
-    pub user_id: String,
-    pub user_name: String,
-    pub email: String,
-}
-
-#[derive(Deserialize, Debug, Serialize, ToSchema)]
-pub struct UserUpdateResult {
-    pub user_id: String,
-    pub new_email: String,
-    pub new_user_name: String,
-}
-#[utoipa::path(
-    put,
-    path = "/user/update",
-    tag = "user",
-    request_body = UpdateUserParams,
-    responses((status = 200, description = "User updated", body = serde_json::Value))
-)]
-#[put("/update")]
-pub async fn update(path: web::Json<UpdateUserParams>, app_state: web::Data<AppData>) -> HttpResponse {
-    let request = path.into_inner();
-    let user = match get_user_internal(&request.user_id, &app_state).await {
-        Ok(u) => u,
-        Err(e) if e.contains("Could not find") => {
-            return HttpResponse::NotFound().body("Could not find user")
-        }
-        _ => return HttpResponse::InternalServerError().body("Could not search user"),
-    };
-
-    match user
-        .ask(UpdateUser {
-            id: request.user_id,
-            email: request.email.clone(),
-            name: request.user_name,
-        })
-        .await
-    {
-        Ok(new_user) => HttpResponse::Ok().json(UserUpdateResult {
-            new_email: new_user.new_email,
-            new_user_name: new_user.new_name,
-            user_id: new_user.id,
-        }),
-        Err(err) => HttpResponse::InternalServerError().body(format!(
-            "Could not update user with cause:{:?}",
-            err.to_string()
-        )),
+    match app_state.user_provider.delete_user(user_id).await {
+        Ok(true) => HttpResponse::NoContent().finish(),
+        Ok(false) => HttpResponse::NotFound().body("user not found"),
+        Err(e) => map_service_error(e),
     }
 }
 
-async fn get_user_internal(
-    user_id: &str,
-    app_state: &AppData,
-) -> Result<ActorRef<UserActor>, String> {
-    let user_addr = {
-        let res = app_state
-            .user_resolver
-            .resolve_existing_user_and_actor(user_id)
-            .await;
-        res.map(|rez| rez.actor)
-    };
-    user_addr
+#[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
+pub struct GetUserPath {
+    pub user_id: UserId,
 }
+
+#[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
+pub struct GetUserResult {
+    pub user: UserResult,
+}
+
+#[utoipa::path(
+    get,
+    path = "/users/{user_id}",
+    tag = "Users",
+    params(("user_id" = UserId, Path, description = "User id")),
+    responses(
+        (status = 200, description = "User retrieved", body = GetUserResult),
+        (status = 404, description = "User not found"),
+        (status = 500, description = "Internal server error"),
+    )
+)]
+#[get("/{user_id}")]
+pub async fn get_user(
+    perms: PermissionsContext,
+    path: web::Path<GetUserPath>,
+    app_state: web::Data<UsersAppData>,
+) -> HttpResponse {
+    if !perms.has("users:read") {
+        return HttpResponse::Forbidden().body("missing required permission: users:read");
+    }
+    let user_id = path.into_inner().user_id;
+    info!(user_id, "get user request received");
+
+    match app_state.user_provider.get_user(user_id).await {
+        Ok(Some(result)) => HttpResponse::Ok().json(GetUserResult { user: result }),
+        Ok(None) => HttpResponse::NotFound().body("user not found"),
+        Err(e) => map_service_error(e),
+    }
+}
+
+#[utoipa::path(
+    get,
+    path = "/users",
+    tag = "Users",
+    responses(
+        (status = 200, description = "Users retrieved", body = UsersResult),
+        (status = 500, description = "Internal server error"),
+    )
+)]
+#[get("")]
+pub async fn get_all_users(
+    perms: PermissionsContext,
+    query: web::Query<UserListQuery>,
+    app_state: web::Data<UsersAppData>,
+) -> HttpResponse {
+    if !perms.has("users:read") {
+        return HttpResponse::Forbidden().body("missing required permission: users:read");
+    }
+    let offset = query.index.unwrap_or(0).max(0) as usize;
+    let limit = query.count.unwrap_or(20).clamp(1, 100) as usize;
+    let search = query.search.as_deref().map(str::to_lowercase);
+    info!(offset, limit, "list users request received");
+
+    match app_state.user_provider.get_all_users().await {
+        Ok(users) => {
+            let filtered: Vec<_> = users
+                .into_iter()
+                .filter(|u| {
+                    search.as_deref().map_or(true, |s| {
+                        u.email.to_lowercase().contains(s)
+                            || u.full_name.to_lowercase().contains(s)
+                    })
+                })
+                .collect();
+            let total = filtered.len() as i64;
+            let page: Vec<_> = filtered.into_iter().skip(offset).take(limit).collect();
+            HttpResponse::Ok().json(UsersResult { users: page, total })
+        }
+        Err(e) => map_service_error(e),
+    }
+}
+
 pub fn init(cfg: &mut web::ServiceConfig) {
-    cfg.service(get_user_state).service(delete).service(update);
+    cfg.service(create_user)
+        .service(update_user)
+        .service(delete_user)
+        .service(get_user)
+        .service(get_all_users);
 }

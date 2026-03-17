@@ -7,19 +7,35 @@ import type { StopCommand } from "@/domain/commands/StopCommand";
 
 // ─── Socket Command Types ────────────────────────────────────────────────────
 
-interface BaseCommandDto { command: string }
-interface PlayCommandDto extends BaseCommandDto { command: typeof PLAY_COMMAND }
-interface PauseCommandDto extends BaseCommandDto { command: typeof PAUSE_COMMAND }
-interface SeekCommandDto extends BaseCommandDto { command: typeof SEEK_COMMAND }
-interface StopCommandDto extends BaseCommandDto { command: typeof STOP_COMMAND }
+interface BaseCommandDto {
+  command: string
+}
+interface PlayCommandDto extends BaseCommandDto {
+  command: typeof PLAY_COMMAND
+}
+interface PauseCommandDto extends BaseCommandDto {
+  command: typeof PAUSE_COMMAND
+}
+interface SeekCommandDto extends BaseCommandDto {
+  command: typeof SEEK_COMMAND
+}
+interface StopCommandDto extends BaseCommandDto {
+  command: typeof STOP_COMMAND
+}
+
+type SocketCommandDto =
+  | PlayCommandDto
+  | PauseCommandDto
+  | SeekCommandDto
+  | StopCommandDto
 
 // ─── Adapter ─────────────────────────────────────────────────────────────────
 
-export function createSocketCommand(data: Command): BaseCommandDto | null {
+export function createSocketCommand(data: Command): SocketCommandDto | null {
   return innerCreateCommand(data);
 }
 
-function innerCreateCommand(data: Command): BaseCommandDto | null {
+function innerCreateCommand(data: Command): SocketCommandDto | null {
   switch (data.kind) {
     case PLAY_COMMAND:
       if (isPlayCommand(data)) return { command: PLAY_COMMAND };

@@ -114,4 +114,25 @@ impl MembershipsDataProvider for PostgresMembershipsDataProvider {
 
         Ok(row.map(|(r,)| r))
     }
+
+    async fn update_role(
+        &self,
+        project_id: &str,
+        user_id: &str,
+        role: ProjectRole,
+    ) -> Result<Option<DbMembership>, String> {
+        sqlx::query_as::<_, DbMembership>(
+            r#"
+            UPDATE project_members SET role = $3
+            WHERE project_id = $1 AND user_id = $2
+            RETURNING *
+            "#,
+        )
+        .bind(project_id)
+        .bind(user_id)
+        .bind(&role)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| e.to_string())
+    }
 }
