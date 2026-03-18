@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useAuth } from "@/Auth/UseAuth";
+import { useAuthStore } from "@/Stores/authStore";
 import { useRegionSetStore } from "@/Stores/RegionSetStore";
 import { apiGetRegionSet, apiGetRegionSetsForTrack } from "@/Services/RegionSetsService";
 import { normalizeRegionSetWithCascade } from "./mutations";
@@ -9,7 +9,7 @@ import type { TrackRegionSet } from "@/domain/RegionSet/TrackRegionSet";
 import type { NormalizedTrackRegionSet } from "@/domain/RegionSet/NormalizedTrackRegionSet";
 
 export const useGetRegionSet = (regionSetId: string) => {
-  const { user } = useAuth();
+  const user = useAuthStore((state) => state.user);
 
   const query = useQuery<TrackRegionSet, Error, NormalizedTrackRegionSet | undefined>({
     queryKey: QUERY_KEYS.regionSets.byId(regionSetId),
@@ -26,7 +26,7 @@ export const useGetRegionSet = (regionSetId: string) => {
 };
 
 export const useGetAllRegionSetsForTrack = (trackId: string) => {
-  const { user } = useAuth();
+  const user = useAuthStore((state) => state.user);
 
   const query = useQuery<TrackRegionSet[], Error, NormalizedTrackRegionSet[]>({
     queryKey: QUERY_KEYS.regionSets.byTrack(trackId),

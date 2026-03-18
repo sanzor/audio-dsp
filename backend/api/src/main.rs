@@ -14,7 +14,6 @@ use api::{
     auth::{
         auth_app_data::AuthAppData,
         auth_provider_service::AuthProviderService,
-        google_app_data::GoogleAppData,
         jwt_provider_service::JwtProviderService,
         mock_email_sender::MockEmailSender,
     },
@@ -58,7 +57,6 @@ use api::{
         tracks_app_data::TracksAppData,
         tracks_provider_service::TracksProviderService,
     },
-    user_and_actor_resolver::local_user_and_actor_resolver::LocalUserAndActorResolver,
     users::{
         data_provider::user_data_provider_service::UserDataProviderService,
         postgres_user_provider::PostgresUserProvider,
@@ -66,10 +64,36 @@ use api::{
         user_provider::UserProvider,
         users_app_data::UsersAppData,
     },
-};
-use actors::{
-    region_sets::region_sets_provider_service::PostgresRegionSetsProvider,
-    tracks::tracks_provider_service::PostgresTracksProvider,
+    invoices::{
+        data_provider::invoices_data_provider_service::InvoicesDataProviderService,
+        invoices_app_data::InvoicesAppData,
+        invoices_provider_service::InvoicesProviderService,
+    },
+    products::{
+        data_provider::products_data_provider_service::ProductsDataProviderService,
+        products_app_data::ProductsAppData,
+        products_provider_service::ProductsProviderService,
+    },
+    tier_configs::{
+        data_provider::tier_configs_data_provider_service::TierConfigsDataProviderService,
+        tier_configs_app_data::TierConfigsAppData,
+        tier_configs_provider_service::TierConfigsProviderService,
+    },
+    subscriptions::{
+        data_provider::subscriptions_data_provider_service::SubscriptionsDataProviderService,
+        subscriptions_app_data::SubscriptionsAppData,
+        subscriptions_provider_service::SubscriptionsProviderService,
+    },
+    purchased_products::{
+        data_provider::purchased_products_data_provider_service::PurchasedProductsDataProviderService,
+        purchased_products_app_data::PurchasedProductsAppData,
+        purchased_products_provider_service::PurchasedProductsProviderService,
+    },
+    usage::{
+        data_provider::usage_data_provider_service::UsageDataProviderService,
+        usage_app_data::UsageAppData,
+        usage_provider_service::UsageProviderService,
+    },
 };
 
 use std::sync::Arc;
@@ -98,7 +122,6 @@ async fn start_server() -> std::io::Result<()> {
 
     // Auth-facing user provider (used by auth / me / google)
     let user_provider: Arc<dyn UserProvider> = Arc::new(PostgresUserProvider::new(pool.clone()));
-    let user_registry = Arc::new(UserActorRegistry::new());
 
     let tracks_service = Arc::new(TracksProviderService::new(Arc::new(
         PostgresTracksDataProvider::new(pool.clone()),
@@ -132,16 +155,6 @@ async fn start_server() -> std::io::Result<()> {
         Arc::clone(&jwt_provider) as Arc<dyn api::auth::jwt_provider::JwtProvider>,
         Arc::clone(&email_sender) as Arc<dyn api::auth::email_sender::EmailSender>,
     ));
-
-    let user_resolver = Arc::new(LocalUserAndActorResolver::new(
-        Arc::clone(&user_provider),
-        Arc::clone(&user_registry),
-    ));
-    let user_actor_deps = Arc::new(UserActorDeps {
-        player_factory: Arc::new(PlayerFactory {}),
-        tracks_provider: Arc::new(PostgresTracksProvider::new(pool.clone())),
-        region_sets_provider: Arc::new(PostgresRegionSetsProvider::new(pool.clone())),
-    });
 
     // Focused app_data instances
     let auth_app_data = AuthAppData {
@@ -187,9 +200,36 @@ async fn start_server() -> std::io::Result<()> {
     let memberships_app_data = MembershipsAppData {
         memberships_service: Arc::clone(&memberships_service),
     };
-    let google_app_data = GoogleAppData {
-        user_resolver: Arc::clone(&user_resolver),
-        user_actor_deps: Arc::clone(&user_actor_deps),
+
+    let invoices_app_data = InvoicesAppData {
+        invoices_provider: Arc::new(InvoicesProviderService::new(Arc::new(
+            InvoicesDataProviderService::new(pool.clone()),
+        ))),
+    };
+    let products_app_data = ProductsAppData {
+        products_provider: Arc::new(ProductsProviderService::new(Arc::new(
+            ProductsDataProviderService::new(pool.clone()),
+        ))),
+    };
+    let tier_configs_app_data = TierConfigsAppData {
+        tier_configs_provider: Arc::new(TierConfigsProviderService::new(Arc::new(
+            TierConfigsDataProviderService::new(pool.clone()),
+        ))),
+    };
+    let subscriptions_app_data = SubscriptionsAppData {
+        subscriptions_provider: Arc::new(SubscriptionsProviderService::new(Arc::new(
+            SubscriptionsDataProviderService::new(pool.clone()),
+        ))),
+    };
+    let purchased_products_app_data = PurchasedProductsAppData {
+        purchased_products_provider: Arc::new(PurchasedProductsProviderService::new(Arc::new(
+            PurchasedProductsDataProviderService::new(pool.clone()),
+        ))),
+    };
+    let usage_app_data = UsageAppData {
+        usage_provider: Arc::new(UsageProviderService::new(Arc::new(
+            UsageDataProviderService::new(pool.clone()),
+        ))),
     };
 
     let jwt_middleware = JwtAuthMiddleware;
@@ -229,7 +269,12 @@ async fn start_server() -> std::io::Result<()> {
             .app_data(web::Data::new(users_app_data.clone()))
             .app_data(web::Data::new(graphs_app_data.clone()))
             .app_data(web::Data::new(memberships_app_data.clone()))
-            .app_data(web::Data::new(google_app_data.clone()))
+            .app_data(web::Data::new(invoices_app_data.clone()))
+            .app_data(web::Data::new(products_app_data.clone()))
+            .app_data(web::Data::new(tier_configs_app_data.clone()))
+            .app_data(web::Data::new(subscriptions_app_data.clone()))
+            .app_data(web::Data::new(purchased_products_app_data.clone()))
+            .app_data(web::Data::new(usage_app_data.clone()))
             .configure(controllers::openapi_controller::init)
             .service(web::scope("/auth").configure(controllers::auth_controller::init))
             .service(
@@ -274,6 +319,34 @@ async fn start_server() -> std::io::Result<()> {
             )
             .service(web::scope("/auth/google").configure(google_controller::init))
             .service(web::scope("/ws").configure(ws_controller::init))
+            .service(
+                web::scope("/v1/invoices")
+                    .wrap(jwt_middleware.clone())
+                    .configure(controllers::invoices_controller::init),
+            )
+            .service(
+                web::scope("/v1/products")
+                    .configure(controllers::products_controller::init),
+            )
+            .service(
+                web::scope("/v1/tier-configs")
+                    .configure(controllers::tier_configs_controller::init),
+            )
+            .service(
+                web::scope("/v1/subscriptions")
+                    .wrap(jwt_middleware.clone())
+                    .configure(controllers::subscriptions_controller::init),
+            )
+            .service(
+                web::scope("/v1/purchased-products")
+                    .wrap(jwt_middleware.clone())
+                    .configure(controllers::purchased_products_controller::init),
+            )
+            .service(
+                web::scope("/v1/usage")
+                    .wrap(jwt_middleware.clone())
+                    .configure(controllers::usage_controller::init),
+            )
     })
     .bind((host.as_str(), port))?
     .run()

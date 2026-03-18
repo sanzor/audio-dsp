@@ -14,7 +14,7 @@ COMPOSE       := docker compose --project-name $(PROJECT_NAME) $(ENV_FILE_FLAG)
 PG_USER   ?= postgres
 PG_PASS   ?= postgres
 PG_HOST   ?= 127.0.0.1
-PG_PORT   ?= 5432
+PG_PORT   ?= 5433
 PG_DB     ?= audio_dsp
 DATABASE_URL ?= postgres://$(PG_USER):$(PG_PASS)@$(PG_HOST):$(PG_PORT)/$(PG_DB)
 

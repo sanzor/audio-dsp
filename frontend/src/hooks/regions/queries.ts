@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useAuth } from "@/Auth/UseAuth";
+import { useAuthStore } from "@/Stores/authStore";
 import { useRegionStore } from "@/Stores/RegionStore";
 import { apiGetRegion, apiGetRegionsForRegionSet } from "@/Services/RegionsService";
 import { normalizeRegion } from "@/domain/Region/Mappers";
@@ -9,7 +9,7 @@ import type { TrackRegion } from "@/domain/Region/TrackRegion";
 import type { NormalizedTrackRegion } from "@/domain/Region/NormalizedTrackRegion";
 
 export const useGetRegion = (regionId: string) => {
-  const { user } = useAuth();
+  const user = useAuthStore((state) => state.user);
 
   const query = useQuery<TrackRegion, Error, NormalizedTrackRegion | undefined>({
     queryKey: QUERY_KEYS.regions.byId(regionId),
@@ -26,7 +26,7 @@ export const useGetRegion = (regionId: string) => {
 };
 
 export const useGetRegionsForRegionSet = (setId: string) => {
-  const { user } = useAuth();
+  const user = useAuthStore((state) => state.user);
 
   const query = useQuery<TrackRegion[], Error, NormalizedTrackRegion[]>({
     queryKey: QUERY_KEYS.regions.bySet(setId),

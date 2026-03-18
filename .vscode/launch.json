@@ -8,7 +8,10 @@
       "program": "${workspaceFolder}/backend/target/debug/api",
       "cwd": "${workspaceFolder}/backend",
       "sourceLanguages": ["rust"],
-      "env": { "RUST_LOG": "debug" },
+      "env": {
+        "RUST_LOG": "debug",
+        "DATABASE_URL": "postgres://postgres:postgres@127.0.0.1:5433/audio_dsp"
+      },
       "preLaunchTask": "Backend: cargo build api"
     },
     {

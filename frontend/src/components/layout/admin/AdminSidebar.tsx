@@ -1,16 +1,12 @@
 import { NavLink } from "react-router-dom";
-import { superAdminNavItems } from "../../../app/routes";
-import { cn } from "../../../lib/utils";
-import { ModeSwitcher } from "../ModeSwitcher";
+import { superAdminNavItems, type NavItem } from "../app/routes";
+import { cn } from "@/lib/utils";
 
 export default function AdminSidebar() {
-  // AdminShell already guards this to superadmin-only, so all admin nav items are visible.
   const visibleItems = superAdminNavItems;
 
   return (
     <aside className="flex h-screen w-64 flex-col border-r border-slate-200 bg-white/70 px-4 py-6 backdrop-blur">
-      <ModeSwitcher />
-
       <div className="mb-6 px-1">
         <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">
           Platform Admin

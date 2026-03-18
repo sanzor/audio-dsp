@@ -1,6 +1,4 @@
-import { useAuth } from "@/Auth/UseAuth";
-import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useAuthStore } from "@/Stores/authStore";
 import { AppSidebar } from "./sidebar/app-sidebar";
 import { SidebarProvider } from "../ui/sidebar-provider";
 import { DashboardLayout } from "./dashboard-layout";
@@ -17,19 +15,10 @@ import { WaveformRegionContextMenuContainer } from "./context-menus/waveform-ren
 import { WaveformTimelineContextMenuContainer } from "./context-menus/waveform-renderer/waveform-timeline-context-menu-container";
 
 export function Dashboard() {
-  const navigate = useNavigate();
-  const { user, loading } = useAuth();
-
+  const user = useAuthStore((state) => state.user);
   const trackController = useTrackController();
   const { open, select, openContextMenu } = useUIStore();
-
   const sidebarTracks = useTrackViewModels();
-
-  useEffect(() => {
-    if (!loading && !user) {
-      navigate("/login");
-    }
-  }, [loading, navigate, user]);
 
   const handleSelect = (ctx: SelectedContext) => {
     select(ctx);
@@ -56,7 +45,7 @@ export function Dashboard() {
           user={{
             name: user?.name ?? "Unknown User",
             email: user?.email ?? "",
-            avatar: user?.photo ?? "/default-avatar.png",
+            avatar: "",
           }}
           teams={[{ name: "My Workspace", logo: () => null, plan: "Free" }]}
         />

@@ -15,6 +15,12 @@ pub mod tracks;
 
 pub mod dtos;
 pub mod users;
+pub mod invoices;
+pub mod products;
+pub mod tier_configs;
+pub mod subscriptions;
+pub mod purchased_products;
+pub mod usage;
 #[cfg(test)]
 #[path = "tests/mod.rs"]
 pub mod player_controller_test;

@@ -1,0 +1,16 @@
+use serde::{Deserialize, Serialize};
+use sqlx::FromRow;
+use utoipa::ToSchema;
+use crate::domain::tier::Tier;
+
+pub type TierConfigId = i64;
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, FromRow)]
+pub struct DbTierConfig {
+    pub id: TierConfigId,
+    pub tier: Tier,
+    pub max_projects: i64,
+    pub max_tracks_per_project: i64,
+    pub max_storage_bytes: i64,
+    pub updated_at: String,
+}
