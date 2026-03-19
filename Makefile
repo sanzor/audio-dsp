@@ -19,6 +19,7 @@ PG_DB     ?= audio_dsp
 DATABASE_URL ?= postgres://$(PG_USER):$(PG_PASS)@$(PG_HOST):$(PG_PORT)/$(PG_DB)
 
 MIGRATIONS_DIR := ./database/audio_db/migrations
+SEEDS_DIR      := ./database/seeds
 
 # ─── Compose File Shortcuts ───────────────────────────────────────────────────
 
@@ -40,7 +41,7 @@ ALL := $(DB) $(BE) $(FE) $(MON)
         sh-db sh-backend sh-frontend \
         status clean pull \
         migrate migrate-down migrate-info migrate-redo \
-        db-cli db-reinit db-reset \
+        db-cli db-seed db-reinit db-reset \
         check-backend \
         dev-backend dev-frontend \
         lint lint-backend lint-frontend \
@@ -77,7 +78,8 @@ help:
 	@echo "  migrate-info     List migration status"
 	@echo "  migrate-redo     Revert then re-apply last migration"
 	@echo "  db-cli           Open psql shell inside the running container"
-	@echo "  db-reinit        Drop volumes, start fresh, run migrations"
+	@echo "  db-seed          Seed dev data (skips if users already exist)"
+	@echo "  db-reinit        Drop volumes, start fresh, run migrations + seed"
 	@echo "  db-reset         Revert all migrations then re-apply"
 	@echo ""
 	@echo "Local dev"
@@ -225,7 +227,26 @@ db-cli:
 		$$($(COMPOSE) $(DB) ps -q postgres) \
 		psql -U $(PG_USER) -d $(PG_DB)
 
-# Nuke volumes, restart Postgres, run all migrations from scratch
+db-seed:
+	@COUNT=$$(docker exec \
+		$$($(COMPOSE) $(DB) ps -q postgres) \
+		psql -U $(PG_USER) -d $(PG_DB) -tAc "SELECT COUNT(*) FROM users" 2>/dev/null | tr -d '[:space:]'); \
+	if [ "$$COUNT" = "0" ]; then \
+		echo "Seeding database..."; \
+		for f in $(SEEDS_DIR)/users.sql $(SEEDS_DIR)/projects.sql \
+		          $(SEEDS_DIR)/tier_configs.sql $(SEEDS_DIR)/products.sql; do \
+			[ -f "$$f" ] || continue; \
+			echo "  -> $$f"; \
+			docker exec -i \
+				$$($(COMPOSE) $(DB) ps -q postgres) \
+				psql -U $(PG_USER) -d $(PG_DB) -v ON_ERROR_STOP=0 < $$f; \
+		done; \
+		echo "Seeding complete."; \
+	else \
+		echo "Skipping seed — $$COUNT user(s) already in database."; \
+	fi
+
+# Nuke volumes, restart Postgres, run all migrations + seed from scratch
 db-reinit:
 	@echo "Dropping database volumes..."
 	$(COMPOSE) $(DB) down -v
@@ -233,6 +254,8 @@ db-reinit:
 	$(MAKE) up-db
 	@echo "Applying all migrations..."
 	$(MAKE) migrate
+	@echo "Seeding database..."
+	$(MAKE) db-seed
 
 # Revert all then re-apply (non-destructive to volumes, useful for schema iteration)
 db-reset: migrate-down migrate

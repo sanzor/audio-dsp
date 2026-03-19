@@ -12,6 +12,35 @@
       "group": "build"
     },
     {
+      "label": "Backend: cargo run api",
+      "type": "shell",
+      "command": "cargo run -p api",
+      "options": {
+        "cwd": "${workspaceFolder}/backend"
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "backend",
+        "pattern": [
+          {
+            "regexp": "^(.*)$",
+            "message": 1
+          }
+        ],
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^(\\s*)(Compiling|Finished|Running)\\b",
+          "endsPattern": "^(\\s*)Server running at http://"
+        }
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "backend",
+        "clear": true
+      }
+    },
+    {
       "label": "Frontend: pnpm dev",
       "type": "shell",
       "command": "pnpm dev",
@@ -38,6 +67,12 @@
         "panel": "dedicated",
         "clear": true
       }
+    },
+    {
+      "label": "Dev: backend + frontend (terminals)",
+      "dependsOn": ["Backend: cargo run api", "Frontend: pnpm dev"],
+      "dependsOrder": "parallel",
+      "problemMatcher": []
     }
   ]
 }

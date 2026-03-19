@@ -7,11 +7,20 @@
       "request": "launch",
       "program": "${workspaceFolder}/backend/target/debug/api",
       "cwd": "${workspaceFolder}/backend",
+      "console": "internalConsole",
       "sourceLanguages": ["rust"],
-      "env": {
-        "RUST_LOG": "debug",
-        "DATABASE_URL": "postgres://postgres:postgres@127.0.0.1:5433/audio_dsp"
-      },
+      "envFile": "${workspaceFolder}/.env",
+      "preLaunchTask": "Backend: cargo build api"
+    },
+    {
+      "name": "Rust: Debug API (console fallback)",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/backend/target/debug/api",
+      "cwd": "${workspaceFolder}/backend",
+      "console": "internalConsole",
+      "sourceLanguages": ["rust"],
+      "envFile": "${workspaceFolder}/.env",
       "preLaunchTask": "Backend: cargo build api"
     },
     {
@@ -21,12 +30,45 @@
       "url": "http://localhost:3000",
       "webRoot": "${workspaceFolder}/frontend",
       "preLaunchTask": "Frontend: pnpm dev"
+    },
+    {
+      "name": "Frontend: Chrome (no task)",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:3000",
+      "webRoot": "${workspaceFolder}/frontend"
+    },
+    {
+      "name": "Rust: Attach API (pick pid)",
+      "type": "lldb",
+      "request": "attach",
+      "program": "${workspaceFolder}/backend/target/debug/api",
+      "pid": "${command:pickMyProcess}",
+      "preLaunchTask": "Dev: backend + frontend (terminals)"
+    },
+    {
+      "name": "Dev: Backend + Frontend (terminals + Chrome)",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:3000",
+      "webRoot": "${workspaceFolder}/frontend",
+      "preLaunchTask": "Dev: backend + frontend (terminals)"
     }
   ],
   "compounds": [
     {
       "name": "Dev: Backend + Frontend",
       "configurations": ["Rust: Debug API", "Frontend: Vite (Chrome)"],
+      "stopAll": true
+    },
+    {
+      "name": "Dev: Backend + Frontend (terminals + attach + Chrome)",
+      "configurations": ["Rust: Attach API (pick pid)", "Frontend: Chrome (no task)"],
+      "stopAll": true
+    },
+    {
+      "name": "Dev: Backend + Frontend (console fallback)",
+      "configurations": ["Rust: Debug API (console fallback)", "Frontend: Vite (Chrome)"],
       "stopAll": true
     }
   ]

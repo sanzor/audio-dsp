@@ -99,11 +99,68 @@ use api::{
 use std::sync::Arc;
 
 fn main() -> std::io::Result<()> {
-    let _ = dotenvy::from_filename("api/.env");
-    let _ = dotenvy::from_filename("api/dev.env");
-    let _ = dotenvy::dotenv();
+    // Match the "root .env + .env.<env>" workflow (like `temp/backend`), but keep
+    // explicit ordering and allow OS env vars to win over dotenv.
+    load_env_files();
 
     actix_web::rt::System::new().block_on(async { start_server().await })
+}
+
+fn load_env_files() {
+    use std::collections::HashSet;
+    use std::ffi::OsString;
+    use std::path::{Path, PathBuf};
+
+    fn load_layered_env_file(
+        path: &Path,
+        preexisting_keys: &HashSet<OsString>,
+        loaded_keys: &mut HashSet<OsString>,
+    ) {
+        if !path.exists() {
+            return;
+        }
+
+        let iter = match dotenvy::from_path_iter(path) {
+            Ok(iter) => iter,
+            Err(_) => return,
+        };
+
+        for item in iter {
+            let Ok((key, val)) = item else { continue };
+            let key_os: OsString = key.clone().into();
+
+            // Preserve real environment variables (shell/VS Code env injection), but allow
+            // later dotenv layers to override earlier dotenv layers.
+            let can_set = !preexisting_keys.contains(&key_os) || loaded_keys.contains(&key_os);
+            if can_set {
+                std::env::set_var(&key, &val);
+                loaded_keys.insert(key_os);
+            }
+        }
+    }
+
+    let preexisting_keys: HashSet<OsString> = std::env::vars_os().map(|(k, _)| k).collect();
+    let mut loaded_keys: HashSet<OsString> = HashSet::new();
+
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let repo_root = manifest_dir.join("../..");
+
+    // Defaults (committed)
+    load_layered_env_file(&manifest_dir.join("dev.env"), &preexisting_keys, &mut loaded_keys);
+
+    // Root env (gitignored) + env-specific root override (gitignored)
+    let root_env = repo_root.join(".env");
+    load_layered_env_file(&root_env, &preexisting_keys, &mut loaded_keys);
+
+    let app_env = std::env::var("APP_ENV").unwrap_or_else(|_| "dev".to_string());
+    load_layered_env_file(
+        &repo_root.join(format!(".env.{app_env}")),
+        &preexisting_keys,
+        &mut loaded_keys,
+    );
+
+    // Service overrides (gitignored)
+    load_layered_env_file(&manifest_dir.join(".env"), &preexisting_keys, &mut loaded_keys);
 }
 
 async fn start_server() -> std::io::Result<()> {
@@ -115,7 +172,8 @@ async fn start_server() -> std::io::Result<()> {
     let database_url = std::env::var("DATABASE_URL")
         .unwrap_or_else(|_| "postgres://postgres:postgres@localhost:5432/audio_dsp".to_string());
     let pool = sqlx::postgres::PgPoolOptions::new()
-        .max_connections(10)
+        .max_connections(20)
+        .acquire_timeout(std::time::Duration::from_secs(5))
         .connect(&database_url)
         .await
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
