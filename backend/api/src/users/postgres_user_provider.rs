@@ -2,13 +2,12 @@ use std::{future::Future, pin::Pin};
 
 use domain::{create_domain_user_params::CreateDomainUserParams, domain_user::DomainUser};
 use sqlx::PgPool;
-use ulid::Ulid;
 
 use super::user_provider::UserProvider;
 
 #[derive(sqlx::FromRow)]
 struct UserRow {
-    user_id: String,
+    user_id: i64,
     email: String,
     name: String,
     picture: String,
@@ -48,7 +47,7 @@ impl PostgresUserProvider {
 impl UserProvider for PostgresUserProvider {
     fn get_user_by_id<'a>(
         &'a self,
-        id: &'a str,
+        id: i64,
     ) -> Pin<Box<dyn Future<Output = Option<DomainUser>> + Send + 'a>> {
         Box::pin(async move {
             sqlx::query_as::<_, UserRow>(
@@ -102,11 +101,10 @@ impl UserProvider for PostgresUserProvider {
         p: CreateDomainUserParams,
     ) -> Pin<Box<dyn Future<Output = Result<DomainUser, String>> + Send + 'a>> {
         Box::pin(async move {
-            let id = Ulid::new().to_string();
             let row = sqlx::query_as::<_, UserRow>(
                 r#"
-                INSERT INTO users (user_id, email, name, picture, google_sub_id, password_hash, is_admin, is_active, is_verified)
-                VALUES ($1, $2, $3, $4, $5, $6, false, true, false)
+                INSERT INTO users (email, name, picture, google_sub_id, password_hash, is_admin, is_active, is_verified)
+                VALUES ($1, $2, $3, $4, $5, false, true, false)
                 ON CONFLICT (email) DO UPDATE
                     SET google_sub_id = COALESCE(EXCLUDED.google_sub_id, users.google_sub_id),
                         name = EXCLUDED.name,
@@ -114,7 +112,6 @@ impl UserProvider for PostgresUserProvider {
                 RETURNING user_id, email, name, picture, google_sub_id, is_admin, is_active, password_hash, is_verified
                 "#,
             )
-            .bind(&id)
             .bind(&p.email)
             .bind(&p.name)
             .bind(&p.picture)
@@ -143,7 +140,7 @@ impl UserProvider for PostgresUserProvider {
             .bind(user.is_active)
             .bind(&user.password_hash)
             .bind(user.is_verified)
-            .bind(&user.id)
+            .bind(user.id)
             .execute(&pool)
             .await
             .map(|_| ())
@@ -153,7 +150,7 @@ impl UserProvider for PostgresUserProvider {
 
     fn delete_user<'a>(
         &'a self,
-        id: &'a str,
+        id: i64,
     ) -> Pin<Box<dyn Future<Output = Result<DomainUser, String>> + Send + 'a>> {
         Box::pin(async move {
             let row = sqlx::query_as::<_, UserRow>(

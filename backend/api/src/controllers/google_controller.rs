@@ -63,7 +63,7 @@ pub async fn session(req: HttpRequest, app_data: web::Data<GoogleAppData>) -> Ht
     };
     let user_result = match app_data
         .user_resolver
-        .resolve_existing_user_and_actor(&claims.user_id)
+        .resolve_existing_user_and_actor(claims.user_id)
         .await
     {
         Ok(u) => u,
@@ -88,7 +88,7 @@ pub(crate) struct AuthRequest {
 
 #[derive(Serialize)]
 pub struct GoogleLoginResult {
-    pub user_id: String,
+    pub user_id: i64,
     pub name: String,
     pub email: String,
     pub picture: String,
@@ -129,12 +129,12 @@ pub async fn google_callback(
             };
 
             let access_token = create_access_token(
-                &user_and_actor.user.id,
+                user_and_actor.user.id,
                 Some(&google_user.name),
                 Some(google_user.email.as_str()),
                 user_and_actor.user.is_admin,
             );
-            let refresh_token = create_refresh_token(&user_and_actor.user.id);
+            let refresh_token = create_refresh_token(user_and_actor.user.id);
             let csrf_token = generate_csrf_token();
 
             let html = include_str!(concat!(
@@ -206,7 +206,7 @@ pub async fn refresh(req: HttpRequest) -> HttpResponse {
     let email = claims.email.unwrap_or_default();
 
     let new_access_token =
-        create_access_token(&user_id, claims.name.as_deref(), Some(&email), claims.is_admin);
+        create_access_token(user_id, claims.name.as_deref(), Some(&email), claims.is_admin);
     let new_crsf_token = generate_csrf_token();
     HttpResponse::Ok()
         .append_header((

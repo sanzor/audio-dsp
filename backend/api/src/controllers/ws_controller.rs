@@ -55,7 +55,7 @@ pub async fn run_player(
     query: web::Query<PlayRequest>,
     app_state: web::Data<PlayerAppData>,
 ) -> Result<HttpResponse, actix_web::Error> {
-    let user_id = jwt.user_id.clone();
+    let user_id = jwt.user_id;
     let track_id = query.track_id.clone();
     let player_service = Arc::clone(&app_state.player_service);
 
@@ -67,7 +67,7 @@ pub async fn run_player(
     // Attach sink to the player (spawns actor if needed)
     let attach_result = player_service
         .attach_sink(AttachSinkParams {
-            user_id: user_id.clone(),
+            user_id,
             track_id: track_id.clone(),
             sink: Box::new(sink),
         })
@@ -98,7 +98,7 @@ pub async fn run_player(
                         Some(Ok(actix_ws::Message::Binary(data))) => {
                             if let Ok(text) = std::str::from_utf8(&data) {
                                 if let Ok(message) = serde_json::from_str(text) {
-                                    if let Err(e) = handle_ws_message(message, &user_id, &player_service).await {
+                                    if let Err(e) = handle_ws_message(message, user_id, &player_service).await {
                                         eprintln!("Failed to handle message: {e}");
                                     }
                                 }
@@ -106,7 +106,7 @@ pub async fn run_player(
                         }
                         Some(Ok(actix_ws::Message::Text(data))) => {
                             if let Ok(message) = serde_json::from_str(&data) {
-                                if let Err(e) = handle_ws_message(message, &user_id, &player_service).await {
+                                if let Err(e) = handle_ws_message(message, user_id, &player_service).await {
                                     eprintln!("Failed to handle message: {e}");
                                 }
                             }
@@ -126,7 +126,7 @@ pub async fn run_player(
         }
 
         // Clean up sink on disconnect
-        let _ = player_service.remove_sink(&user_id, &track_id, &sink_id).await;
+        let _ = player_service.remove_sink(user_id, &track_id, &sink_id).await;
     });
 
     Ok(response)
@@ -134,7 +134,7 @@ pub async fn run_player(
 
 async fn handle_ws_message(
     message: WsMessage,
-    user_id: &str,
+    user_id: i64,
     player: &Arc<dyn PlayerProvider>,
 ) -> Result<(), String> {
     match message {

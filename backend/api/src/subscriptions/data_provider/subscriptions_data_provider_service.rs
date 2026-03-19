@@ -23,7 +23,7 @@ impl SubscriptionsDataProvider for SubscriptionsDataProviderService {
              VALUES ($1, $2, true, $3) \
              RETURNING id, user_id, tier, is_active, started_at::text, expires_at::text"
         )
-        .bind(&params.user_id)
+        .bind(params.user_id)
         .bind(&params.tier)
         .bind(&params.expires_at)
         .fetch_one(&self.pool)
@@ -39,7 +39,7 @@ impl SubscriptionsDataProvider for SubscriptionsDataProviderService {
             .map_err(|e| { error!(id, error = %e, "get subscription failed"); DataError::from(e) })
     }
 
-    async fn get_active_subscription_for_user(&self, user_id: &str) -> Result<Option<DbSubscription>, DataError> {
+    async fn get_active_subscription_for_user(&self, user_id: i64) -> Result<Option<DbSubscription>, DataError> {
         sqlx::query_as::<_, DbSubscription>(&format!("{SELECT} WHERE user_id = $1 AND is_active = true ORDER BY started_at DESC LIMIT 1"))
             .bind(user_id)
             .fetch_optional(&self.pool)
@@ -56,7 +56,7 @@ impl SubscriptionsDataProvider for SubscriptionsDataProviderService {
             .map_err(|e| { error!(id, error = %e, "deactivate subscription failed"); DataError::from(e) })
     }
 
-    async fn list_by_user(&self, user_id: &str) -> Result<Vec<DbSubscription>, DataError> {
+    async fn list_by_user(&self, user_id: i64) -> Result<Vec<DbSubscription>, DataError> {
         sqlx::query_as::<_, DbSubscription>(&format!("{SELECT} WHERE user_id = $1 ORDER BY started_at DESC"))
             .bind(user_id)
             .fetch_all(&self.pool)

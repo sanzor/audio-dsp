@@ -6,7 +6,7 @@ use domain::{create_domain_user_params::CreateDomainUserParams, domain_user::Dom
 pub trait UserProvider: Send + Sync {
     fn get_user_by_id<'a>(
         &'a self,
-        id: &'a str,
+        id: i64,
     ) -> Pin<Box<dyn Future<Output = Option<DomainUser>> + Send + 'a>>;
     fn get_user_by_google_sub_id<'a>(
         &'a self,
@@ -26,7 +26,7 @@ pub trait UserProvider: Send + Sync {
     ) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>>;
     fn delete_user<'a>(
         &'a self,
-        id: &'a str,
+        id: i64,
     ) -> Pin<Box<dyn Future<Output = Result<DomainUser, String>> + Send + 'a>>;
     fn list_users<'a>(&'a self) -> Pin<Box<dyn Future<Output = Vec<DomainUser>> + Send + 'a>>;
 }

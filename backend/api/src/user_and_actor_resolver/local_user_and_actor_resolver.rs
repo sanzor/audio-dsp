@@ -53,18 +53,18 @@ impl LocalUserAndActorResolver {
                     .await?
             }
         };
-        let user_id = user.id.clone();
+        let user_id = user.id;
         let actor_deps = build_actor_params(user.clone())?;
         let actor = self
             .user_registry
-            .get_or_spawn_user_actor(&user_id, actor_deps)
+            .get_or_spawn_user_actor(user_id, actor_deps)
             .await?;
         Ok(ResolvedUserAndActor { actor, user })
     }
 
     pub async fn resolve_existing_user_and_actor(
         &self,
-        user_id: &str,
+        user_id: i64,
     ) -> Result<ResolvedUserAndActor, String> {
         let user = self
             .user_provider
@@ -73,7 +73,7 @@ impl LocalUserAndActorResolver {
             .ok_or_else(|| "Could not find user".to_string())?;
         let actor = self
             .user_registry
-            .get_actor(&user.id)
+            .get_actor(user.id)
             .await
             .ok_or_else(|| "Could not find actor".to_string())?;
         Ok(ResolvedUserAndActor { actor, user })

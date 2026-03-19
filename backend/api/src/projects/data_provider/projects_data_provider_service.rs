@@ -1,6 +1,5 @@
 use domain::db::{DbProject, ProjectId};
 use sqlx::PgPool;
-use ulid::Ulid;
 
 use crate::projects::projects_provider::{CreateProjectParams, UpdateProjectParams};
 
@@ -19,13 +18,11 @@ impl PostgresProjectsDataProvider {
 #[async_trait::async_trait]
 impl ProjectsDataProvider for PostgresProjectsDataProvider {
     async fn create_project(&self, params: CreateProjectParams) -> Result<DbProject, String> {
-        let id = Ulid::new().to_string();
         sqlx::query_as::<_, DbProject>(
-            "INSERT INTO projects (project_id, name, created_by) VALUES ($1, $2, $3) RETURNING *",
+            "INSERT INTO projects (name, created_by) VALUES ($1, $2) RETURNING *",
         )
-        .bind(&id)
         .bind(&params.name)
-        .bind(&params.created_by)
+        .bind(params.created_by)
         .fetch_one(&self.pool)
         .await
         .map_err(|e| e.to_string())
@@ -63,7 +60,7 @@ impl ProjectsDataProvider for PostgresProjectsDataProvider {
         Ok(result.rows_affected() > 0)
     }
 
-    async fn list_projects_for_user(&self, user_id: &str) -> Result<Vec<DbProject>, String> {
+    async fn list_projects_for_user(&self, user_id: i64) -> Result<Vec<DbProject>, String> {
         sqlx::query_as::<_, DbProject>(
             r#"
             SELECT p.* FROM projects p

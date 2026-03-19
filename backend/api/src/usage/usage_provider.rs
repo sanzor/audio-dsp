@@ -4,6 +4,6 @@ use crate::domain::service_error::ServiceError;
 
 #[async_trait]
 pub trait UsageProvider: Send + Sync {
-    async fn get_usage(&self, user_id: &str) -> Result<Option<DbUsage>, ServiceError>;
-    async fn refresh_usage(&self, user_id: &str) -> Result<DbUsage, ServiceError>;
+    async fn get_usage(&self, user_id: i64) -> Result<Option<DbUsage>, ServiceError>;
+    async fn refresh_usage(&self, user_id: i64) -> Result<DbUsage, ServiceError>;
 }

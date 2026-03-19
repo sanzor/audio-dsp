@@ -2,7 +2,7 @@ use crate::user::User;
 
 #[derive(Clone)]
 pub struct DomainUser {
-    pub id: String,
+    pub id: i64,
     pub google_sub_id: Option<String>,
     pub name: String,
     pub email: String,
@@ -14,7 +14,7 @@ pub struct DomainUser {
 }
 
 impl User for DomainUser {
-    fn id(&self) -> &str { &self.id }
+    fn id(&self) -> i64 { self.id }
     fn name(&self) -> &str { &self.name }
     fn email(&self) -> &str { &self.email }
 }

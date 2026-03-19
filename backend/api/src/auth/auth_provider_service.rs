@@ -45,7 +45,7 @@ impl AuthProviderService {
 
     fn map_user(u: &domain::domain_user::DomainUser) -> AuthUser {
         AuthUser {
-            id: u.id.clone(),
+            id: u.id,
             email: u.email.clone(),
             name: u.name.clone(),
             is_active: u.is_active,
@@ -68,7 +68,7 @@ impl AuthProvider for AuthProviderService {
         }
 
         let token = self.jwt_provider.issue_user_token(
-            &user.id,
+            user.id,
             Some(&user.name),
             Some(&user.email),
             user.is_admin,
@@ -88,7 +88,7 @@ impl AuthProvider for AuthProviderService {
             password_hash: Some(params.password_hash),
         }).await?;
 
-        let verification_token = self.jwt_provider.issue_verification_token(&user.id)?;
+        let verification_token = self.jwt_provider.issue_verification_token(user.id)?;
         let body = format!(
             "Verify your email with this token:\n\n{verification_token}\n\nExpires in 24 hours."
         );
@@ -100,14 +100,14 @@ impl AuthProvider for AuthProviderService {
             }
         };
 
-        let token = self.jwt_provider.issue_user_token(&user.id, Some(&user.name), Some(&user.email), user.is_admin)?;
+        let token = self.jwt_provider.issue_user_token(user.id, Some(&user.name), Some(&user.email), user.is_admin)?;
         Ok(RegisterUserResult { user: Self::map_user(&user), token, email_sent_note })
     }
 
     async fn verify(&self, params: VerifyUserParams) -> Result<VerifyUserResult, ServiceError> {
         info!(user_id = %params.user_id, "verify requested");
 
-        let mut user = self.user_provider.get_user_by_id(&params.user_id).await
+        let mut user = self.user_provider.get_user_by_id(params.user_id).await
             .ok_or(ServiceError::NotFound)?;
 
         user.is_verified = true;
@@ -126,7 +126,7 @@ impl AuthProvider for AuthProviderService {
             return Err(ServiceError::Conflict("user already verified".to_string()));
         }
 
-        let token = self.jwt_provider.issue_verification_token(&user.id)?;
+        let token = self.jwt_provider.issue_verification_token(user.id)?;
         let body = format!("Verify your email:\n\n{token}\n\nExpires in 24 hours.");
         self.email_sender.send_email(&user.email, "Verify your email", &body).await?;
 
@@ -137,7 +137,7 @@ impl AuthProvider for AuthProviderService {
         info!(email = %params.email, project_id = %params.project_id, role = %params.role, "invite requested");
 
         // Issue token with invitee email — user does not need to exist yet
-        let token = self.jwt_provider.issue_invite_token(&params.email, &params.project_id, &params.role.to_string())?;
+        let token = self.jwt_provider.issue_invite_token(&params.email, params.project_id, &params.role.to_string())?;
 
         let frontend_url = std::env::var("FRONTEND_URL").unwrap_or_else(|_| "http://localhost:5173".to_string());
         let accept_link = format!("{frontend_url}/accept-invite?token={token}");
@@ -170,7 +170,7 @@ impl AuthProvider for AuthProviderService {
             .ok_or_else(|| ServiceError::Internal(format!("unknown role: {role_str}")))?;
 
         // Verify that the authenticated caller's email matches the invite
-        let caller = self.user_provider.get_user_by_id(&params.caller_user_id).await
+        let caller = self.user_provider.get_user_by_id(params.caller_user_id).await
             .ok_or(ServiceError::NotFound)?;
         if caller.email.to_lowercase() != invitee_email.to_lowercase() {
             warn!(caller_email = %caller.email, invitee_email = %invitee_email, "email mismatch on accept-invite");
@@ -178,8 +178,8 @@ impl AuthProvider for AuthProviderService {
         }
 
         self.memberships_provider.create_membership(CreateMembershipParams {
-            user_id: caller.id.clone(),
-            project_id: project_id.clone(),
+            user_id: caller.id,
+            project_id,
             role: role.clone(),
         }).await?;
 

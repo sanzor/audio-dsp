@@ -12,5 +12,5 @@ pub trait ProjectsDataProvider: Send + Sync {
         params: UpdateProjectParams,
     ) -> Result<Option<DbProject>, String>;
     async fn delete_project(&self, project_id: &ProjectId) -> Result<bool, String>;
-    async fn list_projects_for_user(&self, user_id: &str) -> Result<Vec<DbProject>, String>;
+    async fn list_projects_for_user(&self, user_id: i64) -> Result<Vec<DbProject>, String>;
 }

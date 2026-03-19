@@ -7,7 +7,7 @@ use rand::Rng;
 use crate::dtos::claims::Claims;
 
 pub(crate) fn create_access_token(
-    user_id: &str,
+    user_id: i64,
     name: Option<&str>,
     email: Option<&str>,
     is_admin: bool,
@@ -16,18 +16,18 @@ pub(crate) fn create_access_token(
 }
 
 
-pub(crate) fn create_refresh_token(user_id: &str) -> String {
+pub(crate) fn create_refresh_token(user_id: i64) -> String {
     create_token(user_id, None, None, false, None, Some("refresh"), None, 60 * 24 * 7)
 }
 
-pub(crate) fn create_verification_token(user_id: &str) -> String {
+pub(crate) fn create_verification_token(user_id: i64) -> String {
     create_token(user_id, None, None, false, None, Some("verification"), None, 60 * 24)
 }
 
 /// Invite token embeds the invitee's email in the `email` field.
-/// The `user_id` field is set to an empty string because the invitee may not have an account yet.
-pub(crate) fn create_invite_token(invitee_email: &str, project_id: &str, role: &str) -> String {
-    create_token("", Some(invitee_email), None, false, Some(project_id), Some("invite"), Some(role), 60 * 24 * 7)
+/// The `user_id` field is set to 0 because the invitee may not have an account yet.
+pub(crate) fn create_invite_token(invitee_email: &str, project_id: i64, role: &str) -> String {
+    create_token(0, Some(invitee_email), None, false, Some(project_id), Some("invite"), Some(role), 60 * 24 * 7)
 }
 
 pub(crate) fn generate_csrf_token() -> String {
@@ -36,11 +36,11 @@ pub(crate) fn generate_csrf_token() -> String {
 }
 
 pub(crate) fn create_token(
-    user_id: &str,
+    user_id: i64,
     email: Option<&str>,
     name: Option<&str>,
     is_admin: bool,
-    project_id: Option<&str>,
+    project_id: Option<i64>,
     purpose: Option<&str>,
     role: Option<&str>,
     minutes: i64,
@@ -52,12 +52,12 @@ pub(crate) fn create_token(
         .timestamp() as usize;
 
     let claims = Claims {
-        user_id: user_id.to_owned(),
+        user_id,
         exp: expiration,
         name: name.map(|e| e.to_owned()),
         email: email.map(|e| e.to_owned()),
         is_admin,
-        project_id: project_id.map(|p| p.to_owned()),
+        project_id,
         purpose: purpose.map(|p| p.to_owned()),
         role: role.map(|r| r.to_owned()),
     };

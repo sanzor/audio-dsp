@@ -7,7 +7,7 @@ pub type InvoiceId = i64;
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, FromRow)]
 pub struct DbInvoice {
     pub id: InvoiceId,
-    pub user_id: String,
+    pub user_id: i64,
     pub stripe_invoice_id: String,
     pub amount: i64,
     pub currency: String,

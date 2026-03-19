@@ -1,17 +1,20 @@
 use std::{collections::HashMap, future::Future, pin::Pin, sync::Mutex};
 
 use domain::{create_domain_user_params::CreateDomainUserParams, domain_user::DomainUser};
-use ulid::Ulid;
 
 use super::user_provider::UserProvider;
 
 pub struct InMemoryUserProvider {
-    users: Mutex<HashMap<String, DomainUser>>,
+    users: Mutex<HashMap<i64, DomainUser>>,
+    next_id: Mutex<i64>,
 }
 
 impl InMemoryUserProvider {
     pub fn new() -> Self {
-        Self { users: Mutex::new(HashMap::new()) }
+        Self {
+            users: Mutex::new(HashMap::new()),
+            next_id: Mutex::new(1),
+        }
     }
 }
 
@@ -22,9 +25,9 @@ impl Default for InMemoryUserProvider {
 impl UserProvider for InMemoryUserProvider {
     fn get_user_by_id<'a>(
         &'a self,
-        id: &'a str,
+        id: i64,
     ) -> Pin<Box<dyn Future<Output = Option<DomainUser>> + Send + 'a>> {
-        let result = self.users.lock().unwrap().get(id).cloned();
+        let result = self.users.lock().unwrap().get(&id).cloned();
         Box::pin(async move { result })
     }
 
@@ -56,9 +59,14 @@ impl UserProvider for InMemoryUserProvider {
         &'a self,
         user_params: CreateDomainUserParams,
     ) -> Pin<Box<dyn Future<Output = Result<DomainUser, String>> + Send + 'a>> {
-        let id = Ulid::new().to_string();
+        let id = {
+            let mut next = self.next_id.lock().unwrap();
+            let id = *next;
+            *next += 1;
+            id
+        };
         let user = DomainUser {
-            id: id.clone(),
+            id,
             email: user_params.email,
             name: user_params.name,
             picture: user_params.picture,
@@ -76,17 +84,17 @@ impl UserProvider for InMemoryUserProvider {
         &self,
         user: DomainUser,
     ) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>> {
-        self.users.lock().unwrap().insert(user.id.clone(), user);
+        self.users.lock().unwrap().insert(user.id, user);
         Box::pin(async move { Ok(()) })
     }
 
     fn delete_user<'a>(
         &'a self,
-        id: &'a str,
+        id: i64,
     ) -> Pin<Box<dyn Future<Output = Result<DomainUser, String>> + Send + 'a>> {
         let result = self
             .users.lock().unwrap()
-            .remove(id)
+            .remove(&id)
             .ok_or_else(|| format!("User {} not found", id));
         Box::pin(async move { result })
     }

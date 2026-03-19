@@ -9,5 +9,5 @@ pub struct InsertTrack {
 #[derive(Serialize)]
 pub struct InsertTrackResult {
     pub track_id: TrackId,
-    pub user_id: String,
+    pub user_id: i64,
 }

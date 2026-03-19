@@ -13,10 +13,10 @@ impl UsageProviderService {
 }
 #[async_trait]
 impl UsageProvider for UsageProviderService {
-    async fn get_usage(&self, user_id: &str) -> Result<Option<DbUsage>, ServiceError> {
+    async fn get_usage(&self, user_id: i64) -> Result<Option<DbUsage>, ServiceError> {
         self.data_provider.get_usage(user_id).await.map_err(ServiceError::from)
     }
-    async fn refresh_usage(&self, user_id: &str) -> Result<DbUsage, ServiceError> {
+    async fn refresh_usage(&self, user_id: i64) -> Result<DbUsage, ServiceError> {
         self.data_provider.refresh_usage(user_id).await.map_err(ServiceError::from)
     }
 }

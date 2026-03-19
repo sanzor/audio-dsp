@@ -8,26 +8,26 @@ pub trait MembershipsDataProvider: Send + Sync {
         &self,
         params: CreateMembershipParams,
     ) -> Result<DbMembership, String>;
-    async fn delete_membership(&self, project_id: &str, user_id: &str) -> Result<bool, String>;
+    async fn delete_membership(&self, project_id: i64, user_id: i64) -> Result<bool, String>;
     async fn get_membership(
         &self,
-        project_id: &str,
-        user_id: &str,
+        project_id: i64,
+        user_id: i64,
     ) -> Result<Option<DbMembership>, String>;
     async fn list_memberships(
         &self,
-        project_id: Option<&str>,
-        user_id: Option<&str>,
+        project_id: Option<i64>,
+        user_id: Option<i64>,
     ) -> Result<Vec<DbMembership>, String>;
     async fn get_role(
         &self,
-        project_id: &str,
-        user_id: &str,
+        project_id: i64,
+        user_id: i64,
     ) -> Result<Option<ProjectRole>, String>;
     async fn update_role(
         &self,
-        project_id: &str,
-        user_id: &str,
+        project_id: i64,
+        user_id: i64,
         role: ProjectRole,
     ) -> Result<Option<DbMembership>, String>;
 }

@@ -14,7 +14,7 @@ use crate::{
 
 #[derive(Serialize, ToSchema)]
 pub struct MemberOutput {
-    pub user_id: String,
+    pub user_id: i64,
     pub role: ProjectRole,
 }
 
@@ -24,7 +24,7 @@ pub struct MemberOutput {
 pub async fn list_members(
     jwt: JwtContext,
     role: RoleContext,
-    path: web::Path<String>,
+    path: web::Path<i64>,
     app: web::Data<ProjectAppData>,
 ) -> HttpResponse {
     let project_id = path.into_inner();
@@ -35,7 +35,7 @@ pub async fn list_members(
 
     info!(user_id = %jwt.user_id, project_id = %project_id, "list members");
 
-    match app.memberships_service.list_memberships(Some(&project_id), None).await {
+    match app.memberships_service.list_memberships(Some(project_id), None).await {
         Ok(members) => HttpResponse::Ok().json(
             members
                 .into_iter()
@@ -69,7 +69,7 @@ pub struct InviteOutput {
 pub async fn invite_member(
     jwt: JwtContext,
     role: RoleContext,
-    path: web::Path<String>,
+    path: web::Path<i64>,
     payload: web::Json<InviteInput>,
     auth: web::Data<AuthAppData>,
 ) -> HttpResponse {
@@ -84,7 +84,7 @@ pub async fn invite_member(
     }
 
     info!(user_id = %jwt.user_id, project_id = %project_id, invitee = %input.email, "invite member");
-    
+
     match auth
         .auth_provider
         .invite_user(InviteUserParams { email: input.email, project_id, role: input.role })
@@ -107,7 +107,7 @@ pub async fn invite_member(
 pub async fn delete_project(
     jwt: JwtContext,
     role: RoleContext,
-    path: web::Path<String>,
+    path: web::Path<i64>,
     app: web::Data<ProjectAppData>,
 ) -> HttpResponse {
     let project_id = path.into_inner();
@@ -136,7 +136,7 @@ pub async fn delete_project(
 pub async fn remove_member(
     jwt: JwtContext,
     role: RoleContext,
-    path: web::Path<(String, String)>,
+    path: web::Path<(i64, i64)>,
     app: web::Data<ProjectAppData>,
 ) -> HttpResponse {
     let (project_id, target_user_id) = path.into_inner();
@@ -150,7 +150,7 @@ pub async fn remove_member(
 
     info!(user_id = %jwt.user_id, project_id = %project_id, target = %target_user_id, "remove member");
 
-    match app.memberships_service.delete_membership(&project_id, &target_user_id).await {
+    match app.memberships_service.delete_membership(project_id, target_user_id).await {
         Ok(true) => HttpResponse::NoContent().finish(),
         Ok(false) => HttpResponse::NotFound().body("member not found"),
         Err(e) => {
@@ -174,7 +174,7 @@ pub struct ChangeRoleInput {
 pub async fn change_role(
     jwt: JwtContext,
     role: RoleContext,
-    path: web::Path<(String, String)>,
+    path: web::Path<(i64, i64)>,
     payload: web::Json<ChangeRoleInput>,
     app: web::Data<ProjectAppData>,
 ) -> HttpResponse {
@@ -190,7 +190,7 @@ pub async fn change_role(
 
     info!(user_id = %jwt.user_id, project_id = %project_id, target = %target_user_id, "change role");
 
-    match app.memberships_service.update_role(&project_id, &target_user_id, input.role).await {
+    match app.memberships_service.update_role(project_id, target_user_id, input.role).await {
         Ok(Some(m)) => HttpResponse::Ok().json(MemberOutput { user_id: m.user_id, role: m.role }),
         Ok(None) => HttpResponse::NotFound().body("member not found"),
         Err(e) => {

@@ -6,7 +6,7 @@ use crate::usage::usage_app_data::UsageAppData;
 
 #[derive(Deserialize, IntoParams)]
 pub struct UserIdQuery {
-    pub user_id: Option<String>,
+    pub user_id: Option<i64>,
 }
 
 #[utoipa::path(get, path = "/v1/usage/mine", tag = "Usage",
@@ -16,7 +16,7 @@ pub async fn get_my_usage(
     auth: JwtContext,
     app: web::Data<UsageAppData>,
 ) -> HttpResponse {
-    match app.usage_provider.get_usage(&auth.user_id).await {
+    match app.usage_provider.get_usage(auth.user_id).await {
         Ok(Some(u)) => HttpResponse::Ok().json(u),
         Ok(None) => HttpResponse::NotFound().finish(),
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
@@ -30,7 +30,7 @@ pub async fn refresh_my_usage(
     auth: JwtContext,
     app: web::Data<UsageAppData>,
 ) -> HttpResponse {
-    match app.usage_provider.refresh_usage(&auth.user_id).await {
+    match app.usage_provider.refresh_usage(auth.user_id).await {
         Ok(u) => HttpResponse::Ok().json(u),
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
     }
@@ -48,11 +48,11 @@ pub async fn admin_refresh_usage(
     if !auth.is_admin {
         return HttpResponse::Forbidden().finish();
     }
-    let user_id = match &query.user_id {
-        Some(id) => id.clone(),
+    let user_id = match query.user_id {
+        Some(id) => id,
         None => return HttpResponse::BadRequest().body("user_id required"),
     };
-    match app.usage_provider.refresh_usage(&user_id).await {
+    match app.usage_provider.refresh_usage(user_id).await {
         Ok(u) => HttpResponse::Ok().json(u),
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
     }

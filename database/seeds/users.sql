@@ -3,11 +3,11 @@
 -- ==========================================================================
 -- Safe to run multiple times.
 
-INSERT INTO users (user_id, email, name, picture, is_admin, is_active, is_verified, password_hash)
+INSERT INTO users (email, name, picture, is_admin, is_active, is_verified, password_hash)
 VALUES
-  ('01JSEED0000000000000000001', 'admin@gmail.com',                  'Admin',                  '', true,  true, true, 'admin'),
-  ('01JSEED0000000000000000002', 'test@gmail.com',                   'Test User',              '', false, true, true, 'test'),
-  ('01JSEED0000000000000000003', 'bercovici.adrian.simon@gmail.com', 'Adrian Simon Bercovici', '', true,  true, true, 'admin')
+  ('admin@gmail.com',                  'Admin',                  '', true,  true, true, 'admin'),
+  ('test@gmail.com',                   'Test User',              '', false, true, true, 'test'),
+  ('bercovici.adrian.simon@gmail.com', 'Adrian Simon Bercovici', '', true,  true, true, 'admin')
 ON CONFLICT (email) DO UPDATE
 SET name          = EXCLUDED.name,
     is_admin      = EXCLUDED.is_admin,

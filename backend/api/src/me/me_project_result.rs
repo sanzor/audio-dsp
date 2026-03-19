@@ -4,7 +4,7 @@ use utoipa::ToSchema;
 
 #[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
 pub struct MeProjectResult {
-    pub project_id: String,
+    pub project_id: i64,
     pub name: String,
     pub role: ProjectRole,
 }

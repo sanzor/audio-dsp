@@ -25,7 +25,7 @@ pub async fn bootstrap(
     auth: JwtContext,
     app_state: web::Data<MeAppData>,
 ) -> HttpResponse {
-    match app_state.me_data_provider.get_bootstrap_data(&auth.user_id).await {
+    match app_state.me_data_provider.get_bootstrap_data(auth.user_id).await {
         Ok(data) => HttpResponse::Ok().json(data),
         Err(e) => {
             error!(user_id = %auth.user_id, error = %e, "bootstrap failed");
@@ -43,7 +43,7 @@ pub struct CreateProjectInput {
 
 #[derive(Serialize, ToSchema)]
 pub struct ProjectOutput {
-    pub project_id: String,
+    pub project_id: i64,
     pub name: String,
 }
 
@@ -63,7 +63,7 @@ pub async fn create_project(
 
     let project = match app
         .projects_service
-        .create_project(CreateProjectParams { name: input.name, created_by: auth.user_id.clone() })
+        .create_project(CreateProjectParams { name: input.name, created_by: auth.user_id })
         .await
     {
         Ok(p) => p,
@@ -76,8 +76,8 @@ pub async fn create_project(
     if let Err(e) = app
         .memberships_service
         .create_membership(CreateMembershipParams {
-            project_id: project.project_id.clone(),
-            user_id: auth.user_id.clone(),
+            project_id: project.project_id,
+            user_id: auth.user_id,
             role: ProjectRole::Owner,
         })
         .await
@@ -98,7 +98,7 @@ pub struct AcceptInviteInput {
 
 #[derive(Serialize, ToSchema)]
 pub struct AcceptInviteOutput {
-    pub project_id: String,
+    pub project_id: i64,
     pub role: ProjectRole,
 }
 
@@ -120,7 +120,7 @@ pub async fn accept_invite(
         .auth_provider
         .accept_invite(AcceptInviteParams {
             invite_token: input.invite_token,
-            caller_user_id: auth.user_id.clone(),
+            caller_user_id: auth.user_id,
         })
         .await
     {

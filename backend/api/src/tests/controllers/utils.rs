@@ -11,7 +11,7 @@ use domain::{create_domain_user_params::CreateDomainUserParams, domain_user::Dom
 use jsonwebtoken::encode;
 use kameo::actor::ActorRef;
 #[cfg(test)]
-pub fn make_test_auth_cookie(secret: String, user_id: String) -> Cookie<'static> {
+pub fn make_test_auth_cookie(secret: String, user_id: i64) -> Cookie<'static> {
     use jsonwebtoken::{EncodingKey, Header};
 
     use crate::dtos::claims::Claims;
@@ -57,7 +57,7 @@ pub async fn create_user_and_actor(
         .await?;
     let actor = user_registry
         .get_or_spawn_user_actor(
-            &created_user.id,
+            created_user.id,
             CreateUserActorParams {
                 user_data: created_user.clone(),
                 user_actor_deps: Arc::clone(&user_actor_deps),

@@ -20,13 +20,13 @@ impl SubscriptionsProvider for SubscriptionsProviderService {
     async fn get_subscription(&self, id: SubscriptionId) -> Result<Option<DbSubscription>, ServiceError> {
         self.data_provider.get_subscription(id).await.map_err(ServiceError::from)
     }
-    async fn get_active_subscription_for_user(&self, user_id: &str) -> Result<Option<DbSubscription>, ServiceError> {
+    async fn get_active_subscription_for_user(&self, user_id: i64) -> Result<Option<DbSubscription>, ServiceError> {
         self.data_provider.get_active_subscription_for_user(user_id).await.map_err(ServiceError::from)
     }
     async fn deactivate_subscription(&self, id: SubscriptionId) -> Result<bool, ServiceError> {
         self.data_provider.deactivate_subscription(id).await.map_err(ServiceError::from)
     }
-    async fn list_by_user(&self, user_id: &str) -> Result<Vec<DbSubscription>, ServiceError> {
+    async fn list_by_user(&self, user_id: i64) -> Result<Vec<DbSubscription>, ServiceError> {
         self.data_provider.list_by_user(user_id).await.map_err(ServiceError::from)
     }
 }

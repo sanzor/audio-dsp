@@ -27,7 +27,7 @@ pub async fn create_purchased_product(
 ) -> HttpResponse {
     let input = payload.into_inner();
     let params = CreatePurchasedProductParams {
-        user_id: auth.user_id.clone(),
+        user_id: auth.user_id,
         product_id: input.product_id,
     };
     match app.purchased_products_provider.create_purchased_product(params).await {
@@ -43,7 +43,7 @@ pub async fn list_my_purchased_products(
     auth: JwtContext,
     app: web::Data<PurchasedProductsAppData>,
 ) -> HttpResponse {
-    match app.purchased_products_provider.list_by_user(&auth.user_id).await {
+    match app.purchased_products_provider.list_by_user(auth.user_id).await {
         Ok(items) => HttpResponse::Ok().json(items),
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
     }

@@ -4,6 +4,6 @@ use crate::domain::db::db_usage::DbUsage;
 
 #[async_trait]
 pub trait UsageDataProvider: Send + Sync {
-    async fn get_usage(&self, user_id: &str) -> Result<Option<DbUsage>, DataError>;
-    async fn refresh_usage(&self, user_id: &str) -> Result<DbUsage, DataError>;
+    async fn get_usage(&self, user_id: i64) -> Result<Option<DbUsage>, DataError>;
+    async fn refresh_usage(&self, user_id: i64) -> Result<DbUsage, DataError>;
 }

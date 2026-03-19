@@ -46,11 +46,11 @@ where
                 .ok_or_else(|| actix_web::error::ErrorUnauthorized("Unauthorized"))?;
 
             // 2. Project context from header
-            let project_id = req
+            let project_id: Option<i64> = req
                 .headers()
                 .get(PROJECT_ID_HEADER)
                 .and_then(|v| v.to_str().ok())
-                .map(|s| s.to_owned());
+                .and_then(|s| s.parse::<i64>().ok());
 
             // 3. Resolve role
             let role_ctx = if jwt_ctx.is_admin {
@@ -60,7 +60,7 @@ where
                     None => return Err(actix_web::error::ErrorBadRequest("Missing X-Project-ID header")),
                     Some(pid) => {
                         let role = memberships
-                            .get_role(&pid, &jwt_ctx.user_id)
+                            .get_role(pid, jwt_ctx.user_id)
                             .await
                             .unwrap_or(None);
                         match role {

@@ -4,7 +4,7 @@ use kameo::actor::ActorRef;
 use crate::app_data::AppData;
 
 pub async fn get_user_actor_internal(
-    user_id: &str,
+    user_id: i64,
     app_state: &AppData,
 ) -> Result<ActorRef<UserActor>, String> {
     let user_addr = {

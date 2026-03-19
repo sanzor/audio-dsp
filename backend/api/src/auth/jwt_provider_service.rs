@@ -10,15 +10,15 @@ use super::jwt_provider::JwtProvider;
 pub struct JwtProviderService;
 
 impl JwtProvider for JwtProviderService {
-    fn issue_user_token(&self, user_id: &str, name: Option<&str>, email: Option<&str>, is_admin: bool) -> Result<String, String> {
+    fn issue_user_token(&self, user_id: i64, name: Option<&str>, email: Option<&str>, is_admin: bool) -> Result<String, String> {
         Ok(create_access_token(user_id, name, email, is_admin))
     }
 
-    fn issue_verification_token(&self, user_id: &str) -> Result<String, String> {
+    fn issue_verification_token(&self, user_id: i64) -> Result<String, String> {
         Ok(create_verification_token(user_id))
     }
 
-    fn issue_invite_token(&self, invitee_email: &str, project_id: &str, role: &str) -> Result<String, String> {
+    fn issue_invite_token(&self, invitee_email: &str, project_id: i64, role: &str) -> Result<String, String> {
         Ok(create_invite_token(invitee_email, project_id, role))
     }
 

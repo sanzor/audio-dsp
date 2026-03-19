@@ -29,15 +29,15 @@ impl MembershipsDataProvider for PostgresMembershipsDataProvider {
             RETURNING *
             "#,
         )
-        .bind(&params.project_id)
-        .bind(&params.user_id)
+        .bind(params.project_id)
+        .bind(params.user_id)
         .bind(&params.role)
         .fetch_one(&self.pool)
         .await
         .map_err(|e| e.to_string())
     }
 
-    async fn delete_membership(&self, project_id: &str, user_id: &str) -> Result<bool, String> {
+    async fn delete_membership(&self, project_id: i64, user_id: i64) -> Result<bool, String> {
         let result =
             sqlx::query("DELETE FROM project_members WHERE project_id = $1 AND user_id = $2")
                 .bind(project_id)
@@ -50,8 +50,8 @@ impl MembershipsDataProvider for PostgresMembershipsDataProvider {
 
     async fn get_membership(
         &self,
-        project_id: &str,
-        user_id: &str,
+        project_id: i64,
+        user_id: i64,
     ) -> Result<Option<DbMembership>, String> {
         sqlx::query_as::<_, DbMembership>(
             "SELECT * FROM project_members WHERE project_id = $1 AND user_id = $2",
@@ -65,8 +65,8 @@ impl MembershipsDataProvider for PostgresMembershipsDataProvider {
 
     async fn list_memberships(
         &self,
-        project_id: Option<&str>,
-        user_id: Option<&str>,
+        project_id: Option<i64>,
+        user_id: Option<i64>,
     ) -> Result<Vec<DbMembership>, String> {
         match (project_id, user_id) {
             (Some(p), Some(u)) => sqlx::query_as::<_, DbMembership>(
@@ -100,8 +100,8 @@ impl MembershipsDataProvider for PostgresMembershipsDataProvider {
 
     async fn get_role(
         &self,
-        project_id: &str,
-        user_id: &str,
+        project_id: i64,
+        user_id: i64,
     ) -> Result<Option<ProjectRole>, String> {
         let row: Option<(ProjectRole,)> = sqlx::query_as(
             "SELECT role FROM project_members WHERE project_id = $1 AND user_id = $2",
@@ -117,8 +117,8 @@ impl MembershipsDataProvider for PostgresMembershipsDataProvider {
 
     async fn update_role(
         &self,
-        project_id: &str,
-        user_id: &str,
+        project_id: i64,
+        user_id: i64,
         role: ProjectRole,
     ) -> Result<Option<DbMembership>, String> {
         sqlx::query_as::<_, DbMembership>(

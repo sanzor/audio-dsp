@@ -39,7 +39,7 @@ impl ProjectsProvider for ProjectsProviderService {
         self.data_provider.delete_project(project_id).await
     }
 
-    async fn list_projects_for_user(&self, user_id: &str) -> Result<Vec<DbProject>, String> {
+    async fn list_projects_for_user(&self, user_id: i64) -> Result<Vec<DbProject>, String> {
         self.data_provider.list_projects_for_user(user_id).await
     }
 }

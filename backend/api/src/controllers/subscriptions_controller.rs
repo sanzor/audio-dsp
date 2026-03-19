@@ -29,7 +29,7 @@ pub async fn create_subscription(
 ) -> HttpResponse {
     let input = payload.into_inner();
     let params = CreateSubscriptionParams {
-        user_id: auth.user_id.clone(),
+        user_id: auth.user_id,
         tier: input.tier,
         expires_at: input.expires_at,
     };
@@ -46,7 +46,7 @@ pub async fn list_my_subscriptions(
     auth: JwtContext,
     app: web::Data<SubscriptionsAppData>,
 ) -> HttpResponse {
-    match app.subscriptions_provider.list_by_user(&auth.user_id).await {
+    match app.subscriptions_provider.list_by_user(auth.user_id).await {
         Ok(subs) => HttpResponse::Ok().json(subs),
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
     }
@@ -59,7 +59,7 @@ pub async fn get_my_active_subscription(
     auth: JwtContext,
     app: web::Data<SubscriptionsAppData>,
 ) -> HttpResponse {
-    match app.subscriptions_provider.get_active_subscription_for_user(&auth.user_id).await {
+    match app.subscriptions_provider.get_active_subscription_for_user(auth.user_id).await {
         Ok(Some(sub)) => HttpResponse::Ok().json(sub),
         Ok(None) => HttpResponse::NotFound().finish(),
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),

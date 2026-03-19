@@ -37,7 +37,7 @@ pub async fn get_player_state(
         return HttpResponse::Forbidden().body("Forbidden");
     }
     let q = query.into_inner();
-    match app_state.player_service.get_state(&jwt.user_id, &q.track_id).await {
+    match app_state.player_service.get_state(jwt.user_id, &q.track_id).await {
         Ok(state) => HttpResponse::Ok().json(state),
         Err(e) => HttpResponse::NotFound().body(e),
     }
@@ -66,7 +66,7 @@ pub async fn play(
         return HttpResponse::Forbidden().body("Forbidden");
     }
     let req = body.into_inner();
-    match app_state.player_service.play(&jwt.user_id, &req.track_id).await {
+    match app_state.player_service.play(jwt.user_id, &req.track_id).await {
         Ok(_) => HttpResponse::Ok().finish(),
         Err(e) => HttpResponse::NotFound().body(e),
     }
@@ -95,7 +95,7 @@ pub async fn pause(
         return HttpResponse::Forbidden().body("Forbidden");
     }
     let req = body.into_inner();
-    match app_state.player_service.pause(&jwt.user_id, &req.track_id).await {
+    match app_state.player_service.pause(jwt.user_id, &req.track_id).await {
         Ok(_) => HttpResponse::Ok().finish(),
         Err(e) => HttpResponse::NotFound().body(e),
     }
@@ -125,7 +125,7 @@ pub async fn seek(
         return HttpResponse::Forbidden().body("Forbidden");
     }
     let req = body.into_inner();
-    match app_state.player_service.seek(&jwt.user_id, &req.track_id, req.position).await {
+    match app_state.player_service.seek(jwt.user_id, &req.track_id, req.position).await {
         Ok(_) => HttpResponse::Ok().finish(),
         Err(e) => HttpResponse::NotFound().body(e),
     }
@@ -154,7 +154,7 @@ pub async fn stop(
         return HttpResponse::Forbidden().body("Forbidden");
     }
     let req = body.into_inner();
-    match app_state.player_service.stop(&jwt.user_id, &req.track_id).await {
+    match app_state.player_service.stop(jwt.user_id, &req.track_id).await {
         Ok(_) => HttpResponse::Ok().finish(),
         Err(e) => HttpResponse::NotFound().body(e),
     }

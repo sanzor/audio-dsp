@@ -22,7 +22,7 @@ impl PurchasedProductsDataProvider for PurchasedProductsDataProviderService {
             "INSERT INTO purchased_products (user_id, product_id) VALUES ($1, $2) \
              RETURNING id, user_id, product_id, purchased_at::text"
         )
-        .bind(&params.user_id)
+        .bind(params.user_id)
         .bind(params.product_id)
         .fetch_one(&self.pool)
         .await
@@ -37,7 +37,7 @@ impl PurchasedProductsDataProvider for PurchasedProductsDataProviderService {
             .map_err(|e| { error!(id, error = %e, "get purchased product failed"); DataError::from(e) })
     }
 
-    async fn list_by_user(&self, user_id: &str) -> Result<Vec<DbPurchasedProduct>, DataError> {
+    async fn list_by_user(&self, user_id: i64) -> Result<Vec<DbPurchasedProduct>, DataError> {
         sqlx::query_as::<_, DbPurchasedProduct>(&format!("{SELECT} WHERE user_id = $1 ORDER BY purchased_at DESC"))
             .bind(user_id)
             .fetch_all(&self.pool)

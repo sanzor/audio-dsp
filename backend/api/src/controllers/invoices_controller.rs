@@ -38,7 +38,7 @@ pub async fn create_invoice(
 ) -> HttpResponse {
     let input = payload.into_inner();
     let params = CreateInvoiceParams {
-        user_id: auth.user_id.clone(),
+        user_id: auth.user_id,
         stripe_invoice_id: input.stripe_invoice_id,
         amount: input.amount,
         currency: input.currency,
@@ -67,7 +67,7 @@ pub async fn list_my_invoices(
 ) -> HttpResponse {
     let offset = query.offset.unwrap_or(0);
     let limit = query.limit.unwrap_or(20).clamp(1, 100);
-    match app.invoices_provider.list_by_user_paginated(&auth.user_id, offset, limit).await {
+    match app.invoices_provider.list_by_user_paginated(auth.user_id, offset, limit).await {
         Ok((invoices, total)) => HttpResponse::Ok().json(InvoiceListResponse { invoices, total }),
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
     }
