@@ -53,3 +53,5 @@ impl<'q> sqlx::Encode<'q, sqlx::Postgres> for Tier {
         <String as Encode<sqlx::Postgres>>::encode_by_ref(&self.to_string(), buf)
     }
 }
+
+

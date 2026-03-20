@@ -17,7 +17,6 @@ export const accountNavItems: NavItem[] = [
   { label: "Shop", path: "/shop" },
   { label: "Purchases", path: "/purchases" },
   { label: "Billing", path: "/billing" },
-  { label: "API Keys", path: "/api-keys" },
   { label: "Settings", path: "/settings" },
 ];
 

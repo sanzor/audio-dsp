@@ -7,6 +7,10 @@ export default defineConfig({
    server: {
     port: 3000, // 👈 your FE runs on http://localhost:3000
     host: true,
+    proxy: {
+      "/auth": "http://localhost:3080",
+      "/v1": "http://localhost:3080",
+    },
   },
   plugins: [react(),tailwindcss(),],
   resolve: {

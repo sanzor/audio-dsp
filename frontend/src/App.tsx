@@ -16,7 +16,6 @@ import AccountSubscriptions from "@/pages/account/AccountSubscriptions";
 import AccountShop from "@/pages/account/AccountShop";
 import AccountPurchases from "@/pages/account/AccountPurchases";
 import AccountBilling from "@/pages/account/AccountBilling";
-import AccountApiKeys from "@/pages/account/AccountApiKeys";
 import AccountSettings from "@/pages/account/AccountSettings";
 import Onboarding from "@/pages/Onboarding";
 import Verify from "@/pages/Verify";
@@ -67,8 +66,7 @@ export default function App() {
             <Route path="shop" element={<AccountShop />} />
             <Route path="purchases" element={<AccountPurchases />} />
             <Route path="billing" element={<AccountBilling />} />
-            <Route path="api-keys" element={<AccountApiKeys />} />
-            <Route path="settings" element={<AccountSettings />} />
+<Route path="settings" element={<AccountSettings />} />
           </Route>
         </Route>
 
