@@ -1,7 +1,6 @@
 pub mod accept_invite_params;
 pub mod accept_invite_result;
 pub mod auth_app_data;
-pub mod google_app_data;
 pub mod auth_provider;
 pub mod auth_provider_service;
 pub mod email_sender;

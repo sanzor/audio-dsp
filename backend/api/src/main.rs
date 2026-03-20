@@ -5,10 +5,6 @@ use actix_web::{
 };
 use actors::{
     audio_player_actor::registry::AudioPlayerRegistry,
-    user_actor::{
-        player_factory::PlayerFactory, user_actor_deps::UserActorDeps,
-        user_actor_registry::UserActorRegistry,
-    },
 };
 use api::{
     auth::{
@@ -17,7 +13,7 @@ use api::{
         jwt_provider_service::JwtProviderService,
         mock_email_sender::MockEmailSender,
     },
-    controllers::{self, google_controller, ws_controller},
+    controllers::{self, ws_controller},
     graphs::{
         data_provider::graphs_data_provider_service::PostgresGraphsDataProvider,
         graphs_app_data::GraphsAppData,
@@ -375,7 +371,6 @@ async fn start_server() -> std::io::Result<()> {
                     .wrap(jwt_middleware.clone())
                     .configure(controllers::project_controller::init),
             )
-            .service(web::scope("/auth/google").configure(google_controller::init))
             .service(web::scope("/ws").configure(ws_controller::init))
             .service(
                 web::scope("/v1/invoices")

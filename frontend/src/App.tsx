@@ -1,81 +1,79 @@
-import './App.css'
-import { AuthCallback } from './Auth/AuthCallback';
-import { useTokenAutoRefresh } from './Auth/UseAuthAutoRefreshOptions'
-import { Dashboard } from './components/dashboard/dashboard';
-import { LoginForm } from './components/login-form'
-import { useAuth } from './Auth/UseAuth';
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import AdminShell from "@/components/layout/admin/AdminShell";
+import AccountShell from "@/components/layout/account/AccountShell";
 import {
-  BrowserRouter as Router,
-  Routes,
-  Route,
-  Navigate
-} from "react-router-dom";
-import { AuthListener } from './Auth/AuthListener';
+  DEFAULT_SUPER_ADMIN_PATH,
+  superAdminNavItems,
+} from "@/components/layout/app/routes";
+import CatchAllRedirect from "@/components/routing/CatchAllRedirect";
+import PublicOnlyRoute from "@/components/routing/PublicOnlyRoute";
+import RequireAuth from "@/components/routing/RequireAuth";
+import RequireSuperadmin from "@/components/routing/RequireSuperadmin";
+import { Dashboard } from "@/components/dashboard/dashboard";
+import AdminSectionPage from "@/pages/admin/AdminSectionPage";
+import AccountProfile from "@/pages/account/AccountProfile";
+import AccountSubscriptions from "@/pages/account/AccountSubscriptions";
+import AccountShop from "@/pages/account/AccountShop";
+import AccountPurchases from "@/pages/account/AccountPurchases";
+import AccountBilling from "@/pages/account/AccountBilling";
+import AccountApiKeys from "@/pages/account/AccountApiKeys";
+import AccountSettings from "@/pages/account/AccountSettings";
+import Onboarding from "@/pages/Onboarding";
+import Verify from "@/pages/Verify";
+import SignIn from "@/pages/auth/SignIn";
+import SignUp from "@/pages/auth/SignUp";
 
-console.log('📁 App.js file loaded');
-
-function AppContent() {
-  // console.log('🏠 AppContent component rendering...');
-  
-  const authResult = useAuth();
-  // console.log('🔐 useAuth result:', authResult);
-  
-  const { user, loading } = authResult;
-  
-  // console.log('👤 User state:', user);
-  // console.log('⏳ Loading state:', loading);
-
-  // Call the auto-refresh hook
-  // console.log('🔄 About to call useTokenAutoRefresh...');
-  useTokenAutoRefresh({
-    enabled: true,
-    interval: 2 * 60 * 1000, // 2 minutes for testing
-  });
-  // console.log('✅ useTokenAutoRefresh called');
-
-  // console.log('🏠 App render - user:', user?.name || 'null', 'loading:', loading);
-
-  if (loading) {
-    // console.log('⏳ Still loading, showing loading screen');
-    return <div>Loading...</div>;
-  }
-
-  // console.log('✅ Not loading, rendering routes');
-
-  return (
-    <>
-    <AuthListener/>
-   
-    <Routes>
-      <Route path="/auth/callback" element={<AuthCallback />} />
-      <Route 
-        path="/login" 
-        element={user ? <Navigate to="/dashboard" replace /> : <LoginForm />} 
-      />
-      <Route 
-        path="/dashboard" 
-        element={user ? <Dashboard /> : <Navigate to="/login" replace />} 
-      />
-      <Route 
-        path="/" 
-        element={user ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />} 
-      />
-    </Routes>
-    </>
-   
-  );
+function getAdminChildPath(path: string) {
+  return path.replace("/admin/", "");
 }
 
-function App() {
-  console.log('🚀 App component rendering...');
-  
+export default function App() {
   return (
-    <Router>
-      <AppContent />
-    </Router>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<CatchAllRedirect />} />
+
+        <Route element={<PublicOnlyRoute />}>
+          <Route path="/login" element={<SignIn />} />
+          <Route path="/register" element={<SignUp />} />
+          <Route path="/verify" element={<Verify />} />
+          <Route path="/onboarding" element={<Onboarding />} />
+        </Route>
+
+        <Route element={<RequireSuperadmin />}>
+          <Route path="/admin" element={<AdminShell />}>
+            <Route
+              index
+              element={<Navigate to={getAdminChildPath(DEFAULT_SUPER_ADMIN_PATH)} replace />}
+            />
+            {superAdminNavItems.map((item) => (
+              <Route
+                key={item.path}
+                path={getAdminChildPath(item.path)}
+                element={
+                  <AdminSectionPage title={item.label} permission={item.permission} />
+                }
+              />
+            ))}
+          </Route>
+        </Route>
+
+        <Route element={<RequireAuth />}>
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/account" element={<AccountShell />}>
+            <Route index element={<Navigate to="profile" replace />} />
+            <Route path="profile" element={<AccountProfile />} />
+            <Route path="subscriptions" element={<AccountSubscriptions />} />
+            <Route path="shop" element={<AccountShop />} />
+            <Route path="purchases" element={<AccountPurchases />} />
+            <Route path="billing" element={<AccountBilling />} />
+            <Route path="api-keys" element={<AccountApiKeys />} />
+            <Route path="settings" element={<AccountSettings />} />
+          </Route>
+        </Route>
+
+        <Route path="*" element={<CatchAllRedirect />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
-
-console.log('📁 App.js export ready');
-
-export default App

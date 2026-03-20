@@ -4,6 +4,10 @@ import { login } from "../../Services/auth/authService";
 import { bootstrap } from "../../Services/me/meService";
 import { useAuthStore } from "../../Stores/authStore";
 import { useProjectStore } from "../../Stores/projectStore";
+import {
+  DEFAULT_APP_PATH,
+  DEFAULT_SUPER_ADMIN_PATH,
+} from "../../components/layout/app/routes";
 
 export function useLogin() {
   const setSession = useAuthStore((state) => state.setSession);
@@ -21,7 +25,7 @@ export function useLogin() {
       const { user, projects } = await bootstrap();
 
       if (user.is_admin) {
-        navigate("/admin");
+        navigate(DEFAULT_SUPER_ADMIN_PATH);
         return;
       }
 
@@ -32,7 +36,7 @@ export function useLogin() {
         setActiveProject(projects[0]);
       }
 
-      navigate("/dashboard");
+      navigate(DEFAULT_APP_PATH);
     },
   });
 

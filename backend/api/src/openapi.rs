@@ -10,12 +10,6 @@ use utoipa::OpenApi;
         crate::controllers::auth_controller::verify,
         crate::controllers::auth_controller::resend_verification,
         crate::controllers::auth_controller::logout,
-        // Auth (Google OAuth)
-        crate::controllers::google_controller::google_auth_redirect,
-        crate::controllers::google_controller::google_callback,
-        crate::controllers::google_controller::logout,
-        crate::controllers::google_controller::refresh,
-        crate::controllers::google_controller::session,
         // Me
         crate::controllers::me_controller::bootstrap,
         crate::controllers::me_controller::create_project,

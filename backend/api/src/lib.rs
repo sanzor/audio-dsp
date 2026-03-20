@@ -25,4 +25,3 @@ pub mod usage;
 #[path = "tests/mod.rs"]
 pub mod player_controller_test;
 pub mod token;
-pub mod user_and_actor_resolver;
