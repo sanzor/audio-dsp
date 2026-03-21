@@ -43,7 +43,9 @@ async function request<TRes>(
 ): Promise<TRes> {
   const url = joinUrl(import.meta.env.VITE_API_BASE_URL ?? "", path);
 
+  const token = useAuthStore.getState().token;
   const activeProjectId = useProjectStore.getState().activeProject?.project_id;
+  const authHeader: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
   const projectHeader: HeadersInit = activeProjectId
     ? { "X-Project-ID": activeProjectId }
     : {};
@@ -52,7 +54,7 @@ async function request<TRes>(
     ...init,
     method,
     credentials: "include",
-    headers: { ...(init?.headers ?? {}), ...projectHeader },
+    headers: { ...(init?.headers ?? {}), ...authHeader, ...projectHeader },
   });
 
   if (res.status === 401) {

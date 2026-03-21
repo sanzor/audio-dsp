@@ -48,6 +48,7 @@ impl AuthProviderService {
             id: u.id,
             email: u.email.clone(),
             name: u.name.clone(),
+            is_admin: u.is_admin,
             is_active: u.is_active,
             is_verified: u.is_verified,
         }

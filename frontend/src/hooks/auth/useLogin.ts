@@ -19,7 +19,7 @@ export function useLogin() {
   const loginMutation = useMutation({
     mutationFn: login,
     onSuccess: async (result) => {
-      setSession(result.user);
+      setSession(result.user, result.token);
       clearProject();
 
       const { user, projects } = await bootstrap();
@@ -29,12 +29,15 @@ export function useLogin() {
         return;
       }
 
+      if (projects.length === 0) {
+        navigate("/onboarding");
+        return;
+      }
+
       setProjects(projects);
 
       // Auto-select the first project — user can switch from the app shell
-      if (projects.length > 0) {
-        setActiveProject(projects[0]);
-      }
+      setActiveProject(projects[0]);
 
       navigate(DEFAULT_APP_PATH);
     },

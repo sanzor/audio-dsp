@@ -12,7 +12,8 @@ export type AuthUser = {
 
 interface AuthState {
   user: AuthUser | null;
-  setSession: (user: AuthUser) => void;
+  token: string | null;
+  setSession: (user: AuthUser, token: string) => void;
   setVerified: () => void;
   clearSession: () => void;
 }
@@ -21,12 +22,13 @@ export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
       user: null,
-      setSession: (user) => set({ user }),
+      token: null,
+      setSession: (user, token) => set({ user, token }),
       setVerified: () =>
         set((state) => ({
           user: state.user ? { ...state.user, is_verified: true } : null,
         })),
-      clearSession: () => set({ user: null }),
+      clearSession: () => set({ user: null, token: null }),
     }),
     { name: "audio-dsp-auth" }
   )

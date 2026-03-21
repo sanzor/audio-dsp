@@ -6,6 +6,7 @@ pub struct AuthUser {
     pub id: i64,
     pub email: String,
     pub name: String,
+    pub is_admin: bool,
     pub is_active: bool,
     pub is_verified: bool,
 }

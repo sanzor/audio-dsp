@@ -35,6 +35,7 @@ pub struct LoginInput {
 #[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
 pub struct LoginOutput {
     pub user: AuthUser,
+    pub token: String,
 }
 
 #[utoipa::path(post, path = "/auth/login", tag = "Auth",
@@ -53,7 +54,7 @@ pub async fn login(
     match app_state.auth_provider.login(LoginParams { email: input.email, password_hash: input.password_hash }).await {
         Ok(r) => HttpResponse::Ok()
             .append_header(("Set-Cookie", set_auth_cookie(&r.token)))
-            .json(LoginOutput { user: r.user }),
+            .json(LoginOutput { user: r.user, token: r.token }),
         Err(ServiceError::NotFound) => HttpResponse::Unauthorized().body("invalid credentials"),
         Err(e) => { error!(error = %e, "login failed"); HttpResponse::InternalServerError().body("login failed") }
     }
@@ -71,6 +72,7 @@ pub struct RegisterInput {
 #[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
 pub struct RegisterOutput {
     pub user: AuthUser,
+    pub token: String,
 }
 
 #[utoipa::path(post, path = "/auth/register", tag = "Auth",
@@ -92,7 +94,7 @@ pub async fn register(
     }).await {
         Ok(r) => HttpResponse::Created()
             .append_header(("Set-Cookie", set_auth_cookie(&r.token)))
-            .json(RegisterOutput { user: r.user }),
+            .json(RegisterOutput { user: r.user, token: r.token }),
         Err(ServiceError::Conflict(msg)) => HttpResponse::Conflict().body(msg),
         Err(e) => { error!(error = %e, "register failed"); HttpResponse::InternalServerError().body("register failed") }
     }

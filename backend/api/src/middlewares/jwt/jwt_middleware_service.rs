@@ -36,8 +36,12 @@ where
             }
 
             let token = req
-                .cookie("auth_token")
-                .map(|c| c.value().to_owned());
+                .headers()
+                .get("Authorization")
+                .and_then(|v| v.to_str().ok())
+                .and_then(|v| v.strip_prefix("Bearer "))
+                .map(|t| t.to_owned())
+                .or_else(|| req.cookie("auth_token").map(|c| c.value().to_owned()));
 
             let claims = match token {
                 None => return Err(actix_web::error::ErrorUnauthorized("Missing auth token")),

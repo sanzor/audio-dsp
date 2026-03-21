@@ -8,7 +8,7 @@ export function useRegister() {
   const registerMutation = useMutation({
     mutationFn: registerUser,
     onSuccess: (result) => {
-      setSession(result.user);
+      setSession(result.user, result.token);
     },
   });
 

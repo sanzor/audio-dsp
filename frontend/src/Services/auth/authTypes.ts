@@ -14,6 +14,7 @@ export type LoginInput = {
 
 export type LoginResult = {
   user: AuthUser;
+  token: string;
 };
 
 export type RegisterInput = {
@@ -24,6 +25,7 @@ export type RegisterInput = {
 
 export type RegisterResult = {
   user: AuthUser;
+  token: string;
 };
 
 export type VerifyInput = {
