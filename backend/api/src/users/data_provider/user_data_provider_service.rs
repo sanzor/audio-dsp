@@ -17,14 +17,19 @@ impl UserDataProviderService {
     }
 }
 
+const USER_SELECT_COLUMNS: &str =
+    "user_id AS id, email, name AS full_name, is_active, is_verified";
+
 #[async_trait]
 impl UserDataProvider for UserDataProviderService {
     async fn create_user(&self, params: CreateUserParams) -> Result<DbUser, DataError> {
-        let record = sqlx::query_as::<_, DbUser>(
-            "INSERT INTO users (email, password_hash, full_name, is_active, is_verified) \
+        let query = format!(
+            "INSERT INTO users (email, password_hash, name, is_active, is_verified) \
              VALUES ($1, $2, $3, $4, $5) \
-             RETURNING id, email, full_name, is_active, is_verified",
-        )
+             RETURNING {USER_SELECT_COLUMNS}"
+        );
+
+        let record = sqlx::query_as::<_, DbUser>(&query)
         .bind(params.email)
         .bind(params.password_hash)
         .bind(params.full_name)
@@ -41,17 +46,18 @@ impl UserDataProvider for UserDataProviderService {
         user_id: UserId,
         params: UpdateUserParams,
     ) -> Result<Option<DbUser>, DataError> {
-        let record = sqlx::query_as::<_, DbUser>(
+        let query = format!(
             "UPDATE users \
              SET email = COALESCE($2, email), \
                  password_hash = COALESCE($3, password_hash), \
-                 full_name = COALESCE($4, full_name), \
+                 name = COALESCE($4, name), \
                  is_active = COALESCE($5, is_active), \
-                 is_verified = COALESCE($6, is_verified), \
-                 updated_at = NOW() \
-             WHERE id = $1 \
-             RETURNING id, email, full_name, is_active, is_verified",
-        )
+                 is_verified = COALESCE($6, is_verified) \
+             WHERE user_id = $1 \
+             RETURNING {USER_SELECT_COLUMNS}"
+        );
+
+        let record = sqlx::query_as::<_, DbUser>(&query)
         .bind(user_id)
         .bind(params.email)
         .bind(params.password_hash)
@@ -65,7 +71,7 @@ impl UserDataProvider for UserDataProviderService {
     }
 
     async fn delete_user(&self, user_id: UserId) -> Result<bool, DataError> {
-        let result = sqlx::query("DELETE FROM users WHERE id = $1")
+        let result = sqlx::query("DELETE FROM users WHERE user_id = $1")
             .bind(user_id)
             .execute(&self.pool)
             .await?;
@@ -74,9 +80,9 @@ impl UserDataProvider for UserDataProviderService {
     }
 
     async fn get_user(&self, user_id: UserId) -> Result<Option<DbUser>, DataError> {
-        let record = sqlx::query_as::<_, DbUser>(
-            "SELECT id, email, full_name, is_active, is_verified FROM users WHERE id = $1",
-        )
+        let query = format!("SELECT {USER_SELECT_COLUMNS} FROM users WHERE user_id = $1");
+
+        let record = sqlx::query_as::<_, DbUser>(&query)
         .bind(user_id)
         .fetch_optional(&self.pool)
         .await?;
@@ -85,9 +91,9 @@ impl UserDataProvider for UserDataProviderService {
     }
 
     async fn get_user_by_email(&self, email: String) -> Result<Option<DbUser>, DataError> {
-        let record = sqlx::query_as::<_, DbUser>(
-            "SELECT id, email, full_name, is_active, is_verified FROM users WHERE email = $1",
-        )
+        let query = format!("SELECT {USER_SELECT_COLUMNS} FROM users WHERE email = $1");
+
+        let record = sqlx::query_as::<_, DbUser>(&query)
         .bind(email)
         .fetch_optional(&self.pool)
         .await?;
@@ -96,9 +102,9 @@ impl UserDataProvider for UserDataProviderService {
     }
 
     async fn get_all_users(&self) -> Result<Vec<DbUser>, DataError> {
-        let records = sqlx::query_as::<_, DbUser>(
-            "SELECT id, email, full_name, is_active, is_verified FROM users ORDER BY id",
-        )
+        let query = format!("SELECT {USER_SELECT_COLUMNS} FROM users ORDER BY user_id");
+
+        let records = sqlx::query_as::<_, DbUser>(&query)
         .fetch_all(&self.pool)
         .await?;
 

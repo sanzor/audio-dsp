@@ -19,6 +19,7 @@ PG_DB     ?= audio_dsp
 DATABASE_URL ?= postgres://$(PG_USER):$(PG_PASS)@$(PG_HOST):$(PG_PORT)/$(PG_DB)
 
 PSQL := PGPASSWORD=$(PG_PASS) psql -h $(PG_HOST) -p $(PG_PORT) -U $(PG_USER) -d $(PG_DB)
+DB_PSQL := bash ./scripts/db_psql.sh
 
 MIGRATIONS_DIR := ./database/audio_db/migrations
 SEEDS_DIR      := ./database/seeds
@@ -80,7 +81,7 @@ help:
 	@echo "  migrate-info     List migration status"
 	@echo "  migrate-redo     Revert then re-apply last migration"
 	@echo "  db-cli           Open psql shell (direct host connection)"
-	@echo "  db-seed          Seed dev data (skips if users already exist)"
+	@echo "  db-seed          Apply idempotent dev seed data against the current schema"
 	@echo "  db-clean-users   Remove seed users (runs clean_users.sql)"
 	@echo "  db-reinit        Drop volumes, start fresh, run migrations + seed"
 	@echo "  db-reset         Revert ALL migrations then re-apply"
@@ -226,26 +227,16 @@ migrate-redo: migrate-down migrate
 
 db-cli:
 	@echo "Connecting to $(PG_DB) as $(PG_USER) on $(PG_HOST):$(PG_PORT)..."
-	$(PSQL)
+	$(DB_PSQL)
 
 db-seed:
-	@COUNT=$$($(PSQL) -tAc "SELECT COUNT(*) FROM users" 2>/dev/null | tr -d '[:space:]'); \
-	if [ "$$COUNT" = "0" ]; then \
-		echo "Seeding database..."; \
-		for f in $(SEEDS_DIR)/users.sql $(SEEDS_DIR)/projects.sql \
-		          $(SEEDS_DIR)/tier_configs.sql $(SEEDS_DIR)/products.sql; do \
-			[ -f "$$f" ] || continue; \
-			echo "  -> $$f"; \
-			$(PSQL) -v ON_ERROR_STOP=0 -f $$f; \
-		done; \
-		echo "Seeding complete."; \
-	else \
-		echo "Skipping seed — $$COUNT user(s) already in database."; \
-	fi
+	@echo "Seeding database..."
+	@bash ./scripts/db_seed.sh
+	@echo "Seeding complete."
 
 db-clean-users:
 	@echo "Removing seed users..."
-	$(PSQL) -f $(SEEDS_DIR)/clean_users.sql
+	$(DB_PSQL) -v ON_ERROR_STOP=1 -f - < $(SEEDS_DIR)/clean_users.sql
 
 # Nuke volumes, restart Postgres, run all migrations + seed from scratch
 db-reinit:
