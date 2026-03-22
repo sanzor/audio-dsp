@@ -3,10 +3,12 @@ use actix_web::{
     web::{self},
     App, HttpServer,
 };
+use rand::Rng;
 use actors::{
     audio_player_actor::registry::AudioPlayerRegistry,
 };
 use api::{
+    app_data::AppData,
     auth::{
         auth_app_data::AuthAppData,
         auth_provider_service::AuthProviderService,
@@ -55,9 +57,8 @@ use api::{
     },
     users::{
         data_provider::user_data_provider_service::UserDataProviderService,
-        postgres_user_provider::PostgresUserProvider,
-        user_crud_provider_service::UserCrudProviderService,
         user_provider::UserProvider,
+        user_provider_service::UserProviderService,
         users_app_data::UsersAppData,
     },
     invoices::{
@@ -91,6 +92,8 @@ use api::{
         usage_provider_service::UsageProviderService,
     },
 };
+use tracing_actix_web::TracingLogger;
+use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 use std::sync::Arc;
 
@@ -98,8 +101,43 @@ fn main() -> std::io::Result<()> {
     // Match the "root .env + .env.<env>" workflow (like `temp/backend`), but keep
     // explicit ordering and allow OS env vars to win over dotenv.
     load_env_files();
+    init_tracing("api");
 
     actix_web::rt::System::new().block_on(async { start_server().await })
+}
+
+fn init_tracing(service_name: &str) {
+    let log_level = std::env::var("LOG_LEVEL").unwrap_or_else(|_| "info".to_string());
+    let sampling_ratio = std::env::var("LOG_SAMPLING_RATIO")
+        .ok()
+        .and_then(|v| v.parse::<f64>().ok())
+        .map(|v| v.clamp(0.0, 1.0))
+        .unwrap_or(1.0);
+
+    let filter_layer = EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| EnvFilter::new(&log_level))
+        .add_directive(format!("{service_name}=debug").parse().unwrap());
+
+    let sampling_layer = tracing_subscriber::filter::filter_fn(move |metadata| {
+        if metadata.level() <= &tracing::Level::WARN {
+            return true;
+        }
+        rand::rng().random_bool(sampling_ratio)
+    });
+
+    let fmt_layer = fmt::layer()
+        .json()
+        .flatten_event(true)
+        .with_current_span(true)
+        .with_span_list(true)
+        .with_target(true)
+        .with_timer(fmt::time::UtcTime::rfc_3339());
+
+    let _ = tracing_subscriber::registry()
+        .with(filter_layer)
+        .with(sampling_layer)
+        .with(fmt_layer)
+        .try_init();
 }
 
 fn load_env_files() {
@@ -174,8 +212,9 @@ async fn start_server() -> std::io::Result<()> {
         .await
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
 
-    // Auth-facing user provider (used by auth / me / google)
-    let user_provider: Arc<dyn UserProvider> = Arc::new(PostgresUserProvider::new(pool.clone()));
+    let user_provider: Arc<dyn UserProvider> = Arc::new(UserProviderService::new(Arc::new(
+        UserDataProviderService::new(pool.clone()),
+    )));
 
     let tracks_service = Arc::new(TracksProviderService::new(Arc::new(
         PostgresTracksDataProvider::new(pool.clone()),
@@ -222,6 +261,10 @@ async fn start_server() -> std::io::Result<()> {
             Arc::clone(&projects_service),
         )),
     };
+    let app_data = AppData {
+        projects_service: Arc::clone(&projects_service),
+        memberships_service: Arc::clone(&memberships_service),
+    };
     let tracks_app_data = TracksAppData {
         tracks_service: Arc::clone(&tracks_service)
             as Arc<dyn api::tracks::tracks_provider::TracksProvider>,
@@ -243,9 +286,7 @@ async fn start_server() -> std::io::Result<()> {
         memberships_service: Arc::clone(&memberships_service),
     };
     let users_app_data = UsersAppData {
-        user_provider: Arc::new(UserCrudProviderService::new(Arc::new(
-            UserDataProviderService::new(pool.clone()),
-        ))),
+        user_provider: Arc::clone(&user_provider),
     };
     let graphs_app_data = GraphsAppData {
         graphs_service: Arc::clone(&graphs_service)
@@ -313,6 +354,8 @@ async fn start_server() -> std::io::Result<()> {
 
         App::new()
             .wrap(cors)
+            .wrap(TracingLogger::default())
+            .app_data(web::Data::new(app_data.clone()))
             .app_data(web::Data::new(auth_app_data.clone()))
             .app_data(web::Data::new(me_app_data.clone()))
             .app_data(web::Data::new(tracks_app_data.clone()))

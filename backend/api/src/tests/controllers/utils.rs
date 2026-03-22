@@ -2,8 +2,7 @@ use std::sync::Arc;
 
 #[cfg(test)]
 use actix_web::cookie::Cookie;
-use crate::users::user_provider::UserProvider;
-use domain::{create_domain_user_params::CreateDomainUserParams, domain_user::DomainUser};
+use domain::{create_domain_user_params::CreateUserParams, domain_user::DomainUser};
 use jsonwebtoken::encode;
 use kameo::actor::ActorRef;
 #[cfg(test)]

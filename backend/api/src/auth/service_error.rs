@@ -22,3 +22,14 @@ impl fmt::Display for ServiceError {
 impl From<String> for ServiceError {
     fn from(s: String) -> Self { ServiceError::Internal(s) }
 }
+
+impl From<crate::domain::service_error::ServiceError> for ServiceError {
+    fn from(err: crate::domain::service_error::ServiceError) -> Self {
+        match err {
+            crate::domain::service_error::ServiceError::NotFound => ServiceError::NotFound,
+            crate::domain::service_error::ServiceError::Conflict(msg) => ServiceError::Conflict(msg),
+            crate::domain::service_error::ServiceError::Validation(msg) => ServiceError::Internal(msg),
+            crate::domain::service_error::ServiceError::Internal(msg) => ServiceError::Internal(msg),
+        }
+    }
+}

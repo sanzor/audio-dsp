@@ -8,29 +8,30 @@ use crate::domain::service_error::ServiceError;
 use crate::users::{
     create_user_params::CreateUserParams, create_user_result::CreateUserResult,
     data_provider::user_data_provider::UserDataProvider, update_user_params::UpdateUserParams,
-    update_user_result::UpdateUserResult, user_crud_provider::UserCrudProvider,
-    user_result::UserResult,
+    update_user_result::UpdateUserResult, user_provider::UserProvider, user_result::UserResult,
 };
 
-pub struct UserCrudProviderService {
+pub struct UserProviderService {
     data_provider: Arc<dyn UserDataProvider>,
 }
 
-impl UserCrudProviderService {
+impl UserProviderService {
     pub fn new(data_provider: Arc<dyn UserDataProvider>) -> Self {
         Self { data_provider }
     }
 }
 
 #[async_trait]
-impl UserCrudProvider for UserCrudProviderService {
+impl UserProvider for UserProviderService {
     async fn create_user(
         &self,
         params: CreateUserParams,
     ) -> Result<CreateUserResult, ServiceError> {
         info!(email = %params.email, "create user requested");
         let record = self.data_provider.create_user(params).await?;
-        Ok(CreateUserResult { user: UserResult::from(record) })
+        Ok(CreateUserResult {
+            user: UserResult::from(record),
+        })
     }
 
     async fn update_user(
@@ -40,7 +41,9 @@ impl UserCrudProvider for UserCrudProviderService {
     ) -> Result<Option<UpdateUserResult>, ServiceError> {
         info!(user_id, "update user requested");
         let record = self.data_provider.update_user(user_id, params).await?;
-        Ok(record.map(|user| UpdateUserResult { user: UserResult::from(user) }))
+        Ok(record.map(|user| UpdateUserResult {
+            user: UserResult::from(user),
+        }))
     }
 
     async fn delete_user(&self, user_id: UserId) -> Result<bool, ServiceError> {
@@ -54,9 +57,9 @@ impl UserCrudProvider for UserCrudProviderService {
         Ok(record.map(UserResult::from))
     }
 
-    async fn get_user_by_email(&self, email: String) -> Result<Option<UserResult>, ServiceError> {
+    async fn get_user_by_email(&self, email: &str) -> Result<Option<UserResult>, ServiceError> {
         info!(email = %email, "get user by email requested");
-        let record = self.data_provider.get_user_by_email(email).await?;
+        let record = self.data_provider.get_user_by_email(email.to_string()).await?;
         Ok(record.map(UserResult::from))
     }
 

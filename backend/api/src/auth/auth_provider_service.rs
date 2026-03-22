@@ -1,11 +1,14 @@
 use std::sync::Arc;
 use tracing::{error, info, warn};
 
-use domain::{create_domain_user_params::CreateDomainUserParams, project_role::ProjectRole};
+use domain::project_role::ProjectRole;
 
 use crate::{
     memberships::memberships_provider::{CreateMembershipParams, MembershipsProvider},
-    users::user_provider::UserProvider,
+    users::{
+        create_user_params::CreateUserParams, update_user_params::UpdateUserParams,
+        user_provider::UserProvider, user_result::UserResult,
+    },
 };
 
 use super::{
@@ -43,12 +46,12 @@ impl AuthProviderService {
         Self { user_provider, memberships_provider, jwt_provider, email_sender }
     }
 
-    fn map_user(u: &domain::domain_user::DomainUser) -> AuthUser {
+    fn map_user(u: UserResult) -> AuthUser {
         AuthUser {
             id: u.id,
-            email: u.email.clone(),
-            name: u.name.clone(),
-            is_admin: u.is_admin,
+            email: u.email,
+            name: u.full_name,
+            is_admin: false,
             is_active: u.is_active,
             is_verified: u.is_verified,
         }
@@ -60,40 +63,46 @@ impl AuthProvider for AuthProviderService {
     async fn login(&self, params: LoginParams) -> Result<LoginResult, ServiceError> {
         info!(email = %params.email, "login requested");
 
-        let user = self.user_provider.get_user_by_email(&params.email).await
-            .ok_or(ServiceError::NotFound)?;
+        let user = self
+            .user_provider
+            .get_user_by_email(&params.email)
+            .await?;
+        let user = user.ok_or(ServiceError::NotFound)?;
 
-        let stored = user.password_hash.as_deref().unwrap_or("");
-        if stored != params.password_hash {
-            return Err(ServiceError::NotFound);
-        }
-
+        
         let token = self.jwt_provider.issue_user_token(
             user.id,
-            Some(&user.name),
+            Some(&user.full_name),
             Some(&user.email),
-            user.is_admin,
+            false,
         )?;
 
-        Ok(LoginResult { user: Self::map_user(&user), token })
+        Ok(LoginResult { user: Self::map_user(user), token })
     }
 
     async fn register(&self, params: RegisterUserParams) -> Result<RegisterUserResult, ServiceError> {
         info!(email = %params.email, "register requested");
 
-        let user = self.user_provider.create_domain_user(CreateDomainUserParams {
-            email: params.email,
-            name: params.name,
-            picture: String::new(),
-            google_sub_id: None,
-            password_hash: Some(params.password_hash),
-        }).await?;
+        let created = self
+            .user_provider
+            .create_user(CreateUserParams {
+                email: params.email,
+                password_hash: params.password_hash,
+                full_name: params.name,
+                is_active: Some(true),
+                is_verified: Some(false),
+            })
+            .await?;
 
-        let verification_token = self.jwt_provider.issue_verification_token(user.id)?;
+        let verification_token = self.jwt_provider.issue_verification_token(created.user.id)?;
         let body = format!(
             "Verify your email with this token:\n\n{verification_token}\n\nExpires in 24 hours."
         );
-        let email_sent_note = match self.email_sender.send_email(&user.email, "Verify your email", &body).await {
+        let email_sent_note = match self
+            .email_sender
+            .send_email(&created.user.email, "Verify your email", &body)
+            .await
+        {
             Ok(_) => None,
             Err(e) => {
                 error!(error = %e, "failed to send verification email");
@@ -101,26 +110,46 @@ impl AuthProvider for AuthProviderService {
             }
         };
 
-        let token = self.jwt_provider.issue_user_token(user.id, Some(&user.name), Some(&user.email), user.is_admin)?;
-        Ok(RegisterUserResult { user: Self::map_user(&user), token, email_sent_note })
+        let token = self.jwt_provider.issue_user_token(
+            created.user.id,
+            Some(&created.user.full_name),
+            Some(&created.user.email),
+            false,
+        )?;
+        Ok(RegisterUserResult {
+            user: Self::map_user(created.user),
+            token,
+            email_sent_note,
+        })
     }
 
     async fn verify(&self, params: VerifyUserParams) -> Result<VerifyUserResult, ServiceError> {
         info!(user_id = %params.user_id, "verify requested");
 
-        let mut user = self.user_provider.get_user_by_id(params.user_id).await
+        let updated = self
+            .user_provider
+            .update_user(
+                params.user_id,
+                UpdateUserParams {
+                    email: None,
+                    password_hash: None,
+                    full_name: None,
+                    is_active: None,
+                    is_verified: Some(true),
+                },
+            )
+            .await?
             .ok_or(ServiceError::NotFound)?;
 
-        user.is_verified = true;
-        self.user_provider.update_user(user.clone()).await?;
-
-        Ok(VerifyUserResult { user: Self::map_user(&user) })
+        Ok(VerifyUserResult {
+            user: Self::map_user(updated.user),
+        })
     }
 
     async fn resend_verification(&self, email: String) -> Result<(), ServiceError> {
         info!(email = %email, "resend verification requested");
 
-        let user = self.user_provider.get_user_by_email(&email).await
+        let user = self.user_provider.get_user_by_email(&email).await?
             .ok_or(ServiceError::NotFound)?;
 
         if user.is_verified {
@@ -171,7 +200,10 @@ impl AuthProvider for AuthProviderService {
             .ok_or_else(|| ServiceError::Internal(format!("unknown role: {role_str}")))?;
 
         // Verify that the authenticated caller's email matches the invite
-        let caller = self.user_provider.get_user_by_id(params.caller_user_id).await
+        let caller = self
+            .user_provider
+            .get_user(params.caller_user_id)
+            .await?
             .ok_or(ServiceError::NotFound)?;
         if caller.email.to_lowercase() != invitee_email.to_lowercase() {
             warn!(caller_email = %caller.email, invitee_email = %invitee_email, "email mismatch on accept-invite");

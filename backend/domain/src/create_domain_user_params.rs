@@ -1,5 +1,5 @@
 #[derive(Clone, Debug)]
-pub struct CreateDomainUserParams {
+pub struct CreateUserParams {
     pub google_sub_id: Option<String>,
     pub name: String,
     pub email: String,

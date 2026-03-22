@@ -1,14 +1,12 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import AdminShell from "@/components/layout/admin/AdminShell";
 import AccountShell from "@/components/layout/account/AccountShell";
+import { useAuthStore } from "@/Stores/authStore";
+import { useProjectStore } from "@/Stores/projectStore";
 import {
   DEFAULT_SUPER_ADMIN_PATH,
   superAdminNavItems,
 } from "@/components/layout/app/routes";
-import CatchAllRedirect from "@/components/routing/CatchAllRedirect";
-import PublicOnlyRoute from "@/components/routing/PublicOnlyRoute";
-import RequireAuth from "@/components/routing/RequireAuth";
-import RequireSuperadmin from "@/components/routing/RequireSuperadmin";
 import { Dashboard } from "@/components/dashboard/dashboard";
 import AdminSectionPage from "@/pages/admin/AdminSectionPage";
 import AccountProfile from "@/pages/account/AccountProfile";
@@ -26,51 +24,128 @@ function getAdminChildPath(path: string) {
   return path.replace("/admin/", "");
 }
 
+function getSignedInPath(isAdmin: boolean, projectCount: number) {
+  if (isAdmin) {
+    return DEFAULT_SUPER_ADMIN_PATH;
+  }
+
+  return projectCount === 0 ? "/onboarding" : "/dashboard";
+}
+
 export default function App() {
+  const user = useAuthStore((state) => state.user);
+  const projectCount = useProjectStore((state) => state.projects.length);
+  const isAuthenticated = Boolean(user);
+  const isAdmin = user?.is_admin ?? false;
+  const signedInPath = getSignedInPath(isAdmin, projectCount);
+
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<CatchAllRedirect />} />
+        <Route
+          path="/"
+          element={<Navigate to={isAuthenticated ? signedInPath : "/login"} replace />}
+        />
 
-        <Route element={<PublicOnlyRoute />}>
-          <Route path="/login" element={<SignIn />} />
-          <Route path="/register" element={<SignUp />} />
-          <Route path="/verify" element={<Verify />} />
-          <Route path="/onboarding" element={<Onboarding />} />
-        </Route>
+        <Route
+          path="/login"
+          element={isAuthenticated ? <Navigate to={signedInPath} replace /> : <SignIn />}
+        />
+        <Route
+          path="/register"
+          element={isAuthenticated ? <Navigate to={signedInPath} replace /> : <SignUp />}
+        />
+        <Route
+          path="/verify"
+          element={isAuthenticated ? <Navigate to={signedInPath} replace /> : <Verify />}
+        />
+        <Route
+          path="/onboarding"
+          element={
+            !isAuthenticated ? (
+              <Navigate to="/login" replace />
+            ) : isAdmin ? (
+              <Navigate to={DEFAULT_SUPER_ADMIN_PATH} replace />
+            ) : projectCount > 0 ? (
+              <Navigate to="/dashboard" replace />
+            ) : (
+              <Onboarding />
+            )
+          }
+        />
 
-        <Route element={<RequireSuperadmin />}>
-          <Route path="/admin" element={<AdminShell />}>
+        <Route
+          path="/admin"
+          element={
+            !isAuthenticated ? (
+              <Navigate to="/login" replace />
+            ) : !isAdmin ? (
+              <Navigate to={signedInPath} replace />
+            ) : (
+              <AdminShell />
+            )
+          }
+        >
+          <Route
+            index
+            element={<Navigate to={getAdminChildPath(DEFAULT_SUPER_ADMIN_PATH)} replace />}
+          />
+          {superAdminNavItems.map((item) => (
             <Route
-              index
-              element={<Navigate to={getAdminChildPath(DEFAULT_SUPER_ADMIN_PATH)} replace />}
-            />
-            {superAdminNavItems.map((item) => (
-              <Route
-                key={item.path}
-                path={getAdminChildPath(item.path)}
-                element={
+              key={item.path}
+              path={getAdminChildPath(item.path)}
+              element={
+                !isAuthenticated ? (
+                  <Navigate to="/login" replace />
+                ) : !isAdmin ? (
+                  <Navigate to={signedInPath} replace />
+                ) : (
                   <AdminSectionPage title={item.label} permission={item.permission} />
-                }
-              />
-            ))}
-          </Route>
+                )
+              }
+            />
+          ))}
         </Route>
 
-        <Route element={<RequireAuth />}>
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/account" element={<AccountShell />}>
-            <Route index element={<Navigate to="profile" replace />} />
-            <Route path="profile" element={<AccountProfile />} />
-            <Route path="subscriptions" element={<AccountSubscriptions />} />
-            <Route path="shop" element={<AccountShop />} />
-            <Route path="purchases" element={<AccountPurchases />} />
-            <Route path="billing" element={<AccountBilling />} />
-<Route path="settings" element={<AccountSettings />} />
-          </Route>
+        <Route
+          path="/dashboard"
+          element={
+            !isAuthenticated ? (
+              <Navigate to="/login" replace />
+            ) : isAdmin ? (
+              <Navigate to={DEFAULT_SUPER_ADMIN_PATH} replace />
+            ) : projectCount === 0 ? (
+              <Navigate to="/onboarding" replace />
+            ) : (
+              <Dashboard />
+            )
+          }
+        />
+        <Route
+          path="/account"
+          element={
+            !isAuthenticated ? (
+              <Navigate to="/login" replace />
+            ) : isAdmin ? (
+              <Navigate to={DEFAULT_SUPER_ADMIN_PATH} replace />
+            ) : (
+              <AccountShell />
+            )
+          }
+        >
+          <Route index element={<Navigate to="profile" replace />} />
+          <Route path="profile" element={<AccountProfile />} />
+          <Route path="subscriptions" element={<AccountSubscriptions />} />
+          <Route path="shop" element={<AccountShop />} />
+          <Route path="purchases" element={<AccountPurchases />} />
+          <Route path="billing" element={<AccountBilling />} />
+          <Route path="settings" element={<AccountSettings />} />
         </Route>
 
-        <Route path="*" element={<CatchAllRedirect />} />
+        <Route
+          path="*"
+          element={<Navigate to={isAuthenticated ? signedInPath : "/login"} replace />}
+        />
       </Routes>
     </BrowserRouter>
   );

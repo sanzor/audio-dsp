@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use crate::users::user_crud_provider::UserCrudProvider;
+use crate::users::user_provider::UserProvider;
 
 #[derive(Clone)]
 pub struct UsersAppData {
-    pub user_provider: Arc<dyn UserCrudProvider>,
+    pub user_provider: Arc<dyn UserProvider>,
 }

@@ -51,7 +51,10 @@ where
             };
 
             // is_active check
-            let user = user_provider.get_user_by_id(jwt_ctx.user_id).await;
+            let user = user_provider
+                .get_user(jwt_ctx.user_id)
+                .await
+                .map_err(actix_web::error::ErrorInternalServerError)?;
             match user {
                 None => return Err(actix_web::error::ErrorUnauthorized("User not found")),
                 Some(u) if !u.is_active => {

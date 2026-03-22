@@ -34,8 +34,9 @@ impl MeProvider for MeProviderService {
     async fn get_bootstrap_data(&self, user_id: i64) -> Result<MeBootstrapResult, String> {
         let user = self
             .users_provider
-            .get_user_by_id(user_id)
+            .get_user(user_id)
             .await
+            .map_err(|e| e.to_string())?
             .ok_or_else(|| format!("user {} not found", user_id))?;
 
         let memberships = self
@@ -63,9 +64,9 @@ impl MeProvider for MeProviderService {
         Ok(MeBootstrapResult {
             user: MeUserResult {
                 id: user.id,
-                name: user.name,
+                name: user.full_name,
                 email: user.email,
-                is_admin: user.is_admin,
+                is_admin: false,
                 is_verified: user.is_verified,
             },
             projects,

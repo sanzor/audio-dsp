@@ -1,32 +1,26 @@
-use std::{future::Future, pin::Pin};
+use async_trait::async_trait;
 
-use domain::{create_domain_user_params::CreateDomainUserParams, domain_user::DomainUser};
+use crate::domain::db::db_user::UserId;
+use crate::domain::service_error::ServiceError;
+use crate::users::{
+    create_user_params::CreateUserParams, create_user_result::CreateUserResult,
+    update_user_params::UpdateUserParams, update_user_result::UpdateUserResult,
+    user_result::UserResult,
+};
 
-#[async_trait::async_trait]
+#[async_trait]
 pub trait UserProvider: Send + Sync {
-    fn get_user_by_id<'a>(
-        &'a self,
-        id: i64,
-    ) -> Pin<Box<dyn Future<Output = Option<DomainUser>> + Send + 'a>>;
-    fn get_user_by_google_sub_id<'a>(
-        &'a self,
-        sub_id: &'a str,
-    ) -> Pin<Box<dyn Future<Output = Option<DomainUser>> + Send + 'a>>;
-    fn get_user_by_email<'a>(
-        &'a self,
-        email: &'a str,
-    ) -> Pin<Box<dyn Future<Output = Option<DomainUser>> + Send + 'a>>;
-    fn create_domain_user<'a>(
-        &'a self,
-        user_params: CreateDomainUserParams,
-    ) -> Pin<Box<dyn Future<Output = Result<DomainUser, String>> + Send + 'a>>;
-    fn update_user<'a>(
+    async fn create_user(
         &self,
-        user: DomainUser,
-    ) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>>;
-    fn delete_user<'a>(
-        &'a self,
-        id: i64,
-    ) -> Pin<Box<dyn Future<Output = Result<DomainUser, String>> + Send + 'a>>;
-    fn list_users<'a>(&'a self) -> Pin<Box<dyn Future<Output = Vec<DomainUser>> + Send + 'a>>;
+        params: CreateUserParams,
+    ) -> Result<CreateUserResult, ServiceError>;
+    async fn update_user(
+        &self,
+        user_id: UserId,
+        params: UpdateUserParams,
+    ) -> Result<Option<UpdateUserResult>, ServiceError>;
+    async fn delete_user(&self, user_id: UserId) -> Result<bool, ServiceError>;
+    async fn get_user(&self, user_id: UserId) -> Result<Option<UserResult>, ServiceError>;
+    async fn get_user_by_email(&self, email: &str) -> Result<Option<UserResult>, ServiceError>;
+    async fn get_all_users(&self) -> Result<Vec<UserResult>, ServiceError>;
 }

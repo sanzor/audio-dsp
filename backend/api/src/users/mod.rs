@@ -1,12 +1,9 @@
 pub mod create_user_params;
 pub mod create_user_result;
 pub mod data_provider;
-pub mod in_memory_user_provider;
-pub mod postgres_user_provider;
 pub mod update_user_params;
 pub mod update_user_result;
-pub mod user_crud_provider;
-pub mod user_crud_provider_service;
 pub mod user_provider;
+pub mod user_provider_service;
 pub mod user_result;
 pub mod users_app_data;

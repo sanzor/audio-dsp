@@ -8,12 +8,16 @@ import { Link } from "react-router-dom";
 
 export default function SignIn() {
   const { signIn, isSigningIn, loginError } = useLogin();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("test@gmail.com");
+  const [password, setPassword] = useState("test");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    await signIn({ email, password_hash: password });
+    try {
+      await signIn({ email, password_hash: password });
+    } catch {
+      // The mutation error is rendered from loginError.
+    }
   }
 
   return (

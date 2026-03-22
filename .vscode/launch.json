@@ -7,7 +7,7 @@
       "request": "launch",
       "program": "${workspaceFolder}/backend/target/debug/api",
       "cwd": "${workspaceFolder}/backend",
-      "console": "internalConsole",
+      "console": "integratedTerminal",
       "sourceLanguages": ["rust"],
       "envFile": "${workspaceFolder}/.env",
       "preLaunchTask": "Backend: cargo build api"
@@ -18,7 +18,7 @@
       "request": "launch",
       "program": "${workspaceFolder}/backend/target/debug/api",
       "cwd": "${workspaceFolder}/backend",
-      "console": "internalConsole",
+      "console": "integratedTerminal",
       "sourceLanguages": ["rust"],
       "envFile": "${workspaceFolder}/.env",
       "preLaunchTask": "Backend: cargo build api"
@@ -47,7 +47,7 @@
       "preLaunchTask": "Dev: backend + frontend (terminals)"
     },
     {
-      "name": "Dev: Backend + Frontend (terminals + Chrome)",
+      "name": "Dev: Backend + Frontend",
       "type": "chrome",
       "request": "launch",
       "url": "http://localhost:3000",
@@ -57,18 +57,8 @@
   ],
   "compounds": [
     {
-      "name": "Dev: Backend + Frontend",
-      "configurations": ["Rust: Debug API", "Frontend: Vite (Chrome)"],
-      "stopAll": true
-    },
-    {
-      "name": "Dev: Backend + Frontend (terminals + attach + Chrome)",
+      "name": "Dev: Backend + Frontend (debug attach)",
       "configurations": ["Rust: Attach API (pick pid)", "Frontend: Chrome (no task)"],
-      "stopAll": true
-    },
-    {
-      "name": "Dev: Backend + Frontend (console fallback)",
-      "configurations": ["Rust: Debug API (console fallback)", "Frontend: Vite (Chrome)"],
       "stopAll": true
     }
   ]

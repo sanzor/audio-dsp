@@ -4,18 +4,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useRegister } from "@/hooks/auth/useRegister";
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 export default function SignUp() {
   const { signUp, isSigningUp, registerError, isRegistered } = useRegister();
-  const navigate = useNavigate();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
-  if (isRegistered) {
-    navigate("/onboarding");
-  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -61,7 +56,7 @@ export default function SignUp() {
           <p className="text-sm text-red-600">{registerError.message}</p>
         )}
         <Button type="submit" disabled={isSigningUp} className="w-full">
-          {isSigningUp ? "Creating account…" : "Sign up"}
+          {isSigningUp ? "Creating account…" : isRegistered ? "Redirecting…" : "Sign up"}
         </Button>
         <p className="text-center text-sm text-slate-500">
           Already have an account?{" "}

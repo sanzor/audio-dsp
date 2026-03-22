@@ -1,7 +1,6 @@
 pub mod auth_controller;
 pub mod project_controller;
 pub mod me_controller;
-pub mod facebook_controller;
 pub mod openapi_controller;
 pub mod player_controller;
 pub mod region_set_controller;
