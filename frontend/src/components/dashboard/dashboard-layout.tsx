@@ -1,37 +1,44 @@
 import type { ReactNode } from "react";
-import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 
 interface DashboardLayoutProps {
+  projects: ReactNode;
+  sidebar: ReactNode;
   store: ReactNode;
   canvas: ReactNode;
-  waveform: ReactNode;
+  timeline: ReactNode;
 }
 
-export function DashboardLayout({ store, canvas, waveform }: DashboardLayoutProps) {
+export function DashboardLayout({
+  projects,
+  sidebar,
+  store,
+  canvas,
+  timeline,
+}: DashboardLayoutProps) {
   return (
-    <div className="w-full h-screen flex overflow-hidden">
+    <div className="daw-workspace">
+      {/* Col 1 – Projects (240px) */}
+      <section className="panel">{projects}</section>
 
-      {/* Main content area - takes remaining space */}
-      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-        <PanelGroup direction="horizontal" className="flex-1 overflow-hidden">
-          {/* Store/Transform Panel */}
-          <Panel defaultSize={20} minSize={15} maxSize={30} className="bg-gray-50 border-r overflow-hidden">
-            {store}
-          </Panel>
+      {/* Col 2 – Sidebar tree (240px) */}
+      <section className="panel">{sidebar}</section>
 
-          <PanelResizeHandle className="w-1 bg-gray-300 hover:bg-gray-400 cursor-col-resize" />
+      {/* Col 3 – Transform store (100px) */}
+      <section className="panel">{store}</section>
 
-          {/* Canvas Panel */}
-          <Panel minSize={40} className="bg-white overflow-hidden">
+      {/* Col 4 – Canvas + Timeline stacked */}
+      <section className="flex flex-col gap-3 min-w-0 overflow-hidden">
+        <div className="panel flex-1 overflow-hidden">
+          <div className="panel-header">Canvas</div>
+          <div className="flex-1 overflow-hidden" style={{ height: "calc(100% - 48px)" }}>
             {canvas}
-          </Panel>
-        </PanelGroup>
-
-        {/* Waveform at bottom */}
-        <div className="border-t bg-white h-40 shadow-inner overflow-hidden">
-          {waveform}
+          </div>
         </div>
-      </div>
+        <div className="panel timeline-container">
+          <div className="panel-header py-2 text-sm">Timeline</div>
+          <div className="flex-1 overflow-hidden">{timeline}</div>
+        </div>
+      </section>
     </div>
   );
 }

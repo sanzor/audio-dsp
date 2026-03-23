@@ -1,36 +1,28 @@
-import {  ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from "../../ui/context-menu"
+import { PositionedMenu, MenuItem } from "./PositionedMenu";
 
-interface GraphContextMenuProps{
+interface GraphContextMenuProps {
   x: number;
   y: number;
-  graphId:string,
-  onClose:()=>void;
-  onRemove: (graphId:string) => void
-  onRename: (graphId:string) => void
-  onCopy: (graphId:string) => void
-  onDetails:(graphId:string)=>void
+  graphId: string;
+  onClose: () => void;
+  onRemove: (id: string) => void;
+  onRename: (id: string) => void;
+  onCopy: (id: string) => void;
+  onDetails: (id: string) => void;
 }
 
 export function GraphContextMenu({
-  x,
-  y,
-  graphId,
-  onClose,
-  onDetails,
-  onRemove,
-  onRename,
-  onCopy
+  x, y, graphId, onClose,
+  onDetails, onRemove, onRename, onCopy,
 }: GraphContextMenuProps) {
-   
+  const close = (fn: () => void) => { fn(); onClose(); };
+
   return (
-    <ContextMenu>
-      <ContextMenuTrigger></ContextMenuTrigger>
-       <ContextMenuContent style={{ position: "absolute", top: y, left: x, zIndex: 1000 }} onClick={onClose}>   
-         <ContextMenuItem onClick={() => {onDetails(graphId);onClose()}}>Details</ContextMenuItem>
-        <ContextMenuItem onClick={() => {onRename(graphId);onClose();}}>Rename</ContextMenuItem>
-         <ContextMenuItem onClick={() => {onCopy(graphId);onClose();}}>Copy</ContextMenuItem>
-         <ContextMenuItem onClick={() => {onRemove(graphId);onClose();}}>Delete</ContextMenuItem>
-      </ContextMenuContent>
-    </ContextMenu>
+    <PositionedMenu x={x} y={y} onClose={onClose}>
+      <MenuItem onClick={() => close(() => onDetails(graphId))}>Details</MenuItem>
+      <MenuItem onClick={() => close(() => onRename(graphId))}>Rename</MenuItem>
+      <MenuItem onClick={() => close(() => onCopy(graphId))}>Copy</MenuItem>
+      <MenuItem onClick={() => close(() => onRemove(graphId))}>Delete</MenuItem>
+    </PositionedMenu>
   );
 }

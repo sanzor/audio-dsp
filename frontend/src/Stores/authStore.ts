@@ -14,6 +14,7 @@ interface AuthState {
   user: AuthUser | null;
   token: string | null;
   setSession: (user: AuthUser, token: string) => void;
+  setToken: (token: string) => void;
   setVerified: () => void;
   clearSession: () => void;
 }
@@ -24,6 +25,7 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       token: null,
       setSession: (user, token) => set({ user, token }),
+      setToken: (token) => set({ token }),
       setVerified: () =>
         set((state) => ({
           user: state.user ? { ...state.user, is_verified: true } : null,

@@ -1,10 +1,7 @@
 import { useAuthStore } from "@/Stores/authStore";
-import { AppSidebar } from "./sidebar/app-sidebar";
-import { SidebarProvider } from "../ui/sidebar-provider";
 import { DashboardLayout } from "./dashboard-layout";
 import { TransformStorePanel } from "./store/transform-store-panel";
 import { CanvasPanel } from "./graph/canvas-panel";
-import { SidebarInset } from "../ui/sidebar";
 import { useTrackViewModels } from "@/Selectors/trackViewModels";
 import { WaveformPlayer } from "./waveform/WaveformPlayer";
 import { GlobalContextMenu } from "./context-menus/GlobalContextMenu";
@@ -13,6 +10,16 @@ import { useUIStore, type OpenedContext, type SelectedContext } from "@/Stores/U
 import { useTrackController } from "@/controllers/TrackController";
 import { WaveformRegionContextMenuContainer } from "./context-menus/waveform-renderer/waveform-region-context-menu-container";
 import { WaveformTimelineContextMenuContainer } from "./context-menus/waveform-renderer/waveform-timeline-context-menu-container";
+import { ProjectsPanel } from "./projects/ProjectsPanel";
+import { SidebarPanel } from "./sidebar/SidebarPanel";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export function Dashboard() {
   const user = useAuthStore((state) => state.user);
@@ -20,44 +27,93 @@ export function Dashboard() {
   const { open, select, openContextMenu } = useUIStore();
   const sidebarTracks = useTrackViewModels();
 
-  const handleSelect = (ctx: SelectedContext) => {
-    select(ctx);
-  };
-
-  const handleOpen = (ctx: OpenedContext) => {
-    open(ctx);
-  };
+  const handleSelect = (ctx: SelectedContext) => select(ctx);
+  const handleOpen = (ctx: OpenedContext) => open(ctx);
 
   return (
-    <SidebarProvider defaultOpen={true}>
+    <>
+      {/* Overlays — outside the grid so they don't occupy grid slots */}
       <GlobalContextMenu />
       <GlobalModal />
       <WaveformRegionContextMenuContainer />
       <WaveformTimelineContextMenuContainer />
 
-      <div className="flex h-screen w-full overflow-hidden">
-        <AppSidebar
-          tracks={sidebarTracks}
-          onAddTrackClick={() => trackController.handleCreateTrack}
-          onRightClick={openContextMenu}
-          onSelect={handleSelect}
-          onOpen={handleOpen}
-          user={{
-            name: user?.name ?? "Unknown User",
-            email: user?.email ?? "",
-            avatar: "",
-          }}
-          teams={[{ name: "My Workspace", logo: () => null, plan: "Free" }]}
-        />
+      <div className="daw-layout">
+        {/* Top header (56px row) */}
+        <header
+          className="flex items-center justify-between px-4 border-b gap-4"
+          style={{ backgroundColor: "var(--bg-darkest)", borderColor: "rgba(255,255,255,0.05)" }}
+        >
+          <div className="font-semibold text-sm whitespace-nowrap" style={{ color: "var(--text-main)" }}>
+            Collaborative DAW
+          </div>
 
-        <SidebarInset className="flex-1 overflow-hidden">
-          <DashboardLayout
-            store={<TransformStorePanel />}
-            canvas={<CanvasPanel />}
-            waveform={<WaveformPlayer />}
-          />
-        </SidebarInset>
+          <div className="flex-1 max-w-md">
+            <div className="relative">
+              <svg
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
+                style={{ color: "var(--text-muted)" }}
+                fill="none" stroke="currentColor" viewBox="0 0 24 24"
+              >
+                <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+              </svg>
+              <input
+                type="text"
+                placeholder="Search"
+                className="w-full rounded-md py-1.5 pl-9 pr-3 text-sm"
+                style={{
+                  backgroundColor: "var(--bg-dark)",
+                  color: "var(--text-main)",
+                  border: "none",
+                  outline: "none",
+                }}
+              />
+            </div>
+          </div>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="flex items-center gap-2 rounded-full py-1 px-3 text-sm"
+                style={{ backgroundColor: "var(--bg-dark)", color: "var(--text-main)", border: "none", cursor: "pointer" }}
+              >
+                <div
+                  className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
+                  style={{ backgroundColor: "var(--bg-panel)" }}
+                >
+                  <svg className="w-4 h-4" style={{ color: "var(--text-muted)" }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+                  </svg>
+                </div>
+                <span className="hidden sm:inline truncate max-w-28">{user?.name ?? "Account"}</span>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" style={{ backgroundColor: "var(--bg-dark)", border: "1px solid rgba(255,255,255,0.1)" }}>
+              <DropdownMenuLabel style={{ color: "var(--text-muted)" }}>{user?.email ?? ""}</DropdownMenuLabel>
+              <DropdownMenuSeparator style={{ backgroundColor: "rgba(255,255,255,0.05)" }} />
+              <DropdownMenuItem style={{ color: "var(--text-main)" }}>Account</DropdownMenuItem>
+              <DropdownMenuItem style={{ color: "var(--text-main)" }}>Log out</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </header>
+
+        {/* Workspace grid (remaining height) */}
+        <DashboardLayout
+          projects={<ProjectsPanel />}
+          sidebar={
+            <SidebarPanel
+              tracks={sidebarTracks}
+              onAddTrackClick={() => trackController.handleCreateTrack(null)}
+              onRightClick={openContextMenu}
+              onSelect={handleSelect}
+              onOpen={handleOpen}
+            />
+          }
+          store={<TransformStorePanel />}
+          canvas={<CanvasPanel />}
+          timeline={<WaveformPlayer />}
+        />
       </div>
-    </SidebarProvider>
+    </>
   );
 }

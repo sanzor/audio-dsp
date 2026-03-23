@@ -19,7 +19,7 @@ import { getFileExtension } from "@/Utils/AudioUtils"
 interface CreateTrackModalProps {
   open: boolean
   onClose: () => void
-  onSubmit: (track: CreateTrackParams) => void
+  onSubmit: (track: CreateTrackParams) => Promise<unknown>
   canonicalAudio?: CanonicalAudio | null
 }
 
@@ -34,9 +34,14 @@ export function CreateTrackModal({
   const [audioBufferPayload, setAudioBufferPayload] = useState<ABuffer | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [audioFileExtension, setAudioFileExtension] = useState<string | undefined>(undefined);
+  const [uploadBlob, setUploadBlob] = useState<Blob | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = () => {
-    
+  const handleSubmit = async () => {
+    if (isSubmitting) {
+      return
+    }
+
     if (!audioBufferPayload) {
       console.error("Audio buffer not ready.")
       return
@@ -47,10 +52,16 @@ export function CreateTrackModal({
         info: { name: trackName ,extension:audioFileExtension??undefined},
         data: audioBufferPayload,
       },
+      fileBlob: uploadBlob ?? undefined,
     }
     console.log("Submitting form");
     console.log(JSON.stringify(addTrackParams.rawTrack.info));
-    onSubmit(addTrackParams)
+    try {
+      setIsSubmitting(true);
+      await onSubmit(addTrackParams)
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   // Initialize from recorded audio (if present)
@@ -68,6 +79,7 @@ export function CreateTrackModal({
     const url = URL.createObjectURL(blob)
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(url);
+    setUploadBlob(blob);
     setAudioFileExtension("wav");
     return () => {
       URL.revokeObjectURL(url)
@@ -106,6 +118,7 @@ export function CreateTrackModal({
     const url = URL.createObjectURL(blob)
     if (previewUrl) URL.revokeObjectURL(previewUrl)
     setPreviewUrl(url)
+    setUploadBlob(blob)
   }
 
   return (
@@ -191,12 +204,11 @@ export function CreateTrackModal({
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={!audioBufferPayload}>
-            Submit
+          <Button onClick={handleSubmit} disabled={!audioBufferPayload || isSubmitting}>
+            {isSubmitting ? "Uploading..." : "Submit"}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   )
 }
-

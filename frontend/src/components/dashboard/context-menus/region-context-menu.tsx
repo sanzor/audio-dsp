@@ -1,53 +1,39 @@
-import {  ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from "../../ui/context-menu"
+import { PositionedMenu, MenuItem } from "./PositionedMenu";
 
-interface RegionContextMenuProps{
+interface RegionContextMenuProps {
   x: number;
   y: number;
-  regionId:string,
-  onClose:()=>void;
-  onRemove: (regionId: string) => void
-  onRename: (regionId: string) => void
-  onCopyRegion: (regionId: string) => void
-  onCreateGraph:(regionId:string)=>void
-  onPasteGraph?: (regionId: string) => void
-  canPasteGraph?: boolean
-  onDetails:(regionId: string)=>void
+  regionId: string;
+  onClose: () => void;
+  onRemove: (id: string) => void;
+  onRename: (id: string) => void;
+  onCopyRegion: (id: string) => void;
+  onCreateGraph: (id: string) => void;
+  onPasteGraph?: (id: string) => void;
+  canPasteGraph?: boolean;
+  onDetails: (id: string) => void;
 }
 
 export function RegionContextMenu({
-  x,
-  y,
-  regionId,
-  onClose,
-  onDetails,
-  onRemove,
-  onRename,
-  onCopyRegion,
-  onCreateGraph,
-  onPasteGraph,
-  canPasteGraph = false,
+  x, y, regionId, onClose,
+  onDetails, onRemove, onRename, onCopyRegion, onCreateGraph,
+  onPasteGraph, canPasteGraph = false,
 }: RegionContextMenuProps) {
+  const close = (fn: () => void) => { fn(); onClose(); };
+
   return (
-    <ContextMenu>
-      <ContextMenuTrigger></ContextMenuTrigger>
-       <ContextMenuContent style={{ position: "absolute", top: y, left: x, zIndex: 1000 }} onClick={onClose}>   
-        <ContextMenuItem onClick={() => {onDetails(regionId);onClose()}}>Details</ContextMenuItem>
-       <ContextMenuItem onClick={() => {onRename(regionId);onClose();}}>Rename</ContextMenuItem>
-         <ContextMenuItem onClick={() => {onCopyRegion(regionId);onClose();}}>Copy Region</ContextMenuItem>
-         <ContextMenuItem onClick={() => {onCreateGraph(regionId);onClose();}}>Create Graph</ContextMenuItem>
-         <ContextMenuItem
-          disabled={!canPasteGraph}
-          onClick={() => {
-            if (canPasteGraph && onPasteGraph) {
-              onPasteGraph(regionId);
-            }
-            onClose();
-          }}
-        >
-          Paste Graph
-        </ContextMenuItem>
-         <ContextMenuItem onClick={() => {onRemove(regionId);onClose();}}>Delete</ContextMenuItem>
-      </ContextMenuContent>
-    </ContextMenu>
+    <PositionedMenu x={x} y={y} onClose={onClose}>
+      <MenuItem onClick={() => close(() => onDetails(regionId))}>Details</MenuItem>
+      <MenuItem onClick={() => close(() => onRename(regionId))}>Rename</MenuItem>
+      <MenuItem onClick={() => close(() => onCopyRegion(regionId))}>Copy Region</MenuItem>
+      <MenuItem onClick={() => close(() => onCreateGraph(regionId))}>Create Graph</MenuItem>
+      <MenuItem
+        disabled={!canPasteGraph}
+        onClick={() => close(() => onPasteGraph?.(regionId))}
+      >
+        Paste Graph
+      </MenuItem>
+      <MenuItem onClick={() => close(() => onRemove(regionId))}>Delete</MenuItem>
+    </PositionedMenu>
   );
 }

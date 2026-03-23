@@ -91,6 +91,11 @@ use api::{
         usage_app_data::UsageAppData,
         usage_provider_service::UsageProviderService,
     },
+    transforms::{
+        data_provider::transforms_data_provider_service::PostgresTransformsDataProvider,
+        transforms_app_data::TransformsAppData,
+        transforms_provider_service::TransformsProviderService,
+    },
 };
 use tracing_actix_web::TracingLogger;
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
@@ -326,6 +331,11 @@ async fn start_server() -> std::io::Result<()> {
             UsageDataProviderService::new(pool.clone()),
         ))),
     };
+    let transforms_app_data = TransformsAppData {
+        transforms_service: Arc::new(TransformsProviderService::new(Arc::new(
+            PostgresTransformsDataProvider::new(pool.clone()),
+        ))),
+    };
 
     let jwt_middleware = JwtAuthMiddleware;
     let role_middleware = RoleContextMiddleware {
@@ -372,6 +382,7 @@ async fn start_server() -> std::io::Result<()> {
             .app_data(web::Data::new(subscriptions_app_data.clone()))
             .app_data(web::Data::new(purchased_products_app_data.clone()))
             .app_data(web::Data::new(usage_app_data.clone()))
+            .app_data(web::Data::new(transforms_app_data.clone()))
             .configure(controllers::openapi_controller::init)
             .service(web::scope("/auth").configure(controllers::auth_controller::init))
             .service(
@@ -442,6 +453,12 @@ async fn start_server() -> std::io::Result<()> {
                 web::scope("/v1/usage")
                     .wrap(jwt_middleware.clone())
                     .configure(controllers::usage_controller::init),
+            )
+            .service(
+                web::scope("/transforms")
+                    .wrap(role_middleware.clone())
+                    .wrap(jwt_middleware.clone())
+                    .configure(controllers::transforms_controller::init),
             )
     })
     .bind((host.as_str(), port))?

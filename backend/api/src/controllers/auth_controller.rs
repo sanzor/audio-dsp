@@ -3,13 +3,16 @@ use serde::{Deserialize, Serialize};
 use tracing::{error, info, warn};
 use utoipa::ToSchema;
 
-use crate::auth::{
-    auth_app_data::AuthAppData,
-    login_params::LoginParams,
-    register_user_params::RegisterUserParams,
-    service_error::ServiceError,
-    user::AuthUser,
-    verify_user_params::VerifyUserParams,
+use crate::{
+    auth::{
+        auth_app_data::AuthAppData,
+        login_params::LoginParams,
+        register_user_params::RegisterUserParams,
+        service_error::ServiceError,
+        user::AuthUser,
+        verify_user_params::VerifyUserParams,
+    },
+    token::token_utils::{create_access_token, create_refresh_token, verify_token},
 };
 
 fn cookie_settings() -> &'static str {
@@ -17,11 +20,19 @@ fn cookie_settings() -> &'static str {
 }
 
 fn set_auth_cookie(token: &str) -> String {
-    format!("auth_token={}; HttpOnly; {}; Max-Age={}", token, cookie_settings(), 60 * 60 * 24)
+    format!("auth_token={}; HttpOnly; {}; Max-Age={}", token, cookie_settings(), 60 * 15)
+}
+
+fn set_refresh_cookie(token: &str) -> String {
+    format!("refresh_token={}; HttpOnly; {}; Max-Age={}", token, cookie_settings(), 60 * 60 * 24 * 7)
 }
 
 fn clear_auth_cookie() -> &'static str {
     "auth_token=deleted; HttpOnly; Path=/; Max-Age=0"
+}
+
+fn clear_refresh_cookie() -> &'static str {
+    "refresh_token=deleted; HttpOnly; Path=/; Max-Age=0"
 }
 
 // ── login ─────────────────────────────────────────────────────────────────────
@@ -52,9 +63,13 @@ pub async fn login(
     if input.password_hash.trim().is_empty() { return HttpResponse::BadRequest().body("password_hash required"); }
 
     match app_state.auth_provider.login(LoginParams { email: input.email, password_hash: input.password_hash }).await {
-        Ok(r) => HttpResponse::Ok()
-            .append_header(("Set-Cookie", set_auth_cookie(&r.token)))
-            .json(LoginOutput { user: r.user, token: r.token }),
+        Ok(r) => {
+            let refresh_tok = create_refresh_token(r.user.id, Some(&r.user.name), Some(&r.user.email), r.user.is_admin);
+            HttpResponse::Ok()
+                .append_header(("Set-Cookie", set_auth_cookie(&r.token)))
+                .append_header(("Set-Cookie", set_refresh_cookie(&refresh_tok)))
+                .json(LoginOutput { user: r.user, token: r.token })
+        },
         Err(ServiceError::NotFound) => HttpResponse::Unauthorized().body("invalid credentials"),
         Err(e) => { error!(error = %e, "login failed"); HttpResponse::InternalServerError().body("login failed") }
     }
@@ -92,9 +107,13 @@ pub async fn register(
     match app_state.auth_provider.register(RegisterUserParams {
         email: input.email, password_hash: input.password_hash, name: input.name,
     }).await {
-        Ok(r) => HttpResponse::Created()
-            .append_header(("Set-Cookie", set_auth_cookie(&r.token)))
-            .json(RegisterOutput { user: r.user, token: r.token }),
+        Ok(r) => {
+            let refresh_tok = create_refresh_token(r.user.id, Some(&r.user.name), Some(&r.user.email), r.user.is_admin);
+            HttpResponse::Created()
+                .append_header(("Set-Cookie", set_auth_cookie(&r.token)))
+                .append_header(("Set-Cookie", set_refresh_cookie(&refresh_tok)))
+                .json(RegisterOutput { user: r.user, token: r.token })
+        },
         Err(ServiceError::Conflict(msg)) => HttpResponse::Conflict().body(msg),
         Err(e) => { error!(error = %e, "register failed"); HttpResponse::InternalServerError().body("register failed") }
     }
@@ -158,6 +177,50 @@ pub async fn resend_verification(
     }
 }
 
+// ── refresh ───────────────────────────────────────────────────────────────────
+
+#[derive(Serialize, ToSchema)]
+pub struct RefreshOutput {
+    pub token: String,
+}
+
+#[utoipa::path(post, path = "/auth/refresh", tag = "Auth",
+    responses((status = 200, body = RefreshOutput), (status = 401)))]
+#[post("/refresh")]
+pub async fn refresh(req: actix_web::HttpRequest) -> HttpResponse {
+    let refresh_token = match req.cookie("refresh_token") {
+        Some(c) => c.value().to_owned(),
+        None => return HttpResponse::Unauthorized().body("missing refresh token"),
+    };
+
+    let claims = match verify_token(&refresh_token) {
+        Ok(c) => c,
+        Err(_) => return HttpResponse::Unauthorized().body("invalid or expired refresh token"),
+    };
+
+    if claims.purpose.as_deref() != Some("refresh") {
+        return HttpResponse::Unauthorized().body("invalid token purpose");
+    }
+
+    let new_access = create_access_token(
+        claims.user_id,
+        claims.name.as_deref(),
+        claims.email.as_deref(),
+        claims.is_admin,
+    );
+    let new_refresh = create_refresh_token(
+        claims.user_id,
+        claims.name.as_deref(),
+        claims.email.as_deref(),
+        claims.is_admin,
+    );
+
+    HttpResponse::Ok()
+        .append_header(("Set-Cookie", set_auth_cookie(&new_access)))
+        .append_header(("Set-Cookie", set_refresh_cookie(&new_refresh)))
+        .json(RefreshOutput { token: new_access })
+}
+
 // ── logout ────────────────────────────────────────────────────────────────────
 
 #[utoipa::path(post, path = "/auth/logout", tag = "Auth", responses((status = 200)))]
@@ -165,6 +228,7 @@ pub async fn resend_verification(
 pub async fn logout() -> HttpResponse {
     HttpResponse::Ok()
         .append_header(("Set-Cookie", clear_auth_cookie()))
+        .append_header(("Set-Cookie", clear_refresh_cookie()))
         .finish()
 }
 
@@ -173,5 +237,6 @@ pub fn init(cfg: &mut web::ServiceConfig) {
         .service(register)
         .service(verify)
         .service(resend_verification)
+        .service(refresh)
         .service(logout);
 }

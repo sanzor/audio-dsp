@@ -16,8 +16,8 @@ pub(crate) fn create_access_token(
 }
 
 
-pub(crate) fn create_refresh_token(user_id: i64) -> String {
-    create_token(user_id, None, None, false, None, Some("refresh"), None, 60 * 24 * 7)
+pub(crate) fn create_refresh_token(user_id: i64, name: Option<&str>, email: Option<&str>, is_admin: bool) -> String {
+    create_token(user_id, email, name, is_admin, None, Some("refresh"), None, 60 * 24 * 7)
 }
 
 pub(crate) fn create_verification_token(user_id: i64) -> String {

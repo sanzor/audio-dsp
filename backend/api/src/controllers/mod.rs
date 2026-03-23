@@ -14,3 +14,4 @@ pub mod tier_configs_controller;
 pub mod subscriptions_controller;
 pub mod purchased_products_controller;
 pub mod usage_controller;
+pub mod transforms_controller;

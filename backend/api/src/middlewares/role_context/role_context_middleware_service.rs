@@ -4,6 +4,7 @@ use actix_web::{
 use std::{future::Future, pin::Pin, rc::Rc, sync::Arc};
 
 use domain::project_role::ProjectRole;
+use tracing::warn;
 
 use crate::{
     memberships::memberships_provider::MembershipsProvider,
@@ -57,14 +58,20 @@ where
                 RoleContext(ProjectRole::SuperAdmin)
             } else {
                 match project_id {
-                    None => return Err(actix_web::error::ErrorBadRequest("Missing X-Project-ID header")),
+                    None => {
+                        warn!(path = %req.path(), "request rejected: missing X-Project-ID header");
+                        return Err(actix_web::error::ErrorBadRequest("Missing X-Project-ID header"));
+                    }
                     Some(pid) => {
                         let role = memberships
                             .get_role(pid, jwt_ctx.user_id)
                             .await
                             .unwrap_or(None);
                         match role {
-                            None => return Err(actix_web::error::ErrorForbidden("Access denied to this project")),
+                            None => {
+                                warn!(path = %req.path(), project_id = pid, user_id = jwt_ctx.user_id, "request rejected: access denied to project");
+                                return Err(actix_web::error::ErrorForbidden("Access denied to this project"));
+                            }
                             Some(r) => RoleContext(r),
                         }
                     }

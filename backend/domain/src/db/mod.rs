@@ -6,6 +6,7 @@ pub mod db_project;
 pub mod db_region;
 pub mod db_region_set;
 pub mod db_track;
+pub mod db_transform;
 
 pub use db_edge::DbEdge;
 pub use db_graph::DbGraph;
@@ -15,6 +16,7 @@ pub use db_project::{DbProject, ProjectId};
 pub use db_region::DbRegion;
 pub use db_region_set::DbRegionSet;
 pub use db_track::DbTrack;
+pub use db_transform::{DbTransform, DbTransformPort};
 
 pub use db_edge::EdgeId;
 pub use db_graph::GraphId;
@@ -22,3 +24,4 @@ pub use db_node::NodeId;
 pub use db_region::RegionId;
 pub use db_region_set::RegionSetId;
 pub use db_track::TrackId;
+pub use db_transform::{TransformId, TransformPortId};

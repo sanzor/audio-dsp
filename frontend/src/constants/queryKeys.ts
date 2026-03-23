@@ -34,4 +34,8 @@ export const QUERY_KEYS = {
   tierConfigs: {
     all: () => ['tier-configs'] as const,
   },
+  transforms: {
+    all: () => ['transforms'] as const,
+    byId: (id: number) => ['transform', id] as const,
+  },
 };
