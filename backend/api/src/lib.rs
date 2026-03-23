@@ -1,4 +1,5 @@
 pub mod app_data;
+pub mod config;
 pub mod domain;
 pub mod auth;
 pub mod controllers;

@@ -108,7 +108,10 @@ fn main() -> std::io::Result<()> {
     load_env_files();
     init_tracing("api");
 
-    actix_web::rt::System::new().block_on(async { start_server().await })
+    let app_config = api::config::load_app_config()
+        .expect("Failed to load app config");
+
+    actix_web::rt::System::new().block_on(async { start_server(app_config).await })
 }
 
 fn init_tracing(service_name: &str) {
@@ -202,7 +205,8 @@ fn load_env_files() {
     load_layered_env_file(&manifest_dir.join(".env"), &preexisting_keys, &mut loaded_keys);
 }
 
-async fn start_server() -> std::io::Result<()> {
+async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()> {
+    let upload_limit_bytes = app_config.upload_limit_bytes();
     let host = std::env::var("HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
     let port: u16 = std::env::var("PORT")
         .ok()
@@ -365,6 +369,7 @@ async fn start_server() -> std::io::Result<()> {
         App::new()
             .wrap(cors)
             .wrap(TracingLogger::default())
+            .app_data(web::PayloadConfig::new(upload_limit_bytes))
             .app_data(web::Data::new(app_data.clone()))
             .app_data(web::Data::new(auth_app_data.clone()))
             .app_data(web::Data::new(me_app_data.clone()))

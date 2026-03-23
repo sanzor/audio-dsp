@@ -146,7 +146,7 @@ export async function apiAddTrack(params: CreateTrackParams): Promise<CreateTrac
   const uploadBlob = params.fileBlob;
 
   if (uploadBlob) {
-    formData.append("extension", "wav");
+    formData.append("extension", params.rawTrack.info.extension ?? "wav");
     formData.append("samples", uploadBlob, "samples.wav");
   } else {
     formData.append("extension", params.rawTrack.info.extension ?? "wav");
