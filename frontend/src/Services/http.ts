@@ -3,24 +3,6 @@ import { useProjectStore } from "../Stores/projectStore";
 
 type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
-// Single-flight: one in-flight refresh at a time
-let refreshPromise: Promise<string> | null = null;
-
-async function tryRefresh(): Promise<string> {
-  if (refreshPromise) return refreshPromise;
-
-  refreshPromise = (async () => {
-    const url = `${import.meta.env.VITE_API_BASE_URL ?? ""}/auth/refresh`;
-    const res = await fetch(url, { method: "POST", credentials: "include" });
-    if (!res.ok) throw new Error("Refresh failed");
-    const data = await res.json() as { token: string };
-    useAuthStore.getState().setToken(data.token);
-    return data.token;
-  })().finally(() => { refreshPromise = null; });
-
-  return refreshPromise;
-}
-
 export class HttpError extends Error {
   status: number;
   url: string;

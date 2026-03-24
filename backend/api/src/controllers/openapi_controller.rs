@@ -22,7 +22,11 @@ pub async fn docs() -> HttpResponse {
     <div id="swagger-ui"></div>
     <script src="https://unpkg.com/swagger-ui-dist/swagger-ui-bundle.js"></script>
     <script>
-      window.ui = SwaggerUIBundle({ url: '/openapi.json', dom_id: '#swagger-ui' });
+      window.ui = SwaggerUIBundle({
+        url: '/openapi.json',
+        dom_id: '#swagger-ui',
+        persistAuthorization: true,
+      });
     </script>
   </body>
 </html>
@@ -36,4 +40,3 @@ pub async fn docs() -> HttpResponse {
 pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(openapi_json).service(docs);
 }
-

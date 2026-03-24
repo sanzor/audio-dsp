@@ -12,7 +12,7 @@ pub(crate) fn create_access_token(
     email: Option<&str>,
     is_admin: bool,
 ) -> String {
-    create_token(user_id, email, name, is_admin, None, None, None, 15)
+    create_token(user_id, email, name, is_admin, None, None, None, 60 * 8)
 }
 
 

@@ -27,9 +27,19 @@ pub struct AddTrackParams {
     pub track: RawTrack,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, ToSchema)]
 pub struct AddTrackResult {
     pub track_id: TrackId,
+}
+
+#[derive(ToSchema)]
+pub struct AddTrackMultipartRequest {
+    pub name: String,
+    pub extension: String,
+    #[schema(value_type = String, format = Binary)]
+    pub samples: Vec<u8>,
+    pub sample_rate: Option<f32>,
+    pub channels: Option<String>,
 }
 
 #[utoipa::path(
@@ -37,7 +47,10 @@ pub struct AddTrackResult {
     path = "/tracks/add-track",
     tag = "tracks",
     request_body = serde_json::Value,
-    responses((status = 200, description = "Track added", body = serde_json::Value))
+    responses((status = 200, description = "Track added", body = serde_json::Value)),
+    security(
+        ("bearerAuth" = [])
+    )
 )]
 #[post("/add-track")]
 pub async fn add_track(
@@ -63,8 +76,15 @@ pub async fn add_track(
     post,
     path = "/tracks/add-track-multi",
     tag = "tracks",
-    request_body(content = String, content_type = "multipart/form-data"),
-    responses((status = 200, description = "Track added (multipart)", body = serde_json::Value))
+    request_body(
+        content = AddTrackMultipartRequest,
+        content_type = "multipart/form-data",
+        description = "Upload a WAV file in `samples`, or upload raw float32 PCM bytes in `samples` together with `sample_rate` and `channels` (`Mono` or `Stereo`). MP3 bytes are not decoded by this endpoint."
+    ),
+    responses((status = 200, description = "Track added (multipart)", body = AddTrackResult)),
+    security(
+        ("bearerAuth" = [])
+    )
 )]
 #[post("/add-track-multi")]
 pub async fn add_track_multi(
@@ -173,7 +193,10 @@ pub struct CopyTrackParams {
     path = "/tracks/copy-track",
     tag = "tracks",
     request_body = CopyTrackParams,
-    responses((status = 200, description = "Track copied", body = serde_json::Value))
+    responses((status = 200, description = "Track copied", body = serde_json::Value)),
+    security(
+        ("bearerAuth" = [])
+    )
 )]
 #[post("/copy-track")]
 pub async fn copy_track(
@@ -206,7 +229,10 @@ pub struct UpdateTrackParams {
     path = "/tracks/update-track-info",
     tag = "tracks",
     request_body = UpdateTrackParams,
-    responses((status = 200, description = "Track updated", body = serde_json::Value))
+    responses((status = 200, description = "Track updated", body = serde_json::Value)),
+    security(
+        ("bearerAuth" = [])
+    )
 )]
 #[post("/update-track-info")]
 pub async fn update_track_info(
@@ -241,7 +267,10 @@ pub struct RemoveTrackParams {
     path = "/tracks/remove",
     tag = "tracks",
     params(RemoveTrackParams),
-    responses((status = 200, description = "Track removed", body = serde_json::Value))
+    responses((status = 200, description = "Track removed", body = serde_json::Value)),
+    security(
+        ("bearerAuth" = [])
+    )
 )]
 #[delete("/remove")]
 pub async fn remove_track(
@@ -269,7 +298,10 @@ pub struct GetTrackParams {
     path = "/tracks/get-stored-track",
     tag = "tracks",
     params(GetTrackParams),
-    responses((status = 200, description = "Track audio bytes"))
+    responses((status = 200, description = "Track audio bytes")),
+    security(
+        ("bearerAuth" = [])
+    )
 )]
 #[get("/get-stored-track")]
 pub async fn get_stored_track(
@@ -301,7 +333,10 @@ pub async fn get_stored_track(
     path = "/tracks/get-meta",
     tag = "tracks",
     params(GetTrackParams),
-    responses((status = 200, description = "Track metadata", body = serde_json::Value))
+    responses((status = 200, description = "Track metadata", body = serde_json::Value)),
+    security(
+        ("bearerAuth" = [])
+    )
 )]
 #[get("/get-meta")]
 pub async fn get_meta(
@@ -323,7 +358,10 @@ pub async fn get_meta(
     get,
     path = "/tracks/get-all",
     tag = "tracks",
-    responses((status = 200, description = "All track metas", body = serde_json::Value))
+    responses((status = 200, description = "All track metas", body = serde_json::Value)),
+    security(
+        ("bearerAuth" = [])
+    )
 )]
 #[get("/get-all")]
 pub async fn get_tracks(role: RoleContext, app_state: web::Data<TracksAppData>) -> HttpResponse {
@@ -346,7 +384,10 @@ pub struct GetTrackInfoParams {
     path = "/tracks/get-track-info",
     tag = "tracks",
     request_body = GetTrackInfoParams,
-    responses((status = 200, description = "Track info", body = serde_json::Value))
+    responses((status = 200, description = "Track info", body = serde_json::Value)),
+    security(
+        ("bearerAuth" = [])
+    )
 )]
 #[get("/get-track-info")]
 pub async fn get_track_info(

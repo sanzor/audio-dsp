@@ -20,7 +20,7 @@ fn cookie_settings() -> &'static str {
 }
 
 fn set_auth_cookie(token: &str) -> String {
-    format!("auth_token={}; HttpOnly; {}; Max-Age={}", token, cookie_settings(), 60 * 15)
+    format!("auth_token={}; HttpOnly; {}; Max-Age={}", token, cookie_settings(), 60 * 60 * 8)
 }
 
 fn set_refresh_cookie(token: &str) -> String {
