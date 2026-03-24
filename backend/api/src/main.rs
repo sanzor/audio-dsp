@@ -52,6 +52,7 @@ use api::{
     },
     tracks::{
         data_provider::tracks_data_provider_service::PostgresTracksDataProvider,
+        multipart_audio_parser::multipart_audio_parser_service::MultipartAudioParserService,
         tracks_app_data::TracksAppData,
         tracks_provider_service::TracksProviderService,
     },
@@ -277,6 +278,7 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
     let tracks_app_data = TracksAppData {
         tracks_service: Arc::clone(&tracks_service)
             as Arc<dyn api::tracks::tracks_provider::TracksProvider>,
+        multipart_parser: Arc::new(MultipartAudioParserService {}),
     };
     let regions_app_data = RegionsAppData {
         regions_service: Arc::clone(&regions_service)

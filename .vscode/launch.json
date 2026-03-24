@@ -1,64 +1,70 @@
 {
   "version": "0.2.0",
   "configurations": [
+
+    // --- RUST ---
     {
       "name": "Rust: Debug API",
       "type": "lldb",
       "request": "launch",
+      "presentation": { "group": "1_Rust", "order": 1 },
       "program": "${workspaceFolder}/backend/target/debug/api",
-      "cwd": "${workspaceFolder}/backend",
-      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/backend/api",
+      "preLaunchTask": "Backend: cargo build api",
       "sourceLanguages": ["rust"],
-      "envFile": "${workspaceFolder}/.env",
-      "preLaunchTask": "Backend: cargo build api"
+      "env": {
+        "RUST_LOG": "debug",
+        "APP_ENV": "dev",
+        "APP_CONFIG_PATH": "${workspaceFolder}/backend/api"
+      },
+      "initCommands": [
+        "settings set target.inline-breakpoint-strategy always",
+        "settings set target.source-map . ${workspaceFolder}",
+        "settings set target.process.thread.step-avoid-regexp \\.(cargo|rustup)/"
+      ]
+    },
+
+    // --- FRONTEND ---
+    {
+      "name": "Frontend: Vite Dev Server",
+      "type": "node-terminal",
+      "request": "launch",
+      "presentation": { "group": "4_UI", "order": 1 },
+      "command": "cd ${workspaceFolder}/frontend && export NVM_DIR=\"$HOME/.nvm\"; [ -s \"$NVM_DIR/nvm.sh\" ] && . \"$NVM_DIR/nvm.sh\"; pnpm dev",
+      "serverReadyAction": {
+        "action": "debugWithChrome",
+        "pattern": "Local:.*http://localhost:(\\d+)",
+        "uriFormat": "http://localhost:%s",
+        "webRoot": "${workspaceFolder}/frontend"
+      }
     },
     {
-      "name": "Rust: Debug API (console fallback)",
-      "type": "lldb",
+      "name": "Frontend: Chrome (attach)",
+      "type": "pwa-chrome",
       "request": "launch",
-      "program": "${workspaceFolder}/backend/target/debug/api",
-      "cwd": "${workspaceFolder}/backend",
-      "console": "integratedTerminal",
-      "sourceLanguages": ["rust"],
-      "envFile": "${workspaceFolder}/.env",
-      "preLaunchTask": "Backend: cargo build api"
-    },
-    {
-      "name": "Frontend: Vite (Chrome)",
-      "type": "chrome",
-      "request": "launch",
-      "url": "http://localhost:3000",
-      "webRoot": "${workspaceFolder}/frontend",
-      "preLaunchTask": "Frontend: pnpm dev"
-    },
-    {
-      "name": "Frontend: Chrome (no task)",
-      "type": "chrome",
-      "request": "launch",
+      "presentation": { "group": "4_UI", "order": 2 },
       "url": "http://localhost:3000",
       "webRoot": "${workspaceFolder}/frontend"
     },
+
+    // --- UTILITIES ---
     {
-      "name": "Rust: Attach API (pick pid)",
+      "name": "Attach to Process",
       "type": "lldb",
       "request": "attach",
-      "program": "${workspaceFolder}/backend/target/debug/api",
+      "presentation": { "group": "3_Utils", "order": 1 },
       "pid": "${command:pickMyProcess}",
-      "preLaunchTask": "Dev: backend + frontend (terminals)"
-    },
-    {
-      "name": "Dev: Backend + Frontend",
-      "type": "chrome",
-      "request": "launch",
-      "url": "http://localhost:3000",
-      "webRoot": "${workspaceFolder}/frontend",
-      "preLaunchTask": "Dev: backend + frontend (terminals)"
+      "initCommands": [
+        "settings set target.source-map . ${workspaceFolder}"
+      ]
     }
+
   ],
   "compounds": [
     {
-      "name": "Dev: Backend + Frontend (debug attach)",
-      "configurations": ["Rust: Attach API (pick pid)", "Frontend: Chrome (no task)"],
+      "name": "🚀 Backend + Frontend",
+      "configurations": ["Rust: Debug API", "Frontend: Vite Dev Server"],
+      "presentation": { "group": "0_All", "order": 1 },
       "stopAll": true
     }
   ]

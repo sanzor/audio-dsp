@@ -25,7 +25,7 @@ VALUES
   (
     (SELECT project_id FROM projects WHERE name = 'Default Project' ORDER BY project_id LIMIT 1),
     (SELECT user_id FROM users WHERE email = 'test@gmail.com'),
-    'viewer'
+    'editor'
   )
 ON CONFLICT (project_id, user_id) DO UPDATE
 SET role = EXCLUDED.role;

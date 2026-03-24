@@ -8,19 +8,17 @@ use actix_web::{
     web::{self},
     HttpResponse,
 };
-use audiolib::{audio_buffer::AudioBuffer, utils::decode_canonical_audio, Channels};
 use domain::{
-    raw_track::{RawTrack, TrackInfo},
+    raw_track::{RawTrack},
     update_track_info_params::UpdateTrackInfoParams,
 };
-use futures_util::StreamExt;
+
 use mime_guess::from_ext;
 use serde::{Deserialize, Serialize};
-use std::str::FromStr;
-use tracing::{error, info, warn};
+use tracing::{error, info};
 use utoipa::{IntoParams, ToSchema};
 
-use domain::db::TrackId;
+use domain::{db::TrackId, tracks::track_info::TrackInfo as DomainTrackInfo};
 
 #[derive(Deserialize, Serialize)]
 pub struct AddTrackParams {
@@ -30,6 +28,8 @@ pub struct AddTrackParams {
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct AddTrackResult {
     pub track_id: TrackId,
+    #[schema(value_type = Object)]
+    pub track_info: DomainTrackInfo,
 }
 
 #[derive(ToSchema)]
@@ -67,7 +67,7 @@ pub async fn add_track(
     };
 
     match app_state.tracks_service.insert_track(request.track).await {
-        Ok(meta) => HttpResponse::Ok().json(AddTrackResult { track_id: meta.track_id }),
+        Ok(meta) => HttpResponse::Ok().json(AddTrackResult { track_id: meta.track_id, track_info: meta.track_info }),
         Err(_e) => HttpResponse::InternalServerError().body("Could not insert track"),
     }
 }
@@ -93,87 +93,22 @@ pub async fn add_track_multi(
     app_state: web::Data<TracksAppData>,
 ) -> HttpResponse {
     info!("add-track-multi request received");
-    if !role.can_edit() {
-        warn!("add-track-multi rejected: role cannot edit");
-        return HttpResponse::Forbidden().body("Forbidden");
-    }
-    let mut name: Option<String> = None;
-    let mut extension: Option<String> = None;
-    let mut sample_rate: Option<f32> = None;
-    let mut channels: Option<Channels> = None;
-    let mut samples_bytes: Vec<u8> = vec![];
-
-    while let Some(Ok(mut field)) = payload.next().await {
-        let field_name = field.name().unwrap_or("").to_string();
-        let field_data = next_multipart_field(&mut field).await;
-
-        match field_name.as_str() {
-            "name" => name = Some(String::from_utf8_lossy(&field_data).to_string()),
-            "extension" => extension = Some(String::from_utf8_lossy(&field_data).to_string()),
-            "sample_rate" => sample_rate = String::from_utf8_lossy(&field_data).parse::<f32>().ok(),
-            "channels" => channels = Channels::from_str(&String::from_utf8_lossy(&field_data)).ok(),
-            "samples" => samples_bytes = field_data,
-            _ => {}
+    // if !role.can_edit() {
+    //     warn!("add-track-multi rejected: role cannot edit");
+    //     return HttpResponse::Forbidden().body("Forbidden");
+    // }
+    let raw_track = match app_state.multipart_parser.try_parse_multipart(payload).await {
+        Ok(r) => r,
+        Err(err) => {
+            error!(error = %err, "add-track-multi rejected: invalid payload");
+            return HttpResponse::BadRequest().body(err);
         }
-    }
-    let (name, extension) = match (name, extension) {
-        (Some(n), Some(ext)) => (n, ext),
-        _ => {
-            warn!("add-track-multi rejected: missing required fields");
-            return HttpResponse::BadRequest().body("Missing required fields");
-        }
-    };
-
-    if samples_bytes.is_empty() {
-        warn!("add-track-multi rejected: missing samples data");
-        return HttpResponse::BadRequest().body("Missing samples data");
-    }
-
-    let audio_buffer = if is_wav_bytes(&samples_bytes) {
-        match decode_canonical_audio(&samples_bytes) {
-            Ok(decoded) => AudioBuffer {
-                samples: decoded.samples,
-                sample_rate: decoded.sample_rate as f32,
-                channels: decoded.channels,
-            },
-            Err(err) => {
-                error!(error = %err, "add-track-multi rejected: invalid wav payload");
-                return HttpResponse::BadRequest().body("Invalid wav payload");
-            }
-        }
-    } else {
-        let (sample_rate, channels) = match (sample_rate, channels) {
-            (Some(sr), Some(ch)) => (sr, ch),
-            _ => {
-                warn!("add-track-multi rejected: missing raw audio metadata");
-                return HttpResponse::BadRequest().body("Missing required fields");
-            }
-        };
-        AudioBuffer {
-            samples: bytes_to_f32(samples_bytes),
-            sample_rate,
-            channels,
-        }
-    };
-
-    let length = audio_buffer.samples.len() as f32
-        / (audio_buffer.sample_rate * channel_count(audio_buffer.channels) as f32);
-    info!(
-        track_name = %name,
-        extension = %extension,
-        sample_rate = audio_buffer.sample_rate,
-        sample_count = audio_buffer.samples.len(),
-        "add-track-multi payload parsed"
-    );
-    let raw_track = RawTrack {
-        info: TrackInfo { name, extension, length },
-        data: audio_buffer,
     };
 
     match app_state.tracks_service.insert_track(raw_track).await {
         Ok(meta) => {
             info!(track_id = %meta.track_id, "add-track-multi insert complete");
-            HttpResponse::Ok().json(AddTrackResult { track_id: meta.track_id })
+            HttpResponse::Ok().json(AddTrackResult { track_id: meta.track_id, track_info: meta.track_info })
         }
         Err(err) => {
             error!(error = %err, "add-track-multi insert failed");
@@ -417,31 +352,5 @@ pub fn init(cfg: &mut web::ServiceConfig) {
         .service(copy_track);
 }
 
-fn bytes_to_f32(bytes: Vec<u8>) -> Vec<f32> {
-    use std::convert::TryInto;
-    let mut out = Vec::with_capacity(bytes.len() / 4);
-    for chunk in bytes.chunks_exact(4) {
-        let arr: [u8; 4] = chunk.try_into().unwrap();
-        out.push(f32::from_le_bytes(arr));
-    }
-    out
-}
 
-fn is_wav_bytes(bytes: &[u8]) -> bool {
-    bytes.len() >= 12 && &bytes[0..4] == b"RIFF" && &bytes[8..12] == b"WAVE"
-}
 
-fn channel_count(channels: Channels) -> usize {
-    match channels {
-        Channels::Mono => 1,
-        Channels::Stereo => 2,
-    }
-}
-
-async fn next_multipart_field(field: &mut actix_multipart::Field) -> Vec<u8> {
-    let mut data = Vec::new();
-    while let Some(chunk) = field.next().await {
-        data.extend_from_slice(&chunk.unwrap());
-    }
-    data
-}
