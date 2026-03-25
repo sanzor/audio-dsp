@@ -60,7 +60,7 @@ impl ProjectsDataProvider for PostgresProjectsDataProvider {
         Ok(result.rows_affected() > 0)
     }
 
-    async fn list_projects_for_user(&self, user_id: i64) -> Result<Vec<DbProject>, String> {
+    async fn list_projects_for_user(&self, user_id: i32) -> Result<Vec<DbProject>, String> {
         sqlx::query_as::<_, DbProject>(
             r#"
             SELECT p.* FROM projects p

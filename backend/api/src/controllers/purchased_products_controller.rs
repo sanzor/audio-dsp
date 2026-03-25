@@ -8,7 +8,7 @@ use crate::purchased_products::purchased_products_app_data::PurchasedProductsApp
 
 #[derive(Deserialize, ToSchema)]
 pub struct CreatePurchasedProductInput {
-    pub product_id: i64,
+    pub product_id: i32,
 }
 
 #[derive(Deserialize, IntoParams)]

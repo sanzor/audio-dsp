@@ -2,8 +2,8 @@ import type { TrackRegion } from "../Region/TrackRegion";
 
 
 export interface TrackRegionSet{
-    id:string,
-    trackId:string,
+    id:number,
+    trackId:number,
     name:string,
     regions: TrackRegion[]
 }

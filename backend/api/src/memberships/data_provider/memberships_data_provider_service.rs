@@ -37,7 +37,7 @@ impl MembershipsDataProvider for PostgresMembershipsDataProvider {
         .map_err(|e| e.to_string())
     }
 
-    async fn delete_membership(&self, project_id: i64, user_id: i64) -> Result<bool, String> {
+    async fn delete_membership(&self, project_id: i32, user_id: i32) -> Result<bool, String> {
         let result =
             sqlx::query("DELETE FROM project_members WHERE project_id = $1 AND user_id = $2")
                 .bind(project_id)
@@ -50,8 +50,8 @@ impl MembershipsDataProvider for PostgresMembershipsDataProvider {
 
     async fn get_membership(
         &self,
-        project_id: i64,
-        user_id: i64,
+        project_id: i32,
+        user_id: i32,
     ) -> Result<Option<DbMembership>, String> {
         sqlx::query_as::<_, DbMembership>(
             "SELECT * FROM project_members WHERE project_id = $1 AND user_id = $2",
@@ -65,8 +65,8 @@ impl MembershipsDataProvider for PostgresMembershipsDataProvider {
 
     async fn list_memberships(
         &self,
-        project_id: Option<i64>,
-        user_id: Option<i64>,
+        project_id: Option<i32>,
+        user_id: Option<i32>,
     ) -> Result<Vec<DbMembership>, String> {
         match (project_id, user_id) {
             (Some(p), Some(u)) => sqlx::query_as::<_, DbMembership>(
@@ -100,8 +100,8 @@ impl MembershipsDataProvider for PostgresMembershipsDataProvider {
 
     async fn get_role(
         &self,
-        project_id: i64,
-        user_id: i64,
+        project_id: i32,
+        user_id: i32,
     ) -> Result<Option<ProjectRole>, String> {
         let row: Option<(ProjectRole,)> = sqlx::query_as(
             "SELECT role FROM project_members WHERE project_id = $1 AND user_id = $2",
@@ -117,8 +117,8 @@ impl MembershipsDataProvider for PostgresMembershipsDataProvider {
 
     async fn update_role(
         &self,
-        project_id: i64,
-        user_id: i64,
+        project_id: i32,
+        user_id: i32,
         role: ProjectRole,
     ) -> Result<Option<DbMembership>, String> {
         sqlx::query_as::<_, DbMembership>(

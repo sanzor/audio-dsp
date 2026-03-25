@@ -1,0 +1,10 @@
+BEGIN;
+
+DROP TABLE IF EXISTS usage;
+DROP TABLE IF EXISTS invoices;
+DROP TABLE IF EXISTS purchased_products;
+DROP TABLE IF EXISTS subscriptions;
+DROP TABLE IF EXISTS products;
+DROP TABLE IF EXISTS tier_configs;
+
+COMMIT;

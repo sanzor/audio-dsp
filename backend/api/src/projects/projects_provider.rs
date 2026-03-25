@@ -2,7 +2,7 @@ use domain::db::{DbProject, ProjectId};
 
 pub struct CreateProjectParams {
     pub name: String,
-    pub created_by: i64,
+    pub created_by: i32,
 }
 
 pub struct UpdateProjectParams {
@@ -19,5 +19,5 @@ pub trait ProjectsProvider: Send + Sync {
         params: UpdateProjectParams,
     ) -> Result<Option<DbProject>, String>;
     async fn delete_project(&self, project_id: &ProjectId) -> Result<bool, String>;
-    async fn list_projects_for_user(&self, user_id: i64) -> Result<Vec<DbProject>, String>;
+    async fn list_projects_for_user(&self, user_id: i32) -> Result<Vec<DbProject>, String>;
 }

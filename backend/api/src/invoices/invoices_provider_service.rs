@@ -27,10 +27,10 @@ impl InvoicesProvider for InvoicesProviderService {
     async fn delete_invoice(&self, id: InvoiceId) -> Result<bool, ServiceError> {
         self.data_provider.delete_invoice(id).await.map_err(ServiceError::from)
     }
-    async fn list_by_user_paginated(&self, user_id: i64, offset: i64, limit: i64) -> Result<(Vec<DbInvoice>, i64), ServiceError> {
+    async fn list_by_user_paginated(&self, user_id: i32, offset: i64, limit: i64) -> Result<(Vec<DbInvoice>, i64), ServiceError> {
         self.data_provider.list_by_user_paginated(user_id, offset, limit).await.map_err(ServiceError::from)
     }
-    async fn list_all_paginated(&self, user_id: Option<i64>, offset: i64, limit: i64) -> Result<(Vec<DbInvoice>, i64), ServiceError> {
+    async fn list_all_paginated(&self, user_id: Option<i32>, offset: i64, limit: i64) -> Result<(Vec<DbInvoice>, i64), ServiceError> {
         self.data_provider.list_all_paginated(user_id, offset, limit).await.map_err(ServiceError::from)
     }
 }

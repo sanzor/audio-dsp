@@ -11,7 +11,6 @@ use domain::{
     },
 };
 use sqlx::PgPool;
-use ulid::Ulid;
 
 use super::region_sets_data_provider::RegionSetsDataProvider;
 
@@ -42,17 +41,15 @@ impl RegionSetsDataProvider for PostgresRegionSetsDataProvider {
     }
 
     async fn create_region_set(&self, params: CreateRegionSetParams) -> Result<DbRegionSet, String> {
-        let region_set_id: RegionSetId = Ulid::new().to_string();
-        let name = params.name.unwrap_or_else(|| Ulid::new().to_string());
+        let name = params.name.unwrap_or_else(|| "New Region Set".to_string());
 
         sqlx::query_as::<_, DbRegionSet>(
             r#"
-            INSERT INTO region_sets (region_set_id, track_id, name, track_length_seconds)
-            VALUES ($1, $2, $3, $4)
+            INSERT INTO region_sets (track_id, name, track_length_seconds)
+            VALUES ($1, $2, $3)
             RETURNING region_set_id, track_id, name, track_length_seconds, created_at
             "#,
         )
-        .bind(region_set_id)
         .bind(params.track_id)
         .bind(name)
         .bind(params.track_length)
@@ -150,16 +147,13 @@ impl RegionSetsDataProvider for PostgresRegionSetsDataProvider {
         .await
         .map_err(|e| e.to_string())?;
 
-        let new_set_id: RegionSetId = Ulid::new().to_string();
-
         let new_set = sqlx::query_as::<_, DbRegionSet>(
             r#"
-            INSERT INTO region_sets (region_set_id, track_id, name, track_length_seconds)
-            VALUES ($1, $2, $3, $4)
+            INSERT INTO region_sets (track_id, name, track_length_seconds)
+            VALUES ($1, $2, $3)
             RETURNING region_set_id, track_id, name, track_length_seconds, created_at
             "#,
         )
-        .bind(&new_set_id)
         .bind(&source_set.track_id)
         .bind(&params.region_set_name)
         .bind(source_set.track_length_seconds)
@@ -181,15 +175,13 @@ impl RegionSetsDataProvider for PostgresRegionSetsDataProvider {
         .map_err(|e| e.to_string())?;
 
         for region in source_regions {
-            let new_region_id: RegionId = Ulid::new().to_string();
             sqlx::query(
                 r#"
-                INSERT INTO regions (region_id, region_set_id, name, start_time_seconds, end_time_seconds)
-                VALUES ($1, $2, $3, $4, $5)
+                INSERT INTO regions (region_set_id, name, start_time_seconds, end_time_seconds)
+                VALUES ($1, $2, $3, $4)
                 "#,
             )
-            .bind(new_region_id)
-            .bind(&new_set_id)
+            .bind(new_set.region_set_id)
             .bind(region.name)
             .bind(region.start_time_seconds)
             .bind(region.end_time_seconds)

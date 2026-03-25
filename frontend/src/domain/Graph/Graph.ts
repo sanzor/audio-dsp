@@ -2,8 +2,8 @@ import type { Edge } from "./Edge";
 import type { Node } from "./Node";
 
 export interface Graph{
-    regionId:string,
-    id:string,
+    regionId:number,
+    id:number,
     name:string,
     createdAt:Date,
     updatedAt:Date,

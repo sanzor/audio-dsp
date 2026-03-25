@@ -1,5 +1,6 @@
 import type { Graph } from "@/domain/Graph/Graph";
 import type { Edge } from "@/domain/Graph/Edge";
+import { authFetch } from "@/Services/http";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -65,9 +66,8 @@ export interface CreateNodeResult {
 // ─── API ──────────────────────────────────────────────────────────────────────
 
 export async function apiGetGraph(graphId: string): Promise<Graph> {
-  const res = await fetch(`${BASE_URL}/graphs/get-graph?graph_id=${graphId}`, {
+  const res = await authFetch(`${BASE_URL}/graphs/get-graph?graph_id=${graphId}`, {
     method: 'GET',
-    credentials: 'include',
   });
   if (!res.ok) throw new Error('Failed to fetch graph');
   const json = await res.json();
@@ -77,9 +77,8 @@ export async function apiGetGraph(graphId: string): Promise<Graph> {
 
 export async function apiCreateGraph(params: CreateGraphParams): Promise<CreateGraphResult> {
   console.log("a");
-  const res = await fetch(`${BASE_URL}/graphs/create`, {
+  const res = await authFetch(`${BASE_URL}/graphs/create`, {
     method: 'POST',
-    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params),
   });
@@ -90,9 +89,8 @@ export async function apiCreateGraph(params: CreateGraphParams): Promise<CreateG
 
 export async function apiUpdateGraph(params: EditGraphParams): Promise<EditGraphResult> {
   console.log("a");
-  const res = await fetch(`${BASE_URL}/graphs/edit`, {
+  const res = await authFetch(`${BASE_URL}/graphs/edit`, {
     method: 'PATCH',
-    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params),
   });
@@ -102,17 +100,15 @@ export async function apiUpdateGraph(params: EditGraphParams): Promise<EditGraph
 }
 
 export async function apiRemoveGraph(params: RemoveGraphParams): Promise<void> {
-  const res = await fetch(`${BASE_URL}/graphs/remove?graph_id=${params.graph_id}`, {
+  const res = await authFetch(`${BASE_URL}/graphs/remove?graph_id=${params.graph_id}`, {
     method: 'DELETE',
-    credentials: 'include',
   });
   if (!res.ok) throw new Error('Refresh token failed');
 }
 
 export async function apiCopyGraph(params: CopyGraphParams): Promise<CopyGraphResult> {
-  const res = await fetch(`${BASE_URL}/graphs/copy`, {
+  const res = await authFetch(`${BASE_URL}/graphs/copy`, {
     method: 'POST',
-    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params),
   });

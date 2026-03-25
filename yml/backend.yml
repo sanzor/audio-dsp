@@ -9,6 +9,7 @@ services:
       HOST: ${BACKEND_HOST:-0.0.0.0}
       PORT: ${BACKEND_PORT_INTERNAL:-3080}
       RUST_LOG: ${RUST_LOG:-info}
+      JWT_SECRET: ${JWT_SECRET:-test_secret}
       DATABASE_URL: ${DATABASE_URL:-postgres://postgres:postgres@postgres:5432/audio_dsp}
     ports:
       - "${BACKEND_PORT:-3080}:3080"

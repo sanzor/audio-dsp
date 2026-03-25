@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::db::db_graph::GraphId;
 
-pub type NodeId = String;
+pub type NodeId = i32;
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct DbNode {

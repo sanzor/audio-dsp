@@ -7,6 +7,6 @@ use crate::purchased_products::create_purchased_product_params::CreatePurchasedP
 pub trait PurchasedProductsDataProvider: Send + Sync {
     async fn create_purchased_product(&self, params: CreatePurchasedProductParams) -> Result<DbPurchasedProduct, DataError>;
     async fn get_purchased_product(&self, id: PurchasedProductId) -> Result<Option<DbPurchasedProduct>, DataError>;
-    async fn list_by_user(&self, user_id: i64) -> Result<Vec<DbPurchasedProduct>, DataError>;
+    async fn list_by_user(&self, user_id: i32) -> Result<Vec<DbPurchasedProduct>, DataError>;
     async fn delete_purchased_product(&self, id: PurchasedProductId) -> Result<bool, DataError>;
 }

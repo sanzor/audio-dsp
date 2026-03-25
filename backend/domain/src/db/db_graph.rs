@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::db::db_region::RegionId;
 
-pub type GraphId = String;
+pub type GraphId = i32;
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct DbGraph {

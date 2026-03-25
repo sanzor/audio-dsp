@@ -7,6 +7,7 @@
 BEGIN;
 
 DELETE FROM project_members;
+DELETE FROM tracks;
 DELETE FROM projects;
 DELETE FROM users;
 

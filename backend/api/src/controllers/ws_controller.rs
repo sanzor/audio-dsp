@@ -126,7 +126,7 @@ pub async fn run_player(
         }
 
         // Clean up sink on disconnect
-        let _ = player_service.remove_sink(user_id, &track_id, &sink_id).await;
+        let _ = player_service.remove_sink(user_id, track_id, &sink_id).await;
     });
 
     Ok(response)
@@ -134,14 +134,14 @@ pub async fn run_player(
 
 async fn handle_ws_message(
     message: WsMessage,
-    user_id: i64,
+    user_id: i32,
     player: &Arc<dyn PlayerProvider>,
 ) -> Result<(), String> {
     match message {
-        WsMessage::Play { track_id } => player.play(user_id, &track_id).await,
-        WsMessage::Pause { track_id } => player.pause(user_id, &track_id).await,
-        WsMessage::Stop { track_id } => player.stop(user_id, &track_id).await,
-        WsMessage::Seek { track_id, position } => player.seek(user_id, &track_id, position).await,
+        WsMessage::Play { track_id } => player.play(user_id, track_id).await,
+        WsMessage::Pause { track_id } => player.pause(user_id, track_id).await,
+        WsMessage::Stop { track_id } => player.stop(user_id, track_id).await,
+        WsMessage::Seek { track_id, position } => player.seek(user_id, track_id, position).await,
     }
 }
 

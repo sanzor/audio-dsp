@@ -43,7 +43,7 @@ pub struct CreateProjectInput {
 
 #[derive(Serialize, ToSchema)]
 pub struct ProjectOutput {
-    pub project_id: i64,
+    pub project_id: i32,
     pub name: String,
 }
 
@@ -98,7 +98,7 @@ pub struct AcceptInviteInput {
 
 #[derive(Serialize, ToSchema)]
 pub struct AcceptInviteOutput {
-    pub project_id: i64,
+    pub project_id: i32,
     pub role: ProjectRole,
 }
 

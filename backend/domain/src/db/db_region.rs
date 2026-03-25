@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::db::db_region_set::RegionSetId;
 
-pub type RegionId = String;
+pub type RegionId = i32;
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct DbRegion {

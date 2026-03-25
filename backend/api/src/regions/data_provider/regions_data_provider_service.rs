@@ -11,7 +11,6 @@ use domain::{
     },
 };
 use sqlx::PgPool;
-use ulid::Ulid;
 
 use super::regions_data_provider::RegionsDataProvider;
 
@@ -57,16 +56,13 @@ impl RegionsDataProvider for PostgresRegionsDataProvider {
     }
 
     async fn add_region(&self, params: AddRegionParams) -> Result<DbRegion, String> {
-        let region_id: RegionId = Ulid::new().to_string();
-
         sqlx::query_as::<_, DbRegion>(
             r#"
-            INSERT INTO regions (region_id, region_set_id, name, start_time_seconds, end_time_seconds)
-            VALUES ($1, $2, $3, $4, $5)
+            INSERT INTO regions (region_set_id, name, start_time_seconds, end_time_seconds)
+            VALUES ($1, $2, $3, $4)
             RETURNING region_id, region_set_id, name, start_time_seconds, end_time_seconds, created_at
             "#,
         )
-        .bind(region_id)
         .bind(params.region_set_id)
         .bind(params.name)
         .bind(params.start_time)
@@ -122,16 +118,13 @@ impl RegionsDataProvider for PostgresRegionsDataProvider {
         .await
         .map_err(|e| e.to_string())?;
 
-        let new_region_id: RegionId = Ulid::new().to_string();
-
         sqlx::query_as::<_, DbRegion>(
             r#"
-            INSERT INTO regions (region_id, region_set_id, name, start_time_seconds, end_time_seconds)
-            VALUES ($1, $2, $3, $4, $5)
+            INSERT INTO regions (region_set_id, name, start_time_seconds, end_time_seconds)
+            VALUES ($1, $2, $3, $4)
             RETURNING region_id, region_set_id, name, start_time_seconds, end_time_seconds, created_at
             "#,
         )
-        .bind(new_region_id)
         .bind(params.destination_region_set_id)
         .bind(params.region_copy_name)
         .bind(source.start_time_seconds)

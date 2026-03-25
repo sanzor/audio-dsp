@@ -14,7 +14,7 @@ use crate::{
 
 #[derive(Serialize, ToSchema)]
 pub struct MemberOutput {
-    pub user_id: i64,
+    pub user_id: i32,
     pub role: ProjectRole,
 }
 
@@ -24,7 +24,7 @@ pub struct MemberOutput {
 pub async fn list_members(
     jwt: JwtContext,
     role: RoleContext,
-    path: web::Path<i64>,
+    path: web::Path<i32>,
     app: web::Data<ProjectAppData>,
 ) -> HttpResponse {
     let project_id = path.into_inner();
@@ -69,7 +69,7 @@ pub struct InviteOutput {
 pub async fn invite_member(
     jwt: JwtContext,
     role: RoleContext,
-    path: web::Path<i64>,
+    path: web::Path<i32>,
     payload: web::Json<InviteInput>,
     auth: web::Data<AuthAppData>,
 ) -> HttpResponse {
@@ -107,7 +107,7 @@ pub async fn invite_member(
 pub async fn delete_project(
     jwt: JwtContext,
     role: RoleContext,
-    path: web::Path<i64>,
+    path: web::Path<i32>,
     app: web::Data<ProjectAppData>,
 ) -> HttpResponse {
     let project_id = path.into_inner();
@@ -136,7 +136,7 @@ pub async fn delete_project(
 pub async fn remove_member(
     jwt: JwtContext,
     role: RoleContext,
-    path: web::Path<(i64, i64)>,
+    path: web::Path<(i32, i32)>,
     app: web::Data<ProjectAppData>,
 ) -> HttpResponse {
     let (project_id, target_user_id) = path.into_inner();
@@ -174,7 +174,7 @@ pub struct ChangeRoleInput {
 pub async fn change_role(
     jwt: JwtContext,
     role: RoleContext,
-    path: web::Path<(i64, i64)>,
+    path: web::Path<(i32, i32)>,
     payload: web::Json<ChangeRoleInput>,
     app: web::Data<ProjectAppData>,
 ) -> HttpResponse {

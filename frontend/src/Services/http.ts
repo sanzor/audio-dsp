@@ -25,6 +25,88 @@ function joinUrl(base: string, path: string) {
   return `${b}${p}`;
 }
 
+function buildHeaders(extra?: HeadersInit): Headers {
+  const headers = new Headers(extra);
+  const token = useAuthStore.getState().token;
+  const activeProjectId = useProjectStore.getState().activeProject?.project_id;
+
+  if (token && !headers.has("Authorization")) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  if (activeProjectId != null && !headers.has("X-Project-ID")) {
+    headers.set("X-Project-ID", String(activeProjectId));
+  }
+
+  return headers;
+}
+
+function clearClientSession() {
+  useAuthStore.getState().clearSession();
+  useProjectStore.getState().clearProject();
+}
+
+async function refreshSession(): Promise<boolean> {
+  const refreshUrl = joinUrl(import.meta.env.VITE_API_BASE_URL ?? "", "/auth/refresh");
+  const res = await fetch(refreshUrl, {
+    method: "POST",
+    credentials: "include",
+  });
+
+  if (!res.ok) {
+    return false;
+  }
+
+  const body = await readBody(res);
+  const nextToken =
+    body && typeof body === "object" && "token" in body && typeof body.token === "string"
+      ? body.token
+      : null;
+
+  if (!nextToken) {
+    return false;
+  }
+
+  useAuthStore.getState().setToken(nextToken);
+  return true;
+}
+
+function redirectToLogin() {
+  if (window.location.pathname !== "/login") {
+    window.location.href = "/login";
+  }
+}
+
+async function authFetch(path: string, init?: RequestInit, allowRetry = true): Promise<Response> {
+  const url = path;
+  const requestInit: RequestInit = {
+    ...init,
+    credentials: "include",
+    headers: buildHeaders(init?.headers),
+  };
+
+  let res = await fetch(url, requestInit);
+
+  if (res.status === 401 && allowRetry && !url.endsWith("/auth/refresh")) {
+    const refreshed = await refreshSession();
+    if (refreshed) {
+      res = await fetch(url, {
+        ...init,
+        credentials: "include",
+        headers: buildHeaders(init?.headers),
+      });
+    }
+  }
+
+  if (res.status === 401) {
+    clearClientSession();
+    redirectToLogin();
+    throw new HttpError({ status: 401, url, body: null, message: "Session expired" });
+  }
+
+  return res;
+}
+
 async function readBody(res: Response): Promise<unknown> {
   const ct = res.headers.get("content-type") ?? "";
   if (res.status === 204) return undefined;
@@ -41,34 +123,13 @@ async function request<TRes>(
   path: string,
   init?: RequestInit
 ): Promise<TRes> {
-  const url = joinUrl(import.meta.env.VITE_API_BASE_URL ?? "", path);
-
-  const token = useAuthStore.getState().token;
-  const activeProjectId = useProjectStore.getState().activeProject?.project_id;
-  const authHeader: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
-  const projectHeader: HeadersInit = activeProjectId
-    ? { "X-Project-ID": activeProjectId }
-    : {};
-
-  const res = await fetch(url, {
-    ...init,
-    method,
-    credentials: "include",
-    headers: { ...(init?.headers ?? {}), ...authHeader, ...projectHeader },
-  });
-
-  if (res.status === 401) {
-    useAuthStore.getState().clearSession();
-    useProjectStore.getState().clearProject();
-    window.location.href = "/login";
-    throw new HttpError({ status: 401, url, body: null, message: "Session expired" });
-  }
+  const res = await authFetch(path, { ...init, method });
 
   const body = await readBody(res);
   if (!res.ok) {
     throw new HttpError({
       status: res.status,
-      url,
+      url: path,
       body,
       message: typeof body === "string" && body ? body : `Request failed (${res.status})`,
     });
@@ -109,3 +170,5 @@ export const http = {
     });
   },
 };
+
+export { authFetch };

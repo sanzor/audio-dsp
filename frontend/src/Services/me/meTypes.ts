@@ -1,7 +1,7 @@
 import type { ProjectRole } from "../../Stores/projectStore";
 
 export type MeUser = {
-  id: string;
+  id: number;
   email: string;
   name: string;
   is_admin: boolean;
@@ -9,7 +9,7 @@ export type MeUser = {
 };
 
 export type MeProject = {
-  project_id: string;
+  project_id: number;
   name: string;
   role: ProjectRole;
 };

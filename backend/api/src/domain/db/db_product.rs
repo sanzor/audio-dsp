@@ -3,7 +3,7 @@ use sqlx::FromRow;
 use utoipa::ToSchema;
 use crate::domain::tier::Tier;
 
-pub type ProductId = i64;
+pub type ProductId = i32;
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, FromRow)]
 pub struct DbProduct {

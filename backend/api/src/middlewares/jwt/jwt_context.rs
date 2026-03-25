@@ -3,7 +3,7 @@ use std::future::{ready, Ready};
 
 #[derive(Debug, Clone)]
 pub struct JwtContext {
-    pub user_id: i64,
+    pub user_id: i32,
     pub is_admin: bool,
 }
 

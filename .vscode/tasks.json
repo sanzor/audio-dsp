@@ -2,12 +2,29 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "Database: up-db",
+      "type": "shell",
+      "command": "make up-db",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "database",
+        "clear": true
+      }
+    },
+    {
       "label": "Backend: cargo build api",
       "type": "shell",
       "command": "cargo build -p api",
       "options": {
         "cwd": "${workspaceFolder}/backend"
       },
+      "dependsOn": ["Database: up-db"],
+      "dependsOrder": "sequence",
       "problemMatcher": ["$rustc"],
       "group": "build"
     },
@@ -18,6 +35,8 @@
       "options": {
         "cwd": "${workspaceFolder}/backend"
       },
+      "dependsOn": ["Database: up-db"],
+      "dependsOrder": "sequence",
       "isBackground": true,
       "problemMatcher": {
         "owner": "backend",

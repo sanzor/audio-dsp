@@ -3,6 +3,6 @@ import type { TrackInfo } from "./TrackInfo";
 
 export interface TrackMeta{
     trackInfo:TrackInfo,
-    trackId:string
+    trackId:number
     regionSets:TrackRegionSet[]
 }

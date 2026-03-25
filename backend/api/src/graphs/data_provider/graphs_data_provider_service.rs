@@ -12,7 +12,6 @@ use domain::{
     },
 };
 use sqlx::PgPool;
-use ulid::Ulid;
 
 use super::graphs_data_provider::GraphsDataProvider;
 
@@ -29,16 +28,13 @@ impl PostgresGraphsDataProvider {
 #[async_trait::async_trait]
 impl GraphsDataProvider for PostgresGraphsDataProvider {
     async fn create_graph(&self, params: AddGraphParams) -> Result<DbGraph, String> {
-        let graph_id: GraphId = Ulid::new().to_string();
-
         sqlx::query_as::<_, DbGraph>(
             r#"
-            INSERT INTO graphs (graph_id, region_id, name)
-            VALUES ($1, $2, $3)
+            INSERT INTO graphs (region_id, name)
+            VALUES ($1, $2)
             RETURNING graph_id, region_id, name, created_at
             "#,
         )
-        .bind(graph_id)
         .bind(params.region_id)
         .bind(params.name)
         .fetch_one(&self.pool)

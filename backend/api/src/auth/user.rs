@@ -3,7 +3,7 @@ use utoipa::ToSchema;
 
 #[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
 pub struct AuthUser {
-    pub id: i64,
+    pub id: i32,
     pub email: String,
     pub name: String,
     pub is_admin: bool,

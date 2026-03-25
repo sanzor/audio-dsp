@@ -47,11 +47,11 @@ where
                 .ok_or_else(|| actix_web::error::ErrorUnauthorized("Unauthorized"))?;
 
             // 2. Project context from header
-            let project_id: Option<i64> = req
+            let project_id: Option<i32> = req
                 .headers()
                 .get(PROJECT_ID_HEADER)
                 .and_then(|v| v.to_str().ok())
-                .and_then(|s| s.parse::<i64>().ok());
+                .and_then(|s| s.parse::<i32>().ok());
 
             // 3. Resolve role
             let role_ctx = if jwt_ctx.is_admin {

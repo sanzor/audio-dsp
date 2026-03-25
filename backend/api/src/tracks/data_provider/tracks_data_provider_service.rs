@@ -5,7 +5,6 @@ use domain::{
     update_track_info_params::UpdateTrackInfoParams,
 };
 use sqlx::PgPool;
-use ulid::Ulid;
 
 use super::tracks_data_provider::TracksDataProvider;
 
@@ -58,18 +57,16 @@ impl TracksDataProvider for PostgresTracksDataProvider {
     }
 
     async fn upsert_track(&self, track: RawTrack) -> Result<DbTrack, String> {
-        let track_id: TrackId = Ulid::new().to_string();
         let canonical_audio = encode_audio_buffer_as_wav(&track.data)
             .map_err(|_| "Could not encode track as wav".to_string())?;
 
         sqlx::query_as::<_, DbTrack>(
             r#"
-            INSERT INTO tracks (track_id, name, extension, length_seconds, canonical_audio)
-            VALUES ($1, $2, $3, $4, $5)
+            INSERT INTO tracks (name, extension, length_seconds, canonical_audio)
+            VALUES ($1, $2, $3, $4)
             RETURNING track_id, name, extension, length_seconds, canonical_audio, created_at
             "#,
         )
-        .bind(track_id)
         .bind(track.info.name)
         .bind(track.info.extension)
         .bind(track.info.length)
@@ -85,16 +82,14 @@ impl TracksDataProvider for PostgresTracksDataProvider {
         new_name: &str,
     ) -> Result<DbTrack, String> {
         let original = self.get_track(source_track_id).await?;
-        let new_track_id: TrackId = Ulid::new().to_string();
 
         sqlx::query_as::<_, DbTrack>(
             r#"
-            INSERT INTO tracks (track_id, name, extension, length_seconds, canonical_audio)
-            VALUES ($1, $2, $3, $4, $5)
+            INSERT INTO tracks (name, extension, length_seconds, canonical_audio)
+            VALUES ($1, $2, $3, $4)
             RETURNING track_id, name, extension, length_seconds, canonical_audio, created_at
             "#,
         )
-        .bind(new_track_id)
         .bind(new_name)
         .bind(original.extension)
         .bind(original.length_seconds)

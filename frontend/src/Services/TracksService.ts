@@ -1,25 +1,12 @@
 import type { TrackMeta } from '@/domain/Track/TrackMeta';
 import type { TrackInfo } from '@/domain/Track/TrackInfo';
 import type { ABuffer } from '@/domain/ABuffer';
-import { useAuthStore } from '@/Stores/authStore';
-import { useProjectStore } from '@/Stores/projectStore';
+import { authFetch } from '@/Services/http';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 function buildTrackHeaders(headers?: HeadersInit): Headers {
-  const requestHeaders = new Headers(headers);
-  const token = useAuthStore.getState().token;
-  const activeProjectId = useProjectStore.getState().activeProject?.project_id;
-
-  if (token) {
-    requestHeaders.set('Authorization', `Bearer ${token}`);
-  }
-
-  if (activeProjectId) {
-    requestHeaders.set('X-Project-ID', activeProjectId);
-  }
-
-  return requestHeaders;
+  return new Headers(headers);
 }
 
 // ─── Params & Results ────────────────────────────────────────────────────────
@@ -30,17 +17,17 @@ export interface RawTrack {
 }
 
 export interface GetTrackParams {
-  track_id: string;
+  track_id: number;
 }
 export interface GetTrackResult {
   track: TrackMeta;
 }
 
 export interface GetTrackRawParams {
-  track_id: string;
+  track_id: number;
 }
 export interface GetTrackRawResult {
-  track_id: string;
+  track_id: number;
   blob: Blob;
 }
 
@@ -49,12 +36,12 @@ export interface CreateTrackParams {
   fileBlob?: Blob;
 }
 export interface CreateTrackResult {
-  track_id: string;
+  track_id: number;
   track_info: TrackInfo;
 }
 
 export interface CopyTrackParams {
-  track_id: string;
+  track_id: number;
   copy_track_name: string;
 }
 export interface CopyTrackResult {
@@ -62,7 +49,7 @@ export interface CopyTrackResult {
 }
 
 export interface UpdateTrackParams {
-  track_id: string;
+  track_id: number;
   track_name: string;
 }
 export interface UpdateTrackResult {
@@ -71,30 +58,31 @@ export interface UpdateTrackResult {
 }
 
 export interface RemoveTrackParams {
-  trackId: string;
+  trackId: number;
 }
 export interface RemoveTrackResult {
-  id: string;
+  id: number;
 }
 
 // ─── API ──────────────────────────────────────────────────────────────────────
 
 export async function apiGetTracks(): Promise<TrackMeta[]> {
-  const res = await fetch(`${BASE_URL}/tracks/get-all`, {
+  const res = await authFetch(`${BASE_URL}/tracks/get-all`, {
     method: 'GET',
-    credentials: 'include',
     headers: buildTrackHeaders(),
   });
-  if (!res.ok) throw new Error('Failed to fetch session');
-  const json = await res.json();
-  console.log(json);
-  return json.tracks;
+  if (!res.ok) throw new Error('Failed to fetch tracks');
+  const json: Array<{ track_id: number; track_info: TrackInfo }> = await res.json();
+  return json.map((t) => ({
+    trackId: t.track_id,
+    trackInfo: t.track_info,
+    regionSets: [],
+  }));
 }
 
 export async function apiGetTrackMeta(params: GetTrackParams): Promise<GetTrackResult> {
-  const res = await fetch(`${BASE_URL}/tracks/get-meta?track_id=${params.track_id}`, {
+  const res = await authFetch(`${BASE_URL}/tracks/get-meta?track_id=${params.track_id}`, {
     method: 'GET',
-    credentials: 'include',
     headers: buildTrackHeaders(),
   });
   if (!res.ok) throw new Error('Refresh token failed');
@@ -102,19 +90,18 @@ export async function apiGetTrackMeta(params: GetTrackParams): Promise<GetTrackR
 }
 
 export async function apiGetTrackInfo(params: GetTrackParams): Promise<GetTrackResult> {
-  const res = await fetch(`${BASE_URL}/tracks/get-track-info?track_id=${params.track_id}`, {
+  const res = await authFetch(`${BASE_URL}/tracks/get-track-info?track_id=${params.track_id}`, {
     method: 'GET',
-    credentials: 'include',
     headers: buildTrackHeaders(),
   });
   if (!res.ok) throw new Error('Refresh token failed');
-  return await res.json();
+  const t: { track_id: number; track_info: TrackInfo } = await res.json();
+  return { track: { trackId:t.track_id, trackInfo: t.track_info, regionSets: [] } };
 }
 
 export async function apiGetStoredTrack(params: GetTrackRawParams): Promise<GetTrackRawResult> {
-  const res = await fetch(`${BASE_URL}/tracks/get-stored-track?track_id=${params.track_id}`, {
+  const res = await authFetch(`${BASE_URL}/tracks/get-stored-track?track_id=${params.track_id}`, {
     method: 'GET',
-    credentials: 'include',
     headers: buildTrackHeaders(),
   });
 
@@ -136,7 +123,7 @@ export async function apiGetStoredTrack(params: GetTrackRawParams): Promise<GetT
   }
   console.log("🧪 Blob type:", blob.type);
   console.log("🧪 Blob size:", blob.size);
-  return { blob: audioBlob, track_id: params.track_id };
+  return { blob: audioBlob, track_id: params.track_id as number };
 }
 
 export async function apiAddTrack(params: CreateTrackParams): Promise<CreateTrackResult> {
@@ -158,9 +145,8 @@ export async function apiAddTrack(params: CreateTrackParams): Promise<CreateTrac
     formData.append("samples", blob, "samples.raw");
   }
 
-  const res = await fetch(`${BASE_URL}/tracks/add-track-multi`, {
+  const res = await authFetch(`${BASE_URL}/tracks/add-track-multi`, {
     method: "POST",
-    credentials: "include",
     headers: buildTrackHeaders(),
     body: formData,
   });
@@ -169,9 +155,8 @@ export async function apiAddTrack(params: CreateTrackParams): Promise<CreateTrac
 }
 
 export async function apiRemoveTrack(params: RemoveTrackParams): Promise<RemoveTrackResult> {
-  const res = await fetch(`${BASE_URL}/tracks/remove?track_id=${params.trackId}`, {
+  const res = await authFetch(`${BASE_URL}/tracks/remove?track_id=${params.trackId}`, {
     method: 'DELETE',
-    credentials: 'include',
     headers: buildTrackHeaders(),
   });
   if (!res.ok) throw new Error('Refresh token failed');
@@ -180,9 +165,8 @@ export async function apiRemoveTrack(params: RemoveTrackParams): Promise<RemoveT
 
 export async function apiUpdateTrack(params: UpdateTrackParams): Promise<UpdateTrackResult> {
   console.log("a");
-  const res = await fetch(`${BASE_URL}/tracks/update-track-info`, {
+  const res = await authFetch(`${BASE_URL}/tracks/update-track-info`, {
     method: 'POST',
-    credentials: 'include',
     headers: buildTrackHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(params),
   });
@@ -192,9 +176,8 @@ export async function apiUpdateTrack(params: UpdateTrackParams): Promise<UpdateT
 }
 
 export async function apiCopyTrack(params: CopyTrackParams): Promise<CopyTrackResult> {
-  const res = await fetch(`${BASE_URL}/tracks/copy-track`, {
+  const res = await authFetch(`${BASE_URL}/tracks/copy-track`, {
     method: 'POST',
-    credentials: 'include',
     headers: buildTrackHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(params),
   });

@@ -31,7 +31,7 @@ impl MeProviderService {
 
 #[async_trait]
 impl MeProvider for MeProviderService {
-    async fn get_bootstrap_data(&self, user_id: i64) -> Result<MeBootstrapResult, String> {
+    async fn get_bootstrap_data(&self, user_id: i32) -> Result<MeBootstrapResult, String> {
         let user = self
             .users_provider
             .get_user(user_id)

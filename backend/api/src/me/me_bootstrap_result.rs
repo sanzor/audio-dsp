@@ -5,7 +5,7 @@ use crate::me::me_project_result::MeProjectResult;
 
 #[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
 pub struct MeUserResult {
-    pub id: i64,
+    pub id: i32,
     pub name: String,
     pub email: String,
     pub is_admin: bool,

@@ -8,6 +8,7 @@ import { GlobalContextMenu } from "./context-menus/GlobalContextMenu";
 import { GlobalModal } from "./modals/GlobalModal";
 import { useUIStore, type OpenedContext, type SelectedContext } from "@/Stores/UIStore";
 import { useTrackController } from "@/controllers/TrackController";
+import { useListTracks } from "@/hooks/tracks/queries";
 import { WaveformRegionContextMenuContainer } from "./context-menus/waveform-renderer/waveform-region-context-menu-container";
 import { WaveformTimelineContextMenuContainer } from "./context-menus/waveform-renderer/waveform-timeline-context-menu-container";
 import { ProjectsPanel } from "./projects/ProjectsPanel";
@@ -23,6 +24,7 @@ import {
 
 export function Dashboard() {
   const user = useAuthStore((state) => state.user);
+  useListTracks();
   const trackController = useTrackController();
   const { open, select, openContextMenu } = useUIStore();
   const sidebarTracks = useTrackViewModels();

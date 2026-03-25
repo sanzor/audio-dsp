@@ -1,4 +1,5 @@
 import type { TrackRegionSet } from "@/domain/RegionSet/TrackRegionSet";
+import { authFetch } from "@/Services/http";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -51,9 +52,8 @@ export interface RemoveRegionSetResult {}
 // ─── API ──────────────────────────────────────────────────────────────────────
 
 export async function apiGetRegionSet(regionSetId: string): Promise<TrackRegionSet> {
-  const res = await fetch(`${BASE_URL}/region-sets/get-region-set?region_set_id=${regionSetId}`, {
+  const res = await authFetch(`${BASE_URL}/region-sets/get-region-set?region_set_id=${regionSetId}`, {
     method: 'GET',
-    credentials: 'include',
   });
   if (!res.ok) throw new Error('Failed to fetch session');
   const json = await res.json();
@@ -62,9 +62,8 @@ export async function apiGetRegionSet(regionSetId: string): Promise<TrackRegionS
 }
 
 export async function apiGetRegionSetsForTrack(trackId: string): Promise<GetRegionSetsForTrackResult> {
-  const res = await fetch(`${BASE_URL}/region-sets/get-all-for-track?track_id=${trackId}`, {
+  const res = await authFetch(`${BASE_URL}/region-sets/get-all-for-track?track_id=${trackId}`, {
     method: 'GET',
-    credentials: 'include',
   });
   if (!res.ok) throw new Error('Failed to fetch session');
   const json = await res.json();
@@ -73,9 +72,8 @@ export async function apiGetRegionSetsForTrack(trackId: string): Promise<GetRegi
 }
 
 export async function apiGetAllRegionSets(): Promise<GetRegionSetsResult> {
-  const res = await fetch(`${BASE_URL}/region-sets/get-region-sets`, {
+  const res = await authFetch(`${BASE_URL}/region-sets/get-region-sets`, {
     method: 'GET',
-    credentials: 'include',
   });
   if (!res.ok) throw new Error('Failed to fetch session');
   const json = await res.json();
@@ -85,9 +83,8 @@ export async function apiGetAllRegionSets(): Promise<GetRegionSetsResult> {
 
 export async function apiCreateRegionSet(params: CreateRegionSetParams): Promise<CreateRegionSetResult> {
   console.log("a");
-  const res = await fetch(`${BASE_URL}/regions/create`, {
+  const res = await authFetch(`${BASE_URL}/region-sets/create`, {
     method: 'POST',
-    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params),
   });
@@ -98,9 +95,8 @@ export async function apiCreateRegionSet(params: CreateRegionSetParams): Promise
 
 export async function apiUpdateRegionSet(params: EditRegionSetParams): Promise<EditRegionSetResult> {
   console.log("a");
-  const res = await fetch(`${BASE_URL}/region-sets/edit`, {
+  const res = await authFetch(`${BASE_URL}/region-sets/edit`, {
     method: 'PATCH',
-    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params),
   });
@@ -110,18 +106,16 @@ export async function apiUpdateRegionSet(params: EditRegionSetParams): Promise<E
 }
 
 export async function apiRemoveRegionSet(params: RemoveRegionSetParams): Promise<void> {
-  const res = await fetch(`${BASE_URL}/region-sets/remove?region_set_id=${params.regionSetId}`, {
+  const res = await authFetch(`${BASE_URL}/region-sets/remove?region_set_id=${params.regionSetId}`, {
     method: 'DELETE',
-    credentials: 'include',
   });
   if (!res.ok) throw new Error('Refresh token failed');
 }
 
 export async function apiCopyRegionSet(params: CopyRegionSetParams): Promise<CreateRegionSetResult> {
   console.log("a");
-  const res = await fetch(`${BASE_URL}/region-sets/create`, {
+  const res = await authFetch(`${BASE_URL}/region-sets/create`, {
     method: 'POST',
-    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params),
   });

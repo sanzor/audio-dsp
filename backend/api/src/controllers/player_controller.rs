@@ -3,6 +3,7 @@ use actix_web::{
     web::{self},
     HttpResponse,
 };
+use domain::db::TrackId;
 use serde::Deserialize;
 use utoipa::{IntoParams, ToSchema};
 
@@ -16,7 +17,7 @@ use crate::{
 
 #[derive(Debug, Deserialize, IntoParams)]
 pub struct GetPlayerStateQuery {
-    pub track_id: String,
+    pub track_id: TrackId,
 }
 
 #[utoipa::path(
@@ -37,7 +38,7 @@ pub async fn get_player_state(
         return HttpResponse::Forbidden().body("Forbidden");
     }
     let q = query.into_inner();
-    match app_state.player_service.get_state(jwt.user_id, &q.track_id).await {
+    match app_state.player_service.get_state(jwt.user_id, q.track_id).await {
         Ok(state) => HttpResponse::Ok().json(state),
         Err(e) => HttpResponse::NotFound().body(e),
     }
@@ -45,7 +46,7 @@ pub async fn get_player_state(
 
 #[derive(Deserialize, ToSchema)]
 pub struct PlayRequest {
-    pub track_id: String,
+    pub track_id: TrackId,
 }
 
 #[utoipa::path(
@@ -66,7 +67,7 @@ pub async fn play(
         return HttpResponse::Forbidden().body("Forbidden");
     }
     let req = body.into_inner();
-    match app_state.player_service.play(jwt.user_id, &req.track_id).await {
+    match app_state.player_service.play(jwt.user_id, req.track_id).await {
         Ok(_) => HttpResponse::Ok().finish(),
         Err(e) => HttpResponse::NotFound().body(e),
     }
@@ -74,7 +75,7 @@ pub async fn play(
 
 #[derive(Deserialize, ToSchema)]
 pub struct PauseRequest {
-    pub track_id: String,
+    pub track_id: TrackId,
 }
 
 #[utoipa::path(
@@ -95,7 +96,7 @@ pub async fn pause(
         return HttpResponse::Forbidden().body("Forbidden");
     }
     let req = body.into_inner();
-    match app_state.player_service.pause(jwt.user_id, &req.track_id).await {
+    match app_state.player_service.pause(jwt.user_id, req.track_id).await {
         Ok(_) => HttpResponse::Ok().finish(),
         Err(e) => HttpResponse::NotFound().body(e),
     }
@@ -103,7 +104,7 @@ pub async fn pause(
 
 #[derive(Deserialize, ToSchema)]
 pub struct SeekRequest {
-    pub track_id: String,
+    pub track_id: TrackId,
     pub position: u32,
 }
 
@@ -125,7 +126,7 @@ pub async fn seek(
         return HttpResponse::Forbidden().body("Forbidden");
     }
     let req = body.into_inner();
-    match app_state.player_service.seek(jwt.user_id, &req.track_id, req.position).await {
+    match app_state.player_service.seek(jwt.user_id, req.track_id, req.position).await {
         Ok(_) => HttpResponse::Ok().finish(),
         Err(e) => HttpResponse::NotFound().body(e),
     }
@@ -133,7 +134,7 @@ pub async fn seek(
 
 #[derive(Deserialize, ToSchema)]
 pub struct StopRequest {
-    pub track_id: String,
+    pub track_id: TrackId,
 }
 
 #[utoipa::path(
@@ -154,7 +155,7 @@ pub async fn stop(
         return HttpResponse::Forbidden().body("Forbidden");
     }
     let req = body.into_inner();
-    match app_state.player_service.stop(jwt.user_id, &req.track_id).await {
+    match app_state.player_service.stop(jwt.user_id, req.track_id).await {
         Ok(_) => HttpResponse::Ok().finish(),
         Err(e) => HttpResponse::NotFound().body(e),
     }

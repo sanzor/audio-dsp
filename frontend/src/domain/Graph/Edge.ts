@@ -1,7 +1,7 @@
-export interface Edge{  
-    id:string,
-    graphId:string,
-    fromNodeId:string,
-    toNodeId:string,
+export interface Edge{
+    id:number,
+    graphId:number,
+    fromNodeId:number,
+    toNodeId:number,
     to:string
 }

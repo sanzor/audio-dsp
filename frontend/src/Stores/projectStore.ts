@@ -4,7 +4,7 @@ import { persist } from "zustand/middleware";
 export type ProjectRole = "owner" | "editor" | "viewer";
 
 export interface ActiveProject {
-  project_id: string;
+  project_id: number;
   name: string;
   role: ProjectRole;
 }

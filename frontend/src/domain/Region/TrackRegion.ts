@@ -1,8 +1,8 @@
 import type { Graph } from "../Graph/Graph";
 
 export interface TrackRegion{
-    regionId:string,
-    regionSetId:string,
+    regionId:number,
+    regionSetId:number,
     name:string,
     start:number,
     end:number,

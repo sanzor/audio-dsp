@@ -7,7 +7,7 @@ use crate::subscriptions::create_subscription_params::CreateSubscriptionParams;
 pub trait SubscriptionsProvider: Send + Sync {
     async fn create_subscription(&self, params: CreateSubscriptionParams) -> Result<DbSubscription, ServiceError>;
     async fn get_subscription(&self, id: SubscriptionId) -> Result<Option<DbSubscription>, ServiceError>;
-    async fn get_active_subscription_for_user(&self, user_id: i64) -> Result<Option<DbSubscription>, ServiceError>;
+    async fn get_active_subscription_for_user(&self, user_id: i32) -> Result<Option<DbSubscription>, ServiceError>;
     async fn deactivate_subscription(&self, id: SubscriptionId) -> Result<bool, ServiceError>;
-    async fn list_by_user(&self, user_id: i64) -> Result<Vec<DbSubscription>, ServiceError>;
+    async fn list_by_user(&self, user_id: i32) -> Result<Vec<DbSubscription>, ServiceError>;
 }

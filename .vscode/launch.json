@@ -10,6 +10,7 @@
       "presentation": { "group": "1_Rust", "order": 1 },
       "program": "${workspaceFolder}/backend/target/debug/api",
       "cwd": "${workspaceFolder}/backend/api",
+      "terminal": "integrated",
       "preLaunchTask": "Backend: cargo build api",
       "sourceLanguages": ["rust"],
       "env": {
@@ -22,6 +23,14 @@
         "settings set target.source-map . ${workspaceFolder}",
         "settings set target.process.thread.step-avoid-regexp \\.(cargo|rustup)/"
       ]
+    },
+    {
+      "name": "Backend: Cargo Run (terminal)",
+      "type": "node-terminal",
+      "request": "launch",
+      "presentation": { "group": "1_Rust", "order": 2 },
+      "command": "cd ${workspaceFolder}/backend && cargo run -p api",
+      "preLaunchTask": "Database: up-db"
     },
 
     // --- FRONTEND ---
@@ -62,9 +71,15 @@
   ],
   "compounds": [
     {
-      "name": "🚀 Backend + Frontend",
+      "name": "🚀 Backend + Frontend (debug)",
       "configurations": ["Rust: Debug API", "Frontend: Vite Dev Server"],
       "presentation": { "group": "0_All", "order": 1 },
+      "stopAll": true
+    },
+    {
+      "name": "🚀 Backend + Frontend (terminals)",
+      "configurations": ["Backend: Cargo Run (terminal)", "Frontend: Vite Dev Server"],
+      "presentation": { "group": "0_All", "order": 2 },
       "stopAll": true
     }
   ]

@@ -16,6 +16,7 @@ use domain::{
         seek::Seek,
         stop::Stop,
     },
+    db::TrackId,
     track_meta::TrackMeta,
 };
 use player::sink::AudioSink;
@@ -34,14 +35,14 @@ impl PlayerService {
         Self { registry, tracks_provider }
     }
 
-    fn player_key(user_id: i64, track_id: &str) -> String {
+    fn player_key(user_id: i32, track_id: TrackId) -> String {
         format!("{user_id}:{track_id}")
     }
 }
 
 #[async_trait::async_trait]
 impl PlayerProvider for PlayerService {
-    async fn play(&self, user_id: i64, track_id: &str) -> Result<(), String> {
+    async fn play(&self, user_id: i32, track_id: TrackId) -> Result<(), String> {
         let player = self
             .registry
             .get(&Self::player_key(user_id, track_id))
@@ -51,7 +52,7 @@ impl PlayerProvider for PlayerService {
         Ok(())
     }
 
-    async fn pause(&self, user_id: i64, track_id: &str) -> Result<(), String> {
+    async fn pause(&self, user_id: i32, track_id: TrackId) -> Result<(), String> {
         let player = self
             .registry
             .get(&Self::player_key(user_id, track_id))
@@ -61,7 +62,7 @@ impl PlayerProvider for PlayerService {
         Ok(())
     }
 
-    async fn seek(&self, user_id: i64, track_id: &str, position: u32) -> Result<(), String> {
+    async fn seek(&self, user_id: i32, track_id: TrackId, position: u32) -> Result<(), String> {
         let player = self
             .registry
             .get(&Self::player_key(user_id, track_id))
@@ -71,7 +72,7 @@ impl PlayerProvider for PlayerService {
         Ok(())
     }
 
-    async fn stop(&self, user_id: i64, track_id: &str) -> Result<(), String> {
+    async fn stop(&self, user_id: i32, track_id: TrackId) -> Result<(), String> {
         let key = Self::player_key(user_id, track_id);
         let player = self.registry.get(&key).await.ok_or("Player not found")?;
         player.tell(Stop {}).await.map_err(|e| e.to_string())?;
@@ -80,7 +81,7 @@ impl PlayerProvider for PlayerService {
     }
 
     async fn attach_sink(&self, params: AttachSinkParams) -> Result<AttachSinkResult, String> {
-        let key = Self::player_key(params.user_id, &params.track_id);
+        let key = Self::player_key(params.user_id, params.track_id);
 
         if let Some(player) = self.registry.get(&key).await {
             let result = player
@@ -121,7 +122,7 @@ impl PlayerProvider for PlayerService {
         })
     }
 
-    async fn remove_sink(&self, user_id: i64, track_id: &str, sink_id: &str) -> Result<(), String> {
+    async fn remove_sink(&self, user_id: i32, track_id: TrackId, sink_id: &str) -> Result<(), String> {
         let player = self
             .registry
             .get(&Self::player_key(user_id, track_id))
@@ -134,7 +135,7 @@ impl PlayerProvider for PlayerService {
         Ok(())
     }
 
-    async fn get_state(&self, user_id: i64, track_id: &str) -> Result<GetPlayerStateResult, String> {
+    async fn get_state(&self, user_id: i32, track_id: TrackId) -> Result<GetPlayerStateResult, String> {
         let player = self
             .registry
             .get(&Self::player_key(user_id, track_id))

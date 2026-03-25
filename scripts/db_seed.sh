@@ -66,6 +66,15 @@ for spec in "${optional_seeds[@]}"; do
   apply_seed "${file_name}" "${table_name}" optional
 done
 
+if table_exists "tracks"; then
+  echo "Applying generated track seeds..."
+  python3 "${ROOT_DIR}/scripts/db_seed_tracks.py"
+  applied+=("generated tracks")
+else
+  echo "Skipping generated track seeds: table 'tracks' is not present in the current schema."
+  skipped+=("generated tracks (missing table tracks)")
+fi
+
 if ((${#applied[@]} == 0)); then
   echo "No seed files were applied."
 else

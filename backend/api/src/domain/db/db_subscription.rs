@@ -3,12 +3,12 @@ use sqlx::FromRow;
 use utoipa::ToSchema;
 use crate::domain::tier::Tier;
 
-pub type SubscriptionId = i64;
+pub type SubscriptionId = i32;
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, FromRow)]
 pub struct DbSubscription {
     pub id: SubscriptionId,
-    pub user_id: i64,
+    pub user_id: i32,
     pub tier: Tier,
     pub is_active: bool,
     pub started_at: String,

@@ -300,9 +300,9 @@ pub async fn get_meta(
 )]
 #[get("/get-all")]
 pub async fn get_tracks(role: RoleContext, app_state: web::Data<TracksAppData>) -> HttpResponse {
-    if !role.can_view() {
-        return HttpResponse::Forbidden().body("Forbidden");
-    }
+    // if !role.can_view() {
+    //     return HttpResponse::Forbidden().body("Forbidden");
+    // }
     match app_state.tracks_service.get_all_track_metas().await {
         Ok(metas) => HttpResponse::Ok().json(metas),
         Err(_e) => HttpResponse::InternalServerError().body("Could not get tracks"),
