@@ -1,3 +1,6 @@
 {
-  "upload_limit_mb": 250
+  "upload_limit_mb": 250,
+  "database": {
+    "url": "postgres://postgres:postgres@localhost:5433/audio_dsp"
+  }
 }

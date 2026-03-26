@@ -5,9 +5,15 @@ fn default_upload_limit_mb() -> usize {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+pub struct DatabaseConfig {
+    pub url: String,
+}
+
+#[derive(Debug, Deserialize, Clone)]
 pub struct AppConfig {
     #[serde(default = "default_upload_limit_mb")]
     pub upload_limit_mb: usize,
+    pub database: DatabaseConfig,
 }
 
 impl AppConfig {

@@ -1,11 +1,9 @@
 use actix_web::{
-    Error, HttpMessage, dev::{Service, ServiceRequest, ServiceResponse}
+    Error, HttpMessage,
+    body::EitherBody,
+    dev::{Service, ServiceRequest, ServiceResponse},
 };
-use std::{
-    future::Future,
-    pin::Pin,
-    rc::Rc,
-};
+use std::{future::Future, pin::Pin, rc::Rc};
 
 use crate::token::token_utils::verify_token;
 
@@ -21,7 +19,7 @@ where
     S::Future: 'static,
     B: 'static,
 {
-    type Response = ServiceResponse<B>;
+    type Response = ServiceResponse<EitherBody<B>>;
     type Error = Error;
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>>>>;
 
@@ -32,7 +30,7 @@ where
 
         Box::pin(async move {
             if req.method() == actix_web::http::Method::OPTIONS {
-                return srv.call(req).await;
+                return srv.call(req).await.map(|r| r.map_into_left_body());
             }
 
             let token = req
@@ -44,10 +42,16 @@ where
                 .or_else(|| req.cookie("auth_token").map(|c| c.value().to_owned()));
 
             let claims = match token {
-                None => return Err(actix_web::error::ErrorUnauthorized("Missing auth token")),
+                None => {
+                    let res = req.into_response(actix_web::HttpResponse::Unauthorized().body("Missing auth token"));
+                    return Ok(res.map_into_right_body());
+                }
                 Some(t) => match verify_token(&t) {
                     Ok(c) => c,
-                    Err(_) => return Err(actix_web::error::ErrorUnauthorized("Invalid token")),
+                    Err(_) => {
+                        let res = req.into_response(actix_web::HttpResponse::Unauthorized().body("Invalid token"));
+                        return Ok(res.map_into_right_body());
+                    }
                 },
             };
 
@@ -57,7 +61,7 @@ where
             };
 
             req.extensions_mut().insert(ctx);
-            srv.call(req).await
+            srv.call(req).await.map(|r| r.map_into_left_body())
         })
     }
 }

@@ -1,5 +1,7 @@
 use actix_web::{
-    Error, HttpMessage, dev::{Service, ServiceRequest, ServiceResponse}
+    Error, HttpMessage,
+    body::EitherBody,
+    dev::{Service, ServiceRequest, ServiceResponse},
 };
 use std::{future::Future, pin::Pin, rc::Rc, sync::Arc};
 
@@ -28,7 +30,7 @@ where
     S::Future: 'static,
     B: 'static,
 {
-    type Response = ServiceResponse<B>;
+    type Response = ServiceResponse<EitherBody<B>>;
     type Error = Error;
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>>>>;
 
@@ -41,24 +43,34 @@ where
 
         Box::pin(async move {
             if req.method() == actix_web::http::Method::OPTIONS {
-                return srv.call(req).await;
+                return srv.call(req).await.map(|r| r.map_into_left_body());
             }
 
             let jwt_ctx = req.extensions().get::<JwtContext>().cloned();
             let jwt_ctx = match jwt_ctx {
                 Some(ctx) => ctx,
-                None => return Err(actix_web::error::ErrorUnauthorized("Unauthorized")),
+                None => {
+                    let res = req.into_response(actix_web::HttpResponse::Unauthorized().body("Unauthorized"));
+                    return Ok(res.map_into_right_body());
+                }
             };
 
             // is_active check
-            let user = user_provider
-                .get_user(jwt_ctx.user_id)
-                .await
-                .map_err(actix_web::error::ErrorInternalServerError)?;
+            let user = match user_provider.get_user(jwt_ctx.user_id).await {
+                Ok(u) => u,
+                Err(e) => {
+                    let res = req.into_response(actix_web::HttpResponse::InternalServerError().body(e.to_string()));
+                    return Ok(res.map_into_right_body());
+                }
+            };
             match user {
-                None => return Err(actix_web::error::ErrorUnauthorized("User not found")),
+                None => {
+                    let res = req.into_response(actix_web::HttpResponse::Unauthorized().body("User not found"));
+                    return Ok(res.map_into_right_body());
+                }
                 Some(u) if !u.is_active => {
-                    return Err(actix_web::error::ErrorForbidden("Account inactive"))
+                    let res = req.into_response(actix_web::HttpResponse::Forbidden().body("Account inactive"));
+                    return Ok(res.map_into_right_body());
                 }
                 _ => {}
             }
@@ -73,14 +85,20 @@ where
                     .and_then(|s| s.parse::<i64>().ok());
 
                 match project_id {
-                    None => return Err(actix_web::error::ErrorBadRequest("Missing X-Project-ID header")),
+                    None => {
+                        let res = req.into_response(actix_web::HttpResponse::BadRequest().body("Missing X-Project-ID header"));
+                        return Ok(res.map_into_right_body());
+                    }
                     Some(pid) => {
                         let role = memberships
                             .get_role(pid, jwt_ctx.user_id)
                             .await
                             .unwrap_or(None);
                         match role {
-                            None => return Err(actix_web::error::ErrorForbidden("Access denied to this project")),
+                            None => {
+                                let res = req.into_response(actix_web::HttpResponse::Forbidden().body("Access denied to this project"));
+                                return Ok(res.map_into_right_body());
+                            }
                             Some(r) => RoleContext(r),
                         }
                     }
@@ -88,7 +106,7 @@ where
             };
 
             req.extensions_mut().insert(role_ctx);
-            srv.call(req).await
+            srv.call(req).await.map(|r| r.map_into_left_body())
         })
     }
 }

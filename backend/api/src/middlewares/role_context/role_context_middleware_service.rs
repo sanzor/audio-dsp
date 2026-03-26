@@ -1,5 +1,7 @@
 use actix_web::{
-    Error, HttpMessage, dev::{Service, ServiceRequest, ServiceResponse}
+    Error, HttpMessage,
+    body::EitherBody,
+    dev::{Service, ServiceRequest, ServiceResponse},
 };
 use std::{future::Future, pin::Pin, rc::Rc, sync::Arc};
 
@@ -27,7 +29,7 @@ where
     S::Future: 'static,
     B: 'static,
 {
-    type Response = ServiceResponse<B>;
+    type Response = ServiceResponse<EitherBody<B>>;
     type Error = Error;
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>>>>;
 
@@ -39,12 +41,18 @@ where
 
         Box::pin(async move {
             if req.method() == actix_web::http::Method::OPTIONS {
-                return srv.call(req).await;
+                return srv.call(req).await.map(|r| r.map_into_left_body());
             }
 
             // 1. Identity from JWT (deposited by JwtAuthMiddleware)
-            let jwt_ctx = req.extensions().get::<JwtContext>().cloned()
-                .ok_or_else(|| actix_web::error::ErrorUnauthorized("Unauthorized"))?;
+            let jwt_ctx = req.extensions().get::<JwtContext>().cloned();
+            let jwt_ctx = match jwt_ctx {
+                Some(ctx) => ctx,
+                None => {
+                    let res = req.into_response(actix_web::HttpResponse::Unauthorized().body("Unauthorized"));
+                    return Ok(res.map_into_right_body());
+                }
+            };
 
             // 2. Project context from header
             let project_id: Option<i32> = req
@@ -60,7 +68,8 @@ where
                 match project_id {
                     None => {
                         warn!(path = %req.path(), "request rejected: missing X-Project-ID header");
-                        return Err(actix_web::error::ErrorBadRequest("Missing X-Project-ID header"));
+                        let res = req.into_response(actix_web::HttpResponse::BadRequest().body("Missing X-Project-ID header"));
+                        return Ok(res.map_into_right_body());
                     }
                     Some(pid) => {
                         let role = memberships
@@ -70,7 +79,8 @@ where
                         match role {
                             None => {
                                 warn!(path = %req.path(), project_id = pid, user_id = jwt_ctx.user_id, "request rejected: access denied to project");
-                                return Err(actix_web::error::ErrorForbidden("Access denied to this project"));
+                                let res = req.into_response(actix_web::HttpResponse::Forbidden().body("Access denied to this project"));
+                                return Ok(res.map_into_right_body());
                             }
                             Some(r) => RoleContext(r),
                         }
@@ -80,7 +90,7 @@ where
 
             // 4. Attach to request
             req.extensions_mut().insert(role_ctx);
-            srv.call(req).await
+            srv.call(req).await.map(|r| r.map_into_left_body())
         })
     }
 }

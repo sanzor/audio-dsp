@@ -1,4 +1,4 @@
-use actix_web::dev::{Service, ServiceRequest, ServiceResponse, Transform};
+use actix_web::{body::EitherBody, dev::{Service, ServiceRequest, ServiceResponse, Transform}};
 use std::future::{ready, Ready};
 
 use super::jwt_middleware_service::JwtAuthMiddlewareService;
@@ -12,7 +12,7 @@ where
     S::Future: 'static,
     B: 'static,
 {
-    type Response = ServiceResponse<B>;
+    type Response = ServiceResponse<EitherBody<B>>;
     type Error = actix_web::Error;
     type Transform = JwtAuthMiddlewareService<S>;
     type InitError = ();

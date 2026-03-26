@@ -213,12 +213,10 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
         .ok()
         .and_then(|v| v.parse().ok())
         .unwrap_or(3080);
-    let database_url = std::env::var("DATABASE_URL")
-        .unwrap_or_else(|_| "postgres://postgres:postgres@localhost:5432/audio_dsp".to_string());
     let pool = sqlx::postgres::PgPoolOptions::new()
         .max_connections(20)
         .acquire_timeout(std::time::Duration::from_secs(5))
-        .connect(&database_url)
+        .connect(&app_config.database.url)
         .await
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
 
@@ -264,6 +262,7 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
         auth_provider,
         jwt_provider: Arc::clone(&jwt_provider) as Arc<dyn api::auth::jwt_provider::JwtProvider>,
     };
+
     let me_app_data = MeAppData {
         me_data_provider: Arc::new(MeProviderService::new(
             Arc::clone(&user_provider),
@@ -271,6 +270,7 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
             Arc::clone(&projects_service),
         )),
     };
+    
     let app_data = AppData {
         projects_service: Arc::clone(&projects_service),
         memberships_service: Arc::clone(&memberships_service),
@@ -355,16 +355,13 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
         let cors = actix_cors::Cors::default()
             .allowed_origin_fn(|origin, _| {
                 let o = origin.as_bytes();
-                o.starts_with(b"http://localhost:") || o.starts_with(b"http://127.0.0.1:")
+                o.starts_with(b"http://localhost:")
+                    || o.starts_with(b"http://127.0.0.1:")
+                    || o.starts_with(b"http://0.0.0.0:")
+                    || o.starts_with(b"https://localhost:")
             })
             .allowed_methods(vec!["GET", "POST", "PUT", "DELETE", "OPTIONS"])
-            .allowed_headers(vec![
-                header::ORIGIN,
-                header::AUTHORIZATION,
-                header::ACCEPT,
-                header::CONTENT_TYPE,
-                actix_web::http::header::HeaderName::from_static("x-project-id"),
-            ])
+            .allow_any_header()
             .supports_credentials()
             .max_age(3600);
 
