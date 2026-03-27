@@ -29,7 +29,7 @@ impl RegionSetsDataProvider for PostgresRegionSetsDataProvider {
     async fn get_track(&self, track_id: &TrackId) -> Result<DbTrack, String> {
         sqlx::query_as::<_, DbTrack>(
             r#"
-            SELECT track_id, name, extension, length_seconds, canonical_audio, created_at
+            SELECT track_id, name, extension, length_seconds, created_at
             FROM tracks
             WHERE track_id = $1
             "#,
