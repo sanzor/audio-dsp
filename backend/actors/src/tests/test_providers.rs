@@ -1,11 +1,13 @@
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    sync::atomic::{AtomicI32, Ordering},
+};
 
-use audiolib::utils::encode_audio_buffer_as_wav;
 use domain::{
     db::{
         db_region::{DbRegion, RegionId},
         db_region_set::{DbRegionSet, RegionSetId},
-        db_track::{DbTrack, TrackId},
+        db_track::{DbTrack, TrackId as DbTrackId},
     },
     raw_track::RawTrack,
     region_set::{
@@ -20,20 +22,21 @@ use domain::{
     update_track_info_params::UpdateTrackInfoParams,
 };
 use tokio::sync::Mutex;
-use ulid::Ulid;
 
 use crate::{
     region_sets::region_sets_provider::RegionSetsProvider,
-    tracks::tracks_provider::TracksProvider,
+    tracks::tracks_provider::{TrackId as ProviderTrackId, TracksProvider},
 };
 
 pub struct StubTracksProvider {
-    tracks: Mutex<HashMap<TrackId, DbTrack>>,
+    next_track_id: AtomicI32,
+    tracks: Mutex<HashMap<DbTrackId, DbTrack>>,
 }
 
 impl StubTracksProvider {
     pub fn new() -> Self {
         Self {
+            next_track_id: AtomicI32::new(1),
             tracks: Mutex::new(HashMap::new()),
         }
     }
@@ -41,10 +44,13 @@ impl StubTracksProvider {
 
 #[async_trait::async_trait]
 impl TracksProvider for StubTracksProvider {
-    async fn get_track(&self, track_id: &TrackId) -> Result<DbTrack, String> {
+    async fn get_track(&self, track_id: &ProviderTrackId) -> Result<DbTrack, String> {
+        let track_id = track_id
+            .parse::<DbTrackId>()
+            .map_err(|_| format!("Invalid track id: {track_id}"))?;
         let guard = self.tracks.lock().await;
         guard
-            .get(track_id)
+            .get(&track_id)
             .cloned()
             .ok_or_else(|| "Could not find track".to_string())
     }
@@ -54,23 +60,23 @@ impl TracksProvider for StubTracksProvider {
         Ok(guard.values().cloned().collect())
     }
 
-    async fn delete_track(&self, track_id: &TrackId) -> Result<(), String> {
+    async fn delete_track(&self, track_id: &ProviderTrackId) -> Result<(), String> {
+        let track_id = track_id
+            .parse::<DbTrackId>()
+            .map_err(|_| format!("Invalid track id: {track_id}"))?;
         let mut guard = self.tracks.lock().await;
-        guard.remove(track_id);
+        guard.remove(&track_id);
         Ok(())
     }
 
     async fn upsert_track(&self, track: RawTrack) -> Result<DbTrack, String> {
-        let track_id = Ulid::new().to_string();
-        let canonical_audio = encode_audio_buffer_as_wav(&track.data)
-            .map_err(|_| "Could not encode track as wav".to_string())?;
+        let track_id = self.next_track_id.fetch_add(1, Ordering::Relaxed);
 
         let db_track = DbTrack {
-            track_id: track_id.clone(),
+            track_id,
             name: track.info.name,
             extension: track.info.extension,
             length_seconds: track.info.length,
-            canonical_audio,
             created_at: chrono::Utc::now(),
         };
 
@@ -79,16 +85,15 @@ impl TracksProvider for StubTracksProvider {
         Ok(db_track)
     }
 
-    async fn copy_track(&self, source_track_id: &TrackId, new_name: &str) -> Result<DbTrack, String> {
+    async fn copy_track(&self, source_track_id: &ProviderTrackId, new_name: &str) -> Result<DbTrack, String> {
         let original = self.get_track(source_track_id).await?;
-        let new_track_id = Ulid::new().to_string();
+        let new_track_id = self.next_track_id.fetch_add(1, Ordering::Relaxed);
 
         let copy = DbTrack {
-            track_id: new_track_id.clone(),
+            track_id: new_track_id,
             name: new_name.to_string(),
             extension: original.extension,
             length_seconds: original.length_seconds,
-            canonical_audio: original.canonical_audio,
             created_at: chrono::Utc::now(),
         };
 
@@ -99,12 +104,15 @@ impl TracksProvider for StubTracksProvider {
 
     async fn update_track_info(
         &self,
-        track_id: &TrackId,
+        track_id: &ProviderTrackId,
         updated_track_info: UpdateTrackInfoParams,
     ) -> Result<DbTrack, String> {
+        let track_id = track_id
+            .parse::<DbTrackId>()
+            .map_err(|_| format!("Invalid track id: {track_id}"))?;
         let mut guard = self.tracks.lock().await;
         let track = guard
-            .get_mut(track_id)
+            .get_mut(&track_id)
             .ok_or_else(|| "Could not find track".to_string())?;
         track.name = updated_track_info.track_name;
         Ok(track.clone())
@@ -112,6 +120,8 @@ impl TracksProvider for StubTracksProvider {
 }
 
 pub struct StubRegionSetsProvider {
+    next_region_set_id: AtomicI32,
+    next_region_id: AtomicI32,
     sets: Mutex<HashMap<RegionSetId, DbRegionSet>>,
     regions: Mutex<HashMap<RegionSetId, Vec<DbRegion>>>,
 }
@@ -119,6 +129,8 @@ pub struct StubRegionSetsProvider {
 impl StubRegionSetsProvider {
     pub fn new() -> Self {
         Self {
+            next_region_set_id: AtomicI32::new(1),
+            next_region_id: AtomicI32::new(1),
             sets: Mutex::new(HashMap::new()),
             regions: Mutex::new(HashMap::new()),
         }
@@ -128,16 +140,16 @@ impl StubRegionSetsProvider {
 #[async_trait::async_trait]
 impl RegionSetsProvider for StubRegionSetsProvider {
     async fn create_region_set(&self, params: CreateRegionSetParams) -> Result<DbRegionSet, String> {
-        let id = Ulid::new().to_string();
+        let id = self.next_region_set_id.fetch_add(1, Ordering::Relaxed);
         let set = DbRegionSet {
-            region_set_id: id.clone(),
+            region_set_id: id,
             track_id: params.track_id,
             name: params.name.unwrap_or_else(|| "set".into()),
             track_length_seconds: params.track_length,
             created_at: chrono::Utc::now(),
         };
         let mut guard = self.sets.lock().await;
-        guard.insert(id.clone(), set.clone());
+        guard.insert(id, set.clone());
         Ok(set)
     }
 
@@ -149,7 +161,7 @@ impl RegionSetsProvider for StubRegionSetsProvider {
             .ok_or_else(|| "Could not find region set".to_string())
     }
 
-    async fn get_region_sets_for_track(&self, track_id: &TrackId) -> Result<Vec<DbRegionSet>, String> {
+    async fn get_region_sets_for_track(&self, track_id: &DbTrackId) -> Result<Vec<DbRegionSet>, String> {
         let guard = self.sets.lock().await;
         Ok(guard
             .values()
@@ -182,9 +194,9 @@ impl RegionSetsProvider for StubRegionSetsProvider {
 
     async fn copy_region_set(&self, params: CopyRegionSetParams) -> Result<DbRegionSet, String> {
         let source = self.get_region_set(&params.region_set_id).await?;
-        let id = Ulid::new().to_string();
+        let id = self.next_region_set_id.fetch_add(1, Ordering::Relaxed);
         let set = DbRegionSet {
-            region_set_id: id.clone(),
+            region_set_id: id,
             track_id: source.track_id,
             name: params.region_set_name,
             track_length_seconds: source.track_length_seconds,
@@ -201,7 +213,7 @@ impl RegionSetsProvider for StubRegionSetsProvider {
     }
 
     async fn add_region(&self, params: AddRegionParams) -> Result<DbRegion, String> {
-        let region_id = Ulid::new().to_string();
+        let region_id = self.next_region_id.fetch_add(1, Ordering::Relaxed);
         let region = DbRegion {
             region_id,
             region_set_id: params.region_set_id.clone(),
@@ -249,7 +261,7 @@ impl RegionSetsProvider for StubRegionSetsProvider {
 
     async fn copy_region(&self, params: CopyRegionParams) -> Result<DbRegion, String> {
         let source = self.get_region(&params.source_region_id).await?;
-        let region_id = Ulid::new().to_string();
+        let region_id = self.next_region_id.fetch_add(1, Ordering::Relaxed);
         let region = DbRegion {
             region_id,
             region_set_id: params.destination_region_set_id.clone(),
@@ -276,4 +288,3 @@ impl RegionSetsProvider for StubRegionSetsProvider {
         Err("Could not find region".to_string())
     }
 }
-

@@ -9,8 +9,6 @@ import { GlobalModal } from "./modals/GlobalModal";
 import { useUIStore, type OpenedContext, type SelectedContext } from "@/Stores/UIStore";
 import { useTrackController } from "@/controllers/TrackController";
 import { useListTracks } from "@/hooks/tracks/queries";
-import { WaveformRegionContextMenuContainer } from "./context-menus/waveform-renderer/waveform-region-context-menu-container";
-import { WaveformTimelineContextMenuContainer } from "./context-menus/waveform-renderer/waveform-timeline-context-menu-container";
 import { ProjectsPanel } from "./projects/ProjectsPanel";
 import { SidebarPanel } from "./sidebar/SidebarPanel";
 import {
@@ -37,8 +35,6 @@ export function Dashboard() {
       {/* Overlays — outside the grid so they don't occupy grid slots */}
       <GlobalContextMenu />
       <GlobalModal />
-      <WaveformRegionContextMenuContainer />
-      <WaveformTimelineContextMenuContainer />
 
       <div className="daw-layout">
         {/* Top header (56px row) */}

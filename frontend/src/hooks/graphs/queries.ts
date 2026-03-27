@@ -6,7 +6,7 @@ import { apiGetGraph } from "@/Services/GraphService";
 import { QUERY_KEYS } from "@/constants/queryKeys";
 import type { Graph } from "@/domain/Graph/Graph";
 
-export const useGetGraph = (graphId: string) => {
+export const useGetGraph = (graphId: number) => {
   const cachedGraph = useGraphStore((state) => state.getGraph(graphId));
   const user = useAuthStore((state) => state.user);
 

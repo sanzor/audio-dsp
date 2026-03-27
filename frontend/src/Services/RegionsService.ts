@@ -1,7 +1,5 @@
 import type { TrackRegion } from "@/domain/Region/TrackRegion";
-import { authFetch } from "@/Services/http";
-
-const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+import { http } from "@/Services/http";
 
 // ─── Params & Results ────────────────────────────────────────────────────────
 
@@ -13,15 +11,15 @@ export interface CreateRegionParams {
   start_time: number;
   end_time: number | null;
   name: string;
-  region_set_id: string;
+  region_set_id: number;
 }
 export interface CreateRegionResult {
   region: TrackRegion;
 }
 
 export interface CopyRegionParams {
-  sourceRegionId: string;
-  destinationRegionSetId: string;
+  sourceRegionId: number;
+  destinationRegionSetId: number;
   copyName: string;
 }
 export interface CopyRegionResult {
@@ -29,7 +27,7 @@ export interface CopyRegionResult {
 }
 
 export interface EditRegionParams {
-  regionId: string;
+  regionId: number;
   name: string;
 }
 export interface EditRegionResult {
@@ -37,7 +35,7 @@ export interface EditRegionResult {
 }
 
 export interface RemoveRegionParams {
-  regionId: string;
+  regionId: number;
 }
 export interface RemoveRegionResult {
   result: string;
@@ -45,65 +43,26 @@ export interface RemoveRegionResult {
 
 // ─── API ──────────────────────────────────────────────────────────────────────
 
-export async function apiGetRegion(regionId: string): Promise<TrackRegion> {
-  const res = await authFetch(`${BASE_URL}/region-sets/get-region?region_set_id=${regionId}`, {
-    method: 'GET',
-  });
-  if (!res.ok) throw new Error('Failed to fetch region');
-  const json = await res.json();
-  console.log(json);
-  return json.tracks;
+export function apiGetRegion(regionId: number): Promise<TrackRegion> {
+  return http.get(`/region-sets/get-region?region_set_id=${regionId}`);
 }
 
-export async function apiGetRegionsForRegionSet(regionSetId: string): Promise<GetRegionsForRegionSetResult> {
-  const res = await authFetch(`${BASE_URL}/regions/get-regions?region-set-id=${regionSetId}`, {
-    method: 'GET',
-  });
-  if (!res.ok) throw new Error('Failed to fetch region');
-  const json = await res.json();
-  console.log(json);
-  return json.tracks;
+export function apiGetRegionsForRegionSet(regionSetId: number): Promise<GetRegionsForRegionSetResult> {
+  return http.get(`/regions/get-regions?region-set-id=${regionSetId}`);
 }
 
-export async function apiAddRegion(params: CreateRegionParams): Promise<CreateRegionResult> {
-  console.log("a");
-  const res = await authFetch(`${BASE_URL}/regions/add`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(params),
-  });
-  console.log(res.status);
-  if (!res.ok) throw new Error(`Failed to update track: ${res.statusText}`);
-  return await res.json();
+export function apiAddRegion(params: CreateRegionParams): Promise<CreateRegionResult> {
+  return http.post("/regions/add", params);
 }
 
-export async function apiEditRegion(params: EditRegionParams): Promise<EditRegionResult> {
-  console.log("a");
-  const res = await authFetch(`${BASE_URL}/regions/edit`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(params),
-  });
-  console.log(res.status);
-  if (!res.ok) throw new Error(`Failed to update region: ${res.statusText}`);
-  return await res.json();
+export function apiEditRegion(params: EditRegionParams): Promise<EditRegionResult> {
+  return http.patch("/regions/edit", params);
 }
 
-export async function apiRemoveRegion(params: RemoveRegionParams): Promise<RemoveRegionResult> {
-  const res = await authFetch(`${BASE_URL}/regions/remove?track_id=${params.regionId}`, {
-    method: 'DELETE',
-  });
-  if (!res.ok) throw new Error('Failed to remove region');
-  return await res.json();
+export function apiRemoveRegion(params: RemoveRegionParams): Promise<RemoveRegionResult> {
+  return http.delete(`/regions/remove?track_id=${params.regionId}`);
 }
 
-export async function apiCopyRegion(params: CopyRegionParams): Promise<CopyRegionResult> {
-  const res = await authFetch(`${BASE_URL}/regions/copy`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(params),
-  });
-  console.log(res.status);
-  if (!res.ok) throw new Error(`Failed to update region: ${res.statusText}`);
-  return await res.json();
+export function apiCopyRegion(params: CopyRegionParams): Promise<CopyRegionResult> {
+  return http.patch("/regions/copy", params);
 }

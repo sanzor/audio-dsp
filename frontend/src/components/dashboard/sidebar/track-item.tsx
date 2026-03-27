@@ -23,6 +23,7 @@ export function TrackItem({ track, onSelect, onOpen, onRightClick }: TrackItemPr
         className={`tree-node${isSelected ? " selected-blue" : ""}`}
         onClick={() => {
           onSelect({ type: "track", trackId: track.trackId });
+          onOpen({ type: "track", trackId: track.trackId });
           setOpen((o) => !o);
         }}
         onDoubleClick={() => onOpen({ type: "track", trackId: track.trackId })}

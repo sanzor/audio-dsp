@@ -1,8 +1,8 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-pub type TransformId = i32;
-pub type TransformPortId = i32;
+pub type TransformId = i64;
+pub type TransformPortId = i64;
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct DbTransform {

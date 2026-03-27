@@ -26,8 +26,19 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
     }
 
     async fn get_transforms_paginated(&self, offset: i64, limit: i64) -> Result<(Vec<DbTransform>, i64), String> {
-        let rows = sqlx::query_as::<_, DbTransform>(
-            r#"SELECT transform_id, name, description, icon, created_at FROM transforms ORDER BY created_at DESC LIMIT $1 OFFSET $2"#,
+        #[derive(sqlx::FromRow)]
+        struct Row {
+            transform_id: TransformId,
+            name: String,
+            description: Option<String>,
+            icon: Option<String>,
+            created_at: chrono::DateTime<chrono::Utc>,
+            total: i64,
+        }
+
+        let rows = sqlx::query_as::<_, Row>(
+            r#"SELECT transform_id, name, description, icon, created_at, COUNT(*) OVER () AS total
+               FROM transforms ORDER BY created_at DESC LIMIT $1 OFFSET $2"#,
         )
         .bind(limit)
         .bind(offset)
@@ -35,12 +46,16 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
         .await
         .map_err(|e| e.to_string())?;
 
-        let total: i64 = sqlx::query_scalar(r#"SELECT COUNT(*) FROM transforms"#)
-            .fetch_one(&self.pool)
-            .await
-            .map_err(|e| e.to_string())?;
+        let total = rows.first().map(|r| r.total).unwrap_or(0);
+        let transforms = rows.into_iter().map(|r| DbTransform {
+            transform_id: r.transform_id,
+            name: r.name,
+            description: r.description,
+            icon: r.icon,
+            created_at: r.created_at,
+        }).collect();
 
-        Ok((rows, total))
+        Ok((transforms, total))
     }
 
     async fn get_ports_for_transform(&self, id: TransformId) -> Result<Vec<DbTransformPort>, String> {

@@ -1,72 +1,45 @@
-import { useRegionSetViewModel, useTrackViewModelById } from "@/Selectors/trackViewModels";
+import { useRegionSetViewModel } from "@/Selectors/trackViewModels";
 import { useWaveformAudio } from "./WaveformAudio";
 import { WaveformRenderer } from "./WaveformRenderer";
 import { useUIStore } from "@/Stores/UIStore";
 import { useRegionSetStore } from "@/Stores/RegionSetStore";
-
-// Assuming onRegionDetails, onEditRegion, etc., are defined/imported
-// ... (or passed as props)
+import { useRegionController } from "@/controllers/RegionController";
+import { useRegionSetController } from "@/controllers/RegionSetController";
 
 export function WaveformPlayer() {
-  // 1. CALL ALL HOOKS UNCONDITIONALLY
   const openedContext = useUIStore(x => x.openedContext);
-  const openModal = useUIStore(x => x.openModal);
-  const copyToClipboard = useUIStore(x => x.copyToClipboard);
 
-  // Safely determine IDs
+  // regionSetId is already a string from UIStore
   const regionSetId = openedContext?.type === "regionSet" ? openedContext.regionSetId : undefined;
-  
-  const regionSet = useRegionSetStore(x => 
-    regionSetId ? x.regionSets.get(regionSetId) : undefined
-  );
-  
-  const trackId = regionSet?.trackId;
-  
-  // Call hooks with potentially undefined values
-  // Pass undefined instead of null to indicate "no data yet"
-  const regionSetViewModel = useRegionSetViewModel(trackId, regionSetId);
-  const track = useTrackViewModelById(trackId);
-  const { objectUrl, isLoading } = useWaveformAudio(trackId ?? null);
+  const regionSet = useRegionSetStore(x => regionSetId ? x.regionSets.get(regionSetId) : undefined);
 
-  // 2. CONDITIONAL CHECKS AFTER ALL HOOKS
-  if (openedContext?.type !== "regionSet") {
-    return null;
-  }
-  
-  // Check for loading state or missing data
-  if (isLoading) {
-    return <div>Loading audio...</div>;
-  }
-  
-  // Check if we have all required data - regionSetViewModel can be null
-  if (!objectUrl || !track || !regionSet || !regionSetViewModel) {
-    return <div>Missing required data</div>;
-  }
+  const trackIdStr: string | undefined =
+    openedContext?.type === "track" ? openedContext.trackId :
+    openedContext?.type === "regionSet" ? regionSet?.trackId?.toString() :
+    undefined;
 
-  // 3. RENDER - TypeScript now knows regionSetViewModel is non-null
+  const trackId: number | null = trackIdStr != null ? Number(trackIdStr) : null;
+
+  const regionSetViewModel = useRegionSetViewModel(trackIdStr, regionSetId);
+  const { objectUrl, isLoading } = useWaveformAudio(trackId);
+
+  const regionController = useRegionController();
+  const regionSetController = useRegionSetController();
+
+  if (openedContext?.type !== "track" && openedContext?.type !== "regionSet") return null;
+  if (isLoading) return <div>Loading audio...</div>;
+  if (!objectUrl) return <div>Missing required data</div>;
+
   return (
     <WaveformRenderer
       url={objectUrl}
-      regionSet={regionSetViewModel}
-      onRegionDetails={(regionId) => openModal({ type: "detailsRegion", regionId })}
-      onEditRegion={(regionId) => openModal({ type: "renameRegion", regionId })}
-      onDeleteRegion={(regionId) => openModal({ type: "deleteRegion", regionId })}
-      onCopyRegion={(regionId) => copyToClipboard({ type: "region", regionId })}
-      onCreateRegionClick={(time) => {
-        openModal({ 
-          type: "createRegion", 
-          regionSetId: regionSet.id, 
-          startTime: time 
-        });
-      }}
-      onCreateRegionDrag={(start, end) => {
-        openModal({ 
-          type: "createRegion", 
-          regionSetId: regionSet.id, 
-          startTime: start,
-          endTime: end
-        });
-      }}
+      regionSet={regionSetViewModel ?? undefined}
+      onRegionDetails={(regionId) => regionController.handleDetailsRegion(regionId)}
+      onEditRegion={(regionId) => regionController.handleEditRegion(regionId)}
+      onDeleteRegion={(regionId) => regionController.handleDeleteRegion(regionId)}
+      onCopyRegion={(regionId) => regionController.handleCopyRegion(regionId)}
+      onCreateRegionClick={regionSetId ? (time) => regionSetController.handleCreateRegion(regionSetId, time) : undefined}
+      onCreateRegionDrag={regionSetId ? (start, end) => regionSetController.handleCreateRegion(regionSetId, start, end) : undefined}
     />
   );
 }

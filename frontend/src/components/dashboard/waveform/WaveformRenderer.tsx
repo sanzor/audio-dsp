@@ -9,14 +9,14 @@ import { useUIStore, type RightClickContext } from "@/Stores/UIStore";
 
 
 export interface WaveformRendererProps{
-    regionSet:TrackRegionSetViewModel,
+    regionSet?: TrackRegionSetViewModel,
     url:string|null,
-    onRegionDetails:(regionId:string)=>void,
-    onDeleteRegion:(regionId:string)=>void,
-    onEditRegion:(regionId:string)=>void,
-    onCreateRegionClick:(time:number)=>void,
-    onCreateRegionDrag:(start:number,end:number)=>void,
-    onCopyRegion:(regionId:string)=>void
+    onRegionDetails?:(regionId:string)=>void,
+    onDeleteRegion?:(regionId:string)=>void,
+    onEditRegion?:(regionId:string)=>void,
+    onCreateRegionClick?:(time:number)=>void,
+    onCreateRegionDrag?:(start:number,end:number)=>void,
+    onCopyRegion?:(regionId:string)=>void
 }
 
 
@@ -41,11 +41,12 @@ export function WaveformRenderer({
 
         const onContextMenu = (e: MouseEvent) => {
             e.preventDefault();
+            if (!regionSet) return;
             const bounding = waveformElement.getBoundingClientRect();
             const x = e.clientX - bounding.left;
             const width = waveformElement.offsetWidth;
             const time = waveRef.current!.getDuration() * (x / width);
-            openContextMenu({ type:'waveform_timeline',  x: e.clientX, y: e.clientY ,regionSetId:regionSet.id,time:time });
+            openContextMenu({ type:'waveform_timeline',  x: e.clientX, y: e.clientY ,regionSetId:regionSet.id.toString(),time:time });
         };
 
         waveformElement.addEventListener('contextmenu', onContextMenu);
@@ -117,7 +118,7 @@ export function WaveformRenderer({
            
         }
         renderedRegionIds.current=currentIds;
-    },[regionSet,regionSet.regions,regionsPlugin]);
+    },[regionSet,regionSet?.regions,regionsPlugin]);
 
 
     if (error) {
@@ -127,7 +128,7 @@ export function WaveformRenderer({
                 <div className="mt-2 text-sm">
                     <p>Debug info:</p>
                     <p>• URL: {url ? 'Present' : 'Missing'}</p>
-                    <p>• Region Set: {regionSet.name || 'Unknown'}</p>
+                    <p>• Region Set: {regionSet?.name || 'Unknown'}</p>
                 </div>
             </div>
         );
@@ -211,7 +212,7 @@ function addRegions(regions:TrackRegionViewModel[],regionsObj:RegionsPlugin):Reg
 
 function addRegion(regionsObj:RegionsPlugin,elem:TrackRegionViewModel):RegionsPlugin{
     regionsObj.addRegion({
-            id:elem.regionId,
+            id:String(elem.regionId),
             start:elem.start,
             end:elem.end,
             drag: true,

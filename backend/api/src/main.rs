@@ -56,6 +56,11 @@ use api::{
         tracks_app_data::TracksAppData,
         tracks_provider_service::TracksProviderService,
     },
+    stored_tracks::{
+        data_provider::stored_tracks_data_provider_service::PostgresStoredTracksDataProvider,
+        stored_tracks_app_data::StoredTracksAppData,
+        stored_tracks_provider_service::StoredTracksProviderService,
+    },
     users::{
         data_provider::user_data_provider_service::UserDataProviderService,
         user_provider::UserProvider,
@@ -227,9 +232,12 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
     let tracks_service = Arc::new(TracksProviderService::new(Arc::new(
         PostgresTracksDataProvider::new(pool.clone()),
     )));
+    let stored_tracks_service = Arc::new(StoredTracksProviderService::new(Arc::new(
+        PostgresStoredTracksDataProvider::new(pool.clone()),
+    )));
     let player_service = Arc::new(PlayerService::new(
         Arc::new(AudioPlayerRegistry::new()),
-        Arc::clone(&tracks_service) as Arc<dyn api::tracks::tracks_provider::TracksProvider>,
+        Arc::clone(&stored_tracks_service) as Arc<dyn api::stored_tracks::stored_tracks_provider::StoredTracksProvider>,
     ));
     let region_sets_service = Arc::new(RegionSetsProviderService::new(Arc::new(
         PostgresRegionSetsDataProvider::new(pool.clone()),
@@ -342,6 +350,10 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
             PostgresTransformsDataProvider::new(pool.clone()),
         ))),
     };
+    let stored_tracks_app_data = StoredTracksAppData {
+        stored_tracks_service: Arc::clone(&stored_tracks_service)
+            as Arc<dyn api::stored_tracks::stored_tracks_provider::StoredTracksProvider>,
+    };
 
     let jwt_middleware = JwtAuthMiddleware;
     let role_middleware = RoleContextMiddleware {
@@ -387,6 +399,7 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
             .app_data(web::Data::new(purchased_products_app_data.clone()))
             .app_data(web::Data::new(usage_app_data.clone()))
             .app_data(web::Data::new(transforms_app_data.clone()))
+            .app_data(web::Data::new(stored_tracks_app_data.clone()))
             .configure(controllers::openapi_controller::init)
             .service(web::scope("/auth").configure(controllers::auth_controller::init))
             .service(
@@ -463,6 +476,12 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
                     .wrap(role_middleware.clone())
                     .wrap(jwt_middleware.clone())
                     .configure(controllers::transforms_controller::init),
+            )
+            .service(
+                web::scope("/stored-tracks")
+                    .wrap(role_middleware.clone())
+                    .wrap(jwt_middleware.clone())
+                    .configure(controllers::stored_tracks_crud_controller::init),
             )
     })
     .bind((host.as_str(), port))?

@@ -12,6 +12,26 @@ DB_PSQL = ROOT_DIR / "scripts" / "db_psql.sh"
 
 
 TRACK_SEEDS = [
+    # Default Project (admin)
+    {
+        "project_name": "Default Project",
+        "name": "Kick Drum",
+        "duration_seconds": 0.40,
+        "frequency_hz": 60.0,
+    },
+    {
+        "project_name": "Default Project",
+        "name": "Snare Hit",
+        "duration_seconds": 0.30,
+        "frequency_hz": 200.0,
+    },
+    {
+        "project_name": "Default Project",
+        "name": "Hi-Hat",
+        "duration_seconds": 0.20,
+        "frequency_hz": 8000.0,
+    },
+    # Canonical Audio Lab (test user)
     {
         "project_name": "Canonical Audio Lab",
         "name": "A440 Reference",
@@ -24,12 +44,14 @@ TRACK_SEEDS = [
         "duration_seconds": 0.35,
         "frequency_hz": 880.0,
     },
+    # Mix Review Sandbox (test user)
     {
         "project_name": "Mix Review Sandbox",
         "name": "C4 Pad",
         "duration_seconds": 0.50,
         "frequency_hz": 261.63,
     },
+    # Regression Pack (test user)
     {
         "project_name": "Regression Pack",
         "name": "Low E Pulse",
@@ -76,10 +98,11 @@ def generate_wav_bytes(frequency_hz: float, duration_seconds: float) -> bytes:
     return buffer.getvalue()
 
 
-def ensure_test_user_exists() -> None:
-    user_id = scalar("SELECT user_id::text FROM users WHERE email = 'test@gmail.com' LIMIT 1;")
-    if not user_id:
-        raise RuntimeError("Seed user 'test@gmail.com' was not found. Run users.sql first.")
+def ensure_seed_users_exist() -> None:
+    for email in ("admin@gmail.com", "test@gmail.com"):
+        user_id = scalar(f"SELECT user_id::text FROM users WHERE email = '{email}' LIMIT 1;")
+        if not user_id:
+            raise RuntimeError(f"Seed user '{email}' was not found. Run users.sql first.")
 
 
 def project_id_for(name: str) -> int:
@@ -98,26 +121,36 @@ def upsert_track(seed: dict[str, str | float]) -> None:
         float(seed["duration_seconds"]),
     ).hex()
 
-    sql = f"""
-INSERT INTO tracks (name, extension, length_seconds, canonical_audio, project_id)
+    track_sql = f"""
+INSERT INTO tracks (name, extension, length_seconds, project_id)
 SELECT
   '{seed["name"]}',
   'wav',
   {float(seed["duration_seconds"]):.2f},
-  decode('{wav_hex}', 'hex'),
   {project_id}
 WHERE NOT EXISTS (
   SELECT 1 FROM tracks WHERE name = '{seed["name"]}' AND project_id = {project_id}
-);
+)
+RETURNING track_id;
 """
-    run_psql("-v", "ON_ERROR_STOP=1", "-c", sql)
+    result = run_psql("-tAc", track_sql)
+    track_id = result.strip()
+    if not track_id:
+        return  # already existed, skip storage insert
+
+    storage_sql = f"""
+INSERT INTO track_storage (track_id, data)
+VALUES ({track_id}, decode('{wav_hex}', 'hex'))
+ON CONFLICT (track_id) DO NOTHING;
+"""
+    run_psql("-v", "ON_ERROR_STOP=1", "-c", storage_sql)
 
 
 def main() -> None:
-    ensure_test_user_exists()
+    ensure_seed_users_exist()
     for track_seed in TRACK_SEEDS:
         upsert_track(track_seed)
-    print(f"Seeded {len(TRACK_SEEDS)} canonical tracks for the test account.")
+    print(f"Seeded {len(TRACK_SEEDS)} canonical tracks across all seed projects.")
 
 
 if __name__ == "__main__":

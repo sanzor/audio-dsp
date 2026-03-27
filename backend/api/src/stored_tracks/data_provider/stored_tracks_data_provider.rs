@@ -1,0 +1,7 @@
+use domain::db::db_track::TrackId;
+use domain::tracks::stored_track::StoredTrack;
+
+#[async_trait::async_trait]
+pub trait StoredTracksDataProvider: Send + Sync {
+    async fn get_stored_track(&self, track_id: &TrackId) -> Result<StoredTrack, String>;
+}

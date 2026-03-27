@@ -1,174 +1,67 @@
 import { useAuthStore } from "../Stores/authStore";
 import { useProjectStore } from "../Stores/projectStore";
 
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3080";
+
 type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
-export class HttpError extends Error {
-  status: number;
-  url: string;
-  body: unknown;
+type RequestOptions<TInput> = {
+  method: HttpMethod;
+  path: string;
+  body?: TInput;
+};
 
-  constructor(opts: { status: number; url: string; body: unknown; message?: string }) {
-    super(opts.message ?? `HTTP ${opts.status}`);
-    this.name = "HttpError";
-    this.status = opts.status;
-    this.url = opts.url;
-    this.body = opts.body;
-  }
-}
-
-function joinUrl(base: string, path: string) {
-  if (!base) return path;
-  if (/^https?:\/\//i.test(path)) return path;
-  const b = base.endsWith("/") ? base.slice(0, -1) : base;
-  const p = path.startsWith("/") ? path : `/${path}`;
-  return `${b}${p}`;
-}
-
-function buildHeaders(extra?: HeadersInit): Headers {
-  const headers = new Headers(extra);
-  const token = useAuthStore.getState().token;
+async function request<TOutput, TInput = undefined>({
+  method,
+  path,
+  body,
+}: RequestOptions<TInput>): Promise<TOutput> {
+  const token = useAuthStore.getState().token ?? undefined;
   const activeProjectId = useProjectStore.getState().activeProject?.project_id;
 
-  if (token && !headers.has("Authorization")) {
-    headers.set("Authorization", `Bearer ${token}`);
-  }
-
-  if (activeProjectId != null && !headers.has("X-Project-ID")) {
-    headers.set("X-Project-ID", String(activeProjectId));
-  }
-
-  return headers;
-}
-
-function clearClientSession() {
-  useAuthStore.getState().clearSession();
-  useProjectStore.getState().clearProject();
-}
-
-async function refreshSession(): Promise<boolean> {
-  const refreshUrl = joinUrl(import.meta.env.VITE_API_BASE_URL ?? "", "/auth/refresh");
-  const res = await fetch(refreshUrl, {
-    method: "POST",
-    credentials: "include",
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(activeProjectId != null ? { "X-Project-Id": String(activeProjectId) } : {}),
+    },
+    body: body ? JSON.stringify(body) : undefined,
   });
 
-  if (!res.ok) {
-    return false;
-  }
-
-  const body = await readBody(res);
-  const nextToken =
-    body && typeof body === "object" && "token" in body && typeof body.token === "string"
-      ? body.token
-      : null;
-
-  if (!nextToken) {
-    return false;
-  }
-
-  useAuthStore.getState().setToken(nextToken);
-  return true;
-}
-
-function redirectToLogin() {
-  if (window.location.pathname !== "/login") {
+  if (response.status === 401) {
+    useAuthStore.getState().clearSession();
+    useProjectStore.getState().clearProject();
     window.location.href = "/login";
-  }
-}
-
-async function authFetch(path: string, init?: RequestInit, allowRetry = true): Promise<Response> {
-  const url = path;
-  const requestInit: RequestInit = {
-    ...init,
-    credentials: "include",
-    headers: buildHeaders(init?.headers),
-  };
-
-  let res = await fetch(url, requestInit);
-
-  if (res.status === 401 && allowRetry && !url.endsWith("/auth/refresh")) {
-    const refreshed = await refreshSession();
-    if (refreshed) {
-      res = await fetch(url, {
-        ...init,
-        credentials: "include",
-        headers: buildHeaders(init?.headers),
-      });
-    }
+    throw new Error("Session expired. Please log in again.");
   }
 
-  if (res.status === 401) {
-    clearClientSession();
-    redirectToLogin();
-    throw new HttpError({ status: 401, url, body: null, message: "Session expired" });
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message || `Request failed: ${response.status}`);
   }
 
-  return res;
-}
-
-async function readBody(res: Response): Promise<unknown> {
-  const ct = res.headers.get("content-type") ?? "";
-  if (res.status === 204) return undefined;
-  const text = await res.text();
-  if (!text) return undefined;
-  if (ct.includes("application/json")) {
-    try { return JSON.parse(text); } catch { return text; }
+  if (response.status === 204) {
+    return undefined as TOutput;
   }
-  return text;
-}
 
-async function request<TRes>(
-  method: HttpMethod,
-  path: string,
-  init?: RequestInit
-): Promise<TRes> {
-  const res = await authFetch(path, { ...init, method });
-
-  const body = await readBody(res);
-  if (!res.ok) {
-    throw new HttpError({
-      status: res.status,
-      url: path,
-      body,
-      message: typeof body === "string" && body ? body : `Request failed (${res.status})`,
-    });
-  }
-  return body as TRes;
-}
-
-function jsonHeaders(extra?: HeadersInit): HeadersInit {
-  return { "Content-Type": "application/json", ...extra };
+  return (await response.json()) as TOutput;
 }
 
 export const http = {
-  get<TRes>(path: string, init?: RequestInit) {
-    return request<TRes>("GET", path, init);
+  get<TOutput>(path: string) {
+    return request<TOutput>({ method: "GET", path });
   },
-  delete<TRes>(path: string, init?: RequestInit) {
-    return request<TRes>("DELETE", path, init);
+  post<TOutput, TInput>(path: string, body: TInput) {
+    return request<TOutput, TInput>({ method: "POST", path, body });
   },
-  post<TRes, TBody>(path: string, body: TBody, init?: RequestInit) {
-    return request<TRes>("POST", path, {
-      ...init,
-      headers: jsonHeaders(init?.headers),
-      body: JSON.stringify(body),
-    });
+  put<TOutput, TInput>(path: string, body: TInput) {
+    return request<TOutput, TInput>({ method: "PUT", path, body });
   },
-  put<TRes, TBody>(path: string, body: TBody, init?: RequestInit) {
-    return request<TRes>("PUT", path, {
-      ...init,
-      headers: jsonHeaders(init?.headers),
-      body: JSON.stringify(body),
-    });
+  patch<TOutput, TInput>(path: string, body: TInput) {
+    return request<TOutput, TInput>({ method: "PATCH", path, body });
   },
-  patch<TRes, TBody>(path: string, body: TBody, init?: RequestInit) {
-    return request<TRes>("PATCH", path, {
-      ...init,
-      headers: jsonHeaders(init?.headers),
-      body: JSON.stringify(body),
-    });
+  delete<TOutput>(path: string) {
+    return request<TOutput>({ method: "DELETE", path });
   },
 };
-
-export { authFetch };

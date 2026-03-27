@@ -13,7 +13,6 @@ use domain::{
     update_track_info_params::UpdateTrackInfoParams,
 };
 
-use mime_guess::from_ext;
 use serde::{Deserialize, Serialize};
 use tracing::{error, info};
 use utoipa::{IntoParams, ToSchema};
@@ -230,41 +229,6 @@ pub struct GetTrackParams {
 
 #[utoipa::path(
     get,
-    path = "/tracks/get-stored-track",
-    tag = "tracks",
-    params(GetTrackParams),
-    responses((status = 200, description = "Track audio bytes")),
-    security(
-        ("bearerAuth" = [])
-    )
-)]
-#[get("/get-stored-track")]
-pub async fn get_stored_track(
-    role: RoleContext,
-    query: web::Query<GetTrackParams>,
-    app_state: web::Data<TracksAppData>,
-) -> HttpResponse {
-    if !role.can_view() {
-        return HttpResponse::Forbidden().body("Forbidden");
-    }
-    let request = query.into_inner();
-    let stored_track = match app_state.tracks_service.get_stored_track(&request.track_id).await {
-        Ok(t) => t,
-        Err(_e) => return HttpResponse::NotFound().body("Could not find track"),
-    };
-    let ext = stored_track.track_info.extension.to_lowercase();
-    let mime_type = from_ext(&ext).first_or_octet_stream().essence_str().to_owned();
-    HttpResponse::Ok()
-        .insert_header(("Content-Type", mime_type))
-        .insert_header((
-            "Content-Disposition",
-            format!("inline; filename=\"{}.{}\"", stored_track.track_info.name, ext),
-        ))
-        .body(stored_track.canonical_audio)
-}
-
-#[utoipa::path(
-    get,
     path = "/tracks/get-meta",
     tag = "tracks",
     params(GetTrackParams),
@@ -345,7 +309,6 @@ pub fn init(cfg: &mut web::ServiceConfig) {
         .service(add_track_multi)
         .service(update_track_info)
         .service(remove_track)
-        .service(get_stored_track)
         .service(get_track_info)
         .service(get_meta)
         .service(get_tracks)

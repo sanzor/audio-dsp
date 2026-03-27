@@ -1,25 +1,23 @@
 import type { Graph } from "@/domain/Graph/Graph";
 import type { Edge } from "@/domain/Graph/Edge";
-import { authFetch } from "@/Services/http";
-
-const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+import { http } from "@/Services/http";
 
 // ─── Params & Results ────────────────────────────────────────────────────────
 
 export interface GetGraphParams {
-  graphId: string;
+  graphId: number;
 }
 
 export interface CreateGraphParams {
   name: string;
-  region_id: string;
+  region_id: number;
 }
 export interface CreateGraphResult {
   graph: Graph;
 }
 
 export interface EditGraphParams {
-  id: string;
+  id: number;
   name: string;
 }
 export interface EditGraphResult {
@@ -27,15 +25,15 @@ export interface EditGraphResult {
 }
 
 export interface RemoveGraphParams {
-  graph_id: string;
+  graph_id: number;
 }
 export interface RemoveGraphResult {
   result: string;
 }
 
 export interface CopyGraphParams {
-  destinationRegionId: string;
-  sourceGraphId: string;
+  destinationRegionId: number;
+  sourceGraphId: number;
   copyName: string;
 }
 export interface CopyGraphResult {
@@ -43,7 +41,7 @@ export interface CopyGraphResult {
 }
 
 export interface CreateEdgeParams {
-  graphId: string;
+  graphId: number;
   fromNodeId: string;
   toNodeId: string;
   name: string | null;
@@ -53,65 +51,34 @@ export interface CreateEdgeResult {
 }
 
 export interface CreateNodeParams {
-  graphId: string;
+  graphId: number;
   fromNodeId: string | null;
   toNodeId: string | null;
   name: string;
 }
 export interface CreateNodeResult {
   id: string;
-  graphId: string;
+  graphId: number;
 }
 
 // ─── API ──────────────────────────────────────────────────────────────────────
 
-export async function apiGetGraph(graphId: string): Promise<Graph> {
-  const res = await authFetch(`${BASE_URL}/graphs/get-graph?graph_id=${graphId}`, {
-    method: 'GET',
-  });
-  if (!res.ok) throw new Error('Failed to fetch graph');
-  const json = await res.json();
-  console.log(json);
-  return json.tracks;
+export function apiGetGraph(graphId: number): Promise<Graph> {
+  return http.get(`/graphs/get-graph?graph_id=${graphId}`);
 }
 
-export async function apiCreateGraph(params: CreateGraphParams): Promise<CreateGraphResult> {
-  console.log("a");
-  const res = await authFetch(`${BASE_URL}/graphs/create`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(params),
-  });
-  console.log(res.status);
-  if (!res.ok) throw new Error(`Failed to create graph: ${res.statusText}`);
-  return await res.json();
+export function apiCreateGraph(params: CreateGraphParams): Promise<CreateGraphResult> {
+  return http.post("/graphs/create", params);
 }
 
-export async function apiUpdateGraph(params: EditGraphParams): Promise<EditGraphResult> {
-  console.log("a");
-  const res = await authFetch(`${BASE_URL}/graphs/edit`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(params),
-  });
-  console.log(res.status);
-  if (!res.ok) throw new Error(`Failed to update graph: ${res.statusText}`);
-  return await res.json();
+export function apiUpdateGraph(params: EditGraphParams): Promise<EditGraphResult> {
+  return http.patch("/graphs/edit", params);
 }
 
-export async function apiRemoveGraph(params: RemoveGraphParams): Promise<void> {
-  const res = await authFetch(`${BASE_URL}/graphs/remove?graph_id=${params.graph_id}`, {
-    method: 'DELETE',
-  });
-  if (!res.ok) throw new Error('Refresh token failed');
+export function apiRemoveGraph(params: RemoveGraphParams): Promise<void> {
+  return http.delete(`/graphs/remove?graph_id=${params.graph_id}`);
 }
 
-export async function apiCopyGraph(params: CopyGraphParams): Promise<CopyGraphResult> {
-  const res = await authFetch(`${BASE_URL}/graphs/copy`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(params),
-  });
-  if (!res.ok) throw new Error(`Failed to copy graph: ${res.statusText}`);
-  return await res.json();
+export function apiCopyGraph(params: CopyGraphParams): Promise<CopyGraphResult> {
+  return http.post("/graphs/copy", params);
 }

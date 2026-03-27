@@ -72,10 +72,23 @@ where
                         return Ok(res.map_into_right_body());
                     }
                     Some(pid) => {
-                        let role = memberships
-                            .get_role(pid, jwt_ctx.user_id)
-                            .await
-                            .unwrap_or(None);
+                        let role = match memberships.get_role(pid, jwt_ctx.user_id).await {
+                            Ok(role) => role,
+                            Err(error) => {
+                                warn!(
+                                    path = %req.path(),
+                                    project_id = pid,
+                                    user_id = jwt_ctx.user_id,
+                                    %error,
+                                    "request rejected: failed to resolve project role"
+                                );
+                                let res = req.into_response(
+                                    actix_web::HttpResponse::InternalServerError()
+                                        .body("Failed to resolve project role"),
+                                );
+                                return Ok(res.map_into_right_body());
+                            }
+                        };
                         match role {
                             None => {
                                 warn!(path = %req.path(), project_id = pid, user_id = jwt_ctx.user_id, "request rejected: access denied to project");
@@ -90,7 +103,19 @@ where
 
             // 4. Attach to request
             req.extensions_mut().insert(role_ctx);
-            srv.call(req).await.map(|r| r.map_into_left_body())
+            let path = req.path().to_owned();
+            match srv.call(req).await {
+                Ok(res) => {
+                    if res.status().is_server_error() {
+                        warn!(path = %path, status = %res.status(), "downstream service returned 5xx after role context");
+                    }
+                    Ok(res.map_into_left_body())
+                }
+                Err(error) => {
+                    warn!(path = %path, %error, "downstream service returned error after role context");
+                    Err(error)
+                }
+            }
         })
     }
 }

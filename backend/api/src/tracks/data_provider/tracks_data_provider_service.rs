@@ -1,6 +1,6 @@
 use audiolib::utils::encode_audio_buffer_as_wav;
 use domain::{
-    db::db_track::{DbTrack, TrackId},
+    db::db_track::{DbTrack, DbTrackMeta, TrackId},
     raw_track::RawTrack,
     update_track_info_params::UpdateTrackInfoParams,
 };
@@ -22,11 +22,7 @@ impl PostgresTracksDataProvider {
 impl TracksDataProvider for PostgresTracksDataProvider {
     async fn get_track(&self, track_id: &TrackId) -> Result<DbTrack, String> {
         sqlx::query_as::<_, DbTrack>(
-            r#"
-            SELECT track_id, name, extension, length_seconds, canonical_audio, created_at
-            FROM tracks
-            WHERE track_id = $1
-            "#,
+            "SELECT track_id, name, extension, length_seconds, created_at FROM tracks WHERE track_id = $1"
         )
         .bind(track_id)
         .fetch_one(&self.pool)
@@ -34,13 +30,9 @@ impl TracksDataProvider for PostgresTracksDataProvider {
         .map_err(|e| e.to_string())
     }
 
-    async fn get_all_tracks(&self) -> Result<Vec<DbTrack>, String> {
-        sqlx::query_as::<_, DbTrack>(
-            r#"
-            SELECT track_id, name, extension, length_seconds, canonical_audio, created_at
-            FROM tracks
-            ORDER BY created_at DESC
-            "#,
+    async fn get_all_track_metas(&self) -> Result<Vec<DbTrackMeta>, String> {
+        sqlx::query_as::<_, DbTrackMeta>(
+            "SELECT track_id, name, extension, length_seconds, created_at FROM tracks ORDER BY created_at DESC"
         )
         .fetch_all(&self.pool)
         .await
@@ -48,7 +40,7 @@ impl TracksDataProvider for PostgresTracksDataProvider {
     }
 
     async fn delete_track(&self, track_id: &TrackId) -> Result<(), String> {
-        sqlx::query(r#"DELETE FROM tracks WHERE track_id = $1"#)
+        sqlx::query("DELETE FROM tracks WHERE track_id = $1")
             .bind(track_id)
             .execute(&self.pool)
             .await
@@ -60,57 +52,67 @@ impl TracksDataProvider for PostgresTracksDataProvider {
         let canonical_audio = encode_audio_buffer_as_wav(&track.data)
             .map_err(|_| "Could not encode track as wav".to_string())?;
 
-        sqlx::query_as::<_, DbTrack>(
-            r#"
-            INSERT INTO tracks (name, extension, length_seconds, canonical_audio)
-            VALUES ($1, $2, $3, $4)
-            RETURNING track_id, name, extension, length_seconds, canonical_audio, created_at
-            "#,
+        let mut tx = self.pool.begin().await.map_err(|e| e.to_string())?;
+
+        let db_track = sqlx::query_as::<_, DbTrack>(
+            "INSERT INTO tracks (name, extension, length_seconds)
+             VALUES ($1, $2, $3)
+             RETURNING track_id, name, extension, length_seconds, created_at",
         )
-        .bind(track.info.name)
-        .bind(track.info.extension)
+        .bind(&track.info.name)
+        .bind(&track.info.extension)
         .bind(track.info.length)
-        .bind(canonical_audio)
-        .fetch_one(&self.pool)
+        .fetch_one(&mut *tx)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+
+        sqlx::query(
+            "INSERT INTO track_storage (track_id, data) VALUES ($1, $2)",
+        )
+        .bind(db_track.track_id)
+        .bind(&canonical_audio)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| e.to_string())?;
+
+        tx.commit().await.map_err(|e| e.to_string())?;
+
+        Ok(db_track)
     }
 
-    async fn copy_track(
-        &self,
-        source_track_id: &TrackId,
-        new_name: &str,
-    ) -> Result<DbTrack, String> {
-        let original = self.get_track(source_track_id).await?;
+    async fn copy_track(&self, source_track_id: &TrackId, new_name: &str) -> Result<DbTrack, String> {
+        let mut tx = self.pool.begin().await.map_err(|e| e.to_string())?;
 
-        sqlx::query_as::<_, DbTrack>(
-            r#"
-            INSERT INTO tracks (name, extension, length_seconds, canonical_audio)
-            VALUES ($1, $2, $3, $4)
-            RETURNING track_id, name, extension, length_seconds, canonical_audio, created_at
-            "#,
+        let db_track = sqlx::query_as::<_, DbTrack>(
+            "INSERT INTO tracks (name, extension, length_seconds)
+             SELECT $1, extension, length_seconds FROM tracks WHERE track_id = $2
+             RETURNING track_id, name, extension, length_seconds, created_at",
         )
         .bind(new_name)
-        .bind(original.extension)
-        .bind(original.length_seconds)
-        .bind(original.canonical_audio)
-        .fetch_one(&self.pool)
+        .bind(source_track_id)
+        .fetch_one(&mut *tx)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+
+        sqlx::query(
+            "INSERT INTO track_storage (track_id, data)
+             SELECT $1, data FROM track_storage WHERE track_id = $2",
+        )
+        .bind(db_track.track_id)
+        .bind(source_track_id)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| e.to_string())?;
+
+        tx.commit().await.map_err(|e| e.to_string())?;
+
+        Ok(db_track)
     }
 
-    async fn update_track_info(
-        &self,
-        track_id: &TrackId,
-        params: UpdateTrackInfoParams,
-    ) -> Result<DbTrack, String> {
+    async fn update_track_info(&self, track_id: &TrackId, params: UpdateTrackInfoParams) -> Result<DbTrack, String> {
         sqlx::query_as::<_, DbTrack>(
-            r#"
-            UPDATE tracks
-            SET name = $2
-            WHERE track_id = $1
-            RETURNING track_id, name, extension, length_seconds, canonical_audio, created_at
-            "#,
+            "UPDATE tracks SET name = $2 WHERE track_id = $1
+             RETURNING track_id, name, extension, length_seconds, created_at",
         )
         .bind(track_id)
         .bind(params.track_name)

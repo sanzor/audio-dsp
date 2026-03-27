@@ -21,7 +21,7 @@ export const useListTracks = () => {
   return query;
 };
 
-export const useGetTrack = (trackId: string) => {
+export const useGetTrack = (trackId: number) => {
   const query = useQuery<TrackMeta, Error, NormalizedTrackMeta>({
     queryKey: QUERY_KEYS.tracks.byId(trackId),
     queryFn: async () => {

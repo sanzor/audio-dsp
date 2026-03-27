@@ -21,18 +21,18 @@ use domain::{
 };
 use player::sink::AudioSink;
 
-use crate::tracks::tracks_provider::TracksProvider;
+use crate::stored_tracks::stored_tracks_provider::StoredTracksProvider;
 
 use super::player_provider::{AttachSinkParams, AttachSinkResult, PlayerProvider};
 
 pub struct PlayerService {
     registry: Arc<AudioPlayerRegistry>,
-    tracks_provider: Arc<dyn TracksProvider>,
+    stored_tracks_provider: Arc<dyn StoredTracksProvider>,
 }
 
 impl PlayerService {
-    pub fn new(registry: Arc<AudioPlayerRegistry>, tracks_provider: Arc<dyn TracksProvider>) -> Self {
-        Self { registry, tracks_provider }
+    pub fn new(registry: Arc<AudioPlayerRegistry>, stored_tracks_provider: Arc<dyn StoredTracksProvider>) -> Self {
+        Self { registry, stored_tracks_provider }
     }
 
     fn player_key(user_id: i32, track_id: TrackId) -> String {
@@ -94,7 +94,7 @@ impl PlayerProvider for PlayerService {
             });
         }
 
-        let db_track = self.tracks_provider.get_stored_track(&params.track_id).await?;
+        let db_track = self.stored_tracks_provider.get_stored_track(&params.track_id).await?;
         let meta = TrackMeta {
             track_info: db_track.track_info,
             track_id: db_track.track_id.clone(),

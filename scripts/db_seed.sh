@@ -13,6 +13,7 @@ required_seeds=(
 optional_seeds=(
   "tier_configs.sql:tier_configs"
   "products.sql:products"
+  "transforms.sql:transforms"
 )
 
 applied=()

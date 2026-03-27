@@ -6,6 +6,7 @@ use actix_web::{
 use std::{future::Future, pin::Pin, rc::Rc, sync::Arc};
 
 use domain::project_role::ProjectRole;
+use tracing::warn;
 
 use crate::{
     memberships::memberships_provider::MembershipsProvider,
@@ -90,10 +91,23 @@ where
                         return Ok(res.map_into_right_body());
                     }
                     Some(pid) => {
-                        let role = memberships
-                            .get_role(pid, jwt_ctx.user_id)
-                            .await
-                            .unwrap_or(None);
+                        let role = match memberships.get_role(pid, jwt_ctx.user_id).await {
+                            Ok(role) => role,
+                            Err(error) => {
+                                warn!(
+                                    path = %req.path(),
+                                    project_id = pid,
+                                    user_id = jwt_ctx.user_id,
+                                    %error,
+                                    "request rejected: failed to resolve project role"
+                                );
+                                let res = req.into_response(
+                                    actix_web::HttpResponse::InternalServerError()
+                                        .body("Failed to resolve project role"),
+                                );
+                                return Ok(res.map_into_right_body());
+                            }
+                        };
                         match role {
                             None => {
                                 let res = req.into_response(actix_web::HttpResponse::Forbidden().body("Access denied to this project"));

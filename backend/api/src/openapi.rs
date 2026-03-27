@@ -32,8 +32,8 @@ use utoipa::OpenApi;
         crate::controllers::tracks_crud_controller::copy_track,
         crate::controllers::tracks_crud_controller::update_track_info,
         crate::controllers::tracks_crud_controller::remove_track,
-        crate::controllers::tracks_crud_controller::get_stored_track,
         crate::controllers::tracks_crud_controller::get_meta,
+        crate::controllers::stored_tracks_crud_controller::get_stored_track,
         crate::controllers::tracks_crud_controller::get_tracks,
         crate::controllers::tracks_crud_controller::get_track_info,
         // Regions
@@ -67,7 +67,8 @@ use utoipa::OpenApi;
         (name = "regions", description = "Regions CRUD"),
         (name = "region-sets", description = "Region sets CRUD"),
         (name = "user", description = "User operations"),
-        (name = "ws", description = "Websocket endpoints")
+        (name = "ws", description = "Websocket endpoints"),
+        (name = "stored-tracks", description = "Stored track audio retrieval")
     )
 )]
 pub struct ApiDoc;

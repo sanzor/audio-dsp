@@ -8,7 +8,7 @@ import { QUERY_KEYS } from "@/constants/queryKeys";
 import type { TrackRegion } from "@/domain/Region/TrackRegion";
 import type { NormalizedTrackRegion } from "@/domain/Region/NormalizedTrackRegion";
 
-export const useGetRegion = (regionId: string) => {
+export const useGetRegion = (regionId: number) => {
   const user = useAuthStore((state) => state.user);
 
   const query = useQuery<TrackRegion, Error, NormalizedTrackRegion | undefined>({
@@ -25,7 +25,7 @@ export const useGetRegion = (regionId: string) => {
   return query;
 };
 
-export const useGetRegionsForRegionSet = (setId: string) => {
+export const useGetRegionsForRegionSet = (setId: number) => {
   const user = useAuthStore((state) => state.user);
 
   const query = useQuery<TrackRegion[], Error, NormalizedTrackRegion[]>({

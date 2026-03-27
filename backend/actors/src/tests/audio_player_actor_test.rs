@@ -10,7 +10,6 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
-use ulid::Ulid;
 
 use domain::track_meta::TrackMeta;
 use player::sink::AudioSink;
@@ -242,9 +241,8 @@ async fn test_pauses_when_seek() -> Result<(), String> {
     Ok(())
 }
 fn create_meta(info: TrackInfo) -> TrackMeta {
-    let id = Ulid::new();
     TrackMeta {
-        track_id: id.to_string(),
+        track_id: 1,
         track_info: info,
     }
 }
