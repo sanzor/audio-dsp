@@ -80,7 +80,7 @@ export async function apiGetStoredTrack(params: GetTrackRawParams): Promise<GetT
   const token = useAuthStore.getState().token;
   const activeProjectId = useProjectStore.getState().activeProject?.project_id;
 
-  const res = await fetch(`${API_BASE_URL}/tracks/get-stored-track?track_id=${params.track_id}`, {
+  const res = await fetch(`${API_BASE_URL}/stored-tracks/get?track_id=${params.track_id}`, {
     headers: {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(activeProjectId != null ? { "X-Project-Id": String(activeProjectId) } : {}),

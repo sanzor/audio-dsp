@@ -114,14 +114,20 @@ def project_id_for(name: str) -> int:
     return int(project_id)
 
 
-def upsert_track(seed: dict[str, str | float]) -> None:
+def has_track_storage_table() -> bool:
+    result = scalar("SELECT to_regclass('public.track_storage') IS NOT NULL;")
+    return result == "t"
+
+
+def upsert_track(seed: dict[str, str | float], use_track_storage: bool) -> None:
     project_id = project_id_for(str(seed["project_name"]))
     wav_hex = generate_wav_bytes(
         float(seed["frequency_hz"]),
         float(seed["duration_seconds"]),
     ).hex()
 
-    track_sql = f"""
+    if use_track_storage:
+        track_sql = f"""
 INSERT INTO tracks (name, extension, length_seconds, project_id)
 SELECT
   '{seed["name"]}',
@@ -133,23 +139,38 @@ WHERE NOT EXISTS (
 )
 RETURNING track_id;
 """
-    result = run_psql("-tAc", track_sql)
-    track_id = result.strip()
-    if not track_id:
-        return  # already existed, skip storage insert
+        result = run_psql("-tAc", track_sql)
+        track_id = result.strip()
+        if not track_id:
+            return  # already existed, skip storage insert
 
-    storage_sql = f"""
+        storage_sql = f"""
 INSERT INTO track_storage (track_id, data)
 VALUES ({track_id}, decode('{wav_hex}', 'hex'))
 ON CONFLICT (track_id) DO NOTHING;
 """
-    run_psql("-v", "ON_ERROR_STOP=1", "-c", storage_sql)
+        run_psql("-v", "ON_ERROR_STOP=1", "-c", storage_sql)
+    else:
+        # Legacy schema: canonical_audio lives directly on tracks
+        run_psql("-v", "ON_ERROR_STOP=1", "-c", f"""
+INSERT INTO tracks (name, extension, length_seconds, canonical_audio, project_id)
+SELECT
+  '{seed["name"]}',
+  'wav',
+  {float(seed["duration_seconds"]):.2f},
+  decode('{wav_hex}', 'hex'),
+  {project_id}
+WHERE NOT EXISTS (
+  SELECT 1 FROM tracks WHERE name = '{seed["name"]}' AND project_id = {project_id}
+);
+""")
 
 
 def main() -> None:
     ensure_seed_users_exist()
+    use_track_storage = has_track_storage_table()
     for track_seed in TRACK_SEEDS:
-        upsert_track(track_seed)
+        upsert_track(track_seed, use_track_storage)
     print(f"Seeded {len(TRACK_SEEDS)} canonical tracks across all seed projects.")
 
 
