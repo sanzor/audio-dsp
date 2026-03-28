@@ -1,11 +1,16 @@
-
-import {  useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
+import { Pause, Play, Square, Volume2 } from "lucide-react"
 import WaveSurfer from "wavesurfer.js"
 import RegionsPlugin, { type Region } from 'wavesurfer.js/dist/plugins/regions.esm.js'
 import Minimap from 'wavesurfer.js/dist/plugins/minimap.esm.js'
 import type { TrackRegionViewModel } from "@/domain/Region/TrackRegionViewModel";
 import type { TrackRegionSetViewModel } from "@/domain/RegionSet/TrackRegionSetViewModel";
 import { useUIStore, type RightClickContext } from "@/Stores/UIStore";
+import { Button } from "@/components/ui/button";
+import { Slider } from "@/components/ui/slider";
+
+const PLAYBACK_RATES = [0.5, 0.75, 1, 1.25, 1.5, 2] as const;
+const PLAYBACK_RATE_PRESETS = [1, 1.5, 2] as const;
 
 
 export interface WaveformRendererProps{
@@ -32,12 +37,19 @@ export function WaveformRenderer({
 
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [currentTime, setCurrentTime] = useState(0);
+    const [duration, setDuration] = useState(0);
+    const [volume, setVolume] = useState(80);
+    const [playbackRate, setPlaybackRate] = useState<number>(1);
     const openContextMenu=useUIStore(x=>x.openContextMenu);
 
     useEffect(() => {
-        const waveformElement = waveformRef.current; // ✅ Local copy of ref
+        const waveformElement = waveformRef.current;
 
-        if (!waveformElement || !waveRef) return;
+        if (!waveformElement || !url) {
+            return;
+        }
 
         const onContextMenu = (e: MouseEvent) => {
             e.preventDefault();
@@ -51,29 +63,27 @@ export function WaveformRenderer({
 
         waveformElement.addEventListener('contextmenu', onContextMenu);
 
-        console.log("inside effect", { waveformElement, url, regionSet });
-        
-        if (!regionSet || !url) {
-            setError("Missing region set or URL");
-         return;
-        }
-
         setIsLoading(true);
         setError(null);
 
         const { wave: waveform, regions } = createWaveFormPlayer(
             url,
-             regionSet.regions,
+            regionSet?.regions ?? [],
             waveformElement,
             openContextMenu
         );
 
         waveRef.current = waveform;
+        waveform.setVolume(volume / 100);
+        waveform.setPlaybackRate(playbackRate);
         setRegionsPlugin(regions);
+        setIsPlaying(false);
+        setCurrentTime(0);
+        setDuration(0);
 
         waveform.once('ready', () => {
-            console.log("Waveform ready");
             setIsLoading(false);
+            setDuration(waveform.getDuration());
         });
 
         waveform.on('error', (err) => {
@@ -82,11 +92,28 @@ export function WaveformRenderer({
             setIsLoading(false);
         });
 
+        waveform.on('play', () => {
+            setIsPlaying(true);
+        });
+
+        waveform.on('pause', () => {
+            setIsPlaying(false);
+        });
+
+        waveform.on('finish', () => {
+            setIsPlaying(false);
+            setCurrentTime(waveform.getDuration());
+        });
+
+        waveform.on('timeupdate', (time) => {
+            setCurrentTime(time);
+        });
+
         return () => {
             waveformElement.removeEventListener('contextmenu', onContextMenu);
-            console.log("Destroying waveform");
             waveform.destroy();
             waveRef.current = null;
+            setRegionsPlugin(null);
         };
     }, [url, regionSet]);
 
@@ -120,6 +147,41 @@ export function WaveformRenderer({
         renderedRegionIds.current=currentIds;
     },[regionSet,regionSet?.regions,regionsPlugin]);
 
+    useEffect(() => {
+        if (!waveRef.current) return;
+        waveRef.current.setVolume(volume / 100);
+    }, [volume]);
+
+    useEffect(() => {
+        if (!waveRef.current) return;
+        waveRef.current.setPlaybackRate(playbackRate);
+    }, [playbackRate]);
+
+    const handlePlay = () => {
+        waveRef.current?.play();
+    };
+
+    const handlePause = () => {
+        waveRef.current?.pause();
+    };
+
+    const handleStop = () => {
+        if (!waveRef.current) return;
+        waveRef.current.stop();
+        setIsPlaying(false);
+        setCurrentTime(0);
+    };
+
+    const handlePlaybackRateStep = (direction: -1 | 1) => {
+        const currentIndex = PLAYBACK_RATES.findIndex((rate) => rate === playbackRate);
+        const safeIndex = currentIndex >= 0 ? currentIndex : PLAYBACK_RATES.indexOf(1);
+        const nextIndex = Math.min(
+            PLAYBACK_RATES.length - 1,
+            Math.max(0, safeIndex + direction),
+        );
+        setPlaybackRate(PLAYBACK_RATES[nextIndex]);
+    };
+
 
     if (error) {
         return (
@@ -134,12 +196,116 @@ export function WaveformRenderer({
         );
     }
     return (
-  <div className="w-full h-full min-h-[200px] bg-white border rounded-lg shadow-lg">
+  <div
+    className="relative flex h-full min-h-0 w-full flex-col overflow-hidden rounded-lg border shadow-lg"
+    style={{ backgroundColor: "var(--bg-darker)", borderColor: "rgba(255,255,255,0.08)" }}
+  >
     {isLoading && (
-      <div className="flex items-center justify-center h-32">
+      <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/25">
         <div className="text-gray-500">Loading waveform...</div>
       </div>
     )}
+    <div ref={waveformRef} className="min-h-0 flex-1" />
+    <div
+      className="flex shrink-0 items-center justify-between gap-4 border-t px-4 py-3"
+      style={{ backgroundColor: "var(--bg-darkest)", borderColor: "rgba(255,255,255,0.08)" }}
+    >
+      <div className="flex items-center gap-2">
+        <Button
+          type="button"
+          size="icon"
+          variant="outline"
+          onClick={handleStop}
+          disabled={!waveRef.current || isLoading}
+          aria-label="Stop playback"
+          className="border-white/10 bg-white/5 text-white hover:bg-white/10 hover:text-white"
+        >
+          <Square className="size-4 fill-current" />
+        </Button>
+        <Button
+          type="button"
+          size="icon"
+          variant="outline"
+          onClick={handlePause}
+          disabled={!waveRef.current || isLoading || !isPlaying}
+          aria-label="Pause playback"
+          className="border-white/10 bg-white/5 text-white hover:bg-white/10 hover:text-white"
+        >
+          <Pause className="size-4 fill-current" />
+        </Button>
+        <Button
+          type="button"
+          size="icon"
+          onClick={handlePlay}
+          disabled={!waveRef.current || isLoading}
+          aria-label="Play waveform"
+          className="bg-[var(--accent-blue)] text-white shadow-none hover:bg-[var(--accent-blue)]/90"
+        >
+          <Play className="size-4 fill-current" />
+        </Button>
+        <div className="min-w-28 text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
+          {formatTime(currentTime)} / {formatTime(duration)}
+        </div>
+      </div>
+
+      <div className="flex items-center gap-6">
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => handlePlaybackRateStep(-1)}
+            disabled={!waveRef.current || isLoading || playbackRate <= PLAYBACK_RATES[0]}
+            aria-label="Decrease playback speed"
+            className="h-8 border-white/10 bg-white/5 px-2 text-white hover:bg-white/10 hover:text-white"
+          >
+            -
+          </Button>
+          {PLAYBACK_RATE_PRESETS.map((rate) => (
+            <Button
+              key={rate}
+              type="button"
+              size="sm"
+              variant={playbackRate === rate ? "default" : "outline"}
+              onClick={() => setPlaybackRate(rate)}
+              disabled={!waveRef.current || isLoading}
+              aria-label={`Set playback speed to ${rate}x`}
+              className={
+                playbackRate === rate
+                  ? "h-8 bg-[var(--accent-blue)] px-2.5 text-white shadow-none hover:bg-[var(--accent-blue)]/90"
+                  : "h-8 border-white/10 bg-white/5 px-2.5 text-white hover:bg-white/10 hover:text-white"
+              }
+            >
+              {rate}x
+            </Button>
+          ))}
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => handlePlaybackRateStep(1)}
+            disabled={!waveRef.current || isLoading || playbackRate >= PLAYBACK_RATES[PLAYBACK_RATES.length - 1]}
+            aria-label="Increase playback speed"
+            className="h-8 border-white/10 bg-white/5 px-2 text-white hover:bg-white/10 hover:text-white"
+          >
+            +
+          </Button>
+        </div>
+
+        <div className="flex min-w-40 items-center gap-3">
+          <Volume2 className="size-4" style={{ color: "var(--text-muted)" }} />
+          <Slider
+            min={0}
+            max={100}
+            step={1}
+            value={[volume]}
+            onValueChange={(value) => setVolume(value[0] ?? 0)}
+            aria-label="Volume"
+            className="w-32"
+          />
+        </div>
+      </div>
+    </div>
   </div>
 );
 }
@@ -188,7 +354,7 @@ export function createWaveFormPlayer(
       // the Minimap takes all the same options as the WaveSurfer itself
               }),
         ],
-        mediaControls:true
+        mediaControls:false
     });
     wave.on('interaction',()=>{
         activeRegion=null;
@@ -201,6 +367,14 @@ export function createWaveFormPlayer(
 }
 const random = (min:number, max:number) => Math.random() * (max - min) + min
 const randomColor = () => `rgba(${random(0, 255)}, ${random(0, 255)}, ${random(0, 255)}, 0.5)`
+
+function formatTime(timeSeconds: number): string {
+    if (!Number.isFinite(timeSeconds)) return "00:00";
+    const totalSeconds = Math.max(0, Math.floor(timeSeconds));
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+}
 
 
 function addRegions(regions:TrackRegionViewModel[],regionsObj:RegionsPlugin):RegionsPlugin{

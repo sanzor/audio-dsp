@@ -127,7 +127,7 @@ def upsert_track(seed: dict[str, str | float], use_track_storage: bool) -> None:
     ).hex()
 
     if use_track_storage:
-        track_sql = f"""
+        track_insert_sql = f"""
 INSERT INTO tracks (name, extension, length_seconds, project_id)
 SELECT
   '{seed["name"]}',
@@ -136,18 +136,21 @@ SELECT
   {project_id}
 WHERE NOT EXISTS (
   SELECT 1 FROM tracks WHERE name = '{seed["name"]}' AND project_id = {project_id}
-)
-RETURNING track_id;
+);
 """
-        result = run_psql("-tAc", track_sql)
-        track_id = result.strip()
+        run_psql("-v", "ON_ERROR_STOP=1", "-c", track_insert_sql)
+        track_id = scalar(
+            f"SELECT track_id::text FROM tracks WHERE name = '{seed['name']}' AND project_id = {project_id} LIMIT 1;"
+        )
         if not track_id:
-            return  # already existed, skip storage insert
+            raise RuntimeError(
+                f"Failed to resolve track_id for seed '{seed['name']}' in project '{seed['project_name']}'."
+            )
 
         storage_sql = f"""
 INSERT INTO track_storage (track_id, data)
 VALUES ({track_id}, decode('{wav_hex}', 'hex'))
-ON CONFLICT (track_id) DO NOTHING;
+ON CONFLICT (track_id) DO UPDATE SET data = EXCLUDED.data;
 """
         run_psql("-v", "ON_ERROR_STOP=1", "-c", storage_sql)
     else:

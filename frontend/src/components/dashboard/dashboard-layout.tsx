@@ -36,7 +36,7 @@ export function DashboardLayout({
         </div>
         <div className="panel timeline-container">
           <div className="panel-header py-2 text-sm">Timeline</div>
-          <div className="flex-1 overflow-hidden">{timeline}</div>
+          <div className="flex-1 min-h-0 overflow-hidden">{timeline}</div>
         </div>
       </section>
     </div>
