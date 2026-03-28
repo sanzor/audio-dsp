@@ -1,4 +1,4 @@
-import { useRegionSetViewModel } from "@/Selectors/trackViewModels";
+import { useRegionSetViewModel, useTrackViewModelById } from "@/Selectors/trackViewModels";
 import { useWaveformAudio } from "./WaveformAudio";
 import { WaveformRenderer } from "./WaveformRenderer";
 import { useUIStore } from "@/Stores/UIStore";
@@ -8,17 +8,39 @@ import { useRegionSetController } from "@/controllers/RegionSetController";
 
 export function WaveformPlayer() {
   const openedContext = useUIStore(x => x.openedContext);
-
-  const regionSetId = openedContext?.type === "regionSet" ? openedContext.regionSetId : undefined;
-  const regionSet = useRegionSetStore(x => regionSetId != null ? x.regionSets.get(regionSetId) : undefined);
+  const selectedContext = useUIStore(x => x.selectedContext);
 
   const trackId: number | null =
     openedContext?.type === "track" ? openedContext.trackId :
-    openedContext?.type === "regionSet" ? regionSet?.trackId ?? null :
+    openedContext?.type === "regionSet" ? null :
     null;
 
-  const regionSetViewModel = useRegionSetViewModel(trackId, regionSetId);
-  const { objectUrl, isLoading } = useWaveformAudio(trackId);
+  const selectedRegionSetId =
+    selectedContext?.type === "regionSet" ? selectedContext.regionSetId : undefined;
+
+  const selectedRegionSet = useRegionSetStore((state) =>
+    selectedRegionSetId != null ? state.regionSets.get(selectedRegionSetId) : undefined,
+  );
+
+  const openedRegionSetId = openedContext?.type === "regionSet" ? openedContext.regionSetId : undefined;
+  const openedRegionSet = useRegionSetStore((state) =>
+    openedRegionSetId != null ? state.regionSets.get(openedRegionSetId) : undefined,
+  );
+
+  const resolvedTrackId =
+    openedContext?.type === "regionSet" ? openedRegionSet?.trackId ?? null : trackId;
+
+  const resolvedTrack = useTrackViewModelById(resolvedTrackId);
+
+  const regionSetId =
+    openedContext?.type === "regionSet"
+      ? openedRegionSetId
+      : selectedRegionSet?.trackId === resolvedTrackId
+        ? selectedRegionSetId
+        : resolvedTrack?.regionSets[0]?.id;
+
+  const regionSetViewModel = useRegionSetViewModel(resolvedTrackId, regionSetId);
+  const { objectUrl, isLoading } = useWaveformAudio(resolvedTrackId);
 
   const regionController = useRegionController();
   const regionSetController = useRegionSetController();

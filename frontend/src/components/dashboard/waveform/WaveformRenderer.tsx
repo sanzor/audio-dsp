@@ -64,31 +64,46 @@ export function WaveformRenderer({
     }, [onCreateRegionDrag]);
 
     useEffect(() => {
-        const waveformElement = waveformRef.current;
         const waveformShellElement = waveformShellRef.current;
+        if (!waveformShellElement) return;
 
-        if (!waveformElement || !waveformShellElement || !url) {
-            return;
-        }
+        const handleContextMenu = (event: MouseEvent) => {
+            const target = event.target as HTMLElement | null;
+            if (target?.closest('[part*="region"]')) return;
 
-        const onContextMenu = (e: MouseEvent) => {
-            e.preventDefault();
+            event.preventDefault();
+            event.stopPropagation();
+
             const currentRegionSet = regionSetRef.current;
-            if (!currentRegionSet) return;
+            const waveform = waveRef.current;
+            if (!currentRegionSet || !waveform) return;
+
             const bounding = waveformShellElement.getBoundingClientRect();
-            const x = e.clientX - bounding.left;
+            const x = event.clientX - bounding.left;
             const width = waveformShellElement.offsetWidth;
-            const time = waveRef.current!.getDuration() * (x / width);
+            const time = waveform.getDuration() * (x / width);
+
             openContextMenu({
-                type:'waveform_timeline',
-                x: e.clientX,
-                y: e.clientY,
+                type: 'waveform_timeline',
+                x: event.clientX,
+                y: event.clientY,
                 regionSetId: currentRegionSet.id,
-                time: time,
+                time,
             });
         };
 
-        waveformShellElement.addEventListener('contextmenu', onContextMenu);
+        waveformShellElement.addEventListener('contextmenu', handleContextMenu, true);
+        return () => {
+            waveformShellElement.removeEventListener('contextmenu', handleContextMenu, true);
+        };
+    }, [openContextMenu]);
+
+    useEffect(() => {
+        const waveformElement = waveformRef.current;
+
+        if (!waveformElement || !url) {
+            return;
+        }
 
         beginPlaybackLoad();
 
@@ -136,7 +151,6 @@ export function WaveformRenderer({
         setRegionsPlugin(regions);
 
         return () => {
-            waveformShellElement.removeEventListener('contextmenu', onContextMenu);
             cleanupPlaybackBindings();
             waveform.destroy();
             waveRef.current = null;
@@ -281,7 +295,10 @@ export function WaveformRenderer({
         <div className="text-gray-500">Loading waveform...</div>
       </div>
     )}
-    <div ref={waveformShellRef} className="relative min-h-0 flex-1">
+    <div
+      ref={waveformShellRef}
+      className="relative min-h-0 flex-1"
+    >
       <div ref={waveformRef} className="h-full w-full" />
       {draftSelection && playback.duration > 0 && (
         <div
