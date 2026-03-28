@@ -13,7 +13,7 @@ import type { CreateRegionSetParams } from "@/Services/RegionSetsService"
 import { useState } from "react"
 
 interface CreateRegionSetModalProps {
-  trackId:string,
+  trackId:number,
   open: boolean
   onClose: () => void
   onSubmit: (track: CreateRegionSetParams) => void
@@ -31,10 +31,8 @@ export function CreateRegionSetModal({
   const handleSubmit = () => {
     const createRegionSetParams: CreateRegionSetParams = {
         name:regionSetName,
-        track_id:trackId
+        trackId
     };
-    console.log("Submitting form");
-    console.log(JSON.stringify(createRegionSetParams));
     onSubmit(createRegionSetParams)
   }
 
@@ -76,4 +74,3 @@ export function CreateRegionSetModal({
     </Dialog>
   )
 }
-

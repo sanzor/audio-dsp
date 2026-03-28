@@ -13,6 +13,7 @@ use domain::{
 
 #[async_trait::async_trait]
 pub trait RegionsDataProvider: Send + Sync {
+    async fn get_region(&self, region_id: &RegionId) -> Result<DbRegion, String>;
     async fn get_region_set(&self, set_id: &RegionSetId) -> Result<DbRegionSet, String>;
     async fn get_regions_for_region_set(&self, set_id: &RegionSetId) -> Result<Vec<DbRegion>, String>;
     async fn add_region(&self, params: AddRegionParams) -> Result<DbRegion, String>;

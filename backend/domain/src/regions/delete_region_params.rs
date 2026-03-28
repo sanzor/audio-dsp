@@ -1,6 +1,5 @@
-use crate::db::{RegionId, RegionSetId};
+use crate::db::RegionId;
 
 pub struct DeleteRegionParams {
-    pub region_set_id: RegionSetId,
     pub region_id: RegionId,
 }

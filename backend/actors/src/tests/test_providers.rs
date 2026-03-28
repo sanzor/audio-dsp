@@ -232,11 +232,9 @@ impl RegionSetsProvider for StubRegionSetsProvider {
 
     async fn edit_region(&self, params: EditRegionParams) -> Result<DbRegion, String> {
         let mut guard = self.regions.lock().await;
-        let regions = guard
-            .get_mut(&params.region_set_id)
-            .ok_or_else(|| "Could not find region set".to_string())?;
-        let region = regions
-            .iter_mut()
+        let region = guard
+            .values_mut()
+            .flat_map(|regions| regions.iter_mut())
             .find(|r| r.region_id == params.region_id)
             .ok_or_else(|| "Could not find region".to_string())?;
         if let Some(name) = params.name {
@@ -253,7 +251,7 @@ impl RegionSetsProvider for StubRegionSetsProvider {
 
     async fn delete_region(&self, params: DeleteRegionParams) -> Result<(), String> {
         let mut guard = self.regions.lock().await;
-        if let Some(regions) = guard.get_mut(&params.region_set_id) {
+        for regions in guard.values_mut() {
             regions.retain(|r| r.region_id != params.region_id);
         }
         Ok(())

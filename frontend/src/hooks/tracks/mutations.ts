@@ -21,7 +21,7 @@ import type { TrackMeta } from '@/domain/Track/TrackMeta';
 
 export const normalizeTrackWithCascade = (trackApi: TrackMeta): NormalizedTrackMeta => {
   const addRegionSet = useRegionSetStore.getState().addRegionSet;
-  const regionSetsIds: string[] = [];
+  const regionSetsIds: number[] = [];
 
   for (const regionSet of trackApi.regionSets) {
     const normalized = normalizeRegionSetWithCascade(regionSet);
@@ -33,7 +33,7 @@ export const normalizeTrackWithCascade = (trackApi: TrackMeta): NormalizedTrackM
   return { ...rest, region_sets_ids: regionSetsIds };
 };
 
-export const cascadeDeleteTrack = (trackId: string): void => {
+export const cascadeDeleteTrack = (trackId: number): void => {
   const { getTrack, removeTrack } = useTrackStore.getState();
   const track = getTrack(trackId);
   if (!track) return;
@@ -113,7 +113,7 @@ export const useRenameTrack = () => {
   const updateTrack = useTrackStore.getState().updateTrack;
   const getTrack = useTrackStore.getState().getTrack;
 
-  return useMutation<void, Error, { trackId: string; newName: string }, { previousTrack?: NormalizedTrackMeta }>({
+  return useMutation<void, Error, { trackId: number; newName: string }, { previousTrack?: NormalizedTrackMeta }>({
     mutationFn: async ({ trackId, newName }) => {
       const res = await fetch(`/api/tracks/${trackId}`, {
         method: 'PATCH',

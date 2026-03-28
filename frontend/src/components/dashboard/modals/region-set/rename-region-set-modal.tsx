@@ -7,10 +7,10 @@ import { useEffect, useState } from "react";
 import { useRegionSetStore } from "@/Stores/RegionSetStore";
 
 export interface RenameRegionSetProps {
-  regionSetId:string; // 👈 allow null
+  regionSetId:number;
   open: boolean;
   onClose: () => void;
-  onSubmit: (regionSetId: string, newName: string) => void;
+  onSubmit: (regionSetId: number, newName: string) => void;
 }
 
 export function RegionSetRenameModal({

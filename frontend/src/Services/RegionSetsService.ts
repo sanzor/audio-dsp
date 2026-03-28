@@ -1,5 +1,39 @@
 import type { TrackRegionSet } from "@/domain/RegionSet/TrackRegionSet";
+import type { TrackRegion } from "@/domain/Region/TrackRegion";
 import { http } from "@/Services/http";
+
+interface ApiRegion {
+  regionId: number;
+  regionSetId: number;
+  name: string;
+  startTime: number;
+  endTime: number;
+  graph?: TrackRegion["graph"];
+}
+
+interface ApiRegionSet {
+  id?: number;
+  regionSetId?: number;
+  trackId: number;
+  name: string;
+  regions?: ApiRegion[];
+}
+
+const mapApiRegion = (region: ApiRegion): TrackRegion => ({
+  regionId: region.regionId,
+  regionSetId: region.regionSetId,
+  name: region.name,
+  start: region.startTime,
+  end: region.endTime,
+  graph: region.graph,
+});
+
+const mapApiRegionSet = (regionSet: ApiRegionSet): TrackRegionSet => ({
+  id: regionSet.id ?? regionSet.regionSetId ?? 0,
+  trackId: regionSet.trackId,
+  name: regionSet.name,
+  regions: (regionSet.regions ?? []).map(mapApiRegion),
+});
 
 // ─── Params & Results ────────────────────────────────────────────────────────
 
@@ -12,7 +46,7 @@ export interface GetRegionSetResult {
 
 export interface GetRegionSetsForTrackResult {
   trackId: number;
-  sets: TrackRegionSet[];
+  regionSets: TrackRegionSet[];
 }
 
 export interface GetRegionSetsResult {
@@ -21,16 +55,13 @@ export interface GetRegionSetsResult {
 
 export interface CreateRegionSetParams {
   name: string | null;
-  track_id: number;
+  trackId: number;
 }
-export interface CreateRegionSetResult {
-  region_set: TrackRegionSet;
-}
+export type CreateRegionSetResult = TrackRegionSet;
 
 export interface CopyRegionSetParams {
-  sourceRegionSetId: number;
-  destTrackId: number;
-  copy_region_set_name: string;
+  regionSetId: number;
+  copyName: string;
 }
 
 export interface EditRegionSetParams {
@@ -50,19 +81,24 @@ export interface RemoveRegionSetResult {}
 // ─── API ──────────────────────────────────────────────────────────────────────
 
 export function apiGetRegionSet(regionSetId: number): Promise<TrackRegionSet> {
-  return http.get(`/region-sets/get-region-set?region_set_id=${regionSetId}`);
+  return http.get<ApiRegionSet>(`/region-sets/get?region_set_id=${regionSetId}`).then(mapApiRegionSet);
 }
 
 export function apiGetRegionSetsForTrack(trackId: number): Promise<GetRegionSetsForTrackResult> {
-  return http.get(`/region-sets/get-all-for-track?track_id=${trackId}`);
+  return http
+    .get<{ trackId: number; regionSets: ApiRegionSet[] }>(`/region-sets/get-all-for-track?trackId=${trackId}`)
+    .then((response) => ({
+      trackId: response.trackId,
+      regionSets: response.regionSets.map(mapApiRegionSet),
+    }));
 }
 
 export function apiGetAllRegionSets(): Promise<GetRegionSetsResult> {
-  return http.get("/region-sets/get-region-sets");
+  return http.get("/region-sets/get-all");
 }
 
 export function apiCreateRegionSet(params: CreateRegionSetParams): Promise<CreateRegionSetResult> {
-  return http.post("/region-sets/create", params);
+  return http.post<ApiRegionSet>("/region-sets/create", params).then(mapApiRegionSet);
 }
 
 export function apiUpdateRegionSet(params: EditRegionSetParams): Promise<EditRegionSetResult> {
@@ -70,9 +106,9 @@ export function apiUpdateRegionSet(params: EditRegionSetParams): Promise<EditReg
 }
 
 export function apiRemoveRegionSet(params: RemoveRegionSetParams): Promise<void> {
-  return http.delete(`/region-sets/remove?region_set_id=${params.regionSetId}`);
+  return http.delete(`/region-sets/delete?regionSetId=${params.regionSetId}`);
 }
 
 export function apiCopyRegionSet(params: CopyRegionSetParams): Promise<CreateRegionSetResult> {
-  return http.post("/region-sets/create", params);
+  return http.post<ApiRegionSet>("/region-sets/copy-region-set", params).then(mapApiRegionSet);
 }

@@ -3,10 +3,10 @@ export type PasteGraphParams={
   destination:DestinationPasteGraphParams
 }
 type SourcePasteGraphParams={
-  graphId:string
+  graphId:number
 }
 type DestinationPasteGraphParams={
-  regionId:string
+  regionId:number
 }
 
 export type PasteRegionParams={
@@ -14,10 +14,10 @@ export type PasteRegionParams={
   destination:DestinationPasteRegionParams
 }
 type SourcePasteRegionParams={
-  regionId:string
+  regionId:number
 }
 type DestinationPasteRegionParams={
-  regionSetId:string
+  regionSetId:number
 }
 
 export type PasteRegionSetParams={
@@ -26,8 +26,8 @@ export type PasteRegionSetParams={
 }
 
 type SourcePasteRegionSetParams={
-  regionSetId:string,
+  regionSetId:number,
 }
 type DestinationPasteRegionSetParams={
-  trackId:string,
+  trackId:number,
 }

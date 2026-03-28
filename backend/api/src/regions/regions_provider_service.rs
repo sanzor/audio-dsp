@@ -2,6 +2,8 @@ use std::sync::Arc;
 
 use domain::{
     db::db_region::DbRegion,
+    region_set::region_set_subtree::RegionSetSubtree,
+    regions::region_subtree::RegionSubtree,
     regions::{
         add_region_params::AddRegionParams as DbAddRegionParams,
         copy_region_params::CopyRegionParams as DbCopyRegionParams,
@@ -25,6 +27,32 @@ pub struct RegionsProviderService {
 impl RegionsProviderService {
     pub fn new(data: Arc<dyn RegionsDataProvider>) -> Self {
         Self { data }
+    }
+
+    async fn load_region_set_subtree(
+        &self,
+        set_id: &domain::db::db_region_set::RegionSetId,
+    ) -> Result<RegionSetSubtree, String> {
+        let set = self.data.get_region_set(set_id).await?;
+        let regions = self.data.get_regions_for_region_set(&set.region_set_id).await?;
+
+        Ok(RegionSetSubtree {
+            track_id: set.track_id,
+            track_length: set.track_length_seconds,
+            region_set_id: set.region_set_id,
+            name: set.name,
+            regions: regions
+                .into_iter()
+                .map(|region| RegionSubtree {
+                    region_id: region.region_id,
+                    region_set_id: region.region_set_id,
+                    name: region.name,
+                    start_time: region.start_time_seconds,
+                    end_time: region.end_time_seconds,
+                    graph: None,
+                })
+                .collect(),
+        })
     }
 
     fn resolve_end_time(
@@ -56,7 +84,7 @@ impl RegionsProviderService {
 
 #[async_trait::async_trait]
 impl RegionsProvider for RegionsProviderService {
-    async fn add_region(&self, params: AddRegionParams) -> Result<domain::db::db_region_set::DbRegionSet, String> {
+    async fn add_region(&self, params: AddRegionParams) -> Result<RegionSetSubtree, String> {
         let set = self.data.get_region_set(&params.region_set_id).await?;
         let regions = self.data.get_regions_for_region_set(&params.region_set_id).await?;
         let end_time = Self::resolve_end_time(
@@ -73,32 +101,35 @@ impl RegionsProvider for RegionsProviderService {
                 region_set_id: params.region_set_id.clone(),
             })
             .await?;
-        self.data.get_region_set(&params.region_set_id).await
+
+        self.load_region_set_subtree(&params.region_set_id).await
     }
 
-    async fn edit_region(&self, params: EditRegionParams) -> Result<domain::db::db_region_set::DbRegionSet, String> {
+    async fn edit_region(&self, params: EditRegionParams) -> Result<DbRegion, String> {
         self.data
             .edit_region(DbEditRegionParams {
                 name: params.name,
                 region_id: params.region_id,
-                region_set_id: params.region_set_id.clone(),
                 end_time: params.end_time,
                 start_time: params.start_time,
-            })
-            .await?;
-        self.data.get_region_set(&params.region_set_id).await
-    }
-
-    async fn delete_region(&self, params: DeleteRegionParams) -> Result<(), String> {
-        self.data
-            .delete_region(DbDeleteRegionParams {
-                region_id: params.region_id,
-                region_set_id: params.region_set_id,
             })
             .await
     }
 
-    async fn copy_region(&self, params: CopyRegionParams) -> Result<domain::db::db_region_set::DbRegionSet, String> {
+    async fn delete_region(&self, params: DeleteRegionParams) -> Result<RegionSetSubtree, String> {
+        let region = self.data.get_region(&params.region_id).await?;
+        let region_set_id = region.region_set_id;
+
+        self.data
+            .delete_region(DbDeleteRegionParams {
+                region_id: params.region_id,
+            })
+            .await?;
+
+        self.load_region_set_subtree(&region_set_id).await
+    }
+
+    async fn copy_region(&self, params: CopyRegionParams) -> Result<DbRegion, String> {
         self.data
             .copy_region(DbCopyRegionParams {
                 source_region_set_id: params.source_region_set_id,
@@ -108,7 +139,6 @@ impl RegionsProvider for RegionsProviderService {
                 destination_track_id: params.destination_track_id,
                 region_copy_name: params.copy_name,
             })
-            .await?;
-        self.data.get_region_set(&params.destination_region_set_id).await
+            .await
     }
 }

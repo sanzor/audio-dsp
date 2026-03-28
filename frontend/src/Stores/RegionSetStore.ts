@@ -3,7 +3,7 @@
 import type { NormalizedTrackRegionSet } from '@/domain/RegionSet/NormalizedTrackRegionSet';
 import { create, type StoreApi, type UseBoundStore } from 'zustand';
 
-type RegionSetCache = Map<string, NormalizedTrackRegionSet>;
+type RegionSetCache = Map<number, NormalizedTrackRegionSet>;
 
 interface RegionSetState {
     regionSets: RegionSetCache;
@@ -11,20 +11,20 @@ interface RegionSetState {
 }
 
 interface RegionSetActions {
-    getRegionSet: (setId: string) => NormalizedTrackRegionSet | undefined;
+    getRegionSet: (setId: number) => NormalizedTrackRegionSet | undefined;
     setAllRegionSets: (sets: NormalizedTrackRegionSet[]) => void;
     addRegionSet: (set: NormalizedTrackRegionSet) => void;
-    removeRegionSet: (setId: string) => void;
-    updateRegionSet: (setId: string, updates: Partial<NormalizedTrackRegionSet>) => void;
-    attachRegion: (setId: string, regionId: string) => void;
-    detachRegion: (setId: string, regionId: string) => void;
+    removeRegionSet: (setId: number) => void;
+    updateRegionSet: (setId: number, updates: Partial<NormalizedTrackRegionSet>) => void;
+    attachRegion: (setId: number, regionId: number) => void;
+    detachRegion: (setId: number, regionId: number) => void;
 }
 
 type RegionSetStore = RegionSetState & RegionSetActions;
 
 const updateRegionIds = (
     entity: NormalizedTrackRegionSet,
-    updater: (regionIds: string[]) => string[]
+    updater: (regionIds: number[]) => number[]
 ): NormalizedTrackRegionSet => ({
     ...entity,
     region_ids: updater(entity.region_ids ?? []),
@@ -35,12 +35,12 @@ export const useRegionSetStore: UseBoundStore<StoreApi<RegionSetStore>> = create
     loading: true,
 
     setAllRegionSets: (newRegionSets: NormalizedTrackRegionSet[]) => {
-        const setMap = new Map<string, NormalizedTrackRegionSet>();
+        const setMap = new Map<number, NormalizedTrackRegionSet>();
         newRegionSets.forEach((s) => setMap.set(s.id, s));
         set({ regionSets: setMap, loading: false });
     },
 
-    getRegionSet: (setId: string) => get().regionSets.get(setId),
+    getRegionSet: (setId: number) => get().regionSets.get(setId),
 
     addRegionSet: (setToAdd: NormalizedTrackRegionSet) =>
         set((state: RegionSetState) => {
@@ -49,14 +49,14 @@ export const useRegionSetStore: UseBoundStore<StoreApi<RegionSetStore>> = create
             return { regionSets: newMap };
         }),
 
-    removeRegionSet: (setId: string) =>
+    removeRegionSet: (setId: number) =>
         set((state: RegionSetState) => {
             const newMap = new Map(state.regionSets);
             newMap.delete(setId);
             return { regionSets: newMap };
         }),
 
-    updateRegionSet: (setId: string, updates: Partial<NormalizedTrackRegionSet>) =>
+    updateRegionSet: (setId: number, updates: Partial<NormalizedTrackRegionSet>) =>
         set((state: RegionSetState) => {
             const setEntity = state.regionSets.get(setId);
             if (!setEntity) return state;
@@ -66,7 +66,7 @@ export const useRegionSetStore: UseBoundStore<StoreApi<RegionSetStore>> = create
             return { regionSets: newMap };
         }),
 
-    attachRegion: (setId: string, regionId: string) =>
+    attachRegion: (setId: number, regionId: number) =>
         set((state: RegionSetState) => {
             const setEntity = state.regionSets.get(setId);
             if (!setEntity) return state;
@@ -80,7 +80,7 @@ export const useRegionSetStore: UseBoundStore<StoreApi<RegionSetStore>> = create
             return { regionSets: newMap };
         }),
 
-    detachRegion: (setId: string, regionId: string) =>
+    detachRegion: (setId: number, regionId: number) =>
         set((state: RegionSetState) => {
             const setEntity = state.regionSets.get(setId);
             if (!setEntity) return state;

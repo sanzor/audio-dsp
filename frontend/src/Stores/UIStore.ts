@@ -6,65 +6,65 @@ import type { CanonicalAudio } from '@/Audio/CanonicalAudio';
 
 // Your existing types
 export type RightClickContext =
-  | { type: 'track'; trackId: string; x: number; y: number }
-  | { type: 'region'; regionId: string; x: number; y: number }
-  | { type: 'regionSet'; regionSetId: string; x: number; y: number }
-  | { type: 'graph'; graphId: string; x: number; y: number }
-  | { type: 'waveform_region'; regionId: string; x: number; y: number } // Right-click on an existing region graphic
-  | { type: 'waveform_timeline'; regionSetId: string; time: number; x: number; y: number } // Right-click on the timeline background
+  | { type: 'track'; trackId: number; x: number; y: number }
+  | { type: 'region'; regionId: number; x: number; y: number }
+  | { type: 'regionSet'; regionSetId: number; x: number; y: number }
+  | { type: 'graph'; graphId: number; x: number; y: number }
+  | { type: 'waveform_region'; regionId: number; x: number; y: number } // Right-click on an existing region graphic
+  | { type: 'waveform_timeline'; regionSetId: number; time: number; x: number; y: number } // Right-click on the timeline background
   | null;
 
 export type SelectedContext =
-  | { type: 'track'; trackId: string }
-  | { type: 'regionSet'; regionSetId: string }
-  | { type: 'region'; regionId: string }
-  | { type: 'graph'; graphId: string }
+  | { type: 'track'; trackId: number }
+  | { type: 'regionSet'; regionSetId: number }
+  | { type: 'region'; regionId: number }
+  | { type: 'graph'; graphId: number }
   | null;
 
 export type OpenedContext =
-  | { type: 'track'; trackId: string }
-  | { type: 'regionSet'; regionSetId: string }
-  | { type: 'region'; regionId: string }
-  | { type: 'graph'; graphId: string }
+  | { type: 'track'; trackId: number }
+  | { type: 'regionSet'; regionSetId: number }
+  | { type: 'region'; regionId: number }
+  | { type: 'graph'; graphId: number }
   | null;
 
 export type Clipboard =
-  | { type: 'track'; trackId: string }
-  | { type: 'regionSet'; regionSetId: string }
-  | { type: 'region'; regionId: string }
-  | { type: 'graph'; graphId: string }
-  | { type: 'node'; nodeId: string }
-  | { type: 'edge'; edgeId: string }
+  | { type: 'track'; trackId: number }
+  | { type: 'regionSet'; regionSetId: number }
+  | { type: 'region'; regionId: number }
+  | { type: 'graph'; graphId: number }
+  | { type: 'node'; nodeId: number }
+  | { type: 'edge'; edgeId: number }
   | null;
 
 // Modal state for ALL your modals
 export type ModalState = 
   // Track modals
   | { type: 'createTrack'; canonicalAudio: CanonicalAudio | null }
-  | { type: 'renameTrack'; trackId: string }
-  | { type: 'detailsTrack'; trackId: string }
-  | { type: 'deleteTrack'; trackId: string }
-  | { type: 'pasteTrack'; trackId: string }
+  | { type: 'renameTrack'; trackId: number }
+  | { type: 'detailsTrack'; trackId: number }
+  | { type: 'deleteTrack'; trackId: number }
+  | { type: 'pasteTrack'; trackId: number }
   
   // RegionSet modals
-  | { type: 'createRegionSet'; trackId: string }
-  | { type: 'renameRegionSet'; regionSetId: string }
-  | { type: 'detailsRegionSet'; regionSetId: string }
-  | { type: 'deleteRegionSet'; regionSetId: string }
+  | { type: 'createRegionSet'; trackId: number }
+  | { type: 'renameRegionSet'; regionSetId: number }
+  | { type: 'detailsRegionSet'; regionSetId: number }
+  | { type: 'deleteRegionSet'; regionSetId: number }
   | { type: 'pasteRegionSet'; params: PasteRegionSetParams }
   
   // Region modals
-  | { type: 'createRegion'; regionSetId: string; startTime?: number; endTime?: number }
-  | { type: 'renameRegion'; regionId: string }
-  | { type: 'detailsRegion'; regionId: string }
+  | { type: 'createRegion'; regionSetId: number; startTime?: number; endTime?: number }
+  | { type: 'renameRegion'; regionId: number }
+  | { type: 'detailsRegion'; regionId: number }
   | { type: 'pasteRegion'; params: PasteRegionParams }
-  | { type: 'deleteRegion'; regionId: string }
+  | { type: 'deleteRegion'; regionId: number }
   
   // Graph modals
-  | { type: 'createGraph'; regionId: string }
-  | { type: 'renameGraph'; graphId: string }
-  | { type: 'detailsGraph'; graphId: string }
-  | { type: 'deleteGraph'; graphId: string }
+  | { type: 'createGraph'; regionId: number }
+  | { type: 'renameGraph'; graphId: number }
+  | { type: 'detailsGraph'; graphId: number }
+  | { type: 'deleteGraph'; graphId: number }
   | { type: 'pasteGraph'; params: PasteGraphParams }
   
   // ... add more as needed

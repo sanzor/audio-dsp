@@ -21,7 +21,7 @@ export function useRegionController() {
   const createGraphMutation = useCreateGraph();
   const copyGraphMutation = useCopyGraph();
   const deleteRegionMutation = useDeleteRegion();
-  const renameRegionMutation = useEditRegion();
+  const editRegionMutation = useEditRegion();
 
 
 
@@ -29,7 +29,7 @@ export function useRegionController() {
     // ============================================
     // CREATE REGION
     // ============================================
-    handleCreateGraph: (regionId:string) => {
+    handleCreateGraph: (regionId:number) => {
       const region =regionMap.get(regionId);
       if (!region) {
         console.error('Region  not found:', { regionId });
@@ -56,7 +56,7 @@ export function useRegionController() {
     // ============================================
     // DETAILS REGION SET
     // ============================================
-    handleDetailsRegion: (regionId:string) => {
+    handleDetailsRegion: (regionId:number) => {
       const region =regionMap.get(regionId);
       if (!region) {
         console.error('Region not found:', { regionId });
@@ -70,7 +70,7 @@ export function useRegionController() {
     // ============================================
     // RENAME REGION SET
     // ============================================
-    handleEditRegion: (regionId:string) => {
+    handleEditRegion: (regionId:number) => {
       const region =regionMap.get(regionId);
       if (!region) {
         console.error('Region  not found:', { regionId });
@@ -81,9 +81,17 @@ export function useRegionController() {
       closeContextMenu(); // ✅ Close context menu when opening modal
     },
 
-    handleSubmitRenameRegion: async (regionId:string, newName: string) => {
+    handleSubmitRenameRegion: async (regionId:number, newName: string) => {
+      const region = regionMap.get(regionId);
+      if (!region) {
+        console.error('Region not found:', { regionId });
+        throw new Error('Region not found');
+      }
       try {
-        await renameRegionMutation.mutateAsync({ regionId:regionId,name:newName });
+        await editRegionMutation.mutateAsync({
+          regionId,
+          name: newName,
+        });
         closeModal(); // ✅ Close modal on success
         // Optional: Show success toast
       } catch (error) {
@@ -93,12 +101,33 @@ export function useRegionController() {
       }
     },
 
+    handleUpdateRegionBounds: async (regionId: number, startTime: number, endTime: number) => {
+      const region = regionMap.get(regionId);
+      if (!region) {
+        console.error('Region not found:', { regionId });
+        throw new Error('Region not found');
+      }
+
+      await editRegionMutation.mutateAsync({
+        regionId,
+        startTime,
+        endTime,
+      });
+    },
+
     // ============================================
     // DELETE REGION 
     // ============================================
-    handleDeleteRegion: async (regionId:string) => {
+    handleDeleteRegion: async (regionId:number) => {
+      const region = regionMap.get(regionId);
+      if (!region) {
+        console.error('Region not found:', { regionId });
+        throw new Error('Region not found');
+      }
       try {
-        await deleteRegionMutation.mutateAsync({ regionId:regionId });
+        await deleteRegionMutation.mutateAsync({
+          regionId,
+        });
         closeContextMenu(); // ✅ Close context menu after successful action
         // Optional: Show success toast
       } catch (error) {
@@ -112,7 +141,7 @@ export function useRegionController() {
     // ============================================
     // COPY REGION SET
     // ============================================
-    handleCopyRegion: (regionId:string) => {
+    handleCopyRegion: (regionId:number) => {
       const region =regionMap.get(regionId);
       if (!region) {
         console.error('Region  not found:', { regionId });
@@ -129,7 +158,7 @@ export function useRegionController() {
     // ============================================
     // PASTE REGION
     // ============================================
-    handlePasteGraph(destRegionId:string) {
+    handlePasteGraph(destRegionId:number) {
       // 1. Validate source type
       const clipboard = useUIStore.getState().clipboard;
       if (!clipboard || clipboard.type !== "graph") return;

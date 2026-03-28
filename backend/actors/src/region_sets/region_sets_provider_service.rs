@@ -162,9 +162,8 @@ impl RegionSetsProvider for PostgresRegionSetsProvider {
     }
 
     async fn delete_region(&self, params: DeleteRegionParams) -> Result<(), String> {
-        sqlx::query("DELETE FROM regions WHERE region_id = $1 AND region_set_id = $2")
+        sqlx::query("DELETE FROM regions WHERE region_id = $1")
             .bind(&params.region_id)
-            .bind(&params.region_set_id)
             .execute(&self.pool)
             .await
             .map(|_| ())

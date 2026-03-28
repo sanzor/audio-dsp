@@ -6,9 +6,9 @@ import { useRegionStore } from "@/Stores/RegionStore";
 
 interface RenameRegionProps {
   open: boolean;
-  regionId: string;
+  regionId: number;
   onClose: () => void;
-  onSubmit: (regionId: string, newName: string) => void;
+  onSubmit: (regionId: number, newName: string) => void;
 }
 
 export function RenameRegionModal({ open, regionId, onClose, onSubmit }: RenameRegionProps) {
@@ -46,4 +46,3 @@ export function RenameRegionModal({ open, regionId, onClose, onSubmit }: RenameR
     </Dialog>
   );
 }
-

@@ -29,7 +29,7 @@ const buildRegionViewModel = (
 
 const buildRegionSetViewModel = (
   regionSet: NormalizedTrackRegionSet,
-  regionMap: Map<string, NormalizedTrackRegion>,
+  regionMap: Map<number, NormalizedTrackRegion>,
   graphMap: Map<string, Graph>
 ): TrackRegionSetViewModel => {
   const { region_ids, ...rest } = regionSet;
@@ -47,8 +47,8 @@ const buildRegionSetViewModel = (
 
 const buildTrackViewModel = (
   track: NormalizedTrackMeta,
-  regionSetMap: Map<string, NormalizedTrackRegionSet>,
-  regionMap: Map<string, NormalizedTrackRegion>,
+  regionSetMap: Map<number, NormalizedTrackRegionSet>,
+  regionMap: Map<number, NormalizedTrackRegion>,
   graphMap: Map<string, Graph>
 ): TrackMetaViewModel => {
   const { region_sets_ids, ...rest } = track;
@@ -65,12 +65,12 @@ const buildTrackViewModel = (
 };
 
 const buildTrackViewModelMap = (
-  tracks: Map<string, NormalizedTrackMeta>,
-  regionSets: Map<string, NormalizedTrackRegionSet>,
-  regions: Map<string, NormalizedTrackRegion>,
+  tracks: Map<number, NormalizedTrackMeta>,
+  regionSets: Map<number, NormalizedTrackRegionSet>,
+  regions: Map<number, NormalizedTrackRegion>,
   graphs: Map<string, Graph>
-): Map<string, TrackMetaViewModel> => {
-  const result = new Map<string, TrackMetaViewModel>();
+): Map<number, TrackMetaViewModel> => {
+  const result = new Map<number, TrackMetaViewModel>();
   tracks.forEach(track => {
     const viewModel = buildTrackViewModel(track, regionSets, regions, graphs);
     result.set(track.trackId, viewModel);
@@ -95,7 +95,7 @@ export const useTrackViewModels = (): TrackMetaViewModel[] => {
   return useMemo(() => Array.from(map.values()), [map]);
 };
 
-export const useTrackViewModelById = (trackId: string | null | undefined): TrackMetaViewModel | null => {
+export const useTrackViewModelById = (trackId: number | null | undefined): TrackMetaViewModel | null => {
   const map = useTrackViewModelMap();
   return useMemo(() => {
     if (!trackId) return null;
@@ -104,8 +104,8 @@ export const useTrackViewModelById = (trackId: string | null | undefined): Track
 };
 
 export const useRegionSetViewModel = (
-  trackId: string | null | undefined,
-  regionSetId: string | null | undefined
+  trackId: number | null | undefined,
+  regionSetId: number | null | undefined
 ): TrackRegionSetViewModel | null => {
   const track = useTrackViewModelById(trackId);
   return useMemo(() => {
@@ -115,9 +115,9 @@ export const useRegionSetViewModel = (
 };
 
 export const useRegionViewModel = (
-  trackId: string | null | undefined,
-  regionSetId: string | null | undefined,
-  regionId: string | null | undefined
+  trackId: number | null | undefined,
+  regionSetId: number | null | undefined,
+  regionId: number | null | undefined
 ): TrackRegionViewModel | null => {
   const regionSet = useRegionSetViewModel(trackId, regionSetId);
   return useMemo(() => {

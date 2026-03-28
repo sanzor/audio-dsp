@@ -1,12 +1,11 @@
-import { ContextMenu, ContextMenuContent, ContextMenuItem } from "@/components/ui/context-menu";
-import { ContextMenuTrigger } from "@radix-ui/react-context-menu";
+import { MenuItem, PositionedMenu } from "./PositionedMenu";
 
 interface WaveformTimelineContextMenuProps {
-  regionSetId: string;
+  regionSetId: number;
   x: number;
   y: number;
   startTime: number;
-  onCreateRegionClick: (regionSetId: string, startTime: number) => void;
+  onCreateRegionClick: (regionSetId: number, startTime: number) => void;
   onClose: () => void;
 }
 
@@ -19,13 +18,10 @@ export function WaveformTimelineContextMenu({
   onClose,
 }: WaveformTimelineContextMenuProps) {
   return (
-    <ContextMenu>
-      <ContextMenuTrigger />
-      <ContextMenuContent style={{ position: "absolute", top: y, left: x, zIndex: 1000 }} onClick={onClose}>
-        <ContextMenuItem onClick={() => { onCreateRegionClick(regionSetId, startTime); onClose(); }}>
-          Create Region
-        </ContextMenuItem>
-      </ContextMenuContent>
-    </ContextMenu>
+    <PositionedMenu x={x} y={y} onClose={onClose}>
+      <MenuItem onClick={() => { onCreateRegionClick(regionSetId, startTime); onClose(); }}>
+        Create Region
+      </MenuItem>
+    </PositionedMenu>
   );
 }

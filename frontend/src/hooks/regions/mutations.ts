@@ -19,6 +19,8 @@ import {
 import { cascadeDeleteGraph } from '@/hooks/graphs/mutations';
 import type { NormalizedTrackRegion } from '@/domain/Region/NormalizedTrackRegion';
 import type { TrackRegion } from '@/domain/Region/TrackRegion';
+import type { TrackRegionSet } from '@/domain/RegionSet/TrackRegionSet';
+import type { NormalizedTrackRegionSet } from '@/domain/RegionSet/NormalizedTrackRegionSet';
 
 // ─── Normalize / cascade helpers ────────────────────────────────────────────
 
@@ -28,7 +30,23 @@ export const normalizeRegionWithCascade = (regionApi: TrackRegion): NormalizedTr
   return { ...rest, graphId: graph ? graph.id : null };
 };
 
-export const cascadeDeleteRegion = (regionId: string): void => {
+export const normalizeRegionSetWithCascade = (regionSetApi: TrackRegionSet): NormalizedTrackRegionSet => {
+  const { addRegion, removeRegionsBySetId } = useRegionStore.getState();
+  const regionIds: number[] = [];
+
+  removeRegionsBySetId(regionSetApi.id);
+
+  for (const regionApi of regionSetApi.regions) {
+    const normalized = normalizeRegionWithCascade(regionApi);
+    addRegion(normalized);
+    regionIds.push(normalized.regionId);
+  }
+
+  const { regions: _regions, ...rest } = regionSetApi;
+  return { ...rest, region_ids: regionIds };
+};
+
+export const cascadeDeleteRegion = (regionId: number): void => {
   const { getRegion, removeRegion } = useRegionStore.getState();
   const { detachRegion } = useRegionSetStore.getState();
 
@@ -43,15 +61,13 @@ export const cascadeDeleteRegion = (regionId: string): void => {
 // ─── Mutations ───────────────────────────────────────────────────────────────
 
 export const useCreateRegion = () => {
-  const addRegion = useRegionStore.getState().addRegion;
-  const attachRegion = useRegionSetStore.getState().attachRegion;
+  const addRegionSet = useRegionSetStore.getState().addRegionSet;
 
   return useMutation<CreateRegionResult, Error, CreateRegionParams>({
     mutationFn: (params) => apiAddRegion(params),
     onSuccess: (data) => {
-      const normalized = normalizeRegionWithCascade(data.region);
-      addRegion(normalized);
-      attachRegion(data.region.regionSetId, data.region.regionId);
+      const normalized = normalizeRegionSetWithCascade(data.regionSet);
+      addRegionSet(normalized);
     },
     onError: (error) => {
       console.error('Failed to create region:', error);
@@ -93,13 +109,25 @@ export const useEditRegion = () => {
 
 export const useDeleteRegion = () => {
   const getRegion = useRegionStore.getState().getRegion;
+  const addRegionSet = useRegionSetStore.getState().addRegionSet;
 
-  return useMutation<RemoveRegionResult, Error, RemoveRegionParams, { previousRegion?: NormalizedTrackRegion }>({
+  return useMutation<
+    RemoveRegionResult,
+    Error,
+    RemoveRegionParams,
+    { previousRegion?: NormalizedTrackRegion; previousRegionSetId?: number }
+  >({
     mutationFn: (params) => apiRemoveRegion(params),
     onMutate: (params) => {
-      const prev = getRegion(params.regionId);
-      if (prev) cascadeDeleteRegion(params.regionId);
-      return { previousRegion: prev };
+      const regionId = params.regionId;
+      const prev = getRegion(regionId);
+      const previousRegionSetId = prev?.regionSetId;
+      if (prev) cascadeDeleteRegion(regionId);
+      return { previousRegion: prev, previousRegionSetId };
+    },
+    onSuccess: (data) => {
+      const normalized = normalizeRegionSetWithCascade(data.regionSet);
+      addRegionSet(normalized);
     },
     onError: (_error, _params, ctx) => {
       if (ctx?.previousRegion) {

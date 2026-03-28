@@ -1,7 +1,39 @@
 import type { TrackRegion } from "@/domain/Region/TrackRegion";
+import type { TrackRegionSet } from "@/domain/RegionSet/TrackRegionSet";
 import { http } from "@/Services/http";
 
-// ─── Params & Results ────────────────────────────────────────────────────────
+interface ApiRegion {
+  regionId: number;
+  regionSetId: number;
+  name: string;
+  startTime: number;
+  endTime: number;
+  graph?: TrackRegion["graph"];
+}
+
+interface ApiRegionSet {
+  id?: number;
+  regionSetId?: number;
+  trackId: number;
+  name: string;
+  regions?: ApiRegion[];
+}
+
+const mapApiRegion = (region: ApiRegion): TrackRegion => ({
+  regionId: region.regionId,
+  regionSetId: region.regionSetId,
+  name: region.name,
+  start: region.startTime,
+  end: region.endTime,
+  graph: region.graph,
+});
+
+const mapApiRegionSet = (regionSet: ApiRegionSet): TrackRegionSet => ({
+  id: regionSet.id ?? regionSet.regionSetId ?? 0,
+  trackId: regionSet.trackId,
+  name: regionSet.name,
+  regions: (regionSet.regions ?? []).map(mapApiRegion),
+});
 
 export interface GetRegionsForRegionSetResult {
   regions: TrackRegion[];
@@ -14,12 +46,15 @@ export interface CreateRegionParams {
   region_set_id: number;
 }
 export interface CreateRegionResult {
-  region: TrackRegion;
+  regionSet: TrackRegionSet;
 }
 
 export interface CopyRegionParams {
   sourceRegionId: number;
+  sourceRegionSetId: number;
+  sourceTrackId: number;
   destinationRegionSetId: number;
+  destinationTrackId: number;
   copyName: string;
 }
 export interface CopyRegionResult {
@@ -28,7 +63,9 @@ export interface CopyRegionResult {
 
 export interface EditRegionParams {
   regionId: number;
-  name: string;
+  name?: string;
+  startTime?: number;
+  endTime?: number;
 }
 export interface EditRegionResult {
   region: TrackRegion;
@@ -38,31 +75,62 @@ export interface RemoveRegionParams {
   regionId: number;
 }
 export interface RemoveRegionResult {
-  result: string;
+  regionSet: TrackRegionSet;
 }
 
-// ─── API ──────────────────────────────────────────────────────────────────────
-
-export function apiGetRegion(regionId: number): Promise<TrackRegion> {
-  return http.get(`/region-sets/get-region?region_set_id=${regionId}`);
+export function apiGetRegion(_regionId: number): Promise<TrackRegion> {
+  throw new Error("apiGetRegion is not implemented by the backend");
 }
 
-export function apiGetRegionsForRegionSet(regionSetId: number): Promise<GetRegionsForRegionSetResult> {
-  return http.get(`/regions/get-regions?region-set-id=${regionSetId}`);
+export function apiGetRegionsForRegionSet(_regionSetId: number): Promise<GetRegionsForRegionSetResult> {
+  throw new Error("apiGetRegionsForRegionSet is not implemented by the backend");
 }
 
 export function apiAddRegion(params: CreateRegionParams): Promise<CreateRegionResult> {
-  return http.post("/regions/add", params);
+  return http
+    .post<ApiRegionSet, { regionSetId: number; startTime: number; endTime?: number; name: string }>(
+      "/regions/add",
+      {
+        regionSetId: params.region_set_id,
+        startTime: params.start_time,
+        ...(params.end_time != null ? { endTime: params.end_time } : {}),
+        name: params.name,
+      },
+    )
+    .then((response) => ({ regionSet: mapApiRegionSet(response) }));
 }
 
 export function apiEditRegion(params: EditRegionParams): Promise<EditRegionResult> {
-  return http.patch("/regions/edit", params);
+  return http
+    .patch<{ region: ApiRegion }, { regionId: number; name?: string; startTime?: number; endTime?: number }>(
+      "/regions/edit",
+      {
+      regionId: params.regionId,
+      ...(params.name != null ? { name: params.name } : {}),
+      ...(params.startTime != null ? { startTime: params.startTime } : {}),
+      ...(params.endTime != null ? { endTime: params.endTime } : {}),
+      },
+    )
+    .then((response) => ({ region: mapApiRegion(response.region) }));
 }
 
 export function apiRemoveRegion(params: RemoveRegionParams): Promise<RemoveRegionResult> {
-  return http.delete(`/regions/remove?track_id=${params.regionId}`);
+  return http
+    .delete<ApiRegionSet>(`/regions/remove?regionId=${params.regionId}`)
+    .then((response) => ({ regionSet: mapApiRegionSet(response) }));
 }
 
 export function apiCopyRegion(params: CopyRegionParams): Promise<CopyRegionResult> {
-  return http.patch("/regions/copy", params);
+  const query = new URLSearchParams({
+    sourceRegionId: String(params.sourceRegionId),
+    sourceRegionSetId: String(params.sourceRegionSetId),
+    sourceTrackId: String(params.sourceTrackId),
+    destinationRegionSetId: String(params.destinationRegionSetId),
+    destinationTrackId: String(params.destinationTrackId),
+    copyName: params.copyName,
+  });
+
+  return http
+    .post<{ region: ApiRegion }, undefined>(`/regions/copy?${query.toString()}`, undefined)
+    .then((response) => ({ region: mapApiRegion(response.region) }));
 }

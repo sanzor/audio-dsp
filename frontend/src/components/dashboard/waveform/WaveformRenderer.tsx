@@ -1,125 +1,161 @@
 import { useEffect, useRef, useState } from "react"
-import { Pause, Play, Square, Volume2 } from "lucide-react"
 import WaveSurfer from "wavesurfer.js"
 import RegionsPlugin, { type Region } from 'wavesurfer.js/dist/plugins/regions.esm.js'
 import Minimap from 'wavesurfer.js/dist/plugins/minimap.esm.js'
 import type { TrackRegionViewModel } from "@/domain/Region/TrackRegionViewModel";
 import type { TrackRegionSetViewModel } from "@/domain/RegionSet/TrackRegionSetViewModel";
 import { useUIStore, type RightClickContext } from "@/Stores/UIStore";
-import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
-
-const PLAYBACK_RATES = [0.5, 0.75, 1, 1.25, 1.5, 2] as const;
-const PLAYBACK_RATE_PRESETS = [1, 1.5, 2] as const;
+import { PlaybackControls } from "./PlaybackControls";
+import { usePlaybackController } from "./usePlaybackController";
 
 
 export interface WaveformRendererProps{
     regionSet?: TrackRegionSetViewModel,
     url:string|null,
-    onRegionDetails?:(regionId:string)=>void,
-    onDeleteRegion?:(regionId:string)=>void,
-    onEditRegion?:(regionId:string)=>void,
+    onRegionDetails?:(regionId:number)=>void,
+    onDeleteRegion?:(regionId:number)=>void,
+    onEditRegion?:(regionId:number)=>void,
+    onUpdateRegionBounds?:(regionId:number,start:number,end:number)=>Promise<void> | void,
     onCreateRegionClick?:(time:number)=>void,
     onCreateRegionDrag?:(start:number,end:number)=>void,
-    onCopyRegion?:(regionId:string)=>void
+    onCopyRegion?:(regionId:number)=>void
 }
 
 
 export function WaveformRenderer({
     regionSet,
-    url
+    url,
+    onRegionDetails,
+    onUpdateRegionBounds,
+    onCreateRegionDrag,
   }:WaveformRendererProps
   ){
     const waveRef = useRef<WaveSurfer | null>(null);
+    const waveformShellRef = useRef<HTMLDivElement | null>(null);
     const waveformRef = useRef<HTMLDivElement | null>(null);
+    const regionSetRef = useRef<TrackRegionSetViewModel | undefined>(regionSet);
+    const onRegionDetailsRef = useRef(onRegionDetails);
+    const onUpdateRegionBoundsRef = useRef(onUpdateRegionBounds);
+    const onCreateRegionDragRef = useRef(onCreateRegionDrag);
     const [regionsPlugin, setRegionsPlugin] = useState<RegionsPlugin | null>(null);
     const renderedRegionIds = useRef<Set<string>>(new Set());
+    const dragSelectionRef = useRef<{ anchorTime: number } | null>(null);
 
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [isPlaying, setIsPlaying] = useState(false);
-    const [currentTime, setCurrentTime] = useState(0);
-    const [duration, setDuration] = useState(0);
-    const [volume, setVolume] = useState(80);
-    const [playbackRate, setPlaybackRate] = useState<number>(1);
+    const [draftSelection, setDraftSelection] = useState<{ start: number; end: number } | null>(null);
     const openContextMenu=useUIStore(x=>x.openContextMenu);
+    const playback = usePlaybackController(waveRef);
+    const beginPlaybackLoad = playback.beginLoading;
+    const bindPlaybackWaveform = playback.bindWaveform;
+
+    useEffect(() => {
+        regionSetRef.current = regionSet;
+    }, [regionSet]);
+
+    useEffect(() => {
+        onRegionDetailsRef.current = onRegionDetails;
+    }, [onRegionDetails]);
+
+    useEffect(() => {
+        onUpdateRegionBoundsRef.current = onUpdateRegionBounds;
+    }, [onUpdateRegionBounds]);
+
+    useEffect(() => {
+        onCreateRegionDragRef.current = onCreateRegionDrag;
+    }, [onCreateRegionDrag]);
 
     useEffect(() => {
         const waveformElement = waveformRef.current;
+        const waveformShellElement = waveformShellRef.current;
 
-        if (!waveformElement || !url) {
+        if (!waveformElement || !waveformShellElement || !url) {
             return;
         }
 
         const onContextMenu = (e: MouseEvent) => {
             e.preventDefault();
-            if (!regionSet) return;
-            const bounding = waveformElement.getBoundingClientRect();
+            const currentRegionSet = regionSetRef.current;
+            if (!currentRegionSet) return;
+            const bounding = waveformShellElement.getBoundingClientRect();
             const x = e.clientX - bounding.left;
-            const width = waveformElement.offsetWidth;
+            const width = waveformShellElement.offsetWidth;
             const time = waveRef.current!.getDuration() * (x / width);
-            openContextMenu({ type:'waveform_timeline',  x: e.clientX, y: e.clientY ,regionSetId:regionSet.id.toString(),time:time });
+            openContextMenu({
+                type:'waveform_timeline',
+                x: e.clientX,
+                y: e.clientY,
+                regionSetId: currentRegionSet.id,
+                time: time,
+            });
         };
 
-        waveformElement.addEventListener('contextmenu', onContextMenu);
+        waveformShellElement.addEventListener('contextmenu', onContextMenu);
 
-        setIsLoading(true);
-        setError(null);
+        beginPlaybackLoad();
 
         const { wave: waveform, regions } = createWaveFormPlayer(
             url,
-            regionSet?.regions ?? [],
+            regionSetRef.current?.regions ?? [],
             waveformElement,
-            openContextMenu
+            openContextMenu,
+            (regionId) => onRegionDetailsRef.current?.(regionId),
+            async (updatedRegion, side) => {
+                const currentRegionSet = regionSetRef.current;
+                if (!currentRegionSet?.regions) return;
+
+                const original = currentRegionSet.regions.find(
+                    (region) => String(region.regionId) === updatedRegion.id,
+                );
+                if (!original) return;
+
+                const clamped = clampUpdatedRegionBounds(
+                    updatedRegion.id,
+                    updatedRegion.start,
+                    updatedRegion.end,
+                    currentRegionSet.regions,
+                    waveform.getDuration(),
+                    side,
+                );
+
+                if (clamped.start !== updatedRegion.start || clamped.end !== updatedRegion.end) {
+                    updatedRegion.setOptions({ start: clamped.start, end: clamped.end });
+                }
+
+                if (!onUpdateRegionBoundsRef.current) return;
+
+                try {
+                    await onUpdateRegionBoundsRef.current(Number(updatedRegion.id), clamped.start, clamped.end);
+                } catch (regionUpdateError) {
+                    console.error("Failed to persist region bounds:", regionUpdateError);
+                    updatedRegion.setOptions({ start: original.start, end: original.end });
+                }
+            }
         );
 
         waveRef.current = waveform;
-        waveform.setVolume(volume / 100);
-        waveform.setPlaybackRate(playbackRate);
+        const cleanupPlaybackBindings = bindPlaybackWaveform(waveform);
         setRegionsPlugin(regions);
-        setIsPlaying(false);
-        setCurrentTime(0);
-        setDuration(0);
-
-        waveform.once('ready', () => {
-            setIsLoading(false);
-            setDuration(waveform.getDuration());
-        });
-
-        waveform.on('error', (err) => {
-            console.error("Waveform error:", err);
-            setError(`Failed to load audio: ${err}`);
-            setIsLoading(false);
-        });
-
-        waveform.on('play', () => {
-            setIsPlaying(true);
-        });
-
-        waveform.on('pause', () => {
-            setIsPlaying(false);
-        });
-
-        waveform.on('finish', () => {
-            setIsPlaying(false);
-            setCurrentTime(waveform.getDuration());
-        });
-
-        waveform.on('timeupdate', (time) => {
-            setCurrentTime(time);
-        });
 
         return () => {
-            waveformElement.removeEventListener('contextmenu', onContextMenu);
+            waveformShellElement.removeEventListener('contextmenu', onContextMenu);
+            cleanupPlaybackBindings();
             waveform.destroy();
             waveRef.current = null;
             setRegionsPlugin(null);
         };
-    }, [url, regionSet]);
+    }, [beginPlaybackLoad, bindPlaybackWaveform, openContextMenu, url]);
 
     useEffect(()=>{
-        if(!regionsPlugin||!regionSet)return;
-        const currentIds=new Set(regionSet.regions.map(r=>r.regionId.toString()));
+        if(!regionsPlugin){
+            return;
+        }
+
+        if(!regionSet){
+            regionsPlugin.clearRegions();
+            renderedRegionIds.current = new Set();
+            return;
+        }
+
+        const currentIds=new Set(regionSet.regions.map(r=>String(r.regionId)));
         const existingIds=renderedRegionIds.current;
 
          // Remove regions that no longer exist
@@ -132,12 +168,17 @@ export function WaveformRenderer({
         }
         //add new regions
         for(const region of regionSet.regions){
-            const id=region.regionId.toString();
+            const id=String(region.regionId);
             const existing=regionsPlugin.getRegions().find(x=>x.id===id);
             if(existing){
-                existing.start=region.start;
-                existing.end=region.end;
-                existing.setContent(region.name)
+                existing.setOptions({
+                    start: region.start,
+                    end: region.end,
+                    content: region.name,
+                    drag: true,
+                    resize: true,
+                    color: colorForRegion(region.regionId),
+                });
             }else{
                   addRegion(regionsPlugin,region);   
             }
@@ -148,45 +189,80 @@ export function WaveformRenderer({
     },[regionSet,regionSet?.regions,regionsPlugin]);
 
     useEffect(() => {
-        if (!waveRef.current) return;
-        waveRef.current.setVolume(volume / 100);
-    }, [volume]);
+        const waveformShellElement = waveformShellRef.current;
+        const wave = waveRef.current;
 
-    useEffect(() => {
-        if (!waveRef.current) return;
-        waveRef.current.setPlaybackRate(playbackRate);
-    }, [playbackRate]);
+        if (!waveformShellElement || !wave || !regionSet) {
+            return;
+        }
 
-    const handlePlay = () => {
-        waveRef.current?.play();
-    };
+        const updateDraftSelection = (clientX: number) => {
+            const activeDrag = dragSelectionRef.current;
+            if (!activeDrag) return null;
 
-    const handlePause = () => {
-        waveRef.current?.pause();
-    };
+            const pointerTime = clientXToTime(clientX, waveformShellElement, wave.getDuration());
+            const nextDraft = clampCreateSelection(
+                activeDrag.anchorTime,
+                pointerTime,
+                regionSet.regions,
+                wave.getDuration(),
+            );
 
-    const handleStop = () => {
-        if (!waveRef.current) return;
-        waveRef.current.stop();
-        setIsPlaying(false);
-        setCurrentTime(0);
-    };
+            setDraftSelection(nextDraft);
+            return nextDraft;
+        };
 
-    const handlePlaybackRateStep = (direction: -1 | 1) => {
-        const currentIndex = PLAYBACK_RATES.findIndex((rate) => rate === playbackRate);
-        const safeIndex = currentIndex >= 0 ? currentIndex : PLAYBACK_RATES.indexOf(1);
-        const nextIndex = Math.min(
-            PLAYBACK_RATES.length - 1,
-            Math.max(0, safeIndex + direction),
-        );
-        setPlaybackRate(PLAYBACK_RATES[nextIndex]);
-    };
+        const onPointerDown = (event: PointerEvent) => {
+            if (event.button !== 0) return;
 
+            const target = event.target as HTMLElement | null;
+            if (target?.closest('[part*="region"]')) return;
 
-    if (error) {
+            const anchorTime = clientXToTime(event.clientX, waveformShellElement, wave.getDuration());
+            if (isPointInsideRegion(anchorTime, regionSet.regions)) return;
+
+            dragSelectionRef.current = { anchorTime };
+            setDraftSelection({ start: anchorTime, end: anchorTime });
+            event.preventDefault();
+        };
+
+        const onPointerMove = (event: PointerEvent) => {
+            if (!dragSelectionRef.current) return;
+            updateDraftSelection(event.clientX);
+        };
+
+        const onPointerUp = (event: PointerEvent) => {
+            if (!dragSelectionRef.current) return;
+
+            const finalSelection = updateDraftSelection(event.clientX);
+            dragSelectionRef.current = null;
+            setDraftSelection(null);
+
+            if (!finalSelection) return;
+            if (finalSelection.end - finalSelection.start < 0.01) return;
+
+            onCreateRegionDragRef.current?.(finalSelection.start, finalSelection.end);
+        };
+
+        waveformShellElement.addEventListener("pointerdown", onPointerDown);
+        window.addEventListener("pointermove", onPointerMove);
+        window.addEventListener("pointerup", onPointerUp);
+        window.addEventListener("pointercancel", onPointerUp);
+
+        return () => {
+            waveformShellElement.removeEventListener("pointerdown", onPointerDown);
+            window.removeEventListener("pointermove", onPointerMove);
+            window.removeEventListener("pointerup", onPointerUp);
+            window.removeEventListener("pointercancel", onPointerUp);
+            dragSelectionRef.current = null;
+            setDraftSelection(null);
+        };
+    }, [regionSet, url]);
+
+    if (playback.error) {
         return (
             <div className="p-4 bg-red-100 border border-red-400 text-red-700 rounded">
-                <p className="font-semibold">Error: {error}</p>
+                <p className="font-semibold">Error: {playback.error}</p>
                 <div className="mt-2 text-sm">
                     <p>Debug info:</p>
                     <p>• URL: {url ? 'Present' : 'Missing'}</p>
@@ -200,112 +276,38 @@ export function WaveformRenderer({
     className="relative flex h-full min-h-0 w-full flex-col overflow-hidden rounded-lg border shadow-lg"
     style={{ backgroundColor: "var(--bg-darker)", borderColor: "rgba(255,255,255,0.08)" }}
   >
-    {isLoading && (
+    {playback.isLoading && (
       <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/25">
         <div className="text-gray-500">Loading waveform...</div>
       </div>
     )}
-    <div ref={waveformRef} className="min-h-0 flex-1" />
-    <div
-      className="flex shrink-0 items-center justify-between gap-4 border-t px-4 py-3"
-      style={{ backgroundColor: "var(--bg-darkest)", borderColor: "rgba(255,255,255,0.08)" }}
-    >
-      <div className="flex items-center gap-2">
-        <Button
-          type="button"
-          size="icon"
-          variant="outline"
-          onClick={handleStop}
-          disabled={!waveRef.current || isLoading}
-          aria-label="Stop playback"
-          className="border-white/10 bg-white/5 text-white hover:bg-white/10 hover:text-white"
-        >
-          <Square className="size-4 fill-current" />
-        </Button>
-        <Button
-          type="button"
-          size="icon"
-          variant="outline"
-          onClick={handlePause}
-          disabled={!waveRef.current || isLoading || !isPlaying}
-          aria-label="Pause playback"
-          className="border-white/10 bg-white/5 text-white hover:bg-white/10 hover:text-white"
-        >
-          <Pause className="size-4 fill-current" />
-        </Button>
-        <Button
-          type="button"
-          size="icon"
-          onClick={handlePlay}
-          disabled={!waveRef.current || isLoading}
-          aria-label="Play waveform"
-          className="bg-[var(--accent-blue)] text-white shadow-none hover:bg-[var(--accent-blue)]/90"
-        >
-          <Play className="size-4 fill-current" />
-        </Button>
-        <div className="min-w-28 text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
-          {formatTime(currentTime)} / {formatTime(duration)}
-        </div>
-      </div>
-
-      <div className="flex items-center gap-6">
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => handlePlaybackRateStep(-1)}
-            disabled={!waveRef.current || isLoading || playbackRate <= PLAYBACK_RATES[0]}
-            aria-label="Decrease playback speed"
-            className="h-8 border-white/10 bg-white/5 px-2 text-white hover:bg-white/10 hover:text-white"
-          >
-            -
-          </Button>
-          {PLAYBACK_RATE_PRESETS.map((rate) => (
-            <Button
-              key={rate}
-              type="button"
-              size="sm"
-              variant={playbackRate === rate ? "default" : "outline"}
-              onClick={() => setPlaybackRate(rate)}
-              disabled={!waveRef.current || isLoading}
-              aria-label={`Set playback speed to ${rate}x`}
-              className={
-                playbackRate === rate
-                  ? "h-8 bg-[var(--accent-blue)] px-2.5 text-white shadow-none hover:bg-[var(--accent-blue)]/90"
-                  : "h-8 border-white/10 bg-white/5 px-2.5 text-white hover:bg-white/10 hover:text-white"
-              }
-            >
-              {rate}x
-            </Button>
-          ))}
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => handlePlaybackRateStep(1)}
-            disabled={!waveRef.current || isLoading || playbackRate >= PLAYBACK_RATES[PLAYBACK_RATES.length - 1]}
-            aria-label="Increase playback speed"
-            className="h-8 border-white/10 bg-white/5 px-2 text-white hover:bg-white/10 hover:text-white"
-          >
-            +
-          </Button>
-        </div>
-
-        <div className="flex min-w-40 items-center gap-3">
-          <Volume2 className="size-4" style={{ color: "var(--text-muted)" }} />
-          <Slider
-            min={0}
-            max={100}
-            step={1}
-            value={[volume]}
-            onValueChange={(value) => setVolume(value[0] ?? 0)}
-            aria-label="Volume"
-            className="w-32"
-          />
-        </div>
-      </div>
+    <div ref={waveformShellRef} className="relative min-h-0 flex-1">
+      <div ref={waveformRef} className="h-full w-full" />
+      {draftSelection && playback.duration > 0 && (
+        <div
+          className="pointer-events-none absolute inset-y-0 z-20 rounded border border-red-300 bg-red-500/30"
+          style={{
+            left: `${(draftSelection.start / playback.duration) * 100}%`,
+            width: `${((draftSelection.end - draftSelection.start) / playback.duration) * 100}%`,
+          }}
+        />
+      )}
     </div>
+    <PlaybackControls
+      hasWaveform={waveRef.current !== null}
+      isLoading={playback.isLoading}
+      isPlaying={playback.isPlaying}
+      currentTime={playback.currentTime}
+      duration={playback.duration}
+      volume={playback.volume}
+      playbackRate={playback.playbackRate}
+      onPlay={playback.play}
+      onPause={playback.pause}
+      onStop={playback.stop}
+      onVolumeChange={playback.setVolume}
+      onPlaybackRateChange={playback.setPlaybackRate}
+      onPlaybackRateStep={playback.stepPlaybackRate}
+    />
   </div>
 );
 }
@@ -316,7 +318,9 @@ export function createWaveFormPlayer(
     url:string,
     trackRegions:TrackRegionViewModel[],
     container:HTMLElement,
-    openContextMenu:(context: RightClickContext) => void)
+    openContextMenu:(context: RightClickContext) => void,
+    onRegionDetails?:(regionId:number)=>void,
+    onRegionUpdated?: (region: Region, side?: "start" | "end") => Promise<void> | void)
     :{wave:WaveSurfer,regions:RegionsPlugin}{
     let activeRegion:Region|null=null;
     const regions = RegionsPlugin.create();
@@ -333,12 +337,36 @@ export function createWaveFormPlayer(
         e.preventDefault();
         e.stopImmediatePropagation();
         activeRegion=region;
-        openContextMenu({type:'waveform_region',regionId:region.id!.toString(),x:e.clientX,y:e.clientY})
         region.play(true);
-        region.setOptions({color:randomColor()});
     })
-    regions.enableDragSelection({
-        color:'rgba(255,0,0,1)'
+    regions.on('region-double-clicked', (region, e) => {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        onRegionDetails?.(Number(region.id));
+    });
+    regions.on('region-created', (region) => {
+        const element = region.element;
+        if (!element) return;
+
+        const onContextMenu = (event: MouseEvent) => {
+            event.preventDefault();
+            event.stopPropagation();
+            activeRegion = region;
+            openContextMenu({
+                type: 'waveform_region',
+                regionId: Number(region.id),
+                x: event.clientX,
+                y: event.clientY,
+            });
+        };
+
+        element.addEventListener('contextmenu', onContextMenu);
+        region.once('remove', () => {
+            element.removeEventListener('contextmenu', onContextMenu);
+        });
+    })
+    regions.on('region-updated', (region, side) => {
+        void onRegionUpdated?.(region, side);
     });
     const wave=WaveSurfer.create({
         container:container,
@@ -365,15 +393,101 @@ export function createWaveFormPlayer(
 
     return {wave:wave,regions:regions}
 }
-const random = (min:number, max:number) => Math.random() * (max - min) + min
-const randomColor = () => `rgba(${random(0, 255)}, ${random(0, 255)}, ${random(0, 255)}, 0.5)`
 
-function formatTime(timeSeconds: number): string {
-    if (!Number.isFinite(timeSeconds)) return "00:00";
-    const totalSeconds = Math.max(0, Math.floor(timeSeconds));
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+function clientXToTime(clientX: number, element: HTMLElement, totalDuration: number): number {
+    const { left, width } = element.getBoundingClientRect();
+    if (width <= 0 || totalDuration <= 0) return 0;
+    const ratio = Math.min(1, Math.max(0, (clientX - left) / width));
+    return ratio * totalDuration;
+}
+
+function isPointInsideRegion(time: number, regions: TrackRegionViewModel[]): boolean {
+    return regions.some((region) => time >= region.start && time <= region.end);
+}
+
+function clampCreateSelection(
+    anchorTime: number,
+    pointerTime: number,
+    regions: TrackRegionViewModel[],
+    totalDuration: number,
+): { start: number; end: number } | null {
+    if (pointerTime >= anchorTime) {
+        const nextBoundary = regions
+            .filter((region) => region.start > anchorTime)
+            .map((region) => region.start)
+            .reduce((min, value) => Math.min(min, value), totalDuration);
+        const end = Math.min(pointerTime, nextBoundary, totalDuration);
+        return end > anchorTime ? { start: anchorTime, end } : null;
+    }
+
+    const previousBoundary = regions
+        .filter((region) => region.end < anchorTime)
+        .map((region) => region.end)
+        .reduce((max, value) => Math.max(max, value), 0);
+    const start = Math.max(pointerTime, previousBoundary, 0);
+    return start < anchorTime ? { start, end: anchorTime } : null;
+}
+
+function clampUpdatedRegionBounds(
+    regionId: string,
+    start: number,
+    end: number,
+    regions: TrackRegionViewModel[],
+    totalDuration: number,
+    side?: "start" | "end",
+): { start: number; end: number } {
+    const orderedRegions = [...regions].sort((left, right) => left.start - right.start);
+    const regionIndex = orderedRegions.findIndex((region) => String(region.regionId) === regionId);
+    if (regionIndex === -1) {
+        return { start, end };
+    }
+
+    const previousRegion = regionIndex > 0 ? orderedRegions[regionIndex - 1] : null;
+    const nextRegion = regionIndex < orderedRegions.length - 1 ? orderedRegions[regionIndex + 1] : null;
+
+    const minStart = previousRegion ? previousRegion.end : 0;
+    const maxEnd = nextRegion ? nextRegion.start : totalDuration;
+    const minimumLength = 0.01;
+
+    if (side === "start") {
+        const nextStart = Math.min(end - minimumLength, maxEnd - minimumLength);
+        return {
+            start: Math.max(minStart, Math.min(start, nextStart)),
+            end: Math.min(end, maxEnd),
+        };
+    }
+
+    if (side === "end") {
+        const previousEnd = Math.max(start + minimumLength, minStart + minimumLength);
+        return {
+            start: Math.max(start, minStart),
+            end: Math.min(maxEnd, Math.max(end, previousEnd)),
+        };
+    }
+
+    const width = Math.max(minimumLength, end - start);
+    let clampedStart = start;
+    let clampedEnd = end;
+
+    if (clampedStart < minStart) {
+        clampedStart = minStart;
+        clampedEnd = minStart + width;
+    }
+
+    if (clampedEnd > maxEnd) {
+        clampedEnd = maxEnd;
+        clampedStart = maxEnd - width;
+    }
+
+    clampedStart = Math.max(minStart, clampedStart);
+    clampedEnd = Math.min(maxEnd, clampedEnd);
+
+    if (clampedEnd - clampedStart < minimumLength) {
+        clampedEnd = Math.min(maxEnd, clampedStart + minimumLength);
+        clampedStart = Math.max(minStart, clampedEnd - minimumLength);
+    }
+
+    return { start: clampedStart, end: clampedEnd };
 }
 
 
@@ -392,7 +506,19 @@ function addRegion(regionsObj:RegionsPlugin,elem:TrackRegionViewModel):RegionsPl
             drag: true,
             resize: true,
             content:elem.name,
-            color:randomColor()
+            color:colorForRegion(elem.regionId)
         });
     return regionsObj;
+}
+
+function colorForRegion(regionId: string | number): string {
+    const value = String(regionId);
+    let hash = 0;
+
+    for (let index = 0; index < value.length; index += 1) {
+        hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
+    }
+
+    const hue = hash % 360;
+    return `hsla(${hue}, 72%, 58%, 0.32)`;
 }

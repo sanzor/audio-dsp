@@ -30,7 +30,7 @@ export function useTrackController() {
     // ============================================
     // CREATE REGION
     // ============================================
-    handleCreateRegionSet: (trackId: string) => {
+    handleCreateRegionSet: (trackId: number) => {
       const track = trackMap.get(trackId);
       if (!track) {
         console.error('Track not found:', { trackId });
@@ -46,7 +46,7 @@ export function useTrackController() {
       closeContextMenu(); // ✅ Close context menu when opening modal
     },
 
-     handleSubmitPasteTrack: async (sourceTrackId:string, copyTrackName: string) => {
+     handleSubmitPasteTrack: async (sourceTrackId:number, copyTrackName: string) => {
       try {
         await copyTrackMutation.mutateAsync({
             track_id:sourceTrackId,
@@ -92,7 +92,7 @@ export function useTrackController() {
     // ============================================
     // DETAILS REGION SET
     // ============================================
-    handleDetailsTrack: (trackId: string) => {
+    handleDetailsTrack: (trackId: number) => {
       const track = trackMap.get(trackId);
       if (!track) {
         console.error('Track not found:', { trackId });
@@ -106,7 +106,7 @@ export function useTrackController() {
     // ============================================
     // RENAME REGION SET
     // ============================================
-    handleRenameTrack: (trackId: string) => {
+    handleRenameTrack: (trackId: number) => {
       const track = trackMap.get(trackId);
       if (!track) {
         console.error('Track not found:', { trackId });
@@ -117,7 +117,7 @@ export function useTrackController() {
       closeContextMenu(); // ✅ Close context menu when opening modal
     },
 
-    handleSubmitRenameTrack: async (trackId: string, newName: string) => {
+    handleSubmitRenameTrack: async (trackId: number, newName: string) => {
       try {
         await renameTrackMutation.mutateAsync({ trackId: trackId, newName });
         closeModal(); // ✅ Close modal on success
@@ -132,7 +132,7 @@ export function useTrackController() {
     // ============================================
     // DELETE REGION SET
     // ============================================
-    handleDeleteTrack: async ( trackId: string) => {
+    handleDeleteTrack: async ( trackId: number) => {
       try {
         await deleteTrackMutation.mutateAsync({ trackId: trackId });
         closeContextMenu(); // ✅ Close context menu after successful action
@@ -148,7 +148,7 @@ export function useTrackController() {
     // ============================================
     // COPY REGION SET
     // ============================================
-    handleCopyTrack: (trackId: string) => {
+    handleCopyTrack: (trackId: number) => {
       const track = trackMap.get(trackId);
       if (!track) {
         console.error('Track not found:', { trackId });

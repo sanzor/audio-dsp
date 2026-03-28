@@ -17,7 +17,7 @@ import { useTrackStore } from "@/Stores/TrackStore";
 import type { CreateRegionParams } from "@/Services/RegionsService";
 
 interface CreateRegionModalProps {
-  regionSetId: string;
+  regionSetId: number;
   open: boolean;
   startTime: number | null;
   endTime: number | null;

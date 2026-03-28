@@ -1,7 +1,6 @@
-use crate::db::{RegionId, RegionSetId};
+use crate::db::RegionId;
 
 pub struct EditRegionParams {
-    pub region_set_id: RegionSetId,
     pub region_id: RegionId,
     pub name: Option<String>,
     pub start_time: Option<f32>,

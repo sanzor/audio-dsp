@@ -3,14 +3,14 @@ import { PositionedMenu, MenuItem } from "./PositionedMenu";
 interface TrackContextMenuProps {
   x: number;
   y: number;
-  trackId: string;
+  trackId: number;
   onClose: () => void;
-  onCreateRegionSet: (id: string) => void;
-  onRemove: (id: string) => void;
-  onRename: (id: string) => void;
-  onCopyTrack: (id: string) => void;
-  onDetails: (id: string) => void;
-  onPasteRegionSet: (id: string) => void;
+  onCreateRegionSet: (id: number) => void;
+  onRemove: (id: number) => void;
+  onRename: (id: number) => void;
+  onCopyTrack: (id: number) => void;
+  onDetails: (id: number) => void;
+  onPasteRegionSet: (id: number) => void;
   canPasteRegionSet: boolean;
 }
 

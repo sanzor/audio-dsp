@@ -8,7 +8,7 @@ import { useTrackStore } from "@/Stores/TrackStore";
 
 export interface DetailsRegionSetModalProps {
   open: boolean;
-  regionSetId: string;
+  regionSetId: number;
   onClose: () => void;
 }
 
@@ -30,12 +30,12 @@ export function DetailsRegionSetModal({ regionSetId, open, onClose }: DetailsReg
 
         <div className="space-y-2">
           <Label htmlFor="track-id">Track ID</Label>
-          <Input id="track-id" value={track?.trackId} readOnly />
+          <Input id="track-id" value={track ? String(track.trackId) : ""} readOnly />
         </div>
 
          <div className="space-y-2">
           <Label htmlFor="track-id">Region Set ID</Label>
-          <Input id="track-id" value={regionSet?.id} readOnly />
+          <Input id="track-id" value={regionSet ? String(regionSet.id) : ""} readOnly />
         </div>
 
         <div className="space-y-2">

@@ -1,14 +1,13 @@
-import { ContextMenu, ContextMenuContent, ContextMenuItem } from "@/components/ui/context-menu";
-import { ContextMenuTrigger } from "@radix-ui/react-context-menu";
+import { MenuItem, PositionedMenu } from "./PositionedMenu";
 
 interface WaveformRegionContextMenuProps {
   x: number;
   y: number;
-  regionId: string;
-  onEditRegion: (regionId: string) => void;
-  onDetailsRegion: (regionId: string) => void;
-  onDeleteRegion: (regionId: string) => void;
-  onCopyRegion: (regionId: string) => void;
+  regionId: number;
+  onEditRegion: (regionId: number) => void;
+  onDetailsRegion: (regionId: number) => void;
+  onDeleteRegion: (regionId: number) => void;
+  onCopyRegion: (regionId: number) => void;
   onClose: () => void;
 }
 
@@ -23,14 +22,11 @@ export function WaveformRegionContextMenu({
   onClose,
 }: WaveformRegionContextMenuProps) {
   return (
-    <ContextMenu>
-      <ContextMenuTrigger />
-      <ContextMenuContent style={{ position: "absolute", top: y, left: x, zIndex: 1000 }} onClick={onClose}>
-        <ContextMenuItem onClick={() => { onEditRegion(regionId); onClose(); }}>Edit</ContextMenuItem>
-        <ContextMenuItem onClick={() => { onDetailsRegion(regionId); onClose(); }}>Details</ContextMenuItem>
-        <ContextMenuItem onClick={() => onDeleteRegion(regionId)}>Delete</ContextMenuItem>
-        <ContextMenuItem onClick={() => onCopyRegion(regionId)}>Copy</ContextMenuItem>
-      </ContextMenuContent>
-    </ContextMenu>
+    <PositionedMenu x={x} y={y} onClose={onClose}>
+      <MenuItem onClick={() => { onEditRegion(regionId); onClose(); }}>Edit</MenuItem>
+      <MenuItem onClick={() => { onDetailsRegion(regionId); onClose(); }}>Details</MenuItem>
+      <MenuItem onClick={() => { onDeleteRegion(regionId); onClose(); }}>Delete</MenuItem>
+      <MenuItem onClick={() => { onCopyRegion(regionId); onClose(); }}>Copy</MenuItem>
+    </PositionedMenu>
   );
 }

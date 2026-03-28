@@ -1,7 +1,7 @@
 import type { NormalizedTrackMeta } from '@/domain/Track/NormalizedTrackMeta';
 import { create, type StoreApi, type UseBoundStore } from 'zustand';
 
-type TrackCache = Map<string, NormalizedTrackMeta>;
+type TrackCache = Map<number, NormalizedTrackMeta>;
 
 interface TrackState {
     tracks: TrackCache;
@@ -9,20 +9,20 @@ interface TrackState {
 }
 
 interface TrackActions {
-    getTrack: (trackId: string) => NormalizedTrackMeta | undefined;
+    getTrack: (trackId: number) => NormalizedTrackMeta | undefined;
     addTrack: (track: NormalizedTrackMeta) => void;
-    removeTrack: (trackId: string) => void;
-    updateTrack: (trackId: string, trackMeta: Partial<NormalizedTrackMeta>) => void;
+    removeTrack: (trackId: number) => void;
+    updateTrack: (trackId: number, trackMeta: Partial<NormalizedTrackMeta>) => void;
     setAllTracks: (tracks: NormalizedTrackMeta[]) => void;
-    attachRegionSet: (trackId: string, regionSetId: string) => void;
-    detachRegionSet: (trackId: string, regionSetId: string) => void;
+    attachRegionSet: (trackId: number, regionSetId: number) => void;
+    detachRegionSet: (trackId: number, regionSetId: number) => void;
 }
 
 type TrackStore = TrackState & TrackActions;
 
 const updateTrackRegionSets = (
     track: NormalizedTrackMeta,
-    updater: (regionSetIds: string[]) => string[]
+    updater: (regionSetIds: number[]) => number[]
 ): NormalizedTrackMeta => {
     const currentIds = track.region_sets_ids ?? [];
     return {
@@ -36,7 +36,7 @@ export const useTrackStore: UseBoundStore<StoreApi<TrackStore>> = create<TrackSt
     loading: true,
 
     setAllTracks: (newTracks: NormalizedTrackMeta[]) => {
-        const trackMap = new Map<string, NormalizedTrackMeta>();
+        const trackMap = new Map<number, NormalizedTrackMeta>();
         newTracks.forEach((t) => trackMap.set(t.trackId, t));
         set({
             tracks: trackMap,
@@ -44,7 +44,7 @@ export const useTrackStore: UseBoundStore<StoreApi<TrackStore>> = create<TrackSt
         });
     },
 
-    getTrack: (trackId: string): NormalizedTrackMeta | undefined => {
+    getTrack: (trackId: number): NormalizedTrackMeta | undefined => {
         return get().tracks.get(trackId);
     },
 
@@ -56,7 +56,7 @@ export const useTrackStore: UseBoundStore<StoreApi<TrackStore>> = create<TrackSt
         });
     },
 
-    removeTrack: (trackId: string): void => {
+    removeTrack: (trackId: number): void => {
         set((state: TrackState) => {
             const newMap = new Map(state.tracks);
             newMap.delete(trackId);
@@ -64,7 +64,7 @@ export const useTrackStore: UseBoundStore<StoreApi<TrackStore>> = create<TrackSt
         });
     },
 
-    updateTrack: (trackId: string, updates: Partial<NormalizedTrackMeta>): void => {
+    updateTrack: (trackId: number, updates: Partial<NormalizedTrackMeta>): void => {
         set((state: TrackState) => {
             const trackToUpdate = state.tracks.get(trackId);
             if (!trackToUpdate) return state;
@@ -79,7 +79,7 @@ export const useTrackStore: UseBoundStore<StoreApi<TrackStore>> = create<TrackSt
         });
     },
 
-    attachRegionSet: (trackId: string, regionSetId: string) => {
+    attachRegionSet: (trackId: number, regionSetId: number) => {
         set((state: TrackState) => {
             const track = state.tracks.get(trackId);
             if (!track) return state;
@@ -94,7 +94,7 @@ export const useTrackStore: UseBoundStore<StoreApi<TrackStore>> = create<TrackSt
         });
     },
 
-    detachRegionSet: (trackId: string, regionSetId: string) => {
+    detachRegionSet: (trackId: number, regionSetId: number) => {
         set((state: TrackState) => {
             const track = state.tracks.get(trackId);
             if (!track) return state;

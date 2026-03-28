@@ -19,7 +19,7 @@ import type { Graph } from "@/domain/Graph/Graph";
 
 // ─── Cascade helpers ─────────────────────────────────────────────────────────
 
-export const cascadeDeleteGraph = (graphId: string): void => {
+export const cascadeDeleteGraph = (graphId: number): void => {
   useGraphStore.getState().removeGraph(graphId);
 };
 

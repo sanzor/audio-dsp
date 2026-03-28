@@ -9,7 +9,7 @@ import { useTrackStore } from "@/Stores/TrackStore";
 
 export interface DetailsRegionProps {
   open: boolean;
-  regionId: string;
+  regionId: number;
   onClose: () => void;
 }
 
@@ -40,7 +40,7 @@ export function DetailsRegionModal({ regionId, open, onClose }: DetailsRegionPro
 
         <div className="space-y-2">
           <Label>Region ID</Label>
-          <Input value={region.regionId} readOnly />
+          <Input value={String(region.regionId)} readOnly />
         </div>
 
         <div className="space-y-2">
@@ -50,7 +50,7 @@ export function DetailsRegionModal({ regionId, open, onClose }: DetailsRegionPro
 
         <div className="space-y-2">
           <Label>Region Set ID</Label>
-          <Input value={region.regionSetId} readOnly />
+          <Input value={String(region.regionSetId)} readOnly />
         </div>
 
         {regionSet && (

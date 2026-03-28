@@ -1,7 +1,7 @@
 import type { NormalizedTrackRegion } from '@/domain/Region/NormalizedTrackRegion';
 import { create, type StoreApi, type UseBoundStore } from 'zustand';
 
-type RegionCache = Map<string, NormalizedTrackRegion>;
+type RegionCache = Map<number, NormalizedTrackRegion>;
 
 interface RegionState {
     regions: RegionCache;
@@ -9,15 +9,15 @@ interface RegionState {
 }
 
 interface RegionActions {
-    getRegion: (regionId: string) => NormalizedTrackRegion | undefined;
+    getRegion: (regionId: number) => NormalizedTrackRegion | undefined;
     addRegion: (region: NormalizedTrackRegion) => void;
-    removeRegion: (regionId: string) => void;
-    updateRegion: (regionId: string, region: Partial<NormalizedTrackRegion>) => void;
+    removeRegion: (regionId: number) => void;
+    updateRegion: (regionId: number, region: Partial<NormalizedTrackRegion>) => void;
     setAllRegions: (regions: NormalizedTrackRegion[]) => void;
-    removeRegionsBySetId: (setId: string) => void;
+    removeRegionsBySetId: (setId: number) => void;
     // Graph relationship (single value, not array)
-    setGraph: (regionId: string, graphId: string) => void;
-    clearGraph: (regionId: string) => void;
+    setGraph: (regionId: number, graphId: number) => void;
+    clearGraph: (regionId: number) => void;
 }
 
 type RegionStore = RegionState & RegionActions;
@@ -27,7 +27,7 @@ export const useRegionStore: UseBoundStore<StoreApi<RegionStore>> = create<Regio
     loading: true,
 
     setAllRegions: (newRegions: NormalizedTrackRegion[]) => {
-        const regionMap = new Map<string, NormalizedTrackRegion>();
+        const regionMap = new Map<number, NormalizedTrackRegion>();
         newRegions.forEach((t) => regionMap.set(t.regionId, t));
         set({
             regions: regionMap,
@@ -35,7 +35,7 @@ export const useRegionStore: UseBoundStore<StoreApi<RegionStore>> = create<Regio
         });
     },
 
-    getRegion: (regionId: string): NormalizedTrackRegion | undefined => {
+    getRegion: (regionId: number): NormalizedTrackRegion | undefined => {
         return get().regions.get(regionId);
     },
 
@@ -47,7 +47,7 @@ export const useRegionStore: UseBoundStore<StoreApi<RegionStore>> = create<Regio
         });
     },
 
-    removeRegion: (regionId: string): void => {
+    removeRegion: (regionId: number): void => {
         set((state: RegionState) => {
             const newMap = new Map(state.regions);
             newMap.delete(regionId);
@@ -55,7 +55,7 @@ export const useRegionStore: UseBoundStore<StoreApi<RegionStore>> = create<Regio
         });
     },
 
-    removeRegionsBySetId: (setId: string): void => {
+    removeRegionsBySetId: (setId: number): void => {
         set((state: RegionState) => {
             const newMap = new Map(state.regions);
             for (const [key, value] of newMap) {
@@ -67,7 +67,7 @@ export const useRegionStore: UseBoundStore<StoreApi<RegionStore>> = create<Regio
         });
     },
 
-    updateRegion: (regionId: string, updates: Partial<NormalizedTrackRegion>): void => {
+    updateRegion: (regionId: number, updates: Partial<NormalizedTrackRegion>): void => {
         set((state: RegionState) => {
             const trackToUpdate = state.regions.get(regionId);
             if (!trackToUpdate) return state;
@@ -82,7 +82,7 @@ export const useRegionStore: UseBoundStore<StoreApi<RegionStore>> = create<Regio
         });
     },
 
-    setGraph: (regionId: string, graphId: string) =>
+    setGraph: (regionId: number, graphId: number) =>
         set((state: RegionState) => {
             const region = state.regions.get(regionId);
             if (!region) return state;
@@ -92,7 +92,7 @@ export const useRegionStore: UseBoundStore<StoreApi<RegionStore>> = create<Regio
             return { regions: newMap };
         }),
 
-    clearGraph: (regionId: string) =>
+    clearGraph: (regionId: number) =>
         set((state: RegionState) => {
             const region = state.regions.get(regionId);
             if (!region) return state;

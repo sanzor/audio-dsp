@@ -32,7 +32,7 @@ export const useGetAllRegionSetsForTrack = (trackId: number) => {
     queryKey: QUERY_KEYS.regionSets.byTrack(trackId),
     queryFn: async () => {
       const response = await apiGetRegionSetsForTrack(trackId);
-      return response.sets;
+      return response.regionSets;
     },
     enabled: !!trackId && !!user,
     select: (regionSets) => regionSets.map(normalizeRegionSetWithCascade),

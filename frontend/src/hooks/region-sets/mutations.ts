@@ -21,7 +21,7 @@ import type { TrackRegionSet } from '@/domain/RegionSet/TrackRegionSet';
 
 export const normalizeRegionSetWithCascade = (regionSetApi: TrackRegionSet): NormalizedTrackRegionSet => {
   const { addRegion, removeRegionsBySetId } = useRegionStore.getState();
-  const regionIds: string[] = [];
+  const regionIds: number[] = [];
 
   removeRegionsBySetId(regionSetApi.id);
 
@@ -35,7 +35,7 @@ export const normalizeRegionSetWithCascade = (regionSetApi: TrackRegionSet): Nor
   return { ...rest, region_ids: regionIds };
 };
 
-export const cascadeDeleteRegionSet = (setId: string): void => {
+export const cascadeDeleteRegionSet = (setId: number): void => {
   const { getRegionSet, removeRegionSet } = useRegionSetStore.getState();
   const { detachRegionSet } = useTrackStore.getState();
 
@@ -60,7 +60,7 @@ export const useCreateRegionSet = () => {
   return useMutation<CreateRegionSetResult, Error, CreateRegionSetParams>({
     mutationFn: (params) => apiCreateRegionSet(params),
     onSuccess: (data) => {
-      const normalized = normalizeRegionSetWithCascade(data.region_set);
+      const normalized = normalizeRegionSetWithCascade(data);
       addRegionSet(normalized);
       attachRegionSet(normalized.trackId, normalized.id);
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.regionSets.byTrack(normalized.trackId) });
@@ -80,7 +80,7 @@ export const useCopyRegionSet = () => {
   return useMutation<CreateRegionSetResult, Error, CopyRegionSetParams>({
     mutationFn: (params) => apiCopyRegionSet(params),
     onSuccess: (data) => {
-      const normalized = normalizeRegionSetWithCascade(data.region_set);
+      const normalized = normalizeRegionSetWithCascade(data);
       addRegionSet(normalized);
       attachRegionSet(normalized.trackId, normalized.id);
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.regionSets.byTrack(normalized.trackId) });
@@ -138,7 +138,7 @@ export const useRenameRegionSet = () => {
   const queryClient = useQueryClient();
   const updateRegionSet = useRegionSetStore.getState().updateRegionSet;
 
-  return useMutation<void, Error, { setId: string; newName: string }>({
+  return useMutation<void, Error, { setId: number; newName: string }>({
     mutationFn: async ({ setId, newName }) => {
       const res = await fetch(`/api/region-sets/${setId}`, {
         method: 'PATCH',

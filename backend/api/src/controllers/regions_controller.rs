@@ -1,6 +1,7 @@
 use actix_web::{delete, patch, post, web, HttpResponse};
 use chrono::{DateTime, Utc};
-use domain::db::{DbRegionSet, RegionId, RegionSetId, TrackId};
+use domain::db::{DbRegion, RegionId, RegionSetId, TrackId};
+use domain::{region_set::region_set_subtree::RegionSetSubtree, regions::region_subtree::RegionSubtree};
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 
@@ -12,24 +13,25 @@ use crate::{
     },
 };
 
-// Shared region-set result fields (1:1 with DbRegionSet)
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct RegionSetResult {
+pub struct RegionResult {
+    pub region_id: RegionId,
     pub region_set_id: RegionSetId,
-    pub track_id: TrackId,
     pub name: String,
-    pub track_length_seconds: f32,
+    pub start_time: f32,
+    pub end_time: f32,
     pub created_at: DateTime<Utc>,
 }
 
-impl From<DbRegionSet> for RegionSetResult {
-    fn from(db: DbRegionSet) -> Self {
-        RegionSetResult {
+impl From<DbRegion> for RegionResult {
+    fn from(db: DbRegion) -> Self {
+        RegionResult {
+            region_id: db.region_id,
             region_set_id: db.region_set_id,
-            track_id: db.track_id,
             name: db.name,
-            track_length_seconds: db.track_length_seconds,
+            start_time: db.start_time_seconds,
+            end_time: db.end_time_seconds,
             created_at: db.created_at,
         }
     }
@@ -42,20 +44,28 @@ impl From<DbRegionSet> for RegionSetResult {
 pub struct AddRegionRequest {
     pub region_set_id: RegionSetId,
     pub start_time: f32,
+    pub end_time: Option<f32>,
     pub name: String,
-    pub end_time_policy: String,
 }
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct AddRegionResult {
-    pub region_set: RegionSetResult,
+pub struct RegionSetResult {
+    pub region_set_id: RegionSetId,
+    pub track_id: TrackId,
+    pub track_length: f32,
+    pub name: String,
+    pub regions: Vec<RegionSubtree>,
 }
 
-impl From<DbRegionSet> for AddRegionResult {
-    fn from(db: DbRegionSet) -> Self {
-        AddRegionResult {
-            region_set: RegionSetResult::from(db),
+impl From<RegionSetSubtree> for RegionSetResult {
+    fn from(region_set: RegionSetSubtree) -> Self {
+        RegionSetResult {
+            region_set_id: region_set.region_set_id,
+            track_id: region_set.track_id,
+            track_length: region_set.track_length,
+            name: region_set.name,
+            regions: region_set.regions,
         }
     }
 }
@@ -83,11 +93,14 @@ pub async fn add_region(
             name: request.name,
             region_set_id: request.region_set_id,
             start_time: request.start_time,
-            end_time_policy: EndTimePolicy::NextRegionOrEnd,
+            end_time_policy: request
+                .end_time
+                .map(EndTimePolicy::Explicit)
+                .unwrap_or(EndTimePolicy::NextRegionOrEnd),
         })
         .await
     {
-        Ok(r) => HttpResponse::Created().json(AddRegionResult::from(r)),
+        Ok(r) => HttpResponse::Created().json(RegionSetResult::from(r)),
         Err(_e) => HttpResponse::InternalServerError().body("Could not add region"),
     }
 }
@@ -98,7 +111,6 @@ pub async fn add_region(
 #[serde(rename_all = "camelCase")]
 pub struct EditRegionRequest {
     pub region_id: RegionId,
-    pub region_set_id: RegionSetId,
     pub start_time: Option<f32>,
     pub end_time: Option<f32>,
     pub name: Option<String>,
@@ -107,13 +119,13 @@ pub struct EditRegionRequest {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EditRegionResult {
-    pub region_set: RegionSetResult,
+    pub region: RegionResult,
 }
 
-impl From<DbRegionSet> for EditRegionResult {
-    fn from(db: DbRegionSet) -> Self {
+impl From<DbRegion> for EditRegionResult {
+    fn from(db: DbRegion) -> Self {
         EditRegionResult {
-            region_set: RegionSetResult::from(db),
+            region: RegionResult::from(db),
         }
     }
 }
@@ -135,11 +147,8 @@ pub async fn edit_region(
         return HttpResponse::Forbidden().body("Forbidden");
     }
     let request = request.into_inner();
-    match app_state
-        .regions_service
-        .edit_region(EditRegionParams {
+    match app_state.regions_service.edit_region(EditRegionParams {
             name: request.name,
-            region_set_id: request.region_set_id,
             region_id: request.region_id,
             start_time: request.start_time,
             end_time: request.end_time,
@@ -157,7 +166,6 @@ pub async fn edit_region(
 #[serde(rename_all = "camelCase")]
 pub struct DeleteRegionRequest {
     pub region_id: RegionId,
-    pub region_set_id: RegionSetId,
 }
 
 #[utoipa::path(
@@ -181,11 +189,10 @@ pub async fn remove_region(
         .regions_service
         .delete_region(DeleteRegionParams {
             region_id: request.region_id,
-            region_set_id: request.region_set_id,
         })
         .await
     {
-        Ok(_) => HttpResponse::Ok().body("Region deleted"),
+        Ok(r) => HttpResponse::Ok().json(RegionSetResult::from(r)),
         Err(_e) => HttpResponse::InternalServerError().body("Could not delete region"),
     }
 }
@@ -206,13 +213,13 @@ pub struct CopyRegionRequest {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CopyRegionResult {
-    pub region_set: RegionSetResult,
+    pub region: RegionResult,
 }
 
-impl From<DbRegionSet> for CopyRegionResult {
-    fn from(db: DbRegionSet) -> Self {
+impl From<DbRegion> for CopyRegionResult {
+    fn from(db: DbRegion) -> Self {
         CopyRegionResult {
-            region_set: RegionSetResult::from(db),
+            region: RegionResult::from(db),
         }
     }
 }

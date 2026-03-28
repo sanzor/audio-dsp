@@ -1,8 +1,9 @@
 use domain::db::{
     db_region::RegionId,
-    db_region_set::{DbRegionSet, RegionSetId},
+    db_region_set::RegionSetId,
     db_track::TrackId,
 };
+use domain::{db::DbRegion, region_set::region_set_subtree::RegionSetSubtree};
 
 pub enum EndTimePolicy {
     NextRegionOrEnd,
@@ -19,7 +20,6 @@ pub struct AddRegionParams {
 
 pub struct EditRegionParams {
     pub region_id: RegionId,
-    pub region_set_id: RegionSetId,
     pub name: Option<String>,
     pub start_time: Option<f32>,
     pub end_time: Option<f32>,
@@ -27,7 +27,6 @@ pub struct EditRegionParams {
 
 pub struct DeleteRegionParams {
     pub region_id: RegionId,
-    pub region_set_id: RegionSetId,
 }
 
 pub struct CopyRegionParams {
@@ -41,8 +40,8 @@ pub struct CopyRegionParams {
 
 #[async_trait::async_trait]
 pub trait RegionsProvider: Send + Sync {
-    async fn add_region(&self, params: AddRegionParams) -> Result<DbRegionSet, String>;
-    async fn edit_region(&self, params: EditRegionParams) -> Result<DbRegionSet, String>;
-    async fn delete_region(&self, params: DeleteRegionParams) -> Result<(), String>;
-    async fn copy_region(&self, params: CopyRegionParams) -> Result<DbRegionSet, String>;
+    async fn add_region(&self, params: AddRegionParams) -> Result<RegionSetSubtree, String>;
+    async fn edit_region(&self, params: EditRegionParams) -> Result<DbRegion, String>;
+    async fn delete_region(&self, params: DeleteRegionParams) -> Result<RegionSetSubtree, String>;
+    async fn copy_region(&self, params: CopyRegionParams) -> Result<DbRegion, String>;
 }

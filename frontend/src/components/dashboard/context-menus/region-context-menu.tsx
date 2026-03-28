@@ -3,15 +3,15 @@ import { PositionedMenu, MenuItem } from "./PositionedMenu";
 interface RegionContextMenuProps {
   x: number;
   y: number;
-  regionId: string;
+  regionId: number;
   onClose: () => void;
-  onRemove: (id: string) => void;
-  onRename: (id: string) => void;
-  onCopyRegion: (id: string) => void;
-  onCreateGraph: (id: string) => void;
-  onPasteGraph?: (id: string) => void;
+  onRemove: (id: number) => void;
+  onRename: (id: number) => void;
+  onCopyRegion: (id: number) => void;
+  onCreateGraph: (id: number) => void;
+  onPasteGraph?: (id: number) => void;
   canPasteGraph?: boolean;
-  onDetails: (id: string) => void;
+  onDetails: (id: number) => void;
 }
 
 export function RegionContextMenu({
