@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { useRegionSetViewModel, useTrackViewModelById } from "@/Selectors/trackViewModels";
 import { useWaveformAudio } from "./WaveformAudio";
 import { WaveformRenderer } from "./WaveformRenderer";
+import { WaveformToolbar } from "./WaveformToolbar";
 import { useUIStore } from "@/Stores/UIStore";
 import { useRegionSetStore } from "@/Stores/RegionSetStore";
 import { useRegionController } from "@/controllers/RegionController";
@@ -9,6 +11,7 @@ import { useRegionSetController } from "@/controllers/RegionSetController";
 export function WaveformPlayer() {
   const openedContext = useUIStore(x => x.openedContext);
   const selectedContext = useUIStore(x => x.selectedContext);
+  const select = useUIStore(x => x.select);
 
   const trackId: number | null =
     openedContext?.type === "track" ? openedContext.trackId :
@@ -45,21 +48,45 @@ export function WaveformPlayer() {
   const regionController = useRegionController();
   const regionSetController = useRegionSetController();
 
+  const [createMode, setCreateMode] = useState(false);
+
+  const selectedRegionId =
+    selectedContext?.type === 'region' ? selectedContext.regionId : undefined;
+
   if (openedContext?.type !== "track" && openedContext?.type !== "regionSet") return null;
   if (isLoading) return <div>Loading audio...</div>;
   if (!objectUrl) return <div>Missing required data</div>;
 
   return (
-    <WaveformRenderer
-      url={objectUrl}
-      regionSet={regionSetViewModel ?? undefined}
-      onRegionDetails={(regionId) => regionController.handleDetailsRegion(regionId)}
-      onEditRegion={(regionId) => regionController.handleEditRegion(regionId)}
-      onDeleteRegion={(regionId) => regionController.handleDeleteRegion(regionId)}
-      onCopyRegion={(regionId) => regionController.handleCopyRegion(regionId)}
-      onUpdateRegionBounds={(regionId, start, end) => regionController.handleUpdateRegionBounds(regionId, start, end)}
-      onCreateRegionClick={regionSetId ? (time) => regionSetController.handleCreateRegion(regionSetId, time) : undefined}
-      onCreateRegionDrag={regionSetId ? (start, end) => regionSetController.handleCreateRegion(regionSetId, start, end) : undefined}
-    />
+    <div className="flex flex-col h-full min-h-0">
+      <WaveformToolbar
+        regionSet={regionSetViewModel ?? undefined}
+        selectedRegionId={selectedRegionId}
+        createMode={createMode}
+        onCreateClick={() => setCreateMode(true)}
+        onCancelCreate={() => setCreateMode(false)}
+        onEditClick={() => regionController.handleEditRegion(selectedRegionId!)}
+        onDeleteClick={() => regionController.handleDeleteRegion(selectedRegionId!)}
+        onCopyClick={() => regionController.handleCopyRegion(selectedRegionId!)}
+      />
+      <WaveformRenderer
+        url={objectUrl}
+        regionSet={regionSetViewModel ?? undefined}
+        selectedRegionId={selectedRegionId}
+        createMode={createMode}
+        onRegionSelect={(regionId) => select({ type: 'region', regionId })}
+        onRegionDeselect={() => select(null)}
+        onRegionDetails={(regionId) => regionController.handleDetailsRegion(regionId)}
+        onEditRegion={(regionId) => regionController.handleEditRegion(regionId)}
+        onDeleteRegion={(regionId) => regionController.handleDeleteRegion(regionId)}
+        onCopyRegion={(regionId) => regionController.handleCopyRegion(regionId)}
+        onUpdateRegionBounds={(regionId, start, end) => regionController.handleUpdateRegionBounds(regionId, start, end)}
+        onCreateRegionClick={regionSetId ? (time) => regionSetController.handleCreateRegion(regionSetId, time) : undefined}
+        onCreateRegionDrag={regionSetId ? (start, end) => {
+          regionSetController.handleCreateRegion(regionSetId, start, end);
+          setCreateMode(false);
+        } : undefined}
+      />
+    </div>
   );
 }

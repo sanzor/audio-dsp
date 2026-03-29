@@ -4,10 +4,10 @@ import RegionsPlugin, { type Region } from 'wavesurfer.js/dist/plugins/regions.e
 import Minimap from 'wavesurfer.js/dist/plugins/minimap.esm.js'
 import type { TrackRegionViewModel } from "@/domain/Region/TrackRegionViewModel";
 import type { TrackRegionSetViewModel } from "@/domain/RegionSet/TrackRegionSetViewModel";
-import { useUIStore, type RightClickContext } from "@/Stores/UIStore";
 import { PlaybackControls } from "./PlaybackControls";
 import { usePlaybackController } from "./usePlaybackController";
 
+const REGION_GAP = 0.05;
 
 export interface WaveformRendererProps{
     regionSet?: TrackRegionSetViewModel,
@@ -18,7 +18,11 @@ export interface WaveformRendererProps{
     onUpdateRegionBounds?:(regionId:number,start:number,end:number)=>Promise<void> | void,
     onCreateRegionClick?:(time:number)=>void,
     onCreateRegionDrag?:(start:number,end:number)=>void,
-    onCopyRegion?:(regionId:number)=>void
+    onCopyRegion?:(regionId:number)=>void,
+    selectedRegionId?: number,
+    createMode?: boolean,
+    onRegionSelect?: (regionId: number) => void,
+    onRegionDeselect?: () => void,
 }
 
 
@@ -28,6 +32,10 @@ export function WaveformRenderer({
     onRegionDetails,
     onUpdateRegionBounds,
     onCreateRegionDrag,
+    selectedRegionId,
+    createMode,
+    onRegionSelect,
+    onRegionDeselect,
   }:WaveformRendererProps
   ){
     const waveRef = useRef<WaveSurfer | null>(null);
@@ -37,12 +45,14 @@ export function WaveformRenderer({
     const onRegionDetailsRef = useRef(onRegionDetails);
     const onUpdateRegionBoundsRef = useRef(onUpdateRegionBounds);
     const onCreateRegionDragRef = useRef(onCreateRegionDrag);
+    const onRegionSelectRef = useRef(onRegionSelect);
+    const onRegionDeselectRef = useRef(onRegionDeselect);
+    const createModeRef = useRef(createMode ?? false);
     const [regionsPlugin, setRegionsPlugin] = useState<RegionsPlugin | null>(null);
     const renderedRegionIds = useRef<Set<string>>(new Set());
     const dragSelectionRef = useRef<{ anchorTime: number } | null>(null);
 
     const [draftSelection, setDraftSelection] = useState<{ start: number; end: number } | null>(null);
-    const openContextMenu=useUIStore(x=>x.openContextMenu);
     const playback = usePlaybackController(waveRef);
     const beginPlaybackLoad = playback.beginLoading;
     const bindPlaybackWaveform = playback.bindWaveform;
@@ -63,45 +73,15 @@ export function WaveformRenderer({
         onCreateRegionDragRef.current = onCreateRegionDrag;
     }, [onCreateRegionDrag]);
 
-    useEffect(() => {
-        const waveformShellElement = waveformShellRef.current;
-        if (!waveformShellElement) return;
-
-        const handleContextMenu = (event: MouseEvent) => {
-            const target = event.target as HTMLElement | null;
-            if (target?.closest('[part*="region"]')) return;
-
-            event.preventDefault();
-            event.stopPropagation();
-
-            const currentRegionSet = regionSetRef.current;
-            const waveform = waveRef.current;
-            if (!currentRegionSet || !waveform) return;
-
-            const bounding = waveformShellElement.getBoundingClientRect();
-            const x = event.clientX - bounding.left;
-            const width = waveformShellElement.offsetWidth;
-            const time = waveform.getDuration() * (x / width);
-
-            openContextMenu({
-                type: 'waveform_timeline',
-                x: event.clientX,
-                y: event.clientY,
-                regionSetId: currentRegionSet.id,
-                time,
-            });
-        };
-
-        waveformShellElement.addEventListener('contextmenu', handleContextMenu, true);
-        return () => {
-            waveformShellElement.removeEventListener('contextmenu', handleContextMenu, true);
-        };
-    }, [openContextMenu]);
+    useEffect(() => { onRegionSelectRef.current = onRegionSelect; }, [onRegionSelect]);
+    useEffect(() => { onRegionDeselectRef.current = onRegionDeselect; }, [onRegionDeselect]);
+    useEffect(() => { createModeRef.current = createMode ?? false; }, [createMode]);
 
     useEffect(() => {
         const waveformElement = waveformRef.current;
+        const waveformShellElement = waveformShellRef.current;
 
-        if (!waveformElement || !url) {
+        if (!waveformElement || !waveformShellElement || !url) {
             return;
         }
 
@@ -111,8 +91,8 @@ export function WaveformRenderer({
             url,
             regionSetRef.current?.regions ?? [],
             waveformElement,
-            openContextMenu,
             (regionId) => onRegionDetailsRef.current?.(regionId),
+            (regionId) => onRegionSelectRef.current?.(regionId),
             async (updatedRegion, side) => {
                 const currentRegionSet = regionSetRef.current;
                 if (!currentRegionSet?.regions) return;
@@ -156,7 +136,7 @@ export function WaveformRenderer({
             waveRef.current = null;
             setRegionsPlugin(null);
         };
-    }, [beginPlaybackLoad, bindPlaybackWaveform, openContextMenu, url]);
+    }, [beginPlaybackLoad, bindPlaybackWaveform, url]);
 
     useEffect(()=>{
         if(!regionsPlugin){
@@ -178,7 +158,7 @@ export function WaveformRenderer({
                 continue;
             regionsPlugin.getRegions().find(x=>x.id===id)?.remove();
             existingIds.delete(id);
-            
+
         }
         //add new regions
         for(const region of regionSet.regions){
@@ -191,16 +171,16 @@ export function WaveformRenderer({
                     content: region.name,
                     drag: true,
                     resize: true,
-                    color: colorForRegion(region.regionId),
+                    color: colorForRegion(region.regionId, region.regionId === selectedRegionId),
                 });
             }else{
-                  addRegion(regionsPlugin,region);   
+                  addRegion(regionsPlugin, region, region.regionId === selectedRegionId);
             }
-           
-           
+
+
         }
         renderedRegionIds.current=currentIds;
-    },[regionSet,regionSet?.regions,regionsPlugin]);
+    },[regionSet,regionSet?.regions,regionsPlugin, selectedRegionId]);
 
     useEffect(() => {
         const waveformShellElement = waveformShellRef.current;
@@ -229,14 +209,23 @@ export function WaveformRenderer({
         const onPointerDown = (event: PointerEvent) => {
             if (event.button !== 0) return;
 
+            const time = clientXToTime(event.clientX, waveformShellElement, wave.getDuration());
+
+            if (!createModeRef.current) {
+                // normal mode: background click deselects
+                if (!isPointInsideRegion(time, regionSet.regions)) {
+                    onRegionDeselectRef.current?.();
+                }
+                return;
+            }
+
+            // create mode: start drag to define new region
             const target = event.target as HTMLElement | null;
             if (target?.closest('[part*="region"]')) return;
+            if (isPointInsideRegion(time, regionSet.regions)) return;
 
-            const anchorTime = clientXToTime(event.clientX, waveformShellElement, wave.getDuration());
-            if (isPointInsideRegion(anchorTime, regionSet.regions)) return;
-
-            dragSelectionRef.current = { anchorTime };
-            setDraftSelection({ start: anchorTime, end: anchorTime });
+            dragSelectionRef.current = { anchorTime: time };
+            setDraftSelection({ start: time, end: time });
             event.preventDefault();
         };
 
@@ -335,8 +324,8 @@ export function createWaveFormPlayer(
     url:string,
     trackRegions:TrackRegionViewModel[],
     container:HTMLElement,
-    openContextMenu:(context: RightClickContext) => void,
     onRegionDetails?:(regionId:number)=>void,
+    onRegionSelect?:(regionId:number)=>void,
     onRegionUpdated?: (region: Region, side?: "start" | "end") => Promise<void> | void)
     :{wave:WaveSurfer,regions:RegionsPlugin}{
     let activeRegion:Region|null=null;
@@ -355,33 +344,13 @@ export function createWaveFormPlayer(
         e.stopImmediatePropagation();
         activeRegion=region;
         region.play(true);
+        onRegionSelect?.(Number(region.id));
     })
     regions.on('region-double-clicked', (region, e) => {
         e.preventDefault();
         e.stopImmediatePropagation();
         onRegionDetails?.(Number(region.id));
     });
-    regions.on('region-created', (region) => {
-        const element = region.element;
-        if (!element) return;
-
-        const onContextMenu = (event: MouseEvent) => {
-            event.preventDefault();
-            event.stopPropagation();
-            activeRegion = region;
-            openContextMenu({
-                type: 'waveform_region',
-                regionId: Number(region.id),
-                x: event.clientX,
-                y: event.clientY,
-            });
-        };
-
-        element.addEventListener('contextmenu', onContextMenu);
-        region.once('remove', () => {
-            element.removeEventListener('contextmenu', onContextMenu);
-        });
-    })
     regions.on('region-updated', (region, side) => {
         void onRegionUpdated?.(region, side);
     });
@@ -431,7 +400,7 @@ function clampCreateSelection(
     if (pointerTime >= anchorTime) {
         const nextBoundary = regions
             .filter((region) => region.start > anchorTime)
-            .map((region) => region.start)
+            .map((region) => region.start - REGION_GAP)
             .reduce((min, value) => Math.min(min, value), totalDuration);
         const end = Math.min(pointerTime, nextBoundary, totalDuration);
         return end > anchorTime ? { start: anchorTime, end } : null;
@@ -439,7 +408,7 @@ function clampCreateSelection(
 
     const previousBoundary = regions
         .filter((region) => region.end < anchorTime)
-        .map((region) => region.end)
+        .map((region) => region.end + REGION_GAP)
         .reduce((max, value) => Math.max(max, value), 0);
     const start = Math.max(pointerTime, previousBoundary, 0);
     return start < anchorTime ? { start, end: anchorTime } : null;
@@ -462,8 +431,8 @@ function clampUpdatedRegionBounds(
     const previousRegion = regionIndex > 0 ? orderedRegions[regionIndex - 1] : null;
     const nextRegion = regionIndex < orderedRegions.length - 1 ? orderedRegions[regionIndex + 1] : null;
 
-    const minStart = previousRegion ? previousRegion.end : 0;
-    const maxEnd = nextRegion ? nextRegion.start : totalDuration;
+    const minStart = previousRegion ? previousRegion.end + REGION_GAP : 0;
+    const maxEnd = nextRegion ? nextRegion.start - REGION_GAP : totalDuration;
     const minimumLength = 0.01;
 
     if (side === "start") {
@@ -515,7 +484,7 @@ function addRegions(regions:TrackRegionViewModel[],regionsObj:RegionsPlugin):Reg
     return regionsObj;
 }
 
-function addRegion(regionsObj:RegionsPlugin,elem:TrackRegionViewModel):RegionsPlugin{
+function addRegion(regionsObj:RegionsPlugin, elem:TrackRegionViewModel, isSelected = false):RegionsPlugin{
     regionsObj.addRegion({
             id:String(elem.regionId),
             start:elem.start,
@@ -523,12 +492,12 @@ function addRegion(regionsObj:RegionsPlugin,elem:TrackRegionViewModel):RegionsPl
             drag: true,
             resize: true,
             content:elem.name,
-            color:colorForRegion(elem.regionId)
+            color:colorForRegion(elem.regionId, isSelected)
         });
     return regionsObj;
 }
 
-function colorForRegion(regionId: string | number): string {
+function colorForRegion(regionId: string | number, isSelected = false): string {
     const value = String(regionId);
     let hash = 0;
 
@@ -537,5 +506,7 @@ function colorForRegion(regionId: string | number): string {
     }
 
     const hue = hash % 360;
-    return `hsla(${hue}, 72%, 58%, 0.32)`;
+    return isSelected
+        ? `hsla(${hue}, 90%, 65%, 0.65)`
+        : `hsla(${hue}, 72%, 58%, 0.32)`;
 }

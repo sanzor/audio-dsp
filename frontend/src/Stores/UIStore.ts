@@ -10,8 +10,6 @@ export type RightClickContext =
   | { type: 'region'; regionId: number; x: number; y: number }
   | { type: 'regionSet'; regionSetId: number; x: number; y: number }
   | { type: 'graph'; graphId: number; x: number; y: number }
-  | { type: 'waveform_region'; regionId: number; x: number; y: number } // Right-click on an existing region graphic
-  | { type: 'waveform_timeline'; regionSetId: number; time: number; x: number; y: number } // Right-click on the timeline background
   | null;
 
 export type SelectedContext =

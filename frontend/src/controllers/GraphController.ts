@@ -20,7 +20,7 @@ export function useGraphController() {
     // ============================================
     // DETAILS GRAPH
     // ============================================
-    handleDetailsGraph: (graphId: string) => {
+    handleDetailsGraph: (graphId: number) => {
       const graph = graphMap.get(graphId);
       if (!graph) {
         console.error('Graph not found:', { graphId });
@@ -33,7 +33,7 @@ export function useGraphController() {
     // ============================================
     // RENAME GRAPH
     // ============================================
-    handleRenameGraph: (graphId: string) => {
+    handleRenameGraph: (graphId: number) => {
       const graph = graphMap.get(graphId);
       if (!graph) {
         console.error('Graph not found:', { graphId });
@@ -43,7 +43,7 @@ export function useGraphController() {
       closeContextMenu();
     },
 
-    handleSubmitRenameGraph: async (graphId: string, newName: string) => {
+    handleSubmitRenameGraph: async (graphId: number, newName: string) => {
       try {
         await renameGraphMutation.mutateAsync({ id: graphId, name: newName });
         closeModal();
@@ -56,7 +56,7 @@ export function useGraphController() {
     // ============================================
     // DELETE GRAPH
     // ============================================
-    handleDeleteGraph: async (graphId: string) => {
+    handleDeleteGraph: async (graphId: number) => {
       try {
         await deleteGraphMutation.mutateAsync({ graph_id: graphId });
         closeContextMenu();
@@ -70,7 +70,7 @@ export function useGraphController() {
     // ============================================
     // COPY GRAPH
     // ============================================
-    handleCopyGraph: (graphId: string) => {
+    handleCopyGraph: (graphId: number) => {
       const graph = graphMap.get(graphId);
       if (!graph) {
         console.error('Graph not found:', { graphId });
