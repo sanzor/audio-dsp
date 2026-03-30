@@ -43,6 +43,13 @@ export function WaveformPlayer() {
         : resolvedTrack?.regionSets[0]?.id;
 
   const regionSetViewModel = useRegionSetViewModel(resolvedTrackId, regionSetId);
+
+  const hasRegionSetForTrack = useRegionSetStore((state) =>
+    resolvedTrackId != null
+      ? [...state.regionSets.values()].some((rs) => rs.trackId === resolvedTrackId)
+      : false
+  );
+
   const { objectUrl, isLoading } = useWaveformAudio(resolvedTrackId);
 
   const regionController = useRegionController();
@@ -60,7 +67,7 @@ export function WaveformPlayer() {
   return (
     <div className="flex flex-col h-full min-h-0">
       <WaveformToolbar
-        regionSet={regionSetViewModel ?? undefined}
+        canCreate={hasRegionSetForTrack}
         selectedRegionId={selectedRegionId}
         createMode={createMode}
         onCreateClick={() => setCreateMode(true)}
@@ -86,6 +93,7 @@ export function WaveformPlayer() {
           regionSetController.handleCreateRegion(regionSetId, start, end);
           setCreateMode(false);
         } : undefined}
+
       />
     </div>
   );

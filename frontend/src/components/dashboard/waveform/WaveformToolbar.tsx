@@ -1,7 +1,7 @@
-import type { TrackRegionSetViewModel } from "@/domain/RegionSet/TrackRegionSetViewModel";
+import type React from "react";
 
 interface WaveformToolbarProps {
-  regionSet: TrackRegionSetViewModel | undefined;
+  canCreate: boolean;
   selectedRegionId: number | undefined;
   createMode: boolean;
   onCreateClick: () => void;
@@ -12,7 +12,7 @@ interface WaveformToolbarProps {
 }
 
 export function WaveformToolbar({
-  regionSet,
+  canCreate,
   selectedRegionId,
   createMode,
   onCreateClick,
@@ -31,11 +31,25 @@ export function WaveformToolbar({
     color: "var(--text-main)",
   };
 
+  const btnDisabled: React.CSSProperties = {
+    ...btnBase,
+    opacity: 0.35,
+    cursor: "not-allowed",
+  };
+
   const btnDanger: React.CSSProperties = {
     ...btnBase,
     color: "#f87171",
     borderColor: "rgba(248,113,113,0.3)",
   };
+
+  const btnDangerDisabled: React.CSSProperties = {
+    ...btnDanger,
+    opacity: 0.35,
+    cursor: "not-allowed",
+  };
+
+  const hasRegion = selectedRegionId != null;
 
   if (createMode) {
     return (
@@ -44,7 +58,7 @@ export function WaveformToolbar({
         style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
       >
         <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
-          Drag on waveform to define region bounds
+          Adjust selection then click Create
         </span>
         <button style={btnBase} onClick={onCancelCreate}>
           Cancel
@@ -58,22 +72,18 @@ export function WaveformToolbar({
       className="flex items-center gap-2 px-3 py-1 shrink-0"
       style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
     >
-      <button style={btnBase} disabled={!regionSet} onClick={onCreateClick}>
+      <button style={canCreate ? btnBase : btnDisabled} disabled={!canCreate} onClick={onCreateClick}>
         + Create Region
       </button>
-      {selectedRegionId != null && (
-        <>
-          <button style={btnBase} onClick={onEditClick}>
-            Edit
-          </button>
-          <button style={btnDanger} onClick={onDeleteClick}>
-            Delete
-          </button>
-          <button style={btnBase} onClick={onCopyClick}>
-            Copy
-          </button>
-        </>
-      )}
+      <button style={hasRegion ? btnBase : btnDisabled} disabled={!hasRegion} onClick={onEditClick}>
+        Edit
+      </button>
+      <button style={hasRegion ? btnDanger : btnDangerDisabled} disabled={!hasRegion} onClick={onDeleteClick}>
+        Delete
+      </button>
+      <button style={hasRegion ? btnBase : btnDisabled} disabled={!hasRegion} onClick={onCopyClick}>
+        Copy
+      </button>
     </div>
   );
 }

@@ -6,6 +6,7 @@ import type { TrackRegionViewModel } from "@/domain/Region/TrackRegionViewModel"
 import type { TrackRegionSetViewModel } from "@/domain/RegionSet/TrackRegionSetViewModel";
 import { PlaybackControls } from "./PlaybackControls";
 import { usePlaybackController } from "./usePlaybackController";
+import { CreateRegionOverlay } from "./CreateRegionOverlay";
 
 const REGION_GAP = 0.05;
 
@@ -50,9 +51,7 @@ export function WaveformRenderer({
     const createModeRef = useRef(createMode ?? false);
     const [regionsPlugin, setRegionsPlugin] = useState<RegionsPlugin | null>(null);
     const renderedRegionIds = useRef<Set<string>>(new Set());
-    const dragSelectionRef = useRef<{ anchorTime: number } | null>(null);
 
-    const [draftSelection, setDraftSelection] = useState<{ start: number; end: number } | null>(null);
     const playback = usePlaybackController(waveRef);
     const beginPlaybackLoad = playback.beginLoading;
     const bindPlaybackWaveform = playback.bindWaveform;
@@ -190,75 +189,19 @@ export function WaveformRenderer({
             return;
         }
 
-        const updateDraftSelection = (clientX: number) => {
-            const activeDrag = dragSelectionRef.current;
-            if (!activeDrag) return null;
-
-            const pointerTime = clientXToTime(clientX, waveformShellElement, wave.getDuration());
-            const nextDraft = clampCreateSelection(
-                activeDrag.anchorTime,
-                pointerTime,
-                regionSet.regions,
-                wave.getDuration(),
-            );
-
-            setDraftSelection(nextDraft);
-            return nextDraft;
-        };
-
         const onPointerDown = (event: PointerEvent) => {
             if (event.button !== 0) return;
+            if (createModeRef.current) return; // overlay handles it
 
             const time = clientXToTime(event.clientX, waveformShellElement, wave.getDuration());
-
-            if (!createModeRef.current) {
-                // normal mode: background click deselects
-                if (!isPointInsideRegion(time, regionSet.regions)) {
-                    onRegionDeselectRef.current?.();
-                }
-                return;
+            if (!isPointInsideRegion(time, regionSet.regions)) {
+                onRegionDeselectRef.current?.();
             }
-
-            // create mode: start drag to define new region
-            const target = event.target as HTMLElement | null;
-            if (target?.closest('[part*="region"]')) return;
-            if (isPointInsideRegion(time, regionSet.regions)) return;
-
-            dragSelectionRef.current = { anchorTime: time };
-            setDraftSelection({ start: time, end: time });
-            event.preventDefault();
-        };
-
-        const onPointerMove = (event: PointerEvent) => {
-            if (!dragSelectionRef.current) return;
-            updateDraftSelection(event.clientX);
-        };
-
-        const onPointerUp = (event: PointerEvent) => {
-            if (!dragSelectionRef.current) return;
-
-            const finalSelection = updateDraftSelection(event.clientX);
-            dragSelectionRef.current = null;
-            setDraftSelection(null);
-
-            if (!finalSelection) return;
-            if (finalSelection.end - finalSelection.start < 0.01) return;
-
-            onCreateRegionDragRef.current?.(finalSelection.start, finalSelection.end);
         };
 
         waveformShellElement.addEventListener("pointerdown", onPointerDown);
-        window.addEventListener("pointermove", onPointerMove);
-        window.addEventListener("pointerup", onPointerUp);
-        window.addEventListener("pointercancel", onPointerUp);
-
         return () => {
             waveformShellElement.removeEventListener("pointerdown", onPointerDown);
-            window.removeEventListener("pointermove", onPointerMove);
-            window.removeEventListener("pointerup", onPointerUp);
-            window.removeEventListener("pointercancel", onPointerUp);
-            dragSelectionRef.current = null;
-            setDraftSelection(null);
         };
     }, [regionSet, url]);
 
@@ -276,7 +219,7 @@ export function WaveformRenderer({
     }
     return (
   <div
-    className="relative flex h-full min-h-0 w-full flex-col overflow-hidden rounded-lg border shadow-lg"
+    className="relative flex flex-1 min-h-0 w-full flex-col overflow-hidden rounded-lg border shadow-lg"
     style={{ backgroundColor: "var(--bg-darker)", borderColor: "rgba(255,255,255,0.08)" }}
   >
     {playback.isLoading && (
@@ -289,13 +232,12 @@ export function WaveformRenderer({
       className="relative min-h-0 flex-1"
     >
       <div ref={waveformRef} className="h-full w-full" />
-      {draftSelection && playback.duration > 0 && (
-        <div
-          className="pointer-events-none absolute inset-y-0 z-20 rounded border border-red-300 bg-red-500/30"
-          style={{
-            left: `${(draftSelection.start / playback.duration) * 100}%`,
-            width: `${((draftSelection.end - draftSelection.start) / playback.duration) * 100}%`,
-          }}
+      {createMode && regionSet && playback.duration > 0 && (
+        <CreateRegionOverlay
+          regions={regionSet.regions}
+          duration={playback.duration}
+          containerRef={waveformShellRef}
+          onConfirm={(start, end) => onCreateRegionDragRef.current?.(start, end)}
         />
       )}
     </div>
@@ -391,28 +333,6 @@ function isPointInsideRegion(time: number, regions: TrackRegionViewModel[]): boo
     return regions.some((region) => time >= region.start && time <= region.end);
 }
 
-function clampCreateSelection(
-    anchorTime: number,
-    pointerTime: number,
-    regions: TrackRegionViewModel[],
-    totalDuration: number,
-): { start: number; end: number } | null {
-    if (pointerTime >= anchorTime) {
-        const nextBoundary = regions
-            .filter((region) => region.start > anchorTime)
-            .map((region) => region.start - REGION_GAP)
-            .reduce((min, value) => Math.min(min, value), totalDuration);
-        const end = Math.min(pointerTime, nextBoundary, totalDuration);
-        return end > anchorTime ? { start: anchorTime, end } : null;
-    }
-
-    const previousBoundary = regions
-        .filter((region) => region.end < anchorTime)
-        .map((region) => region.end + REGION_GAP)
-        .reduce((max, value) => Math.max(max, value), 0);
-    const start = Math.max(pointerTime, previousBoundary, 0);
-    return start < anchorTime ? { start, end: anchorTime } : null;
-}
 
 function clampUpdatedRegionBounds(
     regionId: string,
