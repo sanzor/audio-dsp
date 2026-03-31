@@ -3,12 +3,13 @@ import { DashboardLayout } from "./dashboard-layout";
 import { TransformStorePanel } from "./store/transform-store-panel";
 import { CanvasPanel } from "./graph/canvas-panel";
 import { useTrackViewModels } from "@/Selectors/trackViewModels";
-import { WaveformPlayer } from "./waveform/WaveformPlayer";
+import { WaveformPlayer } from "./waveform-panel/WaveformPlayer";
 import { GlobalContextMenu } from "./context-menus/GlobalContextMenu";
 import { GlobalModal } from "./modals/GlobalModal";
 import { useUIStore, type OpenedContext, type SelectedContext } from "@/Stores/UIStore";
 import { useTrackController } from "@/controllers/TrackController";
 import { useListTracks } from "@/hooks/tracks/queries";
+import { useGetAllRegionSets } from "@/hooks/region-sets/queries";
 import { ProjectsPanel } from "./projects/ProjectsPanel";
 import { SidebarPanel } from "./sidebar/SidebarPanel";
 import {
@@ -23,6 +24,7 @@ import {
 export function Dashboard() {
   const user = useAuthStore((state) => state.user);
   useListTracks();
+  useGetAllRegionSets();
   const trackController = useTrackController();
   const { open, select, openContextMenu } = useUIStore();
   const sidebarTracks = useTrackViewModels();

@@ -1,7 +1,7 @@
 import { Pause, Play, Square, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { PLAYBACK_RATE_PRESETS, PLAYBACK_RATES } from "./usePlaybackController";
+import { PLAYBACK_RATE_PRESETS, PLAYBACK_RATES } from "./useWaveSurferPlaybackController";
 
 interface PlaybackControlsProps {
   hasWaveform: boolean;

@@ -1,18 +1,23 @@
-import { useEffect, useRef, useState } from "react"
-import WaveSurfer from "wavesurfer.js"
-import RegionsPlugin, { type Region } from 'wavesurfer.js/dist/plugins/regions.esm.js'
-import Minimap from 'wavesurfer.js/dist/plugins/minimap.esm.js'
-import type { TrackRegionViewModel } from "@/domain/Region/TrackRegionViewModel";
+import { useEffect, useRef, useState, type MutableRefObject } from "react";
+import type WaveSurfer from "wavesurfer.js";
+import type RegionsPlugin from "wavesurfer.js/dist/plugins/regions.esm.js";
 import type { TrackRegionSetViewModel } from "@/domain/RegionSet/TrackRegionSetViewModel";
-import { PlaybackControls } from "./PlaybackControls";
-import { usePlaybackController } from "./usePlaybackController";
 import { CreateRegionOverlay } from "./CreateRegionOverlay";
-
-const REGION_GAP = 0.05;
+import type { WaveSurferPlaybackController } from "./useWaveSurferPlaybackController";
+import {
+    addRegion,
+    clampUpdatedRegionBounds,
+    clientXToTime,
+    colorForRegion,
+    createWaveFormPlayer,
+    isPointInsideRegion,
+} from "./waveformEngine";
 
 export interface WaveformRendererProps{
     regionSet?: TrackRegionSetViewModel,
     url:string|null,
+    waveRef: MutableRefObject<WaveSurfer | null>,
+    playback: WaveSurferPlaybackController,
     onRegionDetails?:(regionId:number)=>void,
     onDeleteRegion?:(regionId:number)=>void,
     onEditRegion?:(regionId:number)=>void,
@@ -30,6 +35,8 @@ export interface WaveformRendererProps{
 export function WaveformRenderer({
     regionSet,
     url,
+    waveRef,
+    playback,
     onRegionDetails,
     onUpdateRegionBounds,
     onCreateRegionDrag,
@@ -39,7 +46,6 @@ export function WaveformRenderer({
     onRegionDeselect,
   }:WaveformRendererProps
   ){
-    const waveRef = useRef<WaveSurfer | null>(null);
     const waveformShellRef = useRef<HTMLDivElement | null>(null);
     const waveformRef = useRef<HTMLDivElement | null>(null);
     const regionSetRef = useRef<TrackRegionSetViewModel | undefined>(regionSet);
@@ -52,7 +58,6 @@ export function WaveformRenderer({
     const [regionsPlugin, setRegionsPlugin] = useState<RegionsPlugin | null>(null);
     const renderedRegionIds = useRef<Set<string>>(new Set());
 
-    const playback = usePlaybackController(waveRef);
     const beginPlaybackLoad = playback.beginLoading;
     const bindPlaybackWaveform = playback.bindWaveform;
 
@@ -135,7 +140,7 @@ export function WaveformRenderer({
             waveRef.current = null;
             setRegionsPlugin(null);
         };
-    }, [beginPlaybackLoad, bindPlaybackWaveform, url]);
+    }, [beginPlaybackLoad, bindPlaybackWaveform, url, waveRef]);
 
     useEffect(()=>{
         if(!regionsPlugin){
@@ -203,7 +208,7 @@ export function WaveformRenderer({
         return () => {
             waveformShellElement.removeEventListener("pointerdown", onPointerDown);
         };
-    }, [regionSet, url]);
+    }, [regionSet, url, waveRef]);
 
     if (playback.error) {
         return (
@@ -219,8 +224,8 @@ export function WaveformRenderer({
     }
     return (
   <div
-    className="relative flex flex-1 min-h-0 w-full flex-col overflow-hidden rounded-lg border shadow-lg"
-    style={{ backgroundColor: "var(--bg-darker)", borderColor: "rgba(255,255,255,0.08)" }}
+    className="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden"
+    style={{ backgroundColor: "var(--bg-darker)" }}
   >
     {playback.isLoading && (
       <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/25">
@@ -241,192 +246,7 @@ export function WaveformRenderer({
         />
       )}
     </div>
-    <PlaybackControls
-      hasWaveform={waveRef.current !== null}
-      isLoading={playback.isLoading}
-      isPlaying={playback.isPlaying}
-      currentTime={playback.currentTime}
-      duration={playback.duration}
-      volume={playback.volume}
-      playbackRate={playback.playbackRate}
-      onPlay={playback.play}
-      onPause={playback.pause}
-      onStop={playback.stop}
-      onVolumeChange={playback.setVolume}
-      onPlaybackRateChange={playback.setPlaybackRate}
-      onPlaybackRateStep={playback.stepPlaybackRate}
-    />
   </div>
 );
 }
 
-
-// eslint-disable-next-line react-refresh/only-export-components
-export function createWaveFormPlayer(
-    url:string,
-    trackRegions:TrackRegionViewModel[],
-    container:HTMLElement,
-    onRegionDetails?:(regionId:number)=>void,
-    onRegionSelect?:(regionId:number)=>void,
-    onRegionUpdated?: (region: Region, side?: "start" | "end") => Promise<void> | void)
-    :{wave:WaveSurfer,regions:RegionsPlugin}{
-    let activeRegion:Region|null=null;
-    const regions = RegionsPlugin.create();
-    regions.on('region-in',(region)=>{
-        activeRegion=region;
-    });
-    regions.on('region-out',(region)=>{
-        if(activeRegion===region){
-            console.log("some");
-        }
-        activeRegion=null;
-    });
-    regions.on('region-clicked',(region,e)=>{
-        e.preventDefault();
-        e.stopImmediatePropagation();
-        activeRegion=region;
-        region.play(true);
-        onRegionSelect?.(Number(region.id));
-    })
-    regions.on('region-double-clicked', (region, e) => {
-        e.preventDefault();
-        e.stopImmediatePropagation();
-        onRegionDetails?.(Number(region.id));
-    });
-    regions.on('region-updated', (region, side) => {
-        void onRegionUpdated?.(region, side);
-    });
-    const wave=WaveSurfer.create({
-        container:container,
-        waveColor:'rgb(100, 152, 200)',
-        progressColor:'rgb(100,100,100)',
-        url:url,
-        plugins:[
-              regions,
-              Minimap.create({
-                    height: 20,
-                    waveColor: '#ddd',
-                    progressColor: '#999',
-      // the Minimap takes all the same options as the WaveSurfer itself
-              }),
-        ],
-        mediaControls:false
-    });
-    wave.on('interaction',()=>{
-        activeRegion=null;
-    });
-    wave.once('ready',()=>{
-        addRegions(trackRegions,regions);
-    });
-
-    return {wave:wave,regions:regions}
-}
-
-function clientXToTime(clientX: number, element: HTMLElement, totalDuration: number): number {
-    const { left, width } = element.getBoundingClientRect();
-    if (width <= 0 || totalDuration <= 0) return 0;
-    const ratio = Math.min(1, Math.max(0, (clientX - left) / width));
-    return ratio * totalDuration;
-}
-
-function isPointInsideRegion(time: number, regions: TrackRegionViewModel[]): boolean {
-    return regions.some((region) => time >= region.start && time <= region.end);
-}
-
-
-function clampUpdatedRegionBounds(
-    regionId: string,
-    start: number,
-    end: number,
-    regions: TrackRegionViewModel[],
-    totalDuration: number,
-    side?: "start" | "end",
-): { start: number; end: number } {
-    const orderedRegions = [...regions].sort((left, right) => left.start - right.start);
-    const regionIndex = orderedRegions.findIndex((region) => String(region.regionId) === regionId);
-    if (regionIndex === -1) {
-        return { start, end };
-    }
-
-    const previousRegion = regionIndex > 0 ? orderedRegions[regionIndex - 1] : null;
-    const nextRegion = regionIndex < orderedRegions.length - 1 ? orderedRegions[regionIndex + 1] : null;
-
-    const minStart = previousRegion ? previousRegion.end + REGION_GAP : 0;
-    const maxEnd = nextRegion ? nextRegion.start - REGION_GAP : totalDuration;
-    const minimumLength = 0.01;
-
-    if (side === "start") {
-        const nextStart = Math.min(end - minimumLength, maxEnd - minimumLength);
-        return {
-            start: Math.max(minStart, Math.min(start, nextStart)),
-            end: Math.min(end, maxEnd),
-        };
-    }
-
-    if (side === "end") {
-        const previousEnd = Math.max(start + minimumLength, minStart + minimumLength);
-        return {
-            start: Math.max(start, minStart),
-            end: Math.min(maxEnd, Math.max(end, previousEnd)),
-        };
-    }
-
-    const width = Math.max(minimumLength, end - start);
-    let clampedStart = start;
-    let clampedEnd = end;
-
-    if (clampedStart < minStart) {
-        clampedStart = minStart;
-        clampedEnd = minStart + width;
-    }
-
-    if (clampedEnd > maxEnd) {
-        clampedEnd = maxEnd;
-        clampedStart = maxEnd - width;
-    }
-
-    clampedStart = Math.max(minStart, clampedStart);
-    clampedEnd = Math.min(maxEnd, clampedEnd);
-
-    if (clampedEnd - clampedStart < minimumLength) {
-        clampedEnd = Math.min(maxEnd, clampedStart + minimumLength);
-        clampedStart = Math.max(minStart, clampedEnd - minimumLength);
-    }
-
-    return { start: clampedStart, end: clampedEnd };
-}
-
-
-function addRegions(regions:TrackRegionViewModel[],regionsObj:RegionsPlugin):RegionsPlugin{
-    for(const elem of regions){
-        addRegion(regionsObj,elem);
-    }
-    return regionsObj;
-}
-
-function addRegion(regionsObj:RegionsPlugin, elem:TrackRegionViewModel, isSelected = false):RegionsPlugin{
-    regionsObj.addRegion({
-            id:String(elem.regionId),
-            start:elem.start,
-            end:elem.end,
-            drag: true,
-            resize: true,
-            content:elem.name,
-            color:colorForRegion(elem.regionId, isSelected)
-        });
-    return regionsObj;
-}
-
-function colorForRegion(regionId: string | number, isSelected = false): string {
-    const value = String(regionId);
-    let hash = 0;
-
-    for (let index = 0; index < value.length; index += 1) {
-        hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
-    }
-
-    const hue = hash % 360;
-    return isSelected
-        ? `hsla(${hue}, 90%, 65%, 0.65)`
-        : `hsla(${hue}, 72%, 58%, 0.32)`;
-}

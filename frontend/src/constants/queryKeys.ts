@@ -4,6 +4,7 @@ export const QUERY_KEYS = {
     byId: (trackId: number) => ['track', trackId] as const,
   },
   regionSets: {
+    all: () => ['regionSets'] as const,
     byTrack: (trackId: number) => ['regionSets', 'track', trackId] as const,
     byId: (regionSetId: number) => ['regionSet', regionSetId] as const,
   },

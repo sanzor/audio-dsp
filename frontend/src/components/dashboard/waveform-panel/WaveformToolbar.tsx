@@ -54,8 +54,11 @@ export function WaveformToolbar({
   if (createMode) {
     return (
       <div
-        className="flex items-center gap-2 px-3 py-1 shrink-0"
-        style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+        className="relative z-10 flex shrink-0 items-center gap-2 px-3 py-1"
+        style={{
+          background: "var(--bg-darker)",
+          borderBottom: "1px solid rgba(255,255,255,0.06)",
+        }}
       >
         <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
           Adjust selection then click Create
@@ -69,8 +72,11 @@ export function WaveformToolbar({
 
   return (
     <div
-      className="flex items-center gap-2 px-3 py-1 shrink-0"
-      style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+      className="relative z-10 flex shrink-0 items-center gap-2 px-3 py-1"
+      style={{
+        background: "var(--bg-darker)",
+        borderBottom: "1px solid rgba(255,255,255,0.06)",
+      }}
     >
       <button style={canCreate ? btnBase : btnDisabled} disabled={!canCreate} onClick={onCreateClick}>
         + Create Region

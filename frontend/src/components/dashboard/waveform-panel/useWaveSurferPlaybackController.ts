@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject, type RefObject } from "react";
 import type WaveSurfer from "wavesurfer.js";
 
 export const PLAYBACK_RATES = [0.5, 0.75, 1, 1.25, 1.5, 2] as const;
 export const PLAYBACK_RATE_PRESETS = [1, 1.5, 2] as const;
 
-interface UsePlaybackControllerResult {
+export interface WaveSurferPlaybackController {
   isLoading: boolean;
   error: string | null;
   isPlaying: boolean;
@@ -14,6 +14,7 @@ interface UsePlaybackControllerResult {
   playbackRate: number;
   beginLoading: () => void;
   bindWaveform: (waveform: WaveSurfer) => () => void;
+  hasWaveform: boolean;
   play: () => void;
   pause: () => void;
   stop: () => void;
@@ -22,9 +23,9 @@ interface UsePlaybackControllerResult {
   stepPlaybackRate: (direction: -1 | 1) => void;
 }
 
-export function usePlaybackController(
-  waveRef: MutableRefObject<WaveSurfer | null>,
-): UsePlaybackControllerResult {
+export function useWaveSurferPlaybackController(
+  waveRef: RefObject<WaveSurfer | null>,
+): WaveSurferPlaybackController {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -32,6 +33,7 @@ export function usePlaybackController(
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(80);
   const [playbackRate, setPlaybackRate] = useState<number>(1);
+  const [hasWaveform, setHasWaveform] = useState(false);
   const volumeRef = useRef(volume);
   const playbackRateRef = useRef(playbackRate);
 
@@ -54,6 +56,7 @@ export function usePlaybackController(
   }, [playbackRate, waveRef]);
 
   const beginLoading = useCallback(() => {
+    setHasWaveform(false);
     setIsLoading(true);
     setError(null);
     setIsPlaying(false);
@@ -62,6 +65,7 @@ export function usePlaybackController(
   }, []);
 
   const bindWaveform = useCallback((waveform: WaveSurfer) => {
+    setHasWaveform(true);
     waveform.setVolume(volumeRef.current / 100);
     waveform.setPlaybackRate(playbackRateRef.current);
     setIsPlaying(false);
@@ -97,6 +101,7 @@ export function usePlaybackController(
     });
 
     return () => {
+      setHasWaveform(false);
       offReady();
       offError();
       offPlay();
@@ -144,6 +149,7 @@ export function usePlaybackController(
     playbackRate,
     beginLoading,
     bindWaveform,
+    hasWaveform,
     play,
     pause,
     stop,
@@ -156,6 +162,7 @@ export function usePlaybackController(
     currentTime,
     duration,
     error,
+    hasWaveform,
     isLoading,
     isPlaying,
     pause,
