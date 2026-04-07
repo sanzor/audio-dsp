@@ -12,7 +12,8 @@ interface ApiRegion {
 }
 
 interface ApiRegionSet {
-  id: number;
+  id?: number;
+  regionSetId?: number;
   trackId: number;
   name: string;
   regions?: ApiRegion[];
@@ -28,7 +29,7 @@ const mapApiRegion = (region: ApiRegion): TrackRegion => ({
 });
 
 const mapApiRegionSet = (regionSet: ApiRegionSet): TrackRegionSet => ({
-  id: regionSet.id,
+  id: regionSet.id ?? regionSet.regionSetId ?? 0,
   trackId: regionSet.trackId,
   name: regionSet.name,
   regions: (regionSet.regions ?? []).map(mapApiRegion),

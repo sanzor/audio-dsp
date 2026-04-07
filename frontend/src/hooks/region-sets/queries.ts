@@ -38,14 +38,23 @@ export const useGetAllRegionSets = () => {
   useEffect(() => {
     if (!query.data) return;
     const { addRegionSet } = useRegionSetStore.getState();
-    const { attachRegionSet } = useTrackStore.getState();
+    const { setTrackRegionSets } = useTrackStore.getState();
+    const trackRegionSetsMap = new Map<number, number[]>();
+
     Object.entries(query.data.track_region_sets_map).forEach(([trackIdStr, regionSets]) => {
       const trackId = Number(trackIdStr);
+
       regionSets.forEach((rs) => {
         const normalized = normalizeRegionSetWithCascade(rs);
         addRegionSet(normalized);
-        attachRegionSet(trackId, normalized.id);
+        const currentIds = trackRegionSetsMap.get(trackId) ?? [];
+        currentIds.push(normalized.id);
+        trackRegionSetsMap.set(trackId, currentIds);
       });
+    });
+
+    trackRegionSetsMap.forEach((ids, trackId) => {
+      setTrackRegionSets(trackId, ids);
     });
   }, [query.data]);
 
@@ -68,13 +77,15 @@ export const useGetAllRegionSetsForTrack = (trackId: number) => {
   useEffect(() => {
     if (query.data) {
       const { addRegionSet } = useRegionSetStore.getState();
-      const { attachRegionSet } = useTrackStore.getState();
+      const { setTrackRegionSets } = useTrackStore.getState();
+
       query.data.forEach(rs => {
         addRegionSet(rs);
-        attachRegionSet(rs.trackId, rs.id);
       });
+
+      setTrackRegionSets(trackId, query.data.map((rs) => rs.id));
     }
-  }, [query.data]);
+  }, [query.data, trackId]);
 
   return query;
 };

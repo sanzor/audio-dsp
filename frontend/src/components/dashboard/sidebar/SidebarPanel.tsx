@@ -1,23 +1,15 @@
 import { Plus } from "lucide-react";
 import { NavMain } from "./nav-main";
 import type { TrackMetaViewModel } from "@/domain/Track/TrackMetaViewModel";
-import type { OpenedContext, RightClickContext, SelectedContext } from "@/Stores/UIStore";
+import type { RightClickContext } from "@/Stores/UIStore";
 
 interface SidebarPanelProps {
   tracks: TrackMetaViewModel[];
   onAddTrackClick: () => void;
   onRightClick: (ctx: RightClickContext) => void;
-  onSelect: (ctx: SelectedContext) => void;
-  onOpen: (ctx: OpenedContext) => void;
 }
 
-export function SidebarPanel({
-  tracks,
-  onAddTrackClick,
-  onRightClick,
-  onSelect,
-  onOpen,
-}: SidebarPanelProps) {
+export function SidebarPanel({ tracks, onAddTrackClick, onRightClick }: SidebarPanelProps) {
   return (
     <>
       <div className="panel-header flex items-center justify-between">
@@ -32,12 +24,7 @@ export function SidebarPanel({
         </button>
       </div>
       <div className="panel-content">
-        <NavMain
-          tracks={tracks}
-          onSelect={onSelect}
-          onOpen={onOpen}
-          onRightClick={onRightClick}
-        />
+        <NavMain tracks={tracks} onRightClick={onRightClick} />
       </div>
     </>
   );

@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/Stores/authStore";
 import { DashboardLayout } from "./dashboard-layout";
 import { TransformStorePanel } from "./store/transform-store-panel";
@@ -6,10 +8,16 @@ import { useTrackViewModels } from "@/Selectors/trackViewModels";
 import { WaveformPlayer } from "./waveform-panel/WaveformPlayer";
 import { GlobalContextMenu } from "./context-menus/GlobalContextMenu";
 import { GlobalModal } from "./modals/GlobalModal";
-import { useUIStore, type OpenedContext, type SelectedContext } from "@/Stores/UIStore";
+import { useUIStore } from "@/Stores/UIStore";
 import { useTrackController } from "@/controllers/TrackController";
 import { useListTracks } from "@/hooks/tracks/queries";
 import { useGetAllRegionSets } from "@/hooks/region-sets/queries";
+import { useProjectStore } from "@/Stores/projectStore";
+import { useTrackStore } from "@/Stores/TrackStore";
+import { useRegionSetStore } from "@/Stores/RegionSetStore";
+import { useRegionStore } from "@/Stores/RegionStore";
+import { useGraphStore } from "@/Stores/GraphStore";
+import { QUERY_KEYS } from "@/constants/queryKeys";
 import { ProjectsPanel } from "./projects/ProjectsPanel";
 import { SidebarPanel } from "./sidebar/SidebarPanel";
 import {
@@ -23,14 +31,24 @@ import {
 
 export function Dashboard() {
   const user = useAuthStore((state) => state.user);
+  const activeProjectId = useProjectStore((s) => s.activeProject?.project_id);
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!activeProjectId) return;
+    useTrackStore.getState().clear();
+    useRegionSetStore.getState().clear();
+    useRegionStore.getState().clear();
+    useGraphStore.getState().clear();
+    queryClient.invalidateQueries({ queryKey: QUERY_KEYS.tracks.all() });
+    queryClient.invalidateQueries({ queryKey: QUERY_KEYS.regionSets.all() });
+  }, [activeProjectId]);
+
   useListTracks();
   useGetAllRegionSets();
   const trackController = useTrackController();
-  const { open, select, openContextMenu } = useUIStore();
+  const { openContextMenu } = useUIStore();
   const sidebarTracks = useTrackViewModels();
-
-  const handleSelect = (ctx: SelectedContext) => select(ctx);
-  const handleOpen = (ctx: OpenedContext) => open(ctx);
 
   return (
     <>
@@ -105,8 +123,6 @@ export function Dashboard() {
               tracks={sidebarTracks}
               onAddTrackClick={() => trackController.handleCreateTrack(null)}
               onRightClick={openContextMenu}
-              onSelect={handleSelect}
-              onOpen={handleOpen}
             />
           }
           store={<TransformStorePanel />}

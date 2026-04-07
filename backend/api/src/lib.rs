@@ -25,3 +25,4 @@ pub mod usage;
 pub mod transforms;
 pub mod stored_tracks;
 pub mod token;
+pub mod workspace;

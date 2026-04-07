@@ -7,51 +7,18 @@ import { WaveformToolbar } from "./WaveformToolbar";
 import { PlaybackControls } from "./PlaybackControls";
 import { useWaveSurferPlaybackController } from "./useWaveSurferPlaybackController";
 import { useUIStore } from "@/Stores/UIStore";
-import { useRegionSetStore } from "@/Stores/RegionSetStore";
 import { useRegionController } from "@/controllers/RegionController";
 import { useRegionSetController } from "@/controllers/RegionSetController";
 
 export function WaveformPlayer() {
-  const openedContext = useUIStore(x => x.openedContext);
-  const selectedContext = useUIStore(x => x.selectedContext);
-  const select = useUIStore(x => x.select);
+  const activeSelection = useUIStore((x) => x.activeSelection);
+  const setActiveRegion = useUIStore((x) => x.setActiveRegion);
+  const clearActiveSelection = useUIStore((x) => x.clearActiveSelection);
 
-  const trackId: number | null =
-    openedContext?.type === "track" ? openedContext.trackId :
-    openedContext?.type === "regionSet" ? null :
-    null;
+  const { trackId, regionSetId, regionId } = activeSelection;
 
-  const selectedRegionSetId =
-    selectedContext?.type === "regionSet" ? selectedContext.regionSetId : undefined;
-
-  const selectedRegionSet = useRegionSetStore((state) =>
-    selectedRegionSetId != null ? state.regionSets.get(selectedRegionSetId) : undefined,
-  );
-
-  const openedRegionSetId = openedContext?.type === "regionSet" ? openedContext.regionSetId : undefined;
-  const openedRegionSet = useRegionSetStore((state) =>
-    openedRegionSetId != null ? state.regionSets.get(openedRegionSetId) : undefined,
-  );
-
-  const resolvedTrackId =
-    openedContext?.type === "regionSet" ? openedRegionSet?.trackId ?? null : trackId;
-
-  const firstRegionSetForTrack = useRegionSetStore((state) =>
-    resolvedTrackId != null
-      ? [...state.regionSets.values()].find((rs) => rs.trackId === resolvedTrackId)
-      : undefined
-  );
-
-  const regionSetId =
-    openedContext?.type === "regionSet"
-      ? openedRegionSetId
-      : selectedRegionSet?.trackId === resolvedTrackId
-        ? selectedRegionSetId
-        : firstRegionSetForTrack?.id;
-
-  const regionSetViewModel = useRegionSetViewModel(resolvedTrackId, regionSetId);
-
-  const { objectUrl, isLoading } = useWaveformAudio(resolvedTrackId);
+  const regionSetViewModel = useRegionSetViewModel(trackId, regionSetId);
+  const { objectUrl, isLoading } = useWaveformAudio(trackId);
 
   const regionController = useRegionController();
   const regionSetController = useRegionSetController();
@@ -60,10 +27,7 @@ export function WaveformPlayer() {
   const waveRef = useRef<WaveSurfer | null>(null);
   const playback = useWaveSurferPlaybackController(waveRef);
 
-  const selectedRegionId =
-    selectedContext?.type === 'region' ? selectedContext.regionId : undefined;
-
-  if (openedContext?.type !== "track" && openedContext?.type !== "regionSet") return null;
+  if (!trackId) return null;
   if (isLoading) return <div>Loading audio...</div>;
   if (!objectUrl) return <div>Missing required data</div>;
   if (!regionSetId) return <div>No region set — add one to start editing.</div>;
@@ -75,13 +39,13 @@ export function WaveformPlayer() {
     >
       <WaveformToolbar
         canCreate={regionSetId != null}
-        selectedRegionId={selectedRegionId}
+        selectedRegionId={regionId ?? undefined}
         createMode={createMode}
         onCreateClick={() => setCreateMode(true)}
         onCancelCreate={() => setCreateMode(false)}
-        onEditClick={() => regionController.handleEditRegion(selectedRegionId!)}
-        onDeleteClick={() => regionController.handleDeleteRegion(selectedRegionId!)}
-        onCopyClick={() => regionController.handleCopyRegion(selectedRegionId!)}
+        onEditClick={() => regionController.handleEditRegion(regionId!)}
+        onDeleteClick={() => regionController.handleDeleteRegion(regionId!)}
+        onCopyClick={() => regionController.handleCopyRegion(regionId!)}
       />
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <WaveformRenderer
@@ -89,20 +53,20 @@ export function WaveformPlayer() {
           waveRef={waveRef}
           playback={playback}
           regionSet={regionSetViewModel ?? undefined}
-          selectedRegionId={selectedRegionId}
+          selectedRegionId={regionId ?? undefined}
           createMode={createMode}
-          onRegionSelect={(regionId) => select({ type: 'region', regionId })}
-          onRegionDeselect={() => select(null)}
-          onRegionDetails={(regionId) => regionController.handleDetailsRegion(regionId)}
-          onEditRegion={(regionId) => regionController.handleEditRegion(regionId)}
-          onDeleteRegion={(regionId) => regionController.handleDeleteRegion(regionId)}
-          onCopyRegion={(regionId) => regionController.handleCopyRegion(regionId)}
-          onUpdateRegionBounds={(regionId, start, end) => regionController.handleUpdateRegionBounds(regionId, start, end)}
-          onCreateRegionClick={regionSetId ? (time) => regionSetController.handleCreateRegion(regionSetId, time) : undefined}
-          onCreateRegionDrag={regionSetId ? (start, end) => {
+          onRegionSelect={(id) => setActiveRegion(id)}
+          onRegionDeselect={() => clearActiveSelection()}
+          onRegionDetails={(id) => regionController.handleDetailsRegion(id)}
+          onEditRegion={(id) => regionController.handleEditRegion(id)}
+          onDeleteRegion={(id) => regionController.handleDeleteRegion(id)}
+          onCopyRegion={(id) => regionController.handleCopyRegion(id)}
+          onUpdateRegionBounds={(id, start, end) => regionController.handleUpdateRegionBounds(id, start, end)}
+          onCreateRegionClick={(time) => regionSetController.handleCreateRegion(regionSetId, time)}
+          onCreateRegionDrag={(start, end) => {
             regionSetController.handleCreateRegion(regionSetId, start, end);
             setCreateMode(false);
-          } : undefined}
+          }}
         />
         <PlaybackControls
           hasWaveform={playback.hasWaveform}

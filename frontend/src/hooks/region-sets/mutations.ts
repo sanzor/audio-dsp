@@ -19,20 +19,103 @@ import type { TrackRegionSet } from '@/domain/RegionSet/TrackRegionSet';
 
 // ─── Normalize / cascade helpers ────────────────────────────────────────────
 
-export const normalizeRegionSetWithCascade = (regionSetApi: TrackRegionSet): NormalizedTrackRegionSet => {
+type RegionSetCacheShape = Omit<TrackRegionSet, 'regions'> & {
+  regions?: TrackRegionSet['regions'];
+  region_ids?: number[];
+};
+
+type RegionSetsAllCache = {
+  track_region_sets_map: Record<number, RegionSetCacheShape[]>;
+};
+
+export const normalizeRegionSetWithCascade = (regionSetApi: RegionSetCacheShape): NormalizedTrackRegionSet => {
   const { addRegion, removeRegionsBySetId } = useRegionStore.getState();
-  const regionIds: number[] = [];
+  const existingRegionSet = useRegionSetStore.getState().getRegionSet(regionSetApi.id);
+  const hasRegionsPayload = Array.isArray(regionSetApi.regions);
+  const regionIds = hasRegionsPayload
+    ? []
+    : [...(existingRegionSet?.region_ids ?? regionSetApi.region_ids ?? [])];
 
-  removeRegionsBySetId(regionSetApi.id);
+  if (hasRegionsPayload) {
+    removeRegionsBySetId(regionSetApi.id);
 
-  for (const regionApi of regionSetApi.regions) {
-    const normalized = normalizeRegionWithCascade(regionApi);
-    addRegion(normalized);
-    regionIds.push(normalized.regionId);
+    for (const regionApi of regionSetApi.regions ?? []) {
+      const normalized = normalizeRegionWithCascade(regionApi);
+      addRegion(normalized);
+      regionIds.push(normalized.regionId);
+    }
   }
 
   const { regions: _regions, ...rest } = regionSetApi;
   return { ...rest, region_ids: regionIds };
+};
+
+const upsertRegionSetInTrackList = (
+  regionSets: RegionSetCacheShape[] | undefined,
+  regionSet: NormalizedTrackRegionSet
+): RegionSetCacheShape[] => {
+  if (!regionSets) return [regionSet];
+
+  const hasExisting = regionSets.some((entry) => entry.id === regionSet.id);
+  if (hasExisting) {
+    return regionSets.map((entry) => (entry.id === regionSet.id ? regionSet : entry));
+  }
+
+  return [...regionSets, regionSet];
+};
+
+const writeRegionSetCaches = (
+  queryClient: ReturnType<typeof useQueryClient>,
+  regionSet: NormalizedTrackRegionSet
+) => {
+  queryClient.setQueryData(QUERY_KEYS.regionSets.byId(regionSet.id), regionSet);
+  queryClient.setQueryData<RegionSetCacheShape[]>(
+    QUERY_KEYS.regionSets.byTrack(regionSet.trackId),
+    (current) => upsertRegionSetInTrackList(current, regionSet)
+  );
+  queryClient.setQueryData<RegionSetsAllCache>(QUERY_KEYS.regionSets.all(), (current) => {
+    if (!current) {
+      return { track_region_sets_map: { [regionSet.trackId]: [regionSet] } };
+    }
+
+    return {
+      ...current,
+      track_region_sets_map: {
+        ...current.track_region_sets_map,
+        [regionSet.trackId]: upsertRegionSetInTrackList(
+          current.track_region_sets_map[regionSet.trackId],
+          regionSet
+        ),
+      },
+    };
+  });
+};
+
+const removeRegionSetFromCaches = (
+  queryClient: ReturnType<typeof useQueryClient>,
+  trackId: number,
+  regionSetId: number
+) => {
+  queryClient.removeQueries({ queryKey: QUERY_KEYS.regionSets.byId(regionSetId) });
+  queryClient.setQueryData<RegionSetCacheShape[]>(
+    QUERY_KEYS.regionSets.byTrack(trackId),
+    (current) => current?.filter((entry) => entry.id !== regionSetId) ?? []
+  );
+  queryClient.setQueryData<RegionSetsAllCache>(QUERY_KEYS.regionSets.all(), (current) => {
+    if (!current) return current;
+
+    const nextTrackRegionSets = current.track_region_sets_map[trackId]?.filter(
+      (entry) => entry.id !== regionSetId
+    ) ?? [];
+
+    return {
+      ...current,
+      track_region_sets_map: {
+        ...current.track_region_sets_map,
+        [trackId]: nextTrackRegionSets,
+      },
+    };
+  });
 };
 
 export const cascadeDeleteRegionSet = (setId: number): void => {
@@ -63,8 +146,7 @@ export const useCreateRegionSet = () => {
       const normalized = normalizeRegionSetWithCascade(data);
       addRegionSet(normalized);
       attachRegionSet(normalized.trackId, normalized.id);
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.regionSets.byTrack(normalized.trackId) });
-      queryClient.setQueryData(QUERY_KEYS.regionSets.byId(normalized.id), normalized);
+      writeRegionSetCaches(queryClient, normalized);
     },
     onError: (error) => {
       console.error('Failed to create region set:', error);
@@ -83,8 +165,7 @@ export const useCopyRegionSet = () => {
       const normalized = normalizeRegionSetWithCascade(data);
       addRegionSet(normalized);
       attachRegionSet(normalized.trackId, normalized.id);
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.regionSets.byTrack(normalized.trackId) });
-      queryClient.setQueryData(QUERY_KEYS.regionSets.byId(normalized.id), normalized);
+      writeRegionSetCaches(queryClient, normalized);
     },
     onError: (error) => {
       console.error('Failed to copy region set:', error);
@@ -115,9 +196,8 @@ export const useDeleteRegionSet = () => {
     },
     onSuccess: (_data, params, ctx) => {
       if (ctx?.previousSet) {
-        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.regionSets.byTrack(ctx.previousSet.trackId) });
+        removeRegionSetFromCaches(queryClient, ctx.previousSet.trackId, params.regionSetId);
       }
-      queryClient.removeQueries({ queryKey: QUERY_KEYS.regionSets.byId(params.regionSetId) });
     },
     onError: (_error, params, ctx) => {
       console.error('Failed to delete region set');
@@ -130,6 +210,10 @@ export const useDeleteRegionSet = () => {
         ctx.previousRegions.forEach((r) => addRegion(r));
       }
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.regionSets.byId(params.regionSetId) });
+      if (ctx?.previousSet) {
+        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.regionSets.byTrack(ctx.previousSet.trackId) });
+        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.regionSets.all() });
+      }
     },
   });
 };

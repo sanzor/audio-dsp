@@ -18,6 +18,7 @@ interface RegionActions {
     // Graph relationship (single value, not array)
     setGraph: (regionId: number, graphId: number) => void;
     clearGraph: (regionId: number) => void;
+    clear: () => void;
 }
 
 type RegionStore = RegionState & RegionActions;
@@ -101,4 +102,6 @@ export const useRegionStore: UseBoundStore<StoreApi<RegionStore>> = create<Regio
             newMap.set(regionId, { ...region, graphId: null });
             return { regions: newMap };
         }),
+
+    clear: () => set({ regions: new Map(), loading: true }),
 }));

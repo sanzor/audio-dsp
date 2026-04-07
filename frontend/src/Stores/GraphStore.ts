@@ -24,6 +24,7 @@ interface GraphActions {
     addGraph: (graph: Graph) => void;
     removeGraph: (graphId: number) => void;
     updateGraph: (graphId: number, updates: Partial<Graph>) => void;
+    clear: () => void;
 }
 
 type GraphStore = GraphState & GraphActions;
@@ -67,5 +68,7 @@ export const useGraphStore: UseBoundStore<StoreApi<GraphStore>> = create<GraphSt
         const newMap = new Map(state.graphs);
         newMap.set(graphId, { ...setEntity, ...updates });
         return { graphs: newMap };
-    })
+    }),
+
+    clear: () => set({ graphs: new Map(), loading: true }),
 }));

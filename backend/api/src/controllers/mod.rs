@@ -16,3 +16,4 @@ pub mod purchased_products_controller;
 pub mod usage_controller;
 pub mod transforms_controller;
 pub mod stored_tracks_crud_controller;
+pub mod workspace_controller;

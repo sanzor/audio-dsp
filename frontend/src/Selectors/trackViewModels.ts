@@ -11,14 +11,14 @@ import { useRegionSetStore } from "@/Stores/RegionSetStore";
 import { useRegionStore } from "@/Stores/RegionStore";
 import { useGraphStore } from "@/Stores/GraphStore";
 
-const getGraph = (graphMap: Map<string, Graph>, graphId: string | null): Graph | null => {
+const getGraph = (graphMap: Map<number, Graph>, graphId: number | null): Graph | null => {
   if (!graphId) return null;
   return graphMap.get(graphId) ?? null;
 };
 
 const buildRegionViewModel = (
   region: NormalizedTrackRegion,
-  graphMap: Map<string, Graph>
+  graphMap: Map<number, Graph>
 ): TrackRegionViewModel => {
   const { graphId, ...rest } = region;
   return {
@@ -30,7 +30,7 @@ const buildRegionViewModel = (
 const buildRegionSetViewModel = (
   regionSet: NormalizedTrackRegionSet,
   regionMap: Map<number, NormalizedTrackRegion>,
-  graphMap: Map<string, Graph>
+  graphMap: Map<number, Graph>
 ): TrackRegionSetViewModel => {
   const { region_ids, ...rest } = regionSet;
 
@@ -49,7 +49,7 @@ const buildTrackViewModel = (
   track: NormalizedTrackMeta,
   regionSetMap: Map<number, NormalizedTrackRegionSet>,
   regionMap: Map<number, NormalizedTrackRegion>,
-  graphMap: Map<string, Graph>
+  graphMap: Map<number, Graph>
 ): TrackMetaViewModel => {
   const { region_sets_ids, ...rest } = track;
 
@@ -68,7 +68,7 @@ const buildTrackViewModelMap = (
   tracks: Map<number, NormalizedTrackMeta>,
   regionSets: Map<number, NormalizedTrackRegionSet>,
   regions: Map<number, NormalizedTrackRegion>,
-  graphs: Map<string, Graph>
+  graphs: Map<number, Graph>
 ): Map<number, TrackMetaViewModel> => {
   const result = new Map<number, TrackMetaViewModel>();
   tracks.forEach(track => {

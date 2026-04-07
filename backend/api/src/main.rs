@@ -61,6 +61,11 @@ use api::{
         stored_tracks_app_data::StoredTracksAppData,
         stored_tracks_provider_service::StoredTracksProviderService,
     },
+    workspace::{
+        data_provider::workspace_data_provider_service::PostgresWorkspaceDataProvider,
+        workspace_app_data::WorkspaceAppData,
+        workspace_provider_service::WorkspaceProviderService,
+    },
     users::{
         data_provider::user_data_provider_service::UserDataProviderService,
         user_provider::UserProvider,
@@ -354,6 +359,11 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
         stored_tracks_service: Arc::clone(&stored_tracks_service)
             as Arc<dyn api::stored_tracks::stored_tracks_provider::StoredTracksProvider>,
     };
+    let workspace_app_data = WorkspaceAppData {
+        workspace_service: Arc::new(WorkspaceProviderService::new(Arc::new(
+            PostgresWorkspaceDataProvider::new(pool.clone()),
+        ))),
+    };
 
     let jwt_middleware = JwtAuthMiddleware;
     let role_middleware = RoleContextMiddleware {
@@ -400,6 +410,7 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
             .app_data(web::Data::new(usage_app_data.clone()))
             .app_data(web::Data::new(transforms_app_data.clone()))
             .app_data(web::Data::new(stored_tracks_app_data.clone()))
+            .app_data(web::Data::new(workspace_app_data.clone()))
             .configure(controllers::openapi_controller::init)
             .service(web::scope("/auth").configure(controllers::auth_controller::init))
             .service(
@@ -440,7 +451,8 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
                 web::scope("/v1/projects")
                     .wrap(role_middleware.clone())
                     .wrap(jwt_middleware.clone())
-                    .configure(controllers::project_controller::init),
+                    .configure(controllers::project_controller::init)
+                    .configure(controllers::workspace_controller::init),
             )
             .service(web::scope("/ws").configure(ws_controller::init))
             .service(

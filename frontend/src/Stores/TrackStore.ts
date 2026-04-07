@@ -14,8 +14,10 @@ interface TrackActions {
     removeTrack: (trackId: number) => void;
     updateTrack: (trackId: number, trackMeta: Partial<NormalizedTrackMeta>) => void;
     setAllTracks: (tracks: NormalizedTrackMeta[]) => void;
+    setTrackRegionSets: (trackId: number, regionSetIds: number[]) => void;
     attachRegionSet: (trackId: number, regionSetId: number) => void;
     detachRegionSet: (trackId: number, regionSetId: number) => void;
+    clear: () => void;
 }
 
 type TrackStore = TrackState & TrackActions;
@@ -31,13 +33,33 @@ const updateTrackRegionSets = (
     };
 };
 
+const resolveTrackRegionSetIds = (
+    incomingTrack: NormalizedTrackMeta,
+    existingTrack?: NormalizedTrackMeta
+): number[] => {
+    if (incomingTrack.region_sets_ids.length > 0) {
+        return incomingTrack.region_sets_ids;
+    }
+
+    return existingTrack?.region_sets_ids ?? [];
+};
+
 export const useTrackStore: UseBoundStore<StoreApi<TrackStore>> = create<TrackStore>((set, get) => ({
     tracks: new Map(),
     loading: true,
 
     setAllTracks: (newTracks: NormalizedTrackMeta[]) => {
         const trackMap = new Map<number, NormalizedTrackMeta>();
-        newTracks.forEach((t) => trackMap.set(t.trackId, t));
+        const existingTracks = get().tracks;
+
+        newTracks.forEach((track) => {
+            const existingTrack = existingTracks.get(track.trackId);
+            trackMap.set(track.trackId, {
+                ...track,
+                region_sets_ids: resolveTrackRegionSetIds(track, existingTrack),
+            });
+        });
+
         set({
             tracks: trackMap,
             loading: false,
@@ -51,7 +73,11 @@ export const useTrackStore: UseBoundStore<StoreApi<TrackStore>> = create<TrackSt
     addTrack: (track: NormalizedTrackMeta): void => {
         set((state: TrackState) => {
             const newMap = new Map(state.tracks);
-            newMap.set(track.trackId, track);
+            const existingTrack = state.tracks.get(track.trackId);
+            newMap.set(track.trackId, {
+                ...track,
+                region_sets_ids: resolveTrackRegionSetIds(track, existingTrack),
+            });
             return { tracks: newMap };
         });
     },
@@ -79,6 +105,21 @@ export const useTrackStore: UseBoundStore<StoreApi<TrackStore>> = create<TrackSt
         });
     },
 
+    setTrackRegionSets: (trackId: number, regionSetIds: number[]) => {
+        set((state: TrackState) => {
+            const track = state.tracks.get(trackId);
+            if (!track) return state;
+
+            const newMap = new Map(state.tracks);
+            newMap.set(trackId, {
+                ...track,
+                region_sets_ids: [...regionSetIds],
+            });
+
+            return { tracks: newMap };
+        });
+    },
+
     attachRegionSet: (trackId: number, regionSetId: number) => {
         set((state: TrackState) => {
             const track = state.tracks.get(trackId);
@@ -93,6 +134,8 @@ export const useTrackStore: UseBoundStore<StoreApi<TrackStore>> = create<TrackSt
             return { tracks: newMap };
         });
     },
+
+    clear: () => set({ tracks: new Map(), loading: true }),
 
     detachRegionSet: (trackId: number, regionSetId: number) => {
         set((state: TrackState) => {

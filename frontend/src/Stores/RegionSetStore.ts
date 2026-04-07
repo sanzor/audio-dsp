@@ -18,6 +18,7 @@ interface RegionSetActions {
     updateRegionSet: (setId: number, updates: Partial<NormalizedTrackRegionSet>) => void;
     attachRegion: (setId: number, regionId: number) => void;
     detachRegion: (setId: number, regionId: number) => void;
+    clear: () => void;
 }
 
 type RegionSetStore = RegionSetState & RegionSetActions;
@@ -65,6 +66,8 @@ export const useRegionSetStore: UseBoundStore<StoreApi<RegionSetStore>> = create
             newMap.set(setId, { ...setEntity, ...updates });
             return { regionSets: newMap };
         }),
+
+    clear: () => set({ regionSets: new Map(), loading: true }),
 
     attachRegion: (setId: number, regionId: number) =>
         set((state: RegionSetState) => {

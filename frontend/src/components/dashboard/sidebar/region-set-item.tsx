@@ -2,30 +2,27 @@ import { useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { RegionItem } from "./region-item";
 import type { TrackRegionSetViewModel } from "@/domain/RegionSet/TrackRegionSetViewModel";
-import type { OpenedContext, RightClickContext, SelectedContext } from "@/Stores/UIStore";
+import type { RightClickContext } from "@/Stores/UIStore";
 import { useUIStore } from "@/Stores/UIStore";
 
 interface Props {
   regionSet: TrackRegionSetViewModel;
   onRightClick: (ctx: RightClickContext) => void;
-  onSelect: (ctx: SelectedContext) => void;
-  onOpen: (ctx: OpenedContext) => void;
 }
 
-export function RegionSetItem({ regionSet, onRightClick, onSelect, onOpen }: Props) {
+export function RegionSetItem({ regionSet, onRightClick }: Props) {
   const [open, setOpen] = useState(true);
-  const selected = useUIStore((s) => s.selectedContext);
-  const isSelected = selected?.type === "regionSet" && selected.regionSetId === regionSet.id;
+  const isSelected = useUIStore((s) => s.activeSelection.regionSetId === regionSet.id && s.activeSelection.regionId === null);
+  const setActiveRegionSet = useUIStore((s) => s.setActiveRegionSet);
 
   return (
     <div>
       <div
         className={`tree-node tree-node-indented${isSelected ? " selected-blue" : ""}`}
         onClick={() => {
-          onSelect({ type: "regionSet", regionSetId: regionSet.id });
+          setActiveRegionSet(regionSet.id);
           setOpen((o) => !o);
         }}
-        onDoubleClick={() => onOpen({ type: "regionSet", regionSetId: regionSet.id })}
         onContextMenu={(e) => {
           e.preventDefault();
           onRightClick({ type: "regionSet", regionSetId: regionSet.id, x: e.clientX, y: e.clientY });
@@ -45,8 +42,6 @@ export function RegionSetItem({ regionSet, onRightClick, onSelect, onOpen }: Pro
             key={region.regionId}
             region={region}
             onRightClick={onRightClick}
-            onSelect={onSelect}
-            onOpen={onOpen}
           />
         ))}
     </div>
