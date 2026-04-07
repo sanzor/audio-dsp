@@ -3,6 +3,9 @@ export const QUERY_KEYS = {
     all: () => ['tracks'] as const,
     byId: (trackId: number) => ['track', trackId] as const,
   },
+  workspace: {
+    byProject: (projectId: number) => ['workspace', 'project', projectId] as const,
+  },
   regionSets: {
     all: () => ['regionSets'] as const,
     byTrack: (trackId: number) => ['regionSets', 'track', trackId] as const,

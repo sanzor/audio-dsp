@@ -10,14 +10,13 @@ import { GlobalContextMenu } from "./context-menus/GlobalContextMenu";
 import { GlobalModal } from "./modals/GlobalModal";
 import { useUIStore } from "@/Stores/UIStore";
 import { useTrackController } from "@/controllers/TrackController";
-import { useListTracks } from "@/hooks/tracks/queries";
-import { useGetAllRegionSets } from "@/hooks/region-sets/queries";
 import { useProjectStore } from "@/Stores/projectStore";
 import { useTrackStore } from "@/Stores/TrackStore";
 import { useRegionSetStore } from "@/Stores/RegionSetStore";
 import { useRegionStore } from "@/Stores/RegionStore";
 import { useGraphStore } from "@/Stores/GraphStore";
 import { QUERY_KEYS } from "@/constants/queryKeys";
+import { useWorkspace } from "@/hooks/workspace/queries";
 import { ProjectsPanel } from "./projects/ProjectsPanel";
 import { SidebarPanel } from "./sidebar/SidebarPanel";
 import {
@@ -40,12 +39,10 @@ export function Dashboard() {
     useRegionSetStore.getState().clear();
     useRegionStore.getState().clear();
     useGraphStore.getState().clear();
-    queryClient.invalidateQueries({ queryKey: QUERY_KEYS.tracks.all() });
-    queryClient.invalidateQueries({ queryKey: QUERY_KEYS.regionSets.all() });
-  }, [activeProjectId]);
+    queryClient.invalidateQueries({ queryKey: QUERY_KEYS.workspace.byProject(activeProjectId) });
+  }, [activeProjectId, queryClient]);
 
-  useListTracks();
-  useGetAllRegionSets();
+  useWorkspace(activeProjectId);
   const trackController = useTrackController();
   const { openContextMenu } = useUIStore();
   const sidebarTracks = useTrackViewModels();

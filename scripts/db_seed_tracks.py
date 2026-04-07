@@ -37,6 +37,7 @@ TRACK_SEEDS = [
         "name": "A440 Reference",
         "duration_seconds": 0.35,
         "frequency_hz": 440.0,
+        "seed_region_hierarchy": True,
     },
     {
         "project_name": "Canonical Audio Lab",
@@ -119,6 +120,57 @@ def has_track_storage_table() -> bool:
     return result == "t"
 
 
+def ensure_region_hierarchy_for_track(track_id: int) -> None:
+    region_set_sql = f"""
+INSERT INTO region_sets (track_id, name, track_length_seconds)
+SELECT
+  t.track_id,
+  'Seed Region Set',
+  t.length_seconds
+FROM tracks t
+WHERE t.track_id = {track_id}
+  AND NOT EXISTS (
+    SELECT 1
+    FROM region_sets rs
+    WHERE rs.track_id = t.track_id
+      AND rs.name = 'Seed Region Set'
+  );
+"""
+    run_psql("-v", "ON_ERROR_STOP=1", "-c", region_set_sql)
+
+    region_set_id = scalar(
+        f"""
+SELECT region_set_id::text
+FROM region_sets
+WHERE track_id = {track_id}
+  AND name = 'Seed Region Set'
+ORDER BY region_set_id
+LIMIT 1;
+"""
+    )
+    if not region_set_id:
+        raise RuntimeError(f"Failed to resolve seeded region set for track_id={track_id}.")
+
+    region_sql = f"""
+INSERT INTO regions (region_set_id, name, start_time_seconds, end_time_seconds)
+SELECT
+  {region_set_id},
+  'Seed Region',
+  0.00,
+  LEAST(
+    COALESCE((SELECT track_length_seconds FROM region_sets WHERE region_set_id = {region_set_id}), 0.25),
+    0.25
+  )
+WHERE NOT EXISTS (
+  SELECT 1
+  FROM regions r
+  WHERE r.region_set_id = {region_set_id}
+    AND r.name = 'Seed Region'
+);
+"""
+    run_psql("-v", "ON_ERROR_STOP=1", "-c", region_sql)
+
+
 def upsert_track(seed: dict[str, str | float], use_track_storage: bool) -> None:
     project_id = project_id_for(str(seed["project_name"]))
     wav_hex = generate_wav_bytes(
@@ -167,6 +219,16 @@ WHERE NOT EXISTS (
   SELECT 1 FROM tracks WHERE name = '{seed["name"]}' AND project_id = {project_id}
 );
 """)
+        track_id = scalar(
+            f"SELECT track_id::text FROM tracks WHERE name = '{seed['name']}' AND project_id = {project_id} LIMIT 1;"
+        )
+        if not track_id:
+            raise RuntimeError(
+                f"Failed to resolve track_id for seed '{seed['name']}' in project '{seed['project_name']}'."
+            )
+
+    if seed.get("seed_region_hierarchy"):
+        ensure_region_hierarchy_for_track(int(track_id))
 
 
 def main() -> None:

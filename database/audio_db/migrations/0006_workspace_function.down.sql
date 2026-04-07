@@ -1,0 +1,5 @@
+BEGIN;
+
+DROP FUNCTION IF EXISTS get_project_workspace(INTEGER);
+
+COMMIT;
