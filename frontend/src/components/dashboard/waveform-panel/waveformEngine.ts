@@ -156,13 +156,14 @@ export function addRegion(
   regions: RegionsPlugin,
   region: TrackRegionViewModel,
   isSelected = false,
+  isEditable = false,
 ): RegionsPlugin {
   regions.addRegion({
     id: String(region.regionId),
     start: region.start,
     end: region.end,
-    drag: true,
-    resize: true,
+    drag: false,
+    resize: isEditable,
     content: region.name,
     color: colorForRegion(region.regionId, isSelected),
   });

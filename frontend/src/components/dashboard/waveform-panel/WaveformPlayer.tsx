@@ -12,10 +12,19 @@ import { useRegionSetController } from "@/controllers/RegionSetController";
 
 export function WaveformPlayer() {
   const activeSelection = useUIStore((x) => x.activeSelection);
+  const editingRegionBounds = useUIStore((x) => x.editingRegionBounds);
   const setActiveRegion = useUIStore((x) => x.setActiveRegion);
   const clearActiveSelection = useUIStore((x) => x.clearActiveSelection);
+  const beginEditingRegionBounds = useUIStore((x) => x.beginEditingRegionBounds);
+  const updateEditingRegionBounds = useUIStore((x) => x.updateEditingRegionBounds);
+  const clearEditingRegionBounds = useUIStore((x) => x.clearEditingRegionBounds);
 
   const { trackId, regionSetId, regionId } = activeSelection;
+  const isEditingBounds = editingRegionBounds != null;
+  const hasUnsavedBounds =
+    editingRegionBounds != null &&
+    (editingRegionBounds.start !== editingRegionBounds.originalStart ||
+      editingRegionBounds.end !== editingRegionBounds.originalEnd);
 
   const regionSetViewModel = useRegionSetViewModel(trackId, regionSetId);
   const { objectUrl, isLoading } = useWaveformAudio(trackId);
@@ -26,6 +35,16 @@ export function WaveformPlayer() {
   const [createMode, setCreateMode] = useState(false);
   const waveRef = useRef<WaveSurfer | null>(null);
   const playback = useWaveSurferPlaybackController(waveRef);
+
+  const handleSaveBounds = async () => {
+    if (!editingRegionBounds) return;
+    await regionController.handleUpdateRegionBounds(
+      editingRegionBounds.regionId,
+      editingRegionBounds.start,
+      editingRegionBounds.end,
+    );
+    clearEditingRegionBounds();
+  };
 
   if (!trackId) return null;
   if (isLoading) return <div>Loading audio...</div>;
@@ -41,9 +60,14 @@ export function WaveformPlayer() {
         canCreate={regionSetId != null}
         selectedRegionId={regionId ?? undefined}
         createMode={createMode}
+        editBoundsMode={isEditingBounds}
+        hasUnsavedBounds={hasUnsavedBounds}
         onCreateClick={() => setCreateMode(true)}
         onCancelCreate={() => setCreateMode(false)}
-        onEditClick={() => regionController.handleEditRegion(regionId!)}
+        onEditBoundsClick={() => beginEditingRegionBounds(regionId!)}
+        onCancelEditBounds={() => clearEditingRegionBounds()}
+        onSaveEditBounds={() => void handleSaveBounds()}
+        onRenameClick={() => regionController.handleEditRegion(regionId!)}
         onDeleteClick={() => regionController.handleDeleteRegion(regionId!)}
         onCopyClick={() => regionController.handleCopyRegion(regionId!)}
       />
@@ -55,13 +79,14 @@ export function WaveformPlayer() {
           regionSet={regionSetViewModel ?? undefined}
           selectedRegionId={regionId ?? undefined}
           createMode={createMode}
+          editingRegionBounds={editingRegionBounds}
           onRegionSelect={(id) => setActiveRegion(id)}
           onRegionDeselect={() => clearActiveSelection()}
           onRegionDetails={(id) => regionController.handleDetailsRegion(id)}
           onEditRegion={(id) => regionController.handleEditRegion(id)}
           onDeleteRegion={(id) => regionController.handleDeleteRegion(id)}
           onCopyRegion={(id) => regionController.handleCopyRegion(id)}
-          onUpdateRegionBounds={(id, start, end) => regionController.handleUpdateRegionBounds(id, start, end)}
+          onUpdateRegionBounds={(_id, start, end) => updateEditingRegionBounds(start, end)}
           onCreateRegionClick={(time) => regionSetController.handleCreateRegion(regionSetId, time)}
           onCreateRegionDrag={(start, end) => {
             regionSetController.handleCreateRegion(regionSetId, start, end);

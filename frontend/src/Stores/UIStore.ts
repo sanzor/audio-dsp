@@ -20,6 +20,15 @@ export type ActiveSelection = {
   graphId: number | null;
 };
 
+export type EditingRegionBounds = null | {
+  regionId: number;
+  regionSetId: number;
+  originalStart: number;
+  originalEnd: number;
+  start: number;
+  end: number;
+};
+
 export type Clipboard =
   | { type: 'track'; trackId: number }
   | { type: 'regionSet'; regionSetId: number }
@@ -48,6 +57,7 @@ export type ModalState =
   | { type: 'detailsRegion'; regionId: number }
   | { type: 'pasteRegion'; params: PasteRegionParams }
   | { type: 'deleteRegion'; regionId: number }
+  | { type: 'unsavedRegionBounds'; nextSelection: ActiveSelection }
   // Graph modals
   | { type: 'createGraph'; regionId: number }
   | { type: 'renameGraph'; graphId: number }
@@ -58,6 +68,7 @@ export type ModalState =
 
 export type UIStore = {
   activeSelection: ActiveSelection;
+  editingRegionBounds: EditingRegionBounds;
   clipboard: Clipboard;
   rightClickContext: RightClickContext;
   modalState: ModalState;
@@ -67,6 +78,11 @@ export type UIStore = {
   setActiveRegion: (regionId: number) => void;
   setActiveGraph: (graphId: number) => void;
   clearActiveSelection: () => void;
+  applyActiveSelection: (selection: ActiveSelection) => void;
+
+  beginEditingRegionBounds: (regionId: number) => void;
+  updateEditingRegionBounds: (start: number, end: number) => void;
+  clearEditingRegionBounds: () => void;
 
   copyToClipboard: (clipboard: Clipboard) => void;
   clearClipboard: () => void;
@@ -81,67 +97,143 @@ export type UIStore = {
 };
 
 const EMPTY_SELECTION: ActiveSelection = { trackId: null, regionSetId: null, regionId: null, graphId: null };
+const sameSelection = (left: ActiveSelection, right: ActiveSelection) =>
+  left.trackId === right.trackId &&
+  left.regionSetId === right.regionSetId &&
+  left.regionId === right.regionId &&
+  left.graphId === right.graphId;
+
+const isEditingRegionDirty = (editing: EditingRegionBounds) =>
+  editing != null && (editing.start !== editing.originalStart || editing.end !== editing.originalEnd);
+
+const isLeavingEditedRegion = (editing: EditingRegionBounds, nextSelection: ActiveSelection) =>
+  editing != null && nextSelection.regionId !== editing.regionId;
 
 export const useUIStore: UseBoundStore<StoreApi<UIStore>> = create<UIStore>()(
   subscribeWithSelector(
     devtools<UIStore>(
-      (set) => ({
-        activeSelection: EMPTY_SELECTION,
-        clipboard: null,
-        rightClickContext: null,
-        modalState: null,
+      (set, get) => {
+        const requestSelectionChange = (nextSelection: ActiveSelection, actionName: string) => {
+          const currentSelection = get().activeSelection;
+          if (sameSelection(currentSelection, nextSelection)) {
+            return;
+          }
 
-        setActiveTrack: (trackId) =>
-          set({ activeSelection: { trackId, regionSetId: null, regionId: null, graphId: null } }, false, 'setActiveTrack'),
+          const editing = get().editingRegionBounds;
+          if (!isLeavingEditedRegion(editing, nextSelection)) {
+            set({ activeSelection: nextSelection }, false, actionName);
+            return;
+          }
 
-        setActiveRegionSet: (regionSetId) => {
-          const regionSet = useRegionSetStore.getState().getRegionSet(regionSetId);
-          if (!regionSet) return;
-          set({ activeSelection: { trackId: regionSet.trackId, regionSetId, regionId: null, graphId: null } }, false, 'setActiveRegionSet');
-        },
+          if (isEditingRegionDirty(editing)) {
+            set({ modalState: { type: 'unsavedRegionBounds', nextSelection } }, false, `${actionName}:promptUnsavedRegionBounds`);
+            return;
+          }
 
-        setActiveRegion: (regionId) => {
-          const region = useRegionStore.getState().getRegion(regionId);
-          if (!region) return;
-          const regionSet = useRegionSetStore.getState().getRegionSet(region.regionSetId);
-          if (!regionSet) return;
-          set({ activeSelection: { trackId: regionSet.trackId, regionSetId: region.regionSetId, regionId, graphId: null } }, false, 'setActiveRegion');
-        },
+          set({ activeSelection: nextSelection, editingRegionBounds: null }, false, actionName);
+        };
 
-        setActiveGraph: (graphId) => {
-          const graph = useGraphStore.getState().getGraph(graphId);
-          if (!graph || !graph.regionId) return;
-          const region = useRegionStore.getState().getRegion(graph.regionId);
-          if (!region) return;
-          const regionSet = useRegionSetStore.getState().getRegionSet(region.regionSetId);
-          if (!regionSet) return;
-          set({ activeSelection: { trackId: regionSet.trackId, regionSetId: region.regionSetId, regionId: graph.regionId, graphId } }, false, 'setActiveGraph');
-        },
+        return {
+          activeSelection: EMPTY_SELECTION,
+          editingRegionBounds: null,
+          clipboard: null,
+          rightClickContext: null,
+          modalState: null,
 
-        clearActiveSelection: () =>
-          set({ activeSelection: EMPTY_SELECTION }, false, 'clearActiveSelection'),
+          setActiveTrack: (trackId) =>
+            requestSelectionChange({ trackId, regionSetId: null, regionId: null, graphId: null }, 'setActiveTrack'),
 
-        copyToClipboard: (clipboard) =>
-          set({ clipboard }, false, 'copyToClipboard'),
+          setActiveRegionSet: (regionSetId) => {
+            const regionSet = useRegionSetStore.getState().getRegionSet(regionSetId);
+            if (!regionSet) return;
+            requestSelectionChange({ trackId: regionSet.trackId, regionSetId, regionId: null, graphId: null }, 'setActiveRegionSet');
+          },
 
-        clearClipboard: () =>
-          set({ clipboard: null }, false, 'clearClipboard'),
+          setActiveRegion: (regionId) => {
+            const region = useRegionStore.getState().getRegion(regionId);
+            if (!region) return;
+            const regionSet = useRegionSetStore.getState().getRegionSet(region.regionSetId);
+            if (!regionSet) return;
+            requestSelectionChange({ trackId: regionSet.trackId, regionSetId: region.regionSetId, regionId, graphId: null }, 'setActiveRegion');
+          },
 
-        openContextMenu: (context) =>
-          set({ rightClickContext: context }, false, 'openContextMenu'),
+          setActiveGraph: (graphId) => {
+            const graph = useGraphStore.getState().getGraph(graphId);
+            if (!graph || !graph.regionId) return;
+            const region = useRegionStore.getState().getRegion(graph.regionId);
+            if (!region) return;
+            const regionSet = useRegionSetStore.getState().getRegionSet(region.regionSetId);
+            if (!regionSet) return;
+            requestSelectionChange({ trackId: regionSet.trackId, regionSetId: region.regionSetId, regionId: graph.regionId, graphId }, 'setActiveGraph');
+          },
 
-        closeContextMenu: () =>
-          set({ rightClickContext: null }, false, 'closeContextMenu'),
+          clearActiveSelection: () =>
+            requestSelectionChange(EMPTY_SELECTION, 'clearActiveSelection'),
 
-        openModal: (modal) =>
-          set({ modalState: modal }, false, 'openModal'),
+          applyActiveSelection: (selection) =>
+            set({ activeSelection: selection }, false, 'applyActiveSelection'),
 
-        closeModal: () =>
-          set({ modalState: null }, false, 'closeModal'),
+          beginEditingRegionBounds: (regionId) => {
+            const region = useRegionStore.getState().getRegion(regionId);
+            if (!region) return;
+            const regionSet = useRegionSetStore.getState().getRegionSet(region.regionSetId);
+            if (!regionSet) return;
 
-        closeAllUI: () =>
-          set({ modalState: null, rightClickContext: null }, false, 'closeAllUI'),
-      }),
+            set({
+              activeSelection: {
+                trackId: regionSet.trackId,
+                regionSetId: region.regionSetId,
+                regionId,
+                graphId: null,
+              },
+              editingRegionBounds: {
+                regionId,
+                regionSetId: region.regionSetId,
+                originalStart: region.start,
+                originalEnd: region.end,
+                start: region.start,
+                end: region.end,
+              },
+            }, false, 'beginEditingRegionBounds');
+          },
+
+          updateEditingRegionBounds: (start, end) =>
+            set((state) => {
+              if (!state.editingRegionBounds) return {};
+              return {
+                editingRegionBounds: {
+                  ...state.editingRegionBounds,
+                  start,
+                  end,
+                },
+              };
+            }, false, 'updateEditingRegionBounds'),
+
+          clearEditingRegionBounds: () =>
+            set({ editingRegionBounds: null }, false, 'clearEditingRegionBounds'),
+
+          copyToClipboard: (clipboard) =>
+            set({ clipboard }, false, 'copyToClipboard'),
+
+          clearClipboard: () =>
+            set({ clipboard: null }, false, 'clearClipboard'),
+
+          openContextMenu: (context) =>
+            set({ rightClickContext: context }, false, 'openContextMenu'),
+
+          closeContextMenu: () =>
+            set({ rightClickContext: null }, false, 'closeContextMenu'),
+
+          openModal: (modal) =>
+            set({ modalState: modal }, false, 'openModal'),
+
+          closeModal: () =>
+            set({ modalState: null }, false, 'closeModal'),
+
+          closeAllUI: () =>
+            set({ modalState: null, rightClickContext: null }, false, 'closeAllUI'),
+        };
+      },
       { name: 'UIStore' }
     )
   )

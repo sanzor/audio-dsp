@@ -4,9 +4,14 @@ interface WaveformToolbarProps {
   canCreate: boolean;
   selectedRegionId: number | undefined;
   createMode: boolean;
+  editBoundsMode: boolean;
+  hasUnsavedBounds: boolean;
   onCreateClick: () => void;
   onCancelCreate: () => void;
-  onEditClick: () => void;
+  onEditBoundsClick: () => void;
+  onCancelEditBounds: () => void;
+  onSaveEditBounds: () => void;
+  onRenameClick: () => void;
   onDeleteClick: () => void;
   onCopyClick: () => void;
 }
@@ -15,9 +20,14 @@ export function WaveformToolbar({
   canCreate,
   selectedRegionId,
   createMode,
+  editBoundsMode,
+  hasUnsavedBounds,
   onCreateClick,
   onCancelCreate,
-  onEditClick,
+  onEditBoundsClick,
+  onCancelEditBounds,
+  onSaveEditBounds,
+  onRenameClick,
   onDeleteClick,
   onCopyClick,
 }: WaveformToolbarProps) {
@@ -70,6 +80,28 @@ export function WaveformToolbar({
     );
   }
 
+  if (editBoundsMode) {
+    return (
+      <div
+        className="relative z-10 flex shrink-0 items-center gap-2 px-3 py-1"
+        style={{
+          background: "var(--bg-darker)",
+          borderBottom: "1px solid rgba(255,255,255,0.06)",
+        }}
+      >
+        <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
+          Resize the selected region, then save or cancel
+        </span>
+        <button style={btnBase} onClick={onCancelEditBounds}>
+          Cancel
+        </button>
+        <button style={hasUnsavedBounds ? btnBase : btnDisabled} disabled={!hasUnsavedBounds} onClick={onSaveEditBounds}>
+          Save
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div
       className="relative z-10 flex shrink-0 items-center gap-2 px-3 py-1"
@@ -81,8 +113,11 @@ export function WaveformToolbar({
       <button style={canCreate ? btnBase : btnDisabled} disabled={!canCreate} onClick={onCreateClick}>
         + Create Region
       </button>
-      <button style={hasRegion ? btnBase : btnDisabled} disabled={!hasRegion} onClick={onEditClick}>
-        Edit
+      <button style={hasRegion ? btnBase : btnDisabled} disabled={!hasRegion} onClick={onEditBoundsClick}>
+        Edit Bounds
+      </button>
+      <button style={hasRegion ? btnBase : btnDisabled} disabled={!hasRegion} onClick={onRenameClick}>
+        Rename
       </button>
       <button style={hasRegion ? btnDanger : btnDangerDisabled} disabled={!hasRegion} onClick={onDeleteClick}>
         Delete

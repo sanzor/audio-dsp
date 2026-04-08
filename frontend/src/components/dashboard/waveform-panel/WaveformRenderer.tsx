@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type MutableRefObject } from "react";
 import type WaveSurfer from "wavesurfer.js";
 import type RegionsPlugin from "wavesurfer.js/dist/plugins/regions.esm.js";
 import type { TrackRegionSetViewModel } from "@/domain/RegionSet/TrackRegionSetViewModel";
+import type { EditingRegionBounds } from "@/Stores/UIStore";
 import { CreateRegionOverlay } from "./CreateRegionOverlay";
 import type { WaveSurferPlaybackController } from "./useWaveSurferPlaybackController";
 import {
@@ -21,12 +22,13 @@ export interface WaveformRendererProps{
     onRegionDetails?:(regionId:number)=>void,
     onDeleteRegion?:(regionId:number)=>void,
     onEditRegion?:(regionId:number)=>void,
-    onUpdateRegionBounds?:(regionId:number,start:number,end:number)=>Promise<void> | void,
+    onUpdateRegionBounds?:(regionId:number,start:number,end:number)=>void,
     onCreateRegionClick?:(time:number)=>void,
     onCreateRegionDrag?:(start:number,end:number)=>void,
     onCopyRegion?:(regionId:number)=>void,
     selectedRegionId?: number,
     createMode?: boolean,
+    editingRegionBounds?: EditingRegionBounds,
     onRegionSelect?: (regionId: number) => void,
     onRegionDeselect?: () => void,
 }
@@ -42,6 +44,7 @@ export function WaveformRenderer({
     onCreateRegionDrag,
     selectedRegionId,
     createMode,
+    editingRegionBounds,
     onRegionSelect,
     onRegionDeselect,
   }:WaveformRendererProps
@@ -55,6 +58,7 @@ export function WaveformRenderer({
     const onRegionSelectRef = useRef(onRegionSelect);
     const onRegionDeselectRef = useRef(onRegionDeselect);
     const createModeRef = useRef(createMode ?? false);
+    const editingRegionBoundsRef = useRef<EditingRegionBounds>(editingRegionBounds ?? null);
     const [regionsPlugin, setRegionsPlugin] = useState<RegionsPlugin | null>(null);
     const renderedRegionIds = useRef<Set<string>>(new Set());
 
@@ -80,6 +84,7 @@ export function WaveformRenderer({
     useEffect(() => { onRegionSelectRef.current = onRegionSelect; }, [onRegionSelect]);
     useEffect(() => { onRegionDeselectRef.current = onRegionDeselect; }, [onRegionDeselect]);
     useEffect(() => { createModeRef.current = createMode ?? false; }, [createMode]);
+    useEffect(() => { editingRegionBoundsRef.current = editingRegionBounds ?? null; }, [editingRegionBounds]);
 
     useEffect(() => {
         const waveformElement = waveformRef.current;
@@ -100,6 +105,16 @@ export function WaveformRenderer({
             async (updatedRegion, side) => {
                 const currentRegionSet = regionSetRef.current;
                 if (!currentRegionSet?.regions) return;
+                const editingBounds = editingRegionBoundsRef.current;
+                if (!editingBounds || String(editingBounds.regionId) !== updatedRegion.id) {
+                    const original = currentRegionSet.regions.find(
+                        (region) => String(region.regionId) === updatedRegion.id,
+                    );
+                    if (original) {
+                        updatedRegion.setOptions({ start: original.start, end: original.end });
+                    }
+                    return;
+                }
 
                 const original = currentRegionSet.regions.find(
                     (region) => String(region.regionId) === updatedRegion.id,
@@ -120,13 +135,7 @@ export function WaveformRenderer({
                 }
 
                 if (!onUpdateRegionBoundsRef.current) return;
-
-                try {
-                    await onUpdateRegionBoundsRef.current(Number(updatedRegion.id), clamped.start, clamped.end);
-                } catch (regionUpdateError) {
-                    console.error("Failed to persist region bounds:", regionUpdateError);
-                    updatedRegion.setOptions({ start: original.start, end: original.end });
-                }
+                onUpdateRegionBoundsRef.current(Number(updatedRegion.id), clamped.start, clamped.end);
             }
         );
 
@@ -153,7 +162,13 @@ export function WaveformRenderer({
             return;
         }
 
-        const currentIds=new Set(regionSet.regions.map(r=>String(r.regionId)));
+        const displayedRegions = regionSet.regions.map((region) =>
+            editingRegionBounds && editingRegionBounds.regionId === region.regionId
+                ? { ...region, start: editingRegionBounds.start, end: editingRegionBounds.end }
+                : region,
+        );
+
+        const currentIds=new Set(displayedRegions.map(r=>String(r.regionId)));
         const existingIds=renderedRegionIds.current;
 
          // Remove regions that no longer exist
@@ -165,26 +180,27 @@ export function WaveformRenderer({
 
         }
         //add new regions
-        for(const region of regionSet.regions){
+        for(const region of displayedRegions){
             const id=String(region.regionId);
             const existing=regionsPlugin.getRegions().find(x=>x.id===id);
+            const isEditable = editingRegionBounds?.regionId === region.regionId;
             if(existing){
                 existing.setOptions({
                     start: region.start,
                     end: region.end,
                     content: region.name,
-                    drag: true,
-                    resize: true,
+                    drag: false,
+                    resize: isEditable,
                     color: colorForRegion(region.regionId, region.regionId === selectedRegionId),
                 });
             }else{
-                  addRegion(regionsPlugin, region, region.regionId === selectedRegionId);
+                  addRegion(regionsPlugin, region, region.regionId === selectedRegionId, isEditable);
             }
 
 
         }
         renderedRegionIds.current=currentIds;
-    },[regionSet,regionSet?.regions,regionsPlugin, selectedRegionId]);
+    },[editingRegionBounds, regionSet, regionSet?.regions, regionsPlugin, selectedRegionId]);
 
     useEffect(() => {
         const waveformShellElement = waveformShellRef.current;
@@ -249,4 +265,3 @@ export function WaveformRenderer({
   </div>
 );
 }
-

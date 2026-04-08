@@ -5,6 +5,7 @@ import { PasteRegionModal } from "./paste-region-modal";
 import { useRegionController } from "@/controllers/RegionController";
 import { CreateRegionModal } from "./create-region-modal";
 import { useRegionSetController } from "@/controllers/RegionSetController";
+import { UnsavedRegionBoundsModal } from "./unsaved-region-bounds-modal";
 
 export function RegionModals() {
   const modalState = useUIStore(state => state.modalState);
@@ -40,6 +41,15 @@ export function RegionModals() {
           onSubmit={(destRegionSetId,sourceRegionId,copyName)=>
             regionSetController.handleSubmitPasteRegion(
               {source:{regionId:sourceRegionId},destination:{regionSetId:destRegionSetId}},copyName)}
+          open
+          onClose={closeModal}
+        />
+      );
+
+    case "unsavedRegionBounds":
+      return (
+        <UnsavedRegionBoundsModal
+          nextSelection={modalState.nextSelection}
           open
           onClose={closeModal}
         />
