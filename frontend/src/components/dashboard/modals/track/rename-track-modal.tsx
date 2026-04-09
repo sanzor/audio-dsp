@@ -9,10 +9,10 @@ import { useTrackStore } from "@/Stores/TrackStore";
 
 
 export interface RenameTrackModalProps {
-  trackId:string; // 👈 allow null
+  trackId:number; // 👈 allow null
   open: boolean;
   onClose: () => void;
-  onSubmit: (trackId: string, newName: string) => void;
+  onSubmit: (trackId: number, newName: string) => void;
 }
 
 export function RenameTrackModal({

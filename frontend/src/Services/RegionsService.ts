@@ -3,34 +3,40 @@ import type { TrackRegionSet } from "@/domain/RegionSet/TrackRegionSet";
 import { http } from "@/Services/http";
 
 interface ApiRegion {
-  regionId: number;
-  regionSetId: number;
+  regionId?: number;
+  region_id?: number;
+  regionSetId?: number;
+  region_set_id?: number;
   name: string;
-  startTime: number;
-  endTime: number;
+  startTime?: number;
+  start_time?: number;
+  endTime?: number;
+  end_time?: number;
   graph?: TrackRegion["graph"];
 }
 
 interface ApiRegionSet {
   id?: number;
   regionSetId?: number;
-  trackId: number;
+  region_set_id?: number;
+  trackId?: number;
+  track_id?: number;
   name: string;
   regions?: ApiRegion[];
 }
 
 const mapApiRegion = (region: ApiRegion): TrackRegion => ({
-  regionId: region.regionId,
-  regionSetId: region.regionSetId,
+  regionId: region.regionId ?? region.region_id ?? 0,
+  regionSetId: region.regionSetId ?? region.region_set_id ?? 0,
   name: region.name,
-  start: region.startTime,
-  end: region.endTime,
+  start: region.startTime ?? region.start_time ?? 0,
+  end: region.endTime ?? region.end_time ?? 0,
   graph: region.graph,
 });
 
 const mapApiRegionSet = (regionSet: ApiRegionSet): TrackRegionSet => ({
-  id: regionSet.id ?? regionSet.regionSetId ?? 0,
-  trackId: regionSet.trackId,
+  id: regionSet.id ?? regionSet.regionSetId ?? regionSet.region_set_id ?? 0,
+  trackId: regionSet.trackId ?? regionSet.track_id ?? 0,
   name: regionSet.name,
   regions: (regionSet.regions ?? []).map(mapApiRegion),
 });

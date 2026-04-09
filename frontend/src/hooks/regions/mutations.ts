@@ -31,16 +31,11 @@ export const normalizeRegionWithCascade = (regionApi: TrackRegion): NormalizedTr
 };
 
 export const normalizeRegionSetWithCascade = (regionSetApi: TrackRegionSet): NormalizedTrackRegionSet => {
-  const { addRegion, removeRegionsBySetId } = useRegionStore.getState();
-  const regionIds: number[] = [];
+  const { replaceRegionsBySetId } = useRegionStore.getState();
+  const normalizedRegions = regionSetApi.regions.map(normalizeRegionWithCascade);
+  const regionIds = normalizedRegions.map((region) => region.regionId);
 
-  removeRegionsBySetId(regionSetApi.id);
-
-  for (const regionApi of regionSetApi.regions) {
-    const normalized = normalizeRegionWithCascade(regionApi);
-    addRegion(normalized);
-    regionIds.push(normalized.regionId);
-  }
+  replaceRegionsBySetId(regionSetApi.id, normalizedRegions);
 
   const { regions: _regions, ...rest } = regionSetApi;
   return { ...rest, region_ids: regionIds };

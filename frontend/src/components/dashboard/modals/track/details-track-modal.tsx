@@ -7,7 +7,7 @@ import { useTrackStore } from "@/Stores/TrackStore";
 
 export interface DetailsTrackModalProps {
   open: boolean;
-  trackId: string;
+  trackId: number;
   onClose: () => void;
 }
 

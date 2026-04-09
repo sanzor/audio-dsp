@@ -1,229 +1,233 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import type { TrackRegionViewModel } from "@/domain/Region/TrackRegionViewModel";
 
 const REGION_GAP = 0.05;
-const MIN_WIDTH = 0.05;
+const MIN_WIDTH = 0.01;
+const HANDLE_PX = 12;
 
 interface Props {
   regions: TrackRegionViewModel[];
   duration: number;
   containerRef: React.RefObject<HTMLDivElement | null>;
   onConfirm?: (start: number, end: number) => void;
+  onDiscard?: () => void;
 }
 
-function findFirstFreeGap(
-  regions: TrackRegionViewModel[],
-  duration: number
-): { start: number; end: number } {
+function findFirstFreeGap(regions: TrackRegionViewModel[], duration: number): { start: number; end: number } {
   const sorted = [...regions].sort((a, b) => a.start - b.start);
-
   if (sorted.length === 0) return { start: 0, end: duration };
-
-  if (sorted[0].start > MIN_WIDTH + REGION_GAP) {
-    return { start: 0, end: sorted[0].start - REGION_GAP };
-  }
-
+  if (sorted[0].start > MIN_WIDTH + REGION_GAP) return { start: 0, end: sorted[0].start - REGION_GAP };
   for (let i = 0; i < sorted.length - 1; i++) {
-    const gapStart = sorted[i].end + REGION_GAP;
-    const gapEnd = sorted[i + 1].start - REGION_GAP;
-    if (gapEnd - gapStart >= MIN_WIDTH) return { start: gapStart, end: gapEnd };
+    const gs = sorted[i].end + REGION_GAP;
+    const ge = sorted[i + 1].start - REGION_GAP;
+    if (ge - gs >= MIN_WIDTH) return { start: gs, end: ge };
   }
-
   const lastEnd = sorted[sorted.length - 1].end + REGION_GAP;
   if (duration - lastEnd >= MIN_WIDTH) return { start: lastEnd, end: duration };
-
   return { start: 0, end: duration };
 }
 
-// Returns the bounds of the free gap that contains both draftStart and draftEnd
-function getGapBounds(
-  draftStart: number,
-  draftEnd: number,
-  regions: TrackRegionViewModel[],
-  duration: number
-): { min: number; max: number } {
-  const sorted = [...regions].sort((a, b) => a.start - b.start);
-  let min = 0;
-  let max = duration;
-
-  for (const region of sorted) {
-    if (region.end + REGION_GAP <= draftStart) {
-      min = region.end + REGION_GAP;
-    }
-    if (region.start - REGION_GAP >= draftEnd) {
-      max = region.start - REGION_GAP;
-      break;
-    }
-  }
-
-  return { min, max };
+function hasOverlap(start: number, end: number, regions: TrackRegionViewModel[]): boolean {
+  return regions.some((r) => start < r.end && end > r.start);
 }
 
-// Moves the whole selection by dx. If it crosses a region, jumps to the next free gap.
-function moveBodyToGap(
-  start: number,
-  end: number,
-  dx: number,
-  regions: TrackRegionViewModel[],
-  duration: number
+function clampToFreeInterval(
+  start: number, end: number, regions: TrackRegionViewModel[], duration: number
 ): { start: number; end: number } {
-  const width = end - start;
-  let newStart = start + dx;
-  let newEnd = end + dx;
   const sorted = [...regions].sort((a, b) => a.start - b.start);
-
-  if (dx > 0) {
-    const blocker = sorted.find(
-      (r) => newEnd > r.start - REGION_GAP && newStart < r.end + REGION_GAP
-    );
-    if (blocker) {
-      newStart = blocker.end + REGION_GAP;
-      newEnd = newStart + width;
-      const next = sorted.find((r) => r.start - REGION_GAP > newStart);
-      if (next) newEnd = Math.min(newEnd, next.start - REGION_GAP);
-      newEnd = Math.min(newEnd, duration);
-      if (newEnd - newStart < MIN_WIDTH) return { start, end };
-    }
-  } else if (dx < 0) {
-    const blocker = [...sorted]
-      .reverse()
-      .find((r) => newStart < r.end + REGION_GAP && newEnd > r.start - REGION_GAP);
-    if (blocker) {
-      newEnd = blocker.start - REGION_GAP;
-      newStart = newEnd - width;
-      const prev = [...sorted].reverse().find((r) => r.end + REGION_GAP < newEnd);
-      if (prev) newStart = Math.max(newStart, prev.end + REGION_GAP);
-      newStart = Math.max(newStart, 0);
-      if (newEnd - newStart < MIN_WIDTH) return { start, end };
-    }
+  let gapStart = 0;
+  let gapEnd = duration;
+  for (const region of sorted) {
+    if (region.end + REGION_GAP <= start) { gapStart = region.end + REGION_GAP; }
+    else if (region.start - REGION_GAP >= start) { gapEnd = region.start - REGION_GAP; break; }
+    else { return findFirstFreeGap(regions, duration); }
   }
-
-  newStart = Math.max(0, Math.min(newStart, duration - width));
-  newEnd = Math.min(duration, newStart + width);
-  if (newEnd - newStart < MIN_WIDTH) return { start, end };
-
-  return { start: newStart, end: newEnd };
+  const cs = Math.max(gapStart, start);
+  const ce = Math.min(gapEnd, end);
+  if (ce - cs < MIN_WIDTH) return findFirstFreeGap(regions, duration);
+  return { start: cs, end: ce };
 }
 
-export function CreateRegionOverlay({ regions, duration, containerRef, onConfirm }: Props) {
+function fmt(s: number): string {
+  const m = Math.floor(s / 60);
+  const sec = (s % 60).toFixed(2).padStart(5, "0");
+  return m > 0 ? `${m}:${sec}` : `${sec}s`;
+}
+
+type DragType = "start" | "end" | "body";
+
+export function CreateRegionOverlay({ regions, duration, containerRef, onConfirm, onDiscard }: Props) {
   const initial = findFirstFreeGap(regions, duration);
   const [draft, setDraft] = useState(initial);
   const draftRef = useRef(initial);
-  const dragState = useRef<{ type: "start" | "end" | "body"; lastX: number } | null>(null);
+  // When conflicting, holds the original draft so Cancel can restore it
+  const savedDraft = useRef<{ start: number; end: number } | null>(null);
 
-  useEffect(() => {
-    draftRef.current = draft;
-  }, [draft]);
+  const dragType = useRef<DragType | null>(null);
+  const lastX = useRef(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [conflicting, setConflicting] = useState(false);
 
-  useEffect(() => {
-    const onMove = (e: PointerEvent) => {
-      const ds = dragState.current;
-      const container = containerRef.current;
-      if (!ds || !container || duration <= 0) return;
+  const pxToTime = (px: number): number => {
+    const w = containerRef.current?.getBoundingClientRect().width ?? 1;
+    return (px / w) * duration;
+  };
 
-      const { width } = container.getBoundingClientRect();
-      if (width <= 0) return;
+  const onCaptureMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragType.current) return;
+    const dx = pxToTime(e.clientX - lastX.current);
+    lastX.current = e.clientX;
+    const { start, end } = draftRef.current;
+    const w = end - start;
+    let next: { start: number; end: number };
+    if (dragType.current === "start") {
+      next = { start: Math.max(0, Math.min(start + dx, end - MIN_WIDTH)), end };
+    } else if (dragType.current === "end") {
+      next = { start, end: Math.min(duration, Math.max(end + dx, start + MIN_WIDTH)) };
+    } else {
+      const ns = Math.max(0, Math.min(start + dx, duration - w));
+      next = { start: ns, end: Math.min(duration, ns + w) };
+    }
+    draftRef.current = next;
+    setDraft(next);
+    setConflicting(false);
+    savedDraft.current = null;
+  };
 
-      const dx = ((e.clientX - ds.lastX) / width) * duration;
-      ds.lastX = e.clientX;
+  const onCaptureUp = () => { dragType.current = null; setIsDragging(false); };
 
-      const { start, end } = draftRef.current;
-      const gap = getGapBounds(start, end, regions, duration);
+  const startDrag = (type: DragType, clientX: number) => {
+    dragType.current = type;
+    lastX.current = clientX;
+    setIsDragging(true);
+  };
 
-      let next: { start: number; end: number };
-      if (ds.type === "start") {
-        next = { start: Math.max(gap.min, Math.min(start + dx, end - MIN_WIDTH)), end };
-      } else if (ds.type === "end") {
-        next = { start, end: Math.min(gap.max, Math.max(end + dx, start + MIN_WIDTH)) };
-      } else {
-        next = moveBodyToGap(start, end, dx, regions, duration);
-      }
+  const handleCreate = () => {
+    if (hasOverlap(draft.start, draft.end, regions)) {
+      // Compute clamped bounds and show them as a preview
+      const clamped = clampToFreeInterval(draft.start, draft.end, regions, duration);
+      savedDraft.current = { ...draft }; // remember original for Cancel
+      draftRef.current = clamped;
+      setDraft(clamped);
+      setConflicting(true);
+      return;
+    }
+    onConfirm?.(draft.start, draft.end);
+  };
 
-      draftRef.current = next;
-      setDraft(next);
-    };
+  const handleConfirmClamped = () => {
+    savedDraft.current = null;
+    setConflicting(false);
+    onConfirm?.(draft.start, draft.end);
+  };
 
-    const onUp = () => { dragState.current = null; };
-
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
-    return () => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-    };
-  }, [containerRef, regions, duration]);
+  const handleCancelConflict = () => {
+    // Restore original selection, stay in create mode
+    if (savedDraft.current) {
+      draftRef.current = savedDraft.current;
+      setDraft(savedDraft.current);
+      savedDraft.current = null;
+    }
+    setConflicting(false);
+  };
 
   const startPct = (draft.start / duration) * 100;
-  const endPct = (draft.end / duration) * 100;
+  const endPct   = (draft.end   / duration) * 100;
   const widthPct = endPct - startPct;
-
-  const onHandleDown = (type: "start" | "end" | "body") => (e: React.PointerEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    dragState.current = { type, lastX: e.clientX };
-  };
 
   return (
     <>
+      {isDragging && (
+        <div
+          style={{ position: "fixed", inset: 0, zIndex: 9999, cursor: "grabbing" }}
+          onPointerMove={onCaptureMove}
+          onPointerUp={onCaptureUp}
+          onPointerCancel={onCaptureUp}
+        />
+      )}
+
       {/* Fill */}
       <div
         className="pointer-events-none absolute inset-y-0"
         style={{
-          left: `${startPct}%`,
-          width: `${widthPct}%`,
-          background: "rgba(99,179,237,0.15)",
+          left: `${startPct}%`, width: `${widthPct}%`,
+          background: conflicting ? "rgba(239,68,68,0.18)" : "rgba(99,179,237,0.15)",
           zIndex: 20,
         }}
       />
-      {/* Start cursor line */}
-      <div
-        className="pointer-events-none absolute inset-y-0"
-        style={{ left: `${startPct}%`, width: 2, background: "#63b3ed", zIndex: 21 }}
-      />
-      {/* End cursor line */}
-      <div
-        className="pointer-events-none absolute inset-y-0"
-        style={{ left: `${endPct}%`, width: 2, background: "#63b3ed", transform: "translateX(-2px)", zIndex: 21 }}
-      />
-      {/* Body drag area */}
+      {/* Start line */}
+      <div className="pointer-events-none absolute inset-y-0"
+        style={{ left: `${startPct}%`, width: 2, background: conflicting ? "#ef4444" : "#63b3ed", zIndex: 21 }} />
+      {/* End line */}
+      <div className="pointer-events-none absolute inset-y-0"
+        style={{ left: `${endPct}%`, width: 2, background: conflicting ? "#ef4444" : "#63b3ed", transform: "translateX(-2px)", zIndex: 21 }} />
+
+      {/* Body */}
       <div
         className="absolute inset-y-0 cursor-move"
         style={{ left: `${startPct}%`, width: `${widthPct}%`, zIndex: 22 }}
-        onPointerDown={onHandleDown("body")}
+        onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); startDrag("body", e.clientX); }}
       />
-      {/* Start handle hit area */}
+      {/* Start handle */}
       <div
         className="absolute inset-y-0 cursor-ew-resize"
-        style={{ left: `calc(${startPct}% - 5px)`, width: 10, zIndex: 23 }}
-        onPointerDown={onHandleDown("start")}
+        style={{ left: `calc(${startPct}% - ${HANDLE_PX / 2}px)`, width: HANDLE_PX, zIndex: 23 }}
+        onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); startDrag("start", e.clientX); }}
       />
-      {/* End handle hit area */}
+      {/* End handle */}
       <div
         className="absolute inset-y-0 cursor-ew-resize"
-        style={{ left: `calc(${endPct}% - 5px)`, width: 10, zIndex: 23 }}
-        onPointerDown={onHandleDown("end")}
+        style={{ left: `calc(${endPct}% - ${HANDLE_PX / 2}px)`, width: HANDLE_PX, zIndex: 23 }}
+        onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); startDrag("end", e.clientX); }}
       />
-      {/* Confirm button centered over selection */}
-      {onConfirm && (
-        <button
+
+      {conflicting ? (
+        <div
           style={{
-            position: "absolute",
-            top: 6,
-            left: `calc(${startPct + widthPct / 2}% - 28px)`,
-            zIndex: 24,
-            padding: "2px 10px",
-            fontSize: "0.72rem",
-            borderRadius: 4,
-            background: "#3b82f6",
-            color: "white",
-            border: "none",
-            cursor: "pointer",
+            position: "absolute", top: 6,
+            left: `calc(${startPct + widthPct / 2}% - 130px)`,
+            zIndex: 100, display: "flex", alignItems: "center", gap: 6,
+            background: "#1e1e2e", border: "1px solid #ef4444", borderRadius: 6,
+            padding: "3px 8px", fontSize: "0.72rem", color: "#ef4444", whiteSpace: "nowrap",
           }}
           onPointerDown={(e) => e.stopPropagation()}
-          onClick={() => onConfirm(draft.start, draft.end)}
         >
-          Create
-        </button>
+          <span>Adjusted: {fmt(draft.start)} – {fmt(draft.end)}</span>
+          <button onClick={handleConfirmClamped}
+            style={{ background: "#ef4444", color: "white", border: "none", borderRadius: 4, padding: "2px 8px", cursor: "pointer", fontSize: "0.72rem" }}>
+            Create
+          </button>
+          <button onClick={handleCancelConflict}
+            style={{ background: "transparent", color: "#aaa", border: "1px solid #444", borderRadius: 4, padding: "2px 8px", cursor: "pointer", fontSize: "0.72rem" }}>
+            Cancel
+          </button>
+          <button onClick={onDiscard}
+            style={{ background: "transparent", color: "#888", border: "1px solid #333", borderRadius: 4, padding: "2px 8px", cursor: "pointer", fontSize: "0.72rem" }}>
+            Discard
+          </button>
+        </div>
+      ) : (
+        <div
+          style={{
+            position: "absolute", top: 6,
+            left: `calc(${startPct + widthPct / 2}% - 52px)`,
+            zIndex: 24, display: "flex", gap: 4,
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={handleCreate}
+            style={{ padding: "2px 10px", fontSize: "0.72rem", borderRadius: 4, background: "#3b82f6", color: "white", border: "none", cursor: "pointer" }}
+          >
+            Create
+          </button>
+          <button
+            onClick={onDiscard}
+            style={{ padding: "2px 10px", fontSize: "0.72rem", borderRadius: 4, background: "transparent", color: "#aaa", border: "1px solid #444", cursor: "pointer" }}
+          >
+            Discard
+          </button>
+        </div>
       )}
     </>
   );

@@ -1,5 +1,5 @@
 use crate::{
-    middlewares::role_context::role_context::RoleContext,
+    middlewares::role_context::role_context::{ProjectContext, RoleContext},
     tracks::tracks_app_data::TracksAppData,
 };
 use actix_multipart::Multipart;
@@ -54,6 +54,7 @@ pub struct AddTrackMultipartRequest {
 #[post("/add-track")]
 pub async fn add_track(
     role: RoleContext,
+    project: ProjectContext,
     path: web::Json<serde_json::Value>,
     app_state: web::Data<TracksAppData>,
 ) -> HttpResponse {
@@ -65,7 +66,7 @@ pub async fn add_track(
         Err(_) => return HttpResponse::BadRequest().body("Invalid payload"),
     };
 
-    match app_state.tracks_service.insert_track(request.track).await {
+    match app_state.tracks_service.insert_track(request.track, project.0).await {
         Ok(meta) => HttpResponse::Ok().json(AddTrackResult { track_id: meta.track_id, track_info: meta.track_info }),
         Err(_e) => HttpResponse::InternalServerError().body("Could not insert track"),
     }
@@ -88,6 +89,7 @@ pub async fn add_track(
 #[post("/add-track-multi")]
 pub async fn add_track_multi(
     role: RoleContext,
+    project: ProjectContext,
     mut payload: Multipart,
     app_state: web::Data<TracksAppData>,
 ) -> HttpResponse {
@@ -104,7 +106,7 @@ pub async fn add_track_multi(
         }
     };
 
-    match app_state.tracks_service.insert_track(raw_track).await {
+    match app_state.tracks_service.insert_track(raw_track, project.0).await {
         Ok(meta) => {
             info!(track_id = %meta.track_id, "add-track-multi insert complete");
             HttpResponse::Ok().json(AddTrackResult { track_id: meta.track_id, track_info: meta.track_info })

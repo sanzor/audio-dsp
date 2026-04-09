@@ -25,6 +25,7 @@ export interface WaveformRendererProps{
     onUpdateRegionBounds?:(regionId:number,start:number,end:number)=>void,
     onCreateRegionClick?:(time:number)=>void,
     onCreateRegionDrag?:(start:number,end:number)=>void,
+    onCancelCreate?:()=>void,
     onCopyRegion?:(regionId:number)=>void,
     selectedRegionId?: number,
     createMode?: boolean,
@@ -42,6 +43,7 @@ export function WaveformRenderer({
     onRegionDetails,
     onUpdateRegionBounds,
     onCreateRegionDrag,
+    onCancelCreate,
     selectedRegionId,
     createMode,
     editingRegionBounds,
@@ -152,7 +154,7 @@ export function WaveformRenderer({
     }, [beginPlaybackLoad, bindPlaybackWaveform, url, waveRef]);
 
     useEffect(()=>{
-        if(!regionsPlugin){
+        if(!regionsPlugin || !waveRef.current){
             return;
         }
 
@@ -252,13 +254,14 @@ export function WaveformRenderer({
       ref={waveformShellRef}
       className="relative min-h-0 flex-1"
     >
-      <div ref={waveformRef} className="h-full w-full" />
+      <div ref={waveformRef} className="h-full w-full" style={createMode ? { pointerEvents: "none" } : undefined} />
       {createMode && regionSet && playback.duration > 0 && (
         <CreateRegionOverlay
           regions={regionSet.regions}
           duration={playback.duration}
           containerRef={waveformShellRef}
           onConfirm={(start, end) => onCreateRegionDragRef.current?.(start, end)}
+          onDiscard={onCancelCreate}
         />
       )}
     </div>

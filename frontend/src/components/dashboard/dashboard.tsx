@@ -39,13 +39,21 @@ export function Dashboard() {
     useRegionSetStore.getState().clear();
     useRegionStore.getState().clear();
     useGraphStore.getState().clear();
+    useUIStore.getState().clearActiveSelection();
     queryClient.invalidateQueries({ queryKey: QUERY_KEYS.workspace.byProject(activeProjectId) });
   }, [activeProjectId, queryClient]);
 
   useWorkspace(activeProjectId);
   const trackController = useTrackController();
-  const { openContextMenu } = useUIStore();
+  const { openContextMenu, setActiveTrack } = useUIStore();
+  const activeTrackId = useUIStore((s) => s.activeSelection.trackId);
   const sidebarTracks = useTrackViewModels();
+
+  useEffect(() => {
+    if (activeTrackId) return;
+    if (sidebarTracks.length === 0) return;
+    setActiveTrack(sidebarTracks[0].trackId);
+  }, [sidebarTracks, activeTrackId, setActiveTrack]);
 
   return (
     <>

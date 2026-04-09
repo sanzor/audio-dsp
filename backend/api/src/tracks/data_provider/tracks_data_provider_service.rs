@@ -48,20 +48,21 @@ impl TracksDataProvider for PostgresTracksDataProvider {
             .map_err(|e| e.to_string())
     }
 
-    async fn upsert_track(&self, track: RawTrack) -> Result<DbTrack, String> {
+    async fn upsert_track(&self, track: RawTrack, project_id: i32) -> Result<DbTrack, String> {
         let canonical_audio = encode_audio_buffer_as_wav(&track.data)
             .map_err(|_| "Could not encode track as wav".to_string())?;
 
         let mut tx = self.pool.begin().await.map_err(|e| e.to_string())?;
 
         let db_track = sqlx::query_as::<_, DbTrack>(
-            "INSERT INTO tracks (name, extension, length_seconds)
-             VALUES ($1, $2, $3)
+            "INSERT INTO tracks (name, extension, length_seconds, project_id)
+             VALUES ($1, $2, $3, $4)
              RETURNING track_id, name, extension, length_seconds, created_at",
         )
         .bind(&track.info.name)
         .bind(&track.info.extension)
         .bind(track.info.length)
+        .bind(project_id)
         .fetch_one(&mut *tx)
         .await
         .map_err(|e| e.to_string())?;

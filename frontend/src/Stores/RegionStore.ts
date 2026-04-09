@@ -15,6 +15,7 @@ interface RegionActions {
     updateRegion: (regionId: number, region: Partial<NormalizedTrackRegion>) => void;
     setAllRegions: (regions: NormalizedTrackRegion[]) => void;
     removeRegionsBySetId: (setId: number) => void;
+    replaceRegionsBySetId: (setId: number, regions: NormalizedTrackRegion[]) => void;
     // Graph relationship (single value, not array)
     setGraph: (regionId: number, graphId: number) => void;
     clearGraph: (regionId: number) => void;
@@ -63,6 +64,19 @@ export const useRegionStore: UseBoundStore<StoreApi<RegionStore>> = create<Regio
                 if (value.regionSetId === setId) {
                     newMap.delete(key);
                 }
+            }
+            return { regions: newMap };
+        });
+    },
+
+    replaceRegionsBySetId: (setId: number, regions: NormalizedTrackRegion[]): void => {
+        set((state: RegionState) => {
+            const newMap = new Map(state.regions);
+            for (const [key, value] of newMap) {
+                if (value.regionSetId === setId) newMap.delete(key);
+            }
+            for (const region of regions) {
+                newMap.set(region.regionId, region);
             }
             return { regions: newMap };
         });

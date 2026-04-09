@@ -24,3 +24,19 @@ impl FromRequest for RoleContext {
         }
     }
 }
+
+/// The validated project_id for this request, inserted by the role-context middleware.
+#[derive(Debug, Clone, Copy)]
+pub struct ProjectContext(pub i32);
+
+impl FromRequest for ProjectContext {
+    type Error = Error;
+    type Future = Ready<Result<Self, Self::Error>>;
+
+    fn from_request(req: &HttpRequest, _: &mut Payload) -> Self::Future {
+        match req.extensions().get::<ProjectContext>() {
+            Some(ctx) => ready(Ok(*ctx)),
+            None => ready(Err(actix_web::error::ErrorBadRequest("No project context"))),
+        }
+    }
+}

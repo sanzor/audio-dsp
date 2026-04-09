@@ -49,7 +49,6 @@ export function WaveformPlayer() {
   if (!trackId) return null;
   if (isLoading) return <div>Loading audio...</div>;
   if (!objectUrl) return <div>Missing required data</div>;
-  if (!regionSetId) return <div>No region set — add one to start editing.</div>;
 
   return (
     <div
@@ -79,6 +78,7 @@ export function WaveformPlayer() {
           regionSet={regionSetViewModel ?? undefined}
           selectedRegionId={regionId ?? undefined}
           createMode={createMode}
+          onCancelCreate={() => setCreateMode(false)}
           editingRegionBounds={editingRegionBounds}
           onRegionSelect={(id) => setActiveRegion(id)}
           onRegionDeselect={() => clearActiveSelection()}
@@ -87,11 +87,11 @@ export function WaveformPlayer() {
           onDeleteRegion={(id) => regionController.handleDeleteRegion(id)}
           onCopyRegion={(id) => regionController.handleCopyRegion(id)}
           onUpdateRegionBounds={(_id, start, end) => updateEditingRegionBounds(start, end)}
-          onCreateRegionClick={(time) => regionSetController.handleCreateRegion(regionSetId, time)}
-          onCreateRegionDrag={(start, end) => {
+          onCreateRegionClick={regionSetId != null ? (time) => regionSetController.handleCreateRegion(regionSetId, time) : undefined}
+          onCreateRegionDrag={regionSetId != null ? (start, end) => {
             regionSetController.handleCreateRegion(regionSetId, start, end);
             setCreateMode(false);
-          }}
+          } : undefined}
         />
         <PlaybackControls
           hasWaveform={playback.hasWaveform}

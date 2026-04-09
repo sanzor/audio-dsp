@@ -55,8 +55,8 @@ impl TracksProvider for TracksProviderService {
         Ok(tracks.into_iter().map(Self::meta_from_db).collect())
     }
 
-    async fn insert_track(&self, track: RawTrack) -> Result<TrackMeta, String> {
-        let db_track = self.data.upsert_track(track).await?;
+    async fn insert_track(&self, track: RawTrack, project_id: i32) -> Result<TrackMeta, String> {
+        let db_track = self.data.upsert_track(track, project_id).await?;
         Ok(Self::to_meta(&db_track))
     }
 

@@ -29,7 +29,7 @@ type RegionSetsAllCache = {
 };
 
 export const normalizeRegionSetWithCascade = (regionSetApi: RegionSetCacheShape): NormalizedTrackRegionSet => {
-  const { addRegion, removeRegionsBySetId } = useRegionStore.getState();
+  const { replaceRegionsBySetId } = useRegionStore.getState();
   const existingRegionSet = useRegionSetStore.getState().getRegionSet(regionSetApi.id);
   const hasRegionsPayload = Array.isArray(regionSetApi.regions);
   const regionIds = hasRegionsPayload
@@ -37,13 +37,9 @@ export const normalizeRegionSetWithCascade = (regionSetApi: RegionSetCacheShape)
     : [...(existingRegionSet?.region_ids ?? regionSetApi.region_ids ?? [])];
 
   if (hasRegionsPayload) {
-    removeRegionsBySetId(regionSetApi.id);
-
-    for (const regionApi of regionSetApi.regions ?? []) {
-      const normalized = normalizeRegionWithCascade(regionApi);
-      addRegion(normalized);
-      regionIds.push(normalized.regionId);
-    }
+    const normalizedRegions = (regionSetApi.regions ?? []).map(normalizeRegionWithCascade);
+    replaceRegionsBySetId(regionSetApi.id, normalizedRegions);
+    regionIds.push(...normalizedRegions.map((region) => region.regionId));
   }
 
   const { regions: _regions, ...rest } = regionSetApi;

@@ -7,10 +7,10 @@ import { useEffect, useState } from "react";
 import { useTrackStore } from "@/Stores/TrackStore";
 
 export interface PasteTrackModalProps {
-  trackId: string; // 👈 allow null
+  trackId: number; // 👈 allow null
   open: boolean;
   onClose: () => void;
-  onSubmit: (trackId: string, copyTrackName: string) => void;
+  onSubmit: (trackId: number, copyTrackName: string) => void;
 }
 
 export function PasteTrackModal({

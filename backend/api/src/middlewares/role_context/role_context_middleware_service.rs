@@ -12,7 +12,7 @@ use crate::{
     memberships::memberships_provider::MembershipsProvider,
     middlewares::{
         jwt::jwt_context::JwtContext,
-        role_context::role_context::RoleContext,
+        role_context::role_context::{ProjectContext, RoleContext},
     },
 };
 
@@ -103,6 +103,9 @@ where
 
             // 4. Attach to request
             req.extensions_mut().insert(role_ctx);
+            if let Some(pid) = project_id {
+                req.extensions_mut().insert(ProjectContext(pid));
+            }
             let path = req.path().to_owned();
             match srv.call(req).await {
                 Ok(res) => {
