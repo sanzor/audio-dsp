@@ -12,7 +12,7 @@ export interface PasteGraphModalProps {
   params:PasteGraphParams
   open: boolean;
   onClose: () => void;
-  onSubmit: (destRegionId:string,sourceGraphId:string, copyGraphName: string) => void;
+  onSubmit: (destRegionId: number, sourceGraphId: number, copyGraphName: string) => void;
 }
 
 export function PasteGraphModal({

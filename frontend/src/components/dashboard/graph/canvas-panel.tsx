@@ -3,8 +3,11 @@ import ReactFlow, {
   BackgroundVariant,
   ReactFlowProvider,
   useNodesState,
+  useEdgesState,
   useReactFlow,
+  addEdge,
   type Node,
+  type Connection,
 } from "reactflow";
 import { useCallback, useEffect } from "react";
 import "reactflow/dist/style.css";
@@ -13,7 +16,9 @@ import { useGraphStore } from "@/Stores/GraphStore";
 
 function CanvasInner() {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const { screenToFlowPosition } = useReactFlow();
+  const openModal = useUIStore((s) => s.openModal);
   const regionId = useUIStore((s) => s.activeSelection.regionId);
 
   useEffect(() => {
@@ -28,7 +33,30 @@ function CanvasInner() {
         data: { nodeId: n.id },
       })) ?? []
     );
-  }, [regionId, setNodes]);
+    setEdges(
+      graph?.edges.map((e) => ({
+        id: String(e.id),
+        source: String(e.fromNodeId),
+        target: String(e.toNodeId),
+      })) ?? []
+    );
+  }, [regionId, setNodes, setEdges]);
+
+  const onConnect = useCallback(
+    (connection: Connection) => setEdges((es) => addEdge(connection, es)),
+    [setEdges]
+  );
+
+  const onNodeDoubleClick = useCallback(
+    (_: React.MouseEvent, node: Node) => {
+      openModal({
+        type: "nodeDetails",
+        nodeId: (node.data.nodeId as number) ?? null,
+        transformId: (node.data.transformId as number) ?? null,
+      });
+    },
+    [openModal]
+  );
 
   const onDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -67,7 +95,11 @@ function CanvasInner() {
     >
       <ReactFlow
         nodes={nodes}
+        edges={edges}
         onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onConnect={onConnect}
+        onNodeDoubleClick={onNodeDoubleClick}
         deleteKeyCode={["Backspace", "Delete"]}
         fitView
       >

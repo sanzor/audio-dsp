@@ -5,52 +5,65 @@ import { RenameGraphModal } from "./rename-graph-modal";
 import { CreateGraphModal } from "./create-graph-modal";
 import { useRegionController } from "@/controllers/RegionController";
 import { PasteGraphModal } from "./paste-graph-modal";
+import { NodeDetailsModal } from "./node-details-modal";
 
-export function GraphModals(){
-      const modalState = useUIStore(state => state.modalState);
-      const closeModal = useUIStore(state => state.closeModal);
-      const graphController=useGraphController();
-      const regionController=useRegionController();
+export function GraphModals() {
+  const modalState = useUIStore((state) => state.modalState);
+  const closeModal = useUIStore((state) => state.closeModal);
+  const graphController = useGraphController();
+  const regionController = useRegionController();
 
-      if(!modalState)return null;
+  if (!modalState) return null;
 
-      switch(modalState.type){
-        case "detailsGraph":
-            return <DetailsGraphModal 
-                     graphId={modalState.graphId}
-                     open
-                     onClose={closeModal}>
-                      
-                     </DetailsGraphModal>;
-        case "renameGraph":
-            return <RenameGraphModal
-                graphId={modalState.graphId}
-                open
-                onClose={closeModal}
-                onSubmit={graphController.handleRenameGraph}
-            ></RenameGraphModal>;
+  switch (modalState.type) {
+    case "detailsGraph":
+      return (
+        <DetailsGraphModal graphId={modalState.graphId} open onClose={closeModal} />
+      );
 
-        case "createGraph":
-            return <CreateGraphModal 
-                regionId={modalState.regionId}
-                onClose={closeModal}
-                open
-                onSubmit={regionController.handleSubmitCreateGraph}
-                >
+    case "renameGraph":
+      return (
+        <RenameGraphModal
+          graphId={modalState.graphId}
+          open
+          onClose={closeModal}
+          onSubmit={graphController.handleSubmitRenameGraph}
+        />
+      );
 
-            </CreateGraphModal>;
-        
-        case "pasteGraph":
-            return <PasteGraphModal
-                params={modalState.params}
-                onSubmit={(destRegionId,sourceGraphId,copyName)=>
-                    regionController.handleSubmitPasteGraph(
-                         {source:{graphId:sourceGraphId},destination:{regionId:destRegionId}},copyName)}
-                    
-            
-                onClose={closeModal}
-                open
-            >
-            </PasteGraphModal>
-      }
+    case "createGraph":
+      return (
+        <CreateGraphModal
+          regionId={modalState.regionId}
+          open
+          onClose={closeModal}
+          onSubmit={regionController.handleSubmitCreateGraph}
+        />
+      );
+
+    case "pasteGraph":
+      return (
+        <PasteGraphModal
+          params={modalState.params}
+          open
+          onClose={closeModal}
+          onSubmit={(destRegionId, sourceGraphId, copyName) =>
+            regionController.handleSubmitPasteGraph(
+              { source: { graphId: sourceGraphId }, destination: { regionId: destRegionId } },
+              copyName
+            )
+          }
+        />
+      );
+
+    case "nodeDetails":
+      return (
+        <NodeDetailsModal
+          nodeId={modalState.nodeId}
+          transformId={modalState.transformId}
+          open
+          onClose={closeModal}
+        />
+      );
+  }
 }

@@ -5,10 +5,10 @@ import { useEffect, useState } from "react";
 import { useGraphStore } from "@/Stores/GraphStore";
 
 export interface RenameGraphProps {
-  graphId: string; // 👈 allow null
+  graphId: number;
   open: boolean;
   onClose: () => void;
-  onSubmit: (regionId: string, newName: string) => void;
+  onSubmit: (graphId: number, newName: string) => void;
 }
 
 export function RenameGraphModal({

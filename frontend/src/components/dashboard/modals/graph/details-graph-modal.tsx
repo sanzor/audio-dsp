@@ -10,7 +10,7 @@ import { useGraphStore } from "@/Stores/GraphStore";
 
 export interface DetailsGraphProps {
   open: boolean;
-  graphId: string;
+  graphId: number;
   onClose: () => void;
 }
 

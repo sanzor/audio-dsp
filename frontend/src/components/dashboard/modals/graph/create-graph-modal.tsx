@@ -13,7 +13,7 @@ import { useRegionStore } from "@/Stores/RegionStore";
 import type { CreateGraphParams } from "@/Services/GraphService";
 
 interface CreateGraphModalProps {
-  regionId: string;
+  regionId: number;
   open: boolean;
   onClose: () => void;
   onSubmit: (params: CreateGraphParams) => void;

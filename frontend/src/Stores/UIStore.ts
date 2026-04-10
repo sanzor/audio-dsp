@@ -64,6 +64,10 @@ export type ModalState =
   | { type: 'detailsGraph'; graphId: number }
   | { type: 'deleteGraph'; graphId: number }
   | { type: 'pasteGraph'; params: PasteGraphParams }
+  // Canvas node modals
+  | { type: 'nodeDetails'; nodeId: number | null; transformId: number | null }
+  // Transform store modals
+  | { type: 'transformDetails'; transformId: number }
   | null;
 
 export type UIStore = {
