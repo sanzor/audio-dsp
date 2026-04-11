@@ -68,3 +68,12 @@ export async function apiAddPort(
 export async function apiDeletePort(port_id: number): Promise<void> {
   await http.delete<void>(`/transforms/delete-port?port_id=${port_id}`);
 }
+
+// Fetches the pre-compiled .wasm binary for a transform from the backend.
+// The binary is stored in S3 and served via the backend — the frontend never compiles.
+export async function apiGetTransformWasm(transform_id: number): Promise<Uint8Array> {
+  const response = await fetch(`/transforms/wasm?transform_id=${transform_id}`);
+  if (!response.ok) throw new Error(`Failed to fetch wasm for transform ${transform_id}`);
+  const buffer = await response.arrayBuffer();
+  return new Uint8Array(buffer);
+}

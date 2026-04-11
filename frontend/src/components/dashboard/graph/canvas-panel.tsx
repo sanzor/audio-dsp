@@ -13,13 +13,27 @@ import { useCallback, useEffect } from "react";
 import "reactflow/dist/style.css";
 import { useUIStore } from "@/Stores/UIStore";
 import { useGraphStore } from "@/Stores/GraphStore";
+import { useRegionStore } from "@/Stores/RegionStore";
+import { useRegionSetStore } from "@/Stores/RegionSetStore";
 
 function CanvasInner() {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const { screenToFlowPosition } = useReactFlow();
   const openModal = useUIStore((s) => s.openModal);
-  const regionId = useUIStore((s) => s.activeSelection.regionId);
+  const activeSelection = useUIStore((s) => s.activeSelection);
+  const region = useRegionStore((s) =>
+    activeSelection.regionId != null ? s.regions.get(activeSelection.regionId) : undefined
+  );
+  const regionSet = useRegionSetStore((s) =>
+    activeSelection.regionSetId != null ? s.regionSets.get(activeSelection.regionSetId) : undefined
+  );
+  const regionId = activeSelection.regionId;
+  const canDropTransform =
+    region != null &&
+    regionSet != null &&
+    region.regionSetId === regionSet.id &&
+    regionSet.region_ids.includes(region.regionId);
 
   useEffect(() => {
     const graph = regionId != null
@@ -59,12 +73,19 @@ function CanvasInner() {
   );
 
   const onDragOver = useCallback((e: React.DragEvent) => {
+    if (!canDropTransform) {
+      e.dataTransfer.dropEffect = "none";
+      return;
+    }
+
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
-  }, []);
+  }, [canDropTransform]);
 
   const onDrop = useCallback(
     (e: React.DragEvent) => {
+      if (!canDropTransform) return;
+
       e.preventDefault();
       const raw = e.dataTransfer.getData("application/transform");
       if (!raw) return;
@@ -84,7 +105,7 @@ function CanvasInner() {
 
       setNodes((ns) => [...ns, node]);
     },
-    [screenToFlowPosition, setNodes]
+    [canDropTransform, screenToFlowPosition, setNodes]
   );
 
   return (
