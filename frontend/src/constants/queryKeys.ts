@@ -41,6 +41,7 @@ export const QUERY_KEYS = {
   transforms: {
     all: () => ['transforms'] as const,
     byId: (id: number) => ['transform', id] as const,
+    wasm: (id: number) => ['transform', 'wasm', id] as const,
   },
   storedAudio: {
     byTrackId: (trackId: number) => ['stored-audio', trackId] as const,
