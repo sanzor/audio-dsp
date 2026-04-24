@@ -25,6 +25,7 @@ export interface WaveformRendererProps{
     onUpdateRegionBounds?:(regionId:number,start:number,end:number)=>void,
     onCreateRegionClick?:(time:number)=>void,
     onCreateRegionDrag?:(start:number,end:number)=>void,
+    onCreateRegionDraftChange?:(start:number,end:number)=>void,
     onCancelCreate?:()=>void,
     onCopyRegion?:(regionId:number)=>void,
     selectedRegionId?: number,
@@ -43,6 +44,7 @@ export function WaveformRenderer({
     onRegionDetails,
     onUpdateRegionBounds,
     onCreateRegionDrag,
+    onCreateRegionDraftChange,
     onCancelCreate,
     selectedRegionId,
     createMode,
@@ -143,18 +145,27 @@ export function WaveformRenderer({
 
         waveRef.current = waveform;
         const cleanupPlaybackBindings = bindPlaybackWaveform(waveform);
-        setRegionsPlugin(regions);
+        const offReady = waveform.once("ready", () => {
+            renderedRegionIds.current = new Set();
+            setRegionsPlugin(regions);
+        });
 
         return () => {
+            offReady();
             cleanupPlaybackBindings();
             waveform.destroy();
             waveRef.current = null;
+            renderedRegionIds.current = new Set();
             setRegionsPlugin(null);
         };
     }, [beginPlaybackLoad, bindPlaybackWaveform, url, waveRef]);
 
     useEffect(()=>{
         if(!regionsPlugin || !waveRef.current){
+            return;
+        }
+
+        if (waveRef.current.getDuration() <= 0) {
             return;
         }
 
@@ -171,15 +182,13 @@ export function WaveformRenderer({
         );
 
         const currentIds=new Set(displayedRegions.map(r=>String(r.regionId)));
-        const existingIds=renderedRegionIds.current;
+        const existingIds = new Set(regionsPlugin.getRegions().map((region) => region.id));
 
          // Remove regions that no longer exist
         for(const id of existingIds){
             if(currentIds.has(id))
                 continue;
             regionsPlugin.getRegions().find(x=>x.id===id)?.remove();
-            existingIds.delete(id);
-
         }
         //add new regions
         for(const region of displayedRegions){
@@ -196,12 +205,18 @@ export function WaveformRenderer({
                     color: colorForRegion(region.regionId, region.regionId === selectedRegionId),
                 });
             }else{
-                  addRegion(regionsPlugin, region, region.regionId === selectedRegionId, isEditable);
+                try {
+                    addRegion(regionsPlugin, region, region.regionId === selectedRegionId, isEditable);
+                } catch (error) {
+                    // Regions can briefly lag waveform init during refresh/rebind; try again on the next effect pass.
+                    console.warn("Skipping region sync until WaveSurfer regions are ready", error);
+                    return;
+                }
             }
 
 
         }
-        renderedRegionIds.current=currentIds;
+        renderedRegionIds.current = new Set(regionsPlugin.getRegions().map((region) => region.id));
     },[editingRegionBounds, regionSet, regionSet?.regions, regionsPlugin, selectedRegionId]);
 
     useEffect(() => {
@@ -260,6 +275,7 @@ export function WaveformRenderer({
           regions={regionSet.regions}
           duration={playback.duration}
           containerRef={waveformShellRef}
+          onDraftChange={onCreateRegionDraftChange}
           onConfirm={(start, end) => onCreateRegionDragRef.current?.(start, end)}
           onDiscard={onCancelCreate}
         />

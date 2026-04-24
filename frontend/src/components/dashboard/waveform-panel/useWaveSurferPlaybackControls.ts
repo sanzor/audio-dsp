@@ -16,8 +16,10 @@ export interface WaveSurferPlaybackControls {
   bindWaveform: (waveform: WaveSurfer) => () => void;
   hasWaveform: boolean;
   play: () => void;
+  playRange: (start: number, end?: number) => void;
   pause: () => void;
   stop: () => void;
+  seekToTime: (time: number) => void;
   setVolume: (value: number) => void;
   setPlaybackRate: (value: number) => void;
   stepPlaybackRate: (direction: -1 | 1) => void;
@@ -26,6 +28,12 @@ export interface WaveSurferPlaybackControls {
 export function useWaveSurferPlaybackControls(
   waveRef: RefObject<WaveSurfer | null>,
 ): WaveSurferPlaybackControls {
+  type RangeAwareWaveSurfer = WaveSurfer & {
+    play: (start?: number, end?: number) => void;
+    setTime?: (time: number) => void;
+    seekTo?: (progress: number) => void;
+  };
+
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -115,6 +123,36 @@ export function useWaveSurferPlaybackControls(
     waveRef.current?.play();
   }, [waveRef]);
 
+  const seekToTime = useCallback((time: number) => {
+    const waveform = waveRef.current as RangeAwareWaveSurfer | null;
+    if (!waveform) return;
+
+    const safeTime = Math.max(0, time);
+    if (typeof waveform.setTime === "function") {
+      waveform.setTime(safeTime);
+      setCurrentTime(safeTime);
+      return;
+    }
+
+    if (typeof waveform.seekTo === "function") {
+      const totalDuration = waveform.getDuration();
+      if (totalDuration > 0) {
+        waveform.seekTo(Math.min(1, safeTime / totalDuration));
+        setCurrentTime(safeTime);
+      }
+    }
+  }, [waveRef]);
+
+  const playRange = useCallback((start: number, end?: number) => {
+    const waveform = waveRef.current as RangeAwareWaveSurfer | null;
+    if (!waveform) return;
+
+    const safeStart = Math.max(0, start);
+    const safeEnd = end == null ? undefined : Math.max(safeStart, end);
+    setCurrentTime(safeStart);
+    waveform.play(safeStart, safeEnd);
+  }, [waveRef]);
+
   const pause = useCallback(() => {
     waveRef.current?.pause();
   }, [waveRef]);
@@ -151,8 +189,10 @@ export function useWaveSurferPlaybackControls(
     bindWaveform,
     hasWaveform,
     play,
+    playRange,
     pause,
     stop,
+    seekToTime,
     setVolume,
     setPlaybackRate,
     stepPlaybackRate,
@@ -167,7 +207,9 @@ export function useWaveSurferPlaybackControls(
     isPlaying,
     pause,
     play,
+    playRange,
     playbackRate,
+    seekToTime,
     stepPlaybackRate,
     stop,
     volume,

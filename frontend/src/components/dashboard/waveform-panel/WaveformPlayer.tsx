@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type WaveSurfer from "wavesurfer.js";
 import { useAudioEffectsChain } from "@/audio/hooks/useAudioEffectsChain";
 import { useRegionSetViewModel } from "@/Selectors/trackViewModels";
@@ -15,7 +15,7 @@ export function WaveformPlayer() {
   const activeSelection = useUIStore((x) => x.activeSelection);
   const editingRegionBounds = useUIStore((x) => x.editingRegionBounds);
   const setActiveRegion = useUIStore((x) => x.setActiveRegion);
-  const clearActiveSelection = useUIStore((x) => x.clearActiveSelection);
+  const clearActiveRegion = useUIStore((x) => x.clearActiveRegion);
   const beginEditingRegionBounds = useUIStore((x) => x.beginEditingRegionBounds);
   const updateEditingRegionBounds = useUIStore((x) => x.updateEditingRegionBounds);
   const clearEditingRegionBounds = useUIStore((x) => x.clearEditingRegionBounds);
@@ -34,15 +34,72 @@ export function WaveformPlayer() {
   const regionSetController = useRegionSetController();
 
   const [createMode, setCreateMode] = useState(false);
+  const [createDraftBounds, setCreateDraftBounds] = useState<{ start: number; end: number } | null>(null);
   const waveRef = useRef<WaveSurfer | null>(null);
   const playback = useWaveSurferPlaybackControls(waveRef);
   const effectsChain = useAudioEffectsChain();
+  const isPlaying = playback.isPlaying;
+  const play = playback.play;
+  const playRange = playback.playRange;
+  const seekToTime = playback.seekToTime;
+
+  const selectedRegion = useMemo(() => {
+    if (!regionSetViewModel || !regionId) return null;
+
+    const region = regionSetViewModel.regions.find((candidate) => candidate.regionId === regionId);
+    if (!region) return null;
+
+    if (editingRegionBounds && editingRegionBounds.regionId === region.regionId) {
+      return {
+        ...region,
+        start: editingRegionBounds.start,
+        end: editingRegionBounds.end,
+      };
+    }
+
+    return region;
+  }, [editingRegionBounds, regionId, regionSetViewModel]);
 
   const bindWaveform = useCallback((ws: WaveSurfer) => {
     const cleanupPlayback = playback.bindWaveform(ws);
     const cleanupEffects = effectsChain.onWaveformBound(ws);
     return () => { cleanupPlayback(); cleanupEffects(); };
   }, [playback.bindWaveform, effectsChain.onWaveformBound]);
+
+  useEffect(() => {
+    if (!createMode) {
+      setCreateDraftBounds(null);
+      return;
+    }
+
+    if (createDraftBounds && !isPlaying) {
+      seekToTime(createDraftBounds.start);
+    }
+  }, [createDraftBounds, createMode, isPlaying, seekToTime]);
+
+  const handlePlay = useCallback(() => {
+    if (createMode && createDraftBounds) {
+      playRange(createDraftBounds.start, createDraftBounds.end);
+      return;
+    }
+
+    if (selectedRegion) {
+      playRange(selectedRegion.start, selectedRegion.end);
+      return;
+    }
+
+    play();
+  }, [createDraftBounds, createMode, play, playRange, selectedRegion]);
+
+  const handleCreateRegionDraftChange = useCallback((start: number, end: number) => {
+    setCreateDraftBounds((current) => {
+      if (current && current.start === start && current.end === end) {
+        return current;
+      }
+
+      return { start, end };
+    });
+  }, []);
 
   const handleSaveBounds = async () => {
     if (!editingRegionBounds) return;
@@ -89,12 +146,13 @@ export function WaveformPlayer() {
           onCancelCreate={() => setCreateMode(false)}
           editingRegionBounds={editingRegionBounds}
           onRegionSelect={(id) => setActiveRegion(id)}
-          onRegionDeselect={() => clearActiveSelection()}
+          onRegionDeselect={() => clearActiveRegion()}
           onRegionDetails={(id) => regionController.handleDetailsRegion(id)}
           onEditRegion={(id) => regionController.handleEditRegion(id)}
           onDeleteRegion={(id) => regionController.handleDeleteRegion(id)}
           onCopyRegion={(id) => regionController.handleCopyRegion(id)}
           onUpdateRegionBounds={(_id, start, end) => updateEditingRegionBounds(start, end)}
+          onCreateRegionDraftChange={handleCreateRegionDraftChange}
           onCreateRegionClick={regionSetId != null ? (time) => regionSetController.handleCreateRegion(regionSetId, time) : undefined}
           onCreateRegionDrag={regionSetId != null ? (start, end) => {
             regionSetController.handleCreateRegion(regionSetId, start, end);
@@ -109,7 +167,7 @@ export function WaveformPlayer() {
           duration={playback.duration}
           volume={playback.volume}
           playbackRate={playback.playbackRate}
-          onPlay={playback.play}
+          onPlay={handlePlay}
           onPause={playback.pause}
           onStop={playback.stop}
           onVolumeChange={playback.setVolume}

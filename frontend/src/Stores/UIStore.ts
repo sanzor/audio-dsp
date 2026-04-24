@@ -81,6 +81,7 @@ export type UIStore = {
   setActiveRegionSet: (regionSetId: number) => void;
   setActiveRegion: (regionId: number) => void;
   setActiveGraph: (graphId: number) => void;
+  clearActiveRegion: () => void;
   clearActiveSelection: () => void;
   applyActiveSelection: (selection: ActiveSelection) => void;
 
@@ -169,6 +170,19 @@ export const useUIStore: UseBoundStore<StoreApi<UIStore>> = create<UIStore>()(
             const regionSet = useRegionSetStore.getState().getRegionSet(region.regionSetId);
             if (!regionSet) return;
             requestSelectionChange({ trackId: regionSet.trackId, regionSetId: region.regionSetId, regionId: graph.regionId, graphId }, 'setActiveGraph');
+          },
+
+          clearActiveRegion: () => {
+            const currentSelection = get().activeSelection;
+            requestSelectionChange(
+              {
+                trackId: currentSelection.trackId,
+                regionSetId: currentSelection.regionSetId,
+                regionId: null,
+                graphId: null,
+              },
+              'clearActiveRegion'
+            );
           },
 
           clearActiveSelection: () =>

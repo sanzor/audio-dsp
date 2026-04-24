@@ -7,7 +7,7 @@ const REGION_GAP = 0.05;
 
 export function createWaveFormPlayer(
   url: string,
-  trackRegions: TrackRegionViewModel[],
+  _trackRegions: TrackRegionViewModel[],
   container: HTMLElement,
   onRegionDetails?: (regionId: number) => void,
   onRegionSelect?: (regionId: number) => void,
@@ -62,10 +62,6 @@ export function createWaveFormPlayer(
 
   wave.on("interaction", () => {
     activeRegion = null;
-  });
-
-  wave.once("ready", () => {
-    addRegions(trackRegions, regions);
   });
 
   return { wave, regions };
@@ -181,14 +177,6 @@ export function colorForRegion(regionId: string | number, isSelected = false): s
 
   const hue = hash % 360;
   return isSelected
-    ? `hsla(${hue}, 90%, 65%, 0.65)`
+    ? `hsla(${hue}, 98%, 72%, 0.88)`
     : `hsla(${hue}, 72%, 58%, 0.32)`;
-}
-
-function addRegions(regions: TrackRegionViewModel[], regionsPlugin: RegionsPlugin): RegionsPlugin {
-  for (const region of regions) {
-    addRegion(regionsPlugin, region);
-  }
-
-  return regionsPlugin;
 }

@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { TrackRegionViewModel } from "@/domain/Region/TrackRegionViewModel";
 
 const REGION_GAP = 0.05;
@@ -11,6 +11,7 @@ interface Props {
   containerRef: React.RefObject<HTMLDivElement | null>;
   onConfirm?: (start: number, end: number) => void;
   onDiscard?: () => void;
+  onDraftChange?: (start: number, end: number) => void;
 }
 
 function findFirstFreeGap(regions: TrackRegionViewModel[], duration: number): { start: number; end: number } {
@@ -56,7 +57,14 @@ function fmt(s: number): string {
 
 type DragType = "start" | "end" | "body";
 
-export function CreateRegionOverlay({ regions, duration, containerRef, onConfirm, onDiscard }: Props) {
+export function CreateRegionOverlay({
+  regions,
+  duration,
+  containerRef,
+  onConfirm,
+  onDiscard,
+  onDraftChange,
+}: Props) {
   const initial = findFirstFreeGap(regions, duration);
   const [draft, setDraft] = useState(initial);
   const draftRef = useRef(initial);
@@ -67,6 +75,10 @@ export function CreateRegionOverlay({ regions, duration, containerRef, onConfirm
   const lastX = useRef(0);
   const [isDragging, setIsDragging] = useState(false);
   const [conflicting, setConflicting] = useState(false);
+
+  useEffect(() => {
+    onDraftChange?.(draft.start, draft.end);
+  }, [draft.end, draft.start, onDraftChange]);
 
   const pxToTime = (px: number): number => {
     const w = containerRef.current?.getBoundingClientRect().width ?? 1;

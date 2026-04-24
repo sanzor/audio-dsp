@@ -414,10 +414,10 @@ INSERT INTO track_storage (track_id, data)
 VALUES ({track_id}, decode('{audio_hex}', 'hex'))
 ON CONFLICT (track_id) DO UPDATE SET data = EXCLUDED.data;
 """
-        run_psql("-v", "ON_ERROR_STOP=1", "-c", storage_sql)
+        run_psql("-v", "ON_ERROR_STOP=1", stdin=storage_sql)
     else:
         # Legacy schema: canonical_audio lives directly on tracks
-        run_psql("-v", "ON_ERROR_STOP=1", "-c", f"""
+        legacy_track_sql = f"""
 INSERT INTO tracks (name, extension, length_seconds, canonical_audio, project_id)
 SELECT
   {track_name_sql},
@@ -428,7 +428,8 @@ SELECT
 WHERE NOT EXISTS (
   SELECT 1 FROM tracks WHERE name = {track_name_sql} AND project_id = {project_id}
 );
-""")
+"""
+        run_psql("-v", "ON_ERROR_STOP=1", stdin=legacy_track_sql)
         track_id = scalar(
             f"SELECT track_id::text FROM tracks WHERE name = {track_name_sql} AND project_id = {project_id} LIMIT 1;"
         )
