@@ -46,6 +46,33 @@ TRACK_SEEDS = [
         "duration_seconds": 0.35,
         "frequency_hz": 880.0,
     },
+    {
+        "project_name": "Canonical Audio Lab",
+        "name": "Taylor Swift",
+        "duration_seconds": 180.0,
+        "source_path": "samples/Taylor Swift - The Fate of Ophelia (Official Music Video).mp3",
+        "seed_region_hierarchy": True,
+        "region_set_name": "Taylor Swift Region Set",
+        "region_name": "Taylor Swift Region",
+    },
+    {
+        "project_name": "Canonical Audio Lab",
+        "name": "Leave No Man Behind",
+        "duration_seconds": 180.0,
+        "source_path": "samples/Black Hawk Down Soundtrack - Leave No Man Behind by Hans Zimmer.mp3",
+        "seed_region_hierarchy": True,
+        "region_set_name": "Leave No Man Behind Region Set",
+        "region_name": "Leave No Man Behind Region",
+    },
+    {
+        "project_name": "Canonical Audio Lab",
+        "name": "Steel for Humans",
+        "duration_seconds": 180.0,
+        "source_path": "samples/The Witcher 3 Wild Hunt OST -Steel For Humans HQ Extended Lyrics.mp3",
+        "seed_region_hierarchy": True,
+        "region_set_name": "Steel for Humans Region Set",
+        "region_name": "Steel for Humans Region",
+    },
     # Mix Review Sandbox (test user)
     {
         "project_name": "Mix Review Sandbox",
@@ -118,6 +145,10 @@ def generate_wav_bytes(frequency_hz: float, duration_seconds: float) -> bytes:
         wav_file.writeframes(bytes(pcm))
 
     return buffer.getvalue()
+
+
+def sql_literal(value: str) -> str:
+    return "'" + value.replace("'", "''") + "'"
 
 
 def ensure_seed_users_exist() -> None:
@@ -256,12 +287,18 @@ SET name = EXCLUDED.name;
     run_psql("-v", "ON_ERROR_STOP=1", "-c", graph_sql)
 
 
-def ensure_region_hierarchy_for_track(track_id: int) -> None:
+def ensure_region_hierarchy_for_track(
+    track_id: int,
+    region_set_name: str = "Seed Region Set",
+    region_name: str = "Seed Region",
+) -> None:
+    region_set_name_sql = sql_literal(region_set_name)
+    region_name_sql = sql_literal(region_name)
     region_set_sql = f"""
 INSERT INTO region_sets (track_id, name, track_length_seconds)
 SELECT
   t.track_id,
-  'Seed Region Set',
+  {region_set_name_sql},
   t.length_seconds
 FROM tracks t
 WHERE t.track_id = {track_id}
@@ -269,7 +306,7 @@ WHERE t.track_id = {track_id}
     SELECT 1
     FROM region_sets rs
     WHERE rs.track_id = t.track_id
-      AND rs.name = 'Seed Region Set'
+      AND rs.name = {region_set_name_sql}
   );
 """
     run_psql("-v", "ON_ERROR_STOP=1", "-c", region_set_sql)
@@ -279,7 +316,7 @@ WHERE t.track_id = {track_id}
 SELECT region_set_id::text
 FROM region_sets
 WHERE track_id = {track_id}
-  AND name = 'Seed Region Set'
+  AND name = {region_set_name_sql}
 ORDER BY region_set_id
 LIMIT 1;
 """
@@ -291,7 +328,7 @@ LIMIT 1;
 INSERT INTO regions (region_set_id, name, start_time_seconds, end_time_seconds)
 SELECT
   {region_set_id},
-  'Seed Region',
+  {region_name_sql},
   0.00,
   LEAST(
     COALESCE((SELECT track_length_seconds FROM region_sets WHERE region_set_id = {region_set_id}), 0.25),
@@ -301,7 +338,7 @@ WHERE NOT EXISTS (
   SELECT 1
   FROM regions r
   WHERE r.region_set_id = {region_set_id}
-    AND r.name = 'Seed Region'
+    AND r.name = {region_name_sql}
 );
 """
     run_psql("-v", "ON_ERROR_STOP=1", "-c", region_sql)
@@ -311,7 +348,7 @@ WHERE NOT EXISTS (
 SELECT region_id::text
 FROM regions
 WHERE region_set_id = {region_set_id}
-  AND name = 'Seed Region'
+  AND name = {region_name_sql}
 ORDER BY region_id
 LIMIT 1;
 """
@@ -320,28 +357,52 @@ LIMIT 1;
         ensure_default_graph_for_region(int(region_id))
 
 
-def upsert_track(seed: dict[str, str | float], use_track_storage: bool) -> None:
+def track_payload_for_seed(seed: dict[str, object]) -> tuple[bytes, str, float]:
+    duration_seconds = float(seed["duration_seconds"])
+    source_path = seed.get("source_path")
+    if source_path:
+        audio_path = ROOT_DIR / str(source_path)
+        if not audio_path.is_file():
+            raise RuntimeError(f"Seed audio file was not found: {audio_path}")
+
+        extension = audio_path.suffix.lstrip(".").lower()
+        if not extension:
+            raise RuntimeError(f"Seed audio file has no extension: {audio_path}")
+
+        return audio_path.read_bytes(), extension, duration_seconds
+
+    return (
+        generate_wav_bytes(
+            float(seed["frequency_hz"]),
+            duration_seconds,
+        ),
+        "wav",
+        duration_seconds,
+    )
+
+
+def upsert_track(seed: dict[str, object], use_track_storage: bool) -> None:
     project_id = project_id_for(str(seed["project_name"]))
-    wav_hex = generate_wav_bytes(
-        float(seed["frequency_hz"]),
-        float(seed["duration_seconds"]),
-    ).hex()
+    audio_bytes, extension, duration_seconds = track_payload_for_seed(seed)
+    audio_hex = audio_bytes.hex()
+    track_name_sql = sql_literal(str(seed["name"]))
+    extension_sql = sql_literal(extension)
 
     if use_track_storage:
         track_insert_sql = f"""
 INSERT INTO tracks (name, extension, length_seconds, project_id)
 SELECT
-  '{seed["name"]}',
-  'wav',
-  {float(seed["duration_seconds"]):.2f},
+  {track_name_sql},
+  {extension_sql},
+  {duration_seconds:.2f},
   {project_id}
 WHERE NOT EXISTS (
-  SELECT 1 FROM tracks WHERE name = '{seed["name"]}' AND project_id = {project_id}
+  SELECT 1 FROM tracks WHERE name = {track_name_sql} AND project_id = {project_id}
 );
 """
         run_psql("-v", "ON_ERROR_STOP=1", "-c", track_insert_sql)
         track_id = scalar(
-            f"SELECT track_id::text FROM tracks WHERE name = '{seed['name']}' AND project_id = {project_id} LIMIT 1;"
+            f"SELECT track_id::text FROM tracks WHERE name = {track_name_sql} AND project_id = {project_id} LIMIT 1;"
         )
         if not track_id:
             raise RuntimeError(
@@ -350,7 +411,7 @@ WHERE NOT EXISTS (
 
         storage_sql = f"""
 INSERT INTO track_storage (track_id, data)
-VALUES ({track_id}, decode('{wav_hex}', 'hex'))
+VALUES ({track_id}, decode('{audio_hex}', 'hex'))
 ON CONFLICT (track_id) DO UPDATE SET data = EXCLUDED.data;
 """
         run_psql("-v", "ON_ERROR_STOP=1", "-c", storage_sql)
@@ -359,17 +420,17 @@ ON CONFLICT (track_id) DO UPDATE SET data = EXCLUDED.data;
         run_psql("-v", "ON_ERROR_STOP=1", "-c", f"""
 INSERT INTO tracks (name, extension, length_seconds, canonical_audio, project_id)
 SELECT
-  '{seed["name"]}',
-  'wav',
-  {float(seed["duration_seconds"]):.2f},
-  decode('{wav_hex}', 'hex'),
+  {track_name_sql},
+  {extension_sql},
+  {duration_seconds:.2f},
+  decode('{audio_hex}', 'hex'),
   {project_id}
 WHERE NOT EXISTS (
-  SELECT 1 FROM tracks WHERE name = '{seed["name"]}' AND project_id = {project_id}
+  SELECT 1 FROM tracks WHERE name = {track_name_sql} AND project_id = {project_id}
 );
 """)
         track_id = scalar(
-            f"SELECT track_id::text FROM tracks WHERE name = '{seed['name']}' AND project_id = {project_id} LIMIT 1;"
+            f"SELECT track_id::text FROM tracks WHERE name = {track_name_sql} AND project_id = {project_id} LIMIT 1;"
         )
         if not track_id:
             raise RuntimeError(
@@ -377,7 +438,11 @@ WHERE NOT EXISTS (
             )
 
     if seed.get("seed_region_hierarchy"):
-        ensure_region_hierarchy_for_track(int(track_id))
+        ensure_region_hierarchy_for_track(
+            int(track_id),
+            str(seed.get("region_set_name", "Seed Region Set")),
+            str(seed.get("region_name", "Seed Region")),
+        )
 
 
 def main() -> None:
