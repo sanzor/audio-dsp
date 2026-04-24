@@ -1,13 +1,13 @@
-import type { ActiveGraph } from '../types/graph'
+import type { ActiveGraph } from '@/Stores/ActiveGraphState'
 import type { CompiledGraph } from '../types/compiled'
 import type { AudioPipeline } from '../core/audio-pipeline'
+import { useAudioEffectsStore } from '@/Stores/AudioEffectsStore'
 
 type WorkletMessage =
-  | { type: 'LOAD_GRAPH'; payload: Omit<CompiledGraph, 'wasmBuffers'> & { wasmBuffers: ArrayBuffer[] } }
+  | { type: 'LOAD_GRAPH'; payload: CompiledGraph }
   | { type: 'SET_EFFECTS'; enabled: boolean }
 
 export class GraphController {
-  private compiled: CompiledGraph | null = null
   private workletPort: MessagePort | null = null
 
   constructor(private readonly pipeline: AudioPipeline) {}
@@ -16,23 +16,28 @@ export class GraphController {
     this.workletPort = port
   }
 
-  async updateGraph(graph: ActiveGraph): Promise<void> {
-    const compiled = await this.pipeline.compile(graph)
-    this.compiled = compiled
-    this.sendToWorklet(compiled)
+  disconnectWorklet(): void {
+    this.workletPort = null
+  }
+
+  updateGraph(graph: ActiveGraph): void {
+    const compiled = this.pipeline.compile(graph)
+    if (!compiled) return
+    useAudioEffectsStore.getState().setHasCompiledGraph(true)
+    this.sendToWorklet({ type: 'LOAD_GRAPH', payload: compiled })
   }
 
   setEffects(enabled: boolean): void {
-    this.workletPort?.postMessage({ type: 'SET_EFFECTS', enabled } satisfies WorkletMessage)
+    useAudioEffectsStore.getState().setWithEffects(enabled)
+    this.sendToWorklet({ type: 'SET_EFFECTS', enabled })
   }
 
-  getCompiled(): CompiledGraph | null {
-    return this.compiled
-  }
-
-  private sendToWorklet(compiled: CompiledGraph): void {
+  private sendToWorklet(msg: WorkletMessage): void {
     if (!this.workletPort) return
-    const msg: WorkletMessage = { type: 'LOAD_GRAPH', payload: compiled }
-    this.workletPort.postMessage(msg, compiled.wasmBuffers)
+    if (msg.type === 'LOAD_GRAPH') {
+      this.workletPort.postMessage(msg, msg.payload.wasmBuffers)
+    } else {
+      this.workletPort.postMessage(msg)
+    }
   }
 }

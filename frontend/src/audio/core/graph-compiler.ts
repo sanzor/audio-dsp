@@ -1,4 +1,4 @@
-import type { ActiveGraph } from '../types/graph'
+import type { ActiveGraph } from '@/Stores/ActiveGraphState'
 import type { CompileOutput } from '../types/compiled'
 import type { Instruction } from '../types/instruction'
 import type { FeedbackBuffer, ProcessingPlan } from '../types/processing-plan'

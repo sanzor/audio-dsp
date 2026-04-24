@@ -1,14 +1,12 @@
-import type { ActiveGraph } from '../types/graph'
+import type { ActiveGraph } from '@/Stores/ActiveGraphState'
 import type { CompiledGraph } from '../types/compiled'
-import type { TransformStore } from '../store/TransformStore'
 import { compile } from './graph-compiler'
 import { compute } from './command-computer'
 
 export class AudioPipeline {
-  constructor(private readonly store: TransformStore) {}
-
-  async compile(graph: ActiveGraph): Promise<CompiledGraph> {
+  // Returns null if any node binary is not yet in WasmBinaryStore.
+  compile(graph: ActiveGraph): CompiledGraph | null {
     const output = compile(graph)
-    return compute(output, this.store)
+    return compute(output)
   }
 }

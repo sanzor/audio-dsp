@@ -448,6 +448,12 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
                     .configure(controllers::region_set_controller::init),
             )
             .service(
+                web::scope("/graphs")
+                    .wrap(role_middleware.clone())
+                    .wrap(jwt_middleware.clone())
+                    .configure(controllers::graph_controller::init),
+            )
+            .service(
                 web::scope("/v1/projects")
                     .wrap(role_middleware.clone())
                     .wrap(jwt_middleware.clone())

@@ -1,11 +1,18 @@
+import { useWasmBinaryStore } from '@/Stores/WasmBinaryStore'
 import type { CompileOutput, CompiledGraph } from '../types/compiled'
-import type { TransformStore } from '../store/TransformStore'
 
-export async function compute(
-  output: CompileOutput,
-  store: TransformStore,
-): Promise<CompiledGraph> {
-  const wasmBuffers = await Promise.all(output.transformIds.map(id => store.get(String(id))))
+// Returns null if any binary is not yet in WasmBinaryStore (still fetching).
+export function compute(output: CompileOutput): CompiledGraph | null {
+  const { getBinary } = useWasmBinaryStore.getState()
+
+  const wasmBuffers: ArrayBuffer[] = []
+  for (const transformId of output.transformIds) {
+    const binary = getBinary(transformId)
+    if (!binary) return null
+    // slice() copies the bytes so the ArrayBuffer can be transferred to the worklet
+    // without losing the cached Uint8Array on the main thread.
+    wasmBuffers.push(binary.slice().buffer)
+  }
 
   return {
     instructions: output.instructions,

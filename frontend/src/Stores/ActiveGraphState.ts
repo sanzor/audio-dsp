@@ -108,9 +108,9 @@ export const useActiveGraphState: UseBoundStore<StoreApi<ActiveGraphStore>> = cr
     const nodes = new Map<number, ActiveNode>(
       graph.nodes.map((n) => [n.id, {
         id: n.id,
-        transformId: 0,        // extended once backend carries transformId on nodes
+        transformId: n.transformId ?? 0,
         position: n.position,
-        params: {},
+        params: n.params ?? {},
         binary: null,
         binaryStatus: 'idle',
         binaryError: null,
@@ -122,8 +122,8 @@ export const useActiveGraphState: UseBoundStore<StoreApi<ActiveGraphStore>> = cr
         id: e.id,
         fromNodeId: e.fromNodeId,
         toNodeId: e.toNodeId,
-        fromPortId: 0,
-        toPortId: 0,
+        fromPortId: e.fromPortId ?? 0,
+        toPortId: e.toPortId ?? 0,
       }])
     );
 

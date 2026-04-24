@@ -32,19 +32,13 @@ AS $$
                                     'end_time',      r.end_time_seconds,
                                     'graph', (
                                         SELECT jsonb_build_object(
-                                            'graph_id',  g.graph_id,
-                                            'region_id', g.region_id,
-                                            'name',      g.name,
-                                            'nodes', COALESCE(
-                                                (SELECT json_agg(jsonb_build_object('id', n.node_id, 'graph_id', n.graph_id))
-                                                 FROM graph_nodes n WHERE n.graph_id = g.graph_id),
-                                                '[]'::json
-                                            ),
-                                            'edges', COALESCE(
-                                                (SELECT json_agg(jsonb_build_object('id', e.edge_id, 'graph_id', e.graph_id))
-                                                 FROM graph_edges e WHERE e.graph_id = g.graph_id),
-                                                '[]'::json
-                                            )
+                                            'graph_id',    g.graph_id,
+                                            'region_id',   g.region_id,
+                                            'name',        g.name,
+                                            'version',     g.version,
+                                            'created_at',  g.created_at,
+                                            'updated_at',  g.updated_at,
+                                            'graph_state', g.graph_state
                                         )
                                         FROM graphs g WHERE g.region_id = r.region_id
                                     )

@@ -1,4 +1,4 @@
-import type { ActiveGraph } from '../types/graph'
+import type { ActiveGraph } from '@/Stores/ActiveGraphState'
 import type { FeedbackBuffer, FeedbackEdge } from '../types/processing-plan'
 
 export function getFeedbackEdges(graph: ActiveGraph): FeedbackEdge[] {

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import io
+import json
 import math
 import struct
 import subprocess
@@ -79,6 +80,26 @@ def scalar(sql: str) -> str:
     return run_psql("-tAc", sql).strip()
 
 
+def table_exists(table_name: str) -> bool:
+    result = scalar(f"SELECT to_regclass('public.{table_name}') IS NOT NULL;")
+    return result == "t"
+
+
+def column_exists(table_name: str, column_name: str) -> bool:
+    result = scalar(
+        f"""
+SELECT EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = '{table_name}'
+      AND column_name = '{column_name}'
+);
+"""
+    )
+    return result == "t"
+
+
 def generate_wav_bytes(frequency_hz: float, duration_seconds: float) -> bytes:
     sample_rate = 22050
     sample_count = int(sample_rate * duration_seconds)
@@ -116,8 +137,123 @@ def project_id_for(name: str) -> int:
 
 
 def has_track_storage_table() -> bool:
-    result = scalar("SELECT to_regclass('public.track_storage') IS NOT NULL;")
-    return result == "t"
+    return table_exists("track_storage")
+
+
+def default_graph_state_json() -> str:
+    nodes: list[dict[str, object]] = []
+    edges: list[dict[str, object]] = []
+
+    if table_exists("transforms") and table_exists("transform_ports"):
+        gain_id = scalar(
+            """
+SELECT transform_id::text
+FROM transforms
+WHERE name = 'Gain'
+ORDER BY transform_id
+LIMIT 1;
+"""
+        )
+        low_pass_id = scalar(
+            """
+SELECT transform_id::text
+FROM transforms
+WHERE name = 'Low-Pass Filter'
+ORDER BY transform_id
+LIMIT 1;
+"""
+        )
+        gain_out_port_id = scalar(
+            """
+SELECT tp.port_id::text
+FROM transform_ports tp
+JOIN transforms t ON t.transform_id = tp.transform_id
+WHERE t.name = 'Gain'
+  AND tp.direction = 'output'
+ORDER BY tp.port_order
+LIMIT 1;
+"""
+        )
+        low_pass_in_port_id = scalar(
+            """
+SELECT tp.port_id::text
+FROM transform_ports tp
+JOIN transforms t ON t.transform_id = tp.transform_id
+WHERE t.name = 'Low-Pass Filter'
+  AND tp.direction = 'input'
+ORDER BY tp.port_order
+LIMIT 1;
+"""
+        )
+
+        if gain_id and low_pass_id:
+            nodes = [
+                {
+                    "id": 1,
+                    "transformId": int(gain_id),
+                    "position": {"x": 180, "y": 140},
+                    "params": {"gain": 1.0},
+                },
+                {
+                    "id": 2,
+                    "transformId": int(low_pass_id),
+                    "position": {"x": 440, "y": 140},
+                    "params": {"cutoffHz": 1200.0},
+                },
+            ]
+
+            if gain_out_port_id and low_pass_in_port_id:
+                edges = [
+                    {
+                        "id": 1,
+                        "fromNodeId": 1,
+                        "toNodeId": 2,
+                        "fromPortId": int(gain_out_port_id),
+                        "toPortId": int(low_pass_in_port_id),
+                    }
+                ]
+
+    return json.dumps(
+        {
+            "schemaVersion": 1,
+            "nodes": nodes,
+            "edges": edges,
+        },
+        separators=(",", ":"),
+    )
+
+
+def ensure_default_graph_for_region(region_id: int) -> None:
+    if not table_exists("graphs"):
+        return
+
+    if column_exists("graphs", "graph_state"):
+        graph_state = default_graph_state_json()
+        graph_sql = f"""
+INSERT INTO graphs (region_id, name, graph_state, version, updated_at)
+VALUES (
+  {region_id},
+  'Seed Graph',
+  $seed_graph${graph_state}$seed_graph$::jsonb,
+  1,
+  now()
+)
+ON CONFLICT (region_id) DO UPDATE
+SET
+  name = EXCLUDED.name,
+  graph_state = EXCLUDED.graph_state,
+  version = 1,
+  updated_at = now();
+"""
+    else:
+        graph_sql = f"""
+INSERT INTO graphs (region_id, name)
+VALUES ({region_id}, 'Seed Graph')
+ON CONFLICT (region_id) DO UPDATE
+SET name = EXCLUDED.name;
+"""
+
+    run_psql("-v", "ON_ERROR_STOP=1", "-c", graph_sql)
 
 
 def ensure_region_hierarchy_for_track(track_id: int) -> None:
@@ -169,6 +305,19 @@ WHERE NOT EXISTS (
 );
 """
     run_psql("-v", "ON_ERROR_STOP=1", "-c", region_sql)
+
+    region_id = scalar(
+        f"""
+SELECT region_id::text
+FROM regions
+WHERE region_set_id = {region_set_id}
+  AND name = 'Seed Region'
+ORDER BY region_id
+LIMIT 1;
+"""
+    )
+    if region_id:
+        ensure_default_graph_for_region(int(region_id))
 
 
 def upsert_track(seed: dict[str, str | float], use_track_storage: bool) -> None:

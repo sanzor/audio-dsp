@@ -4,7 +4,7 @@ import type RegionsPlugin from "wavesurfer.js/dist/plugins/regions.esm.js";
 import type { TrackRegionSetViewModel } from "@/domain/RegionSet/TrackRegionSetViewModel";
 import type { EditingRegionBounds } from "@/Stores/UIStore";
 import { CreateRegionOverlay } from "./CreateRegionOverlay";
-import type { WaveSurferPlaybackController } from "./useWaveSurferPlaybackController";
+import type { WaveSurferPlaybackControls } from "./useWaveSurferPlaybackControls";
 import {
     addRegion,
     clampUpdatedRegionBounds,
@@ -18,7 +18,7 @@ export interface WaveformRendererProps{
     regionSet?: TrackRegionSetViewModel,
     url:string|null,
     waveRef: MutableRefObject<WaveSurfer | null>,
-    playback: WaveSurferPlaybackController,
+    playback: WaveSurferPlaybackControls,
     onRegionDetails?:(regionId:number)=>void,
     onDeleteRegion?:(regionId:number)=>void,
     onEditRegion?:(regionId:number)=>void,

@@ -1,11 +1,12 @@
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type WaveSurfer from "wavesurfer.js";
+import { useAudioEffectsChain } from "@/audio/hooks/useAudioEffectsChain";
 import { useRegionSetViewModel } from "@/Selectors/trackViewModels";
 import { useWaveformAudio } from "./WaveformAudio";
 import { WaveformRenderer } from "./WaveformRenderer";
 import { WaveformToolbar } from "./WaveformToolbar";
 import { PlaybackControls } from "./PlaybackControls";
-import { useWaveSurferPlaybackController } from "./useWaveSurferPlaybackController";
+import { useWaveSurferPlaybackControls } from "./useWaveSurferPlaybackControls";
 import { useUIStore } from "@/Stores/UIStore";
 import { useRegionController } from "@/controllers/RegionController";
 import { useRegionSetController } from "@/controllers/RegionSetController";
@@ -34,7 +35,14 @@ export function WaveformPlayer() {
 
   const [createMode, setCreateMode] = useState(false);
   const waveRef = useRef<WaveSurfer | null>(null);
-  const playback = useWaveSurferPlaybackController(waveRef);
+  const playback = useWaveSurferPlaybackControls(waveRef);
+  const effectsChain = useAudioEffectsChain();
+
+  const bindWaveform = useCallback((ws: WaveSurfer) => {
+    const cleanupPlayback = playback.bindWaveform(ws);
+    const cleanupEffects = effectsChain.onWaveformBound(ws);
+    return () => { cleanupPlayback(); cleanupEffects(); };
+  }, [playback.bindWaveform, effectsChain.onWaveformBound]);
 
   const handleSaveBounds = async () => {
     if (!editingRegionBounds) return;
@@ -74,7 +82,7 @@ export function WaveformPlayer() {
         <WaveformRenderer
           url={objectUrl}
           waveRef={waveRef}
-          playback={playback}
+          playback={{ ...playback, bindWaveform }}
           regionSet={regionSetViewModel ?? undefined}
           selectedRegionId={regionId ?? undefined}
           createMode={createMode}

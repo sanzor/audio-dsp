@@ -44,7 +44,7 @@ function CanvasInner() {
       graph?.nodes.map((n) => ({
         id: String(n.id),
         position: n.position,
-        data: { nodeId: n.id },
+        data: { nodeId: n.id, transformId: n.transformId ?? null },
       })) ?? []
     );
     setEdges(

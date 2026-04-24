@@ -1,13 +1,13 @@
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 use crate::db::{GraphId, RegionId};
-use crate::graphs::{edge::Edge, node::Node};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GraphSubtree {
     pub graph_id: GraphId,
     pub region_id: Option<RegionId>,
     pub name: String,
-    pub nodes: Vec<Node>,
-    pub edges: Vec<Edge>,
+    #[serde(default, alias = "graph_state")]
+    pub repr: Value,
 }

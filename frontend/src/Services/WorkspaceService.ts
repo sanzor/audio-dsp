@@ -9,19 +9,37 @@ import { http } from "@/Services/http";
 interface ApiWorkspaceGraphNode {
   id: number;
   graph_id?: number;
+  transformId?: number | null;
+  position?: { x?: number; y?: number };
+  params?: Record<string, number>;
 }
 
 interface ApiWorkspaceGraphEdge {
   id: number;
   graph_id?: number;
+  fromNodeId?: number;
+  toNodeId?: number;
+  fromPortId?: number | null;
+  toPortId?: number | null;
+  to?: string;
+}
+
+interface ApiWorkspaceGraphState {
+  schemaVersion?: number;
+  nodes?: ApiWorkspaceGraphNode[];
+  edges?: ApiWorkspaceGraphEdge[];
 }
 
 interface ApiWorkspaceGraph {
   graph_id: number;
   region_id?: number | null;
   name: string;
-  nodes: ApiWorkspaceGraphNode[];
-  edges: ApiWorkspaceGraphEdge[];
+  repr?: ApiWorkspaceGraphState;
+  graph_state?: ApiWorkspaceGraphState;
+  nodes?: ApiWorkspaceGraphNode[];
+  edges?: ApiWorkspaceGraphEdge[];
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface ApiWorkspaceRegion {
@@ -52,7 +70,9 @@ interface ApiWorkspaceTrack {
 const mapWorkspaceNode = (node: ApiWorkspaceGraphNode, graphId: number): Node => ({
   id: node.id,
   graphId: node.graph_id ?? graphId,
-  position: { x: 0, y: 0 },
+  transformId: node.transformId ?? null,
+  position: { x: node.position?.x ?? 0, y: node.position?.y ?? 0 },
+  params: node.params ?? {},
   ports: [],
   createdAt: new Date(0),
 });
@@ -60,20 +80,28 @@ const mapWorkspaceNode = (node: ApiWorkspaceGraphNode, graphId: number): Node =>
 const mapWorkspaceEdge = (edge: ApiWorkspaceGraphEdge, graphId: number): Edge => ({
   id: edge.id,
   graphId: edge.graph_id ?? graphId,
-  fromNodeId: 0,
-  toNodeId: 0,
-  to: "",
+  fromNodeId: edge.fromNodeId ?? 0,
+  toNodeId: edge.toNodeId ?? 0,
+  fromPortId: edge.fromPortId ?? null,
+  toPortId: edge.toPortId ?? null,
+  to: edge.to ?? "",
 });
 
-const mapWorkspaceGraph = (graph: ApiWorkspaceGraph, regionId: number): Graph => ({
-  id: graph.graph_id,
-  regionId: graph.region_id ?? regionId,
-  name: graph.name,
-  createdAt: new Date(0),
-  updatedAt: new Date(0),
-  nodes: graph.nodes.map((node) => mapWorkspaceNode(node, graph.graph_id)),
-  edges: graph.edges.map((edge) => mapWorkspaceEdge(edge, graph.graph_id)),
-});
+const mapWorkspaceGraph = (graph: ApiWorkspaceGraph, regionId: number): Graph => {
+  const repr = graph.repr ?? graph.graph_state;
+  const nodes = repr?.nodes ?? graph.nodes ?? [];
+  const edges = repr?.edges ?? graph.edges ?? [];
+
+  return {
+    id: graph.graph_id,
+    regionId: graph.region_id ?? regionId,
+    name: graph.name,
+    createdAt: graph.created_at ? new Date(graph.created_at) : new Date(0),
+    updatedAt: graph.updated_at ? new Date(graph.updated_at) : new Date(0),
+    nodes: nodes.map((node) => mapWorkspaceNode(node, graph.graph_id)),
+    edges: edges.map((edge) => mapWorkspaceEdge(edge, graph.graph_id)),
+  };
+};
 
 const mapWorkspaceRegion = (region: ApiWorkspaceRegion): TrackRegion => ({
   regionId: region.region_id,

@@ -3,5 +3,7 @@ export interface Edge{
     graphId:number,
     fromNodeId:number,
     toNodeId:number,
+    fromPortId?: number | null,
+    toPortId?: number | null,
     to:string
 }
