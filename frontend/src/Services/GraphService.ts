@@ -1,6 +1,6 @@
 import type { Graph } from "@/domain/Graph/Graph";
 import type { Edge } from "@/domain/Graph/Edge";
-import type { Node } from "@/domain/Graph/Node";
+import type { Node, NodeType } from "@/domain/Graph/Node";
 import { http } from "@/Services/http";
 
 // ─── Params & Results ────────────────────────────────────────────────────────
@@ -10,6 +10,7 @@ interface ApiGraphNode {
   graphId?: number;
   graph_id?: number;
   transformId?: number | null;
+  nodeType?: string;
   position?: { x?: number; y?: number };
   params?: Record<string, number>;
 }
@@ -98,6 +99,8 @@ export interface CreateNodeResult {
   graphId: number;
 }
 
+const VALID_NODE_TYPES = new Set<NodeType>(["default", "source", "sink"]);
+
 const mapGraphNode = (node: ApiGraphNode, graphId: number): Node => ({
   id: node.id,
   graphId: node.graphId ?? node.graph_id ?? graphId,
@@ -106,6 +109,9 @@ const mapGraphNode = (node: ApiGraphNode, graphId: number): Node => ({
   params: node.params ?? {},
   ports: [],
   createdAt: new Date(0),
+  nodeType: VALID_NODE_TYPES.has(node.nodeType as NodeType)
+    ? (node.nodeType as NodeType)
+    : "default",
 });
 
 const mapGraphEdge = (edge: ApiGraphEdge, graphId: number): Edge => ({

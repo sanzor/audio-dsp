@@ -16,13 +16,45 @@ export function createWaveFormPlayer(
   let activeRegion: Region | null = null;
   const regions = RegionsPlugin.create();
 
+  const wave = WaveSurfer.create({
+    container,
+    waveColor: "rgb(100, 152, 200)",
+    progressColor: "rgb(100,100,100)",
+    url,
+    interact: false,
+    plugins: [
+      regions,
+      Minimap.create({
+        height: 20,
+        waveColor: "#ddd",
+        progressColor: "#999",
+      }),
+    ],
+    mediaControls: false,
+  });
+
+  const CURSOR_DEFAULT = "rgb(100,100,100)";
+  const CURSOR_IN_REGION = "#f97316";
+  let cursorEl: HTMLElement | null = null;
+  const getCursor = (): HTMLElement | null => {
+    if (!cursorEl) {
+      const root = wave.getWrapper().getRootNode() as ShadowRoot;
+      cursorEl = root.querySelector(".cursor");
+    }
+    return cursorEl;
+  };
+
   regions.on("region-in", (region) => {
     activeRegion = region;
+    const el = getCursor();
+    if (el) el.style.backgroundColor = CURSOR_IN_REGION;
   });
 
   regions.on("region-out", (region) => {
     if (activeRegion === region) {
       activeRegion = null;
+      const el = getCursor();
+      if (el) el.style.backgroundColor = CURSOR_DEFAULT;
     }
   });
 
@@ -30,7 +62,6 @@ export function createWaveFormPlayer(
     event.preventDefault();
     event.stopImmediatePropagation();
     activeRegion = region;
-    region.play(true);
     onRegionSelect?.(Number(region.id));
   });
 
@@ -42,22 +73,6 @@ export function createWaveFormPlayer(
 
   regions.on("region-updated", (region, side) => {
     void onRegionUpdated?.(region, side);
-  });
-
-  const wave = WaveSurfer.create({
-    container,
-    waveColor: "rgb(100, 152, 200)",
-    progressColor: "rgb(100,100,100)",
-    url,
-    plugins: [
-      regions,
-      Minimap.create({
-        height: 20,
-        waveColor: "#ddd",
-        progressColor: "#999",
-      }),
-    ],
-    mediaControls: false,
   });
 
   wave.on("interaction", () => {

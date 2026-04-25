@@ -63,6 +63,7 @@ export function WaveformRenderer({
     const onRegionDeselectRef = useRef(onRegionDeselect);
     const createModeRef = useRef(createMode ?? false);
     const editingRegionBoundsRef = useRef<EditingRegionBounds>(editingRegionBounds ?? null);
+    const seekToTimeRef = useRef(playback.seekToTime);
     const [regionsPlugin, setRegionsPlugin] = useState<RegionsPlugin | null>(null);
     const renderedRegionIds = useRef<Set<string>>(new Set());
 
@@ -89,6 +90,7 @@ export function WaveformRenderer({
     useEffect(() => { onRegionDeselectRef.current = onRegionDeselect; }, [onRegionDeselect]);
     useEffect(() => { createModeRef.current = createMode ?? false; }, [createMode]);
     useEffect(() => { editingRegionBoundsRef.current = editingRegionBounds ?? null; }, [editingRegionBounds]);
+    useEffect(() => { seekToTimeRef.current = playback.seekToTime; }, [playback.seekToTime]);
 
     useEffect(() => {
         const waveformElement = waveformRef.current;
@@ -234,6 +236,7 @@ export function WaveformRenderer({
             const time = clientXToTime(event.clientX, waveformShellElement, wave.getDuration());
             if (!isPointInsideRegion(time, regionSet.regions)) {
                 onRegionDeselectRef.current?.();
+                seekToTimeRef.current(time);
             }
         };
 

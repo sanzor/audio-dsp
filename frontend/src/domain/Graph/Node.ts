@@ -1,5 +1,6 @@
 import type { Port } from "./Port"
 
+export type NodeType = "default" | "source" | "sink";
 
 export interface Node{
     id:number,
@@ -8,5 +9,6 @@ export interface Node{
     position:{x:number,y:number}
     params?: Record<string, number>,
     ports:Port[],
-    createdAt:Date
+    createdAt:Date,
+    nodeType: NodeType,
 }

@@ -41,17 +41,17 @@ export function PlaybackControls({
       className="flex shrink-0 items-center justify-between gap-4 border-t px-4 py-3"
       style={{ backgroundColor: "var(--bg-darkest)", borderColor: "rgba(255,255,255,0.08)" }}
     >
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-3">
         <Button
           type="button"
           size="icon"
           variant="outline"
           onClick={onStop}
-          disabled={controlsDisabled}
+          disabled={controlsDisabled || !isPlaying}
           aria-label="Stop playback"
-          className="border-white/10 bg-white/5 text-white hover:bg-white/10 hover:text-white"
+          className="h-11 w-11 border-white/10 bg-white/5 text-white hover:bg-white/10 hover:text-white"
         >
-          <Square className="size-4 fill-current" />
+          <Square className="size-5 fill-current" />
         </Button>
         <Button
           type="button"
@@ -60,21 +60,21 @@ export function PlaybackControls({
           onClick={onPause}
           disabled={controlsDisabled || !isPlaying}
           aria-label="Pause playback"
-          className="border-white/10 bg-white/5 text-white hover:bg-white/10 hover:text-white"
+          className="h-11 w-11 border-white/10 bg-white/5 text-white hover:bg-white/10 hover:text-white"
         >
-          <Pause className="size-4 fill-current" />
+          <Pause className="size-5 fill-current" />
         </Button>
         <Button
           type="button"
           size="icon"
           onClick={onPlay}
-          disabled={controlsDisabled}
+          disabled={controlsDisabled || isPlaying}
           aria-label="Play waveform"
-          className="bg-[var(--accent-blue)] text-white shadow-none hover:bg-[var(--accent-blue)]/90"
+          className="h-11 w-11 bg-[var(--accent-blue)] text-white shadow-none hover:bg-[var(--accent-blue)]/90"
         >
-          <Play className="size-4 fill-current" />
+          <Play className="size-5 fill-current" />
         </Button>
-        <div className="min-w-28 text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
+        <div className="min-w-28 text-sm tabular-nums" style={{ color: "var(--text-muted)" }}>
           {formatTime(currentTime)} / {formatTime(duration)}
         </div>
       </div>
