@@ -11,6 +11,7 @@ import ReactFlow, {
   type Node,
   type Connection,
   type NodeProps,
+  type NodeChange,
 } from "reactflow";
 import { useCallback, useEffect, useMemo } from "react";
 import "reactflow/dist/style.css";
@@ -19,57 +20,78 @@ import { useGraphStore } from "@/Stores/GraphStore";
 import { useRegionStore } from "@/Stores/RegionStore";
 import { useRegionSetStore } from "@/Stores/RegionSetStore";
 import type { NodeType } from "@/domain/Graph/Node";
+import { CanvasToolbar } from "./canvas-toolbar";
+import { useGraphController } from "@/controllers/GraphController";
 
 // ─── Structural node components ──────────────────────────────────────────────
 
-function SourceNode({ data }: NodeProps) {
+function SourceNode(_: NodeProps) {
   return (
     <div
       style={{
-        padding: "10px 16px",
-        borderRadius: 8,
-        border: "1.5px solid rgba(52,211,153,0.5)",
-        background: "rgba(6,78,59,0.85)",
-        color: "#6ee7b7",
-        fontWeight: 600,
-        fontSize: 13,
-        minWidth: 90,
-        textAlign: "center",
+        width: 88,
+        height: 88,
+        borderRadius: "50%",
+        background: "radial-gradient(circle at 40% 40%, rgba(6,182,212,0.28) 0%, rgba(8,145,178,0.10) 100%)",
+        border: "2px solid #06b6d4",
+        boxShadow: "0 0 14px rgba(6,182,212,0.35)",
+        color: "#67e8f9",
+        fontWeight: 700,
+        fontSize: 12,
+        letterSpacing: "0.05em",
+        textTransform: "uppercase",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
         userSelect: "none",
+        position: "relative",
       }}
     >
-      {data.label as string}
+      Input
       <Handle
         type="source"
         position={Position.Right}
-        style={{ background: "#6ee7b7", width: 10, height: 10 }}
+        style={{ background: "#06b6d4", border: "2px solid #164e63", width: 11, height: 11 }}
       />
     </div>
   );
 }
 
-function SinkNode({ data }: NodeProps) {
+function SinkNode(_: NodeProps) {
   return (
     <div
       style={{
-        padding: "10px 16px",
-        borderRadius: 8,
-        border: "1.5px solid rgba(167,139,250,0.5)",
-        background: "rgba(46,16,101,0.85)",
-        color: "#c4b5fd",
-        fontWeight: 600,
-        fontSize: 13,
-        minWidth: 90,
-        textAlign: "center",
+        width: 88,
+        height: 88,
+        borderRadius: "12px",
+        transform: "rotate(45deg)",
+        background: "linear-gradient(135deg, rgba(245,158,11,0.22) 0%, rgba(180,83,9,0.12) 100%)",
+        border: "2px solid #f59e0b",
+        boxShadow: "0 0 14px rgba(245,158,11,0.30)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
         userSelect: "none",
+        position: "relative",
       }}
     >
+      <span
+        style={{
+          transform: "rotate(-45deg)",
+          color: "#fcd34d",
+          fontWeight: 700,
+          fontSize: 12,
+          letterSpacing: "0.05em",
+          textTransform: "uppercase",
+        }}
+      >
+        Output
+      </span>
       <Handle
         type="target"
         position={Position.Left}
-        style={{ background: "#c4b5fd", width: 10, height: 10 }}
+        style={{ background: "#f59e0b", border: "2px solid #78350f", width: 11, height: 11, transform: "rotate(-45deg) translateY(-50%)" }}
       />
-      {data.label as string}
     </div>
   );
 }
@@ -81,7 +103,17 @@ const NODE_TYPES = { source: SourceNode, sink: SinkNode };
 function CanvasInner() {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-  const { screenToFlowPosition } = useReactFlow();
+
+  const onNodesChangeSafe = useCallback(
+    (changes: NodeChange[]) => {
+      const filtered = changes.filter(
+        (c) => !(c.type === "remove" && nodes.find((n) => n.id === c.id && (n.data.nodeType === "source" || n.data.nodeType === "sink")))
+      );
+      onNodesChange(filtered);
+    },
+    [nodes, onNodesChange],
+  );
+  const { screenToFlowPosition, fitView } = useReactFlow();
   const openModal = useUIStore((s) => s.openModal);
   const activeSelection = useUIStore((s) => s.activeSelection);
   const region = useRegionStore((s) =>
@@ -97,9 +129,19 @@ function CanvasInner() {
     region.regionSetId === regionSet.id &&
     regionSet.region_ids.includes(region.regionId);
 
+  const activeGraphId = useGraphStore((s) => {
+    if (regionId == null) return undefined;
+    for (const g of s.graphs.values()) {
+      if (g.regionId === regionId) return g.id;
+    }
+    return undefined;
+  });
+
+  const graphController = useGraphController();
+
   useEffect(() => {
-    const graph = regionId != null
-      ? Array.from(useGraphStore.getState().graphs.values()).find((g) => g.regionId === regionId)
+    const graph = activeGraphId != null
+      ? useGraphStore.getState().getGraph(activeGraphId)
       : undefined;
 
     setNodes(
@@ -112,7 +154,7 @@ function CanvasInner() {
           deletable: !isStructural,
           draggable: true,
           data: {
-            label: n.nodeType === "source" ? "Source" : n.nodeType === "sink" ? "Sink" : String(n.id),
+            label: n.nodeType === "source" ? "Input" : n.nodeType === "sink" ? "Output" : String(n.id),
             nodeId: n.id,
             transformId: n.transformId ?? null,
             nodeType: n.nodeType,
@@ -127,7 +169,7 @@ function CanvasInner() {
         target: String(e.toNodeId),
       })) ?? []
     );
-  }, [regionId, setNodes, setEdges]);
+  }, [regionId, activeGraphId, setNodes, setEdges]);
 
   const onConnect = useCallback(
     (connection: Connection) => setEdges((es) => addEdge(connection, es)),
@@ -178,24 +220,72 @@ function CanvasInner() {
     [canDropTransform, screenToFlowPosition, setNodes]
   );
 
+  // ─── Toolbar handlers ───────────────────────────────────────────────────────
+
+  const handleSave = useCallback(async () => {
+    if (activeGraphId == null) return;
+    await graphController.handleSaveGraph(activeGraphId, nodes, edges);
+  }, [activeGraphId, nodes, edges, graphController]);
+
+  const handleFitView = useCallback(() => {
+    fitView({ padding: 0.2 });
+  }, [fitView]);
+
+  const handleClearNodes = useCallback(() => {
+    const removedIds = new Set(
+      nodes.filter((n) => n.data.nodeType === "default").map((n) => n.id)
+    );
+    setNodes((ns) => ns.filter((n) => n.data.nodeType !== "default"));
+    setEdges((es) => es.filter((e) => !removedIds.has(e.source) && !removedIds.has(e.target)));
+  }, [nodes, setNodes, setEdges]);
+
+  const handleRename = useCallback(() => {
+    if (activeGraphId == null) return;
+    graphController.handleRenameGraph(activeGraphId);
+  }, [activeGraphId, graphController]);
+
+  const handleDelete = useCallback(async () => {
+    if (activeGraphId == null) return;
+    await graphController.handleDeleteGraph(activeGraphId);
+  }, [activeGraphId, graphController]);
+
+  const handleCopy = useCallback(() => {
+    if (activeGraphId == null) return;
+    graphController.handleCopyGraph(activeGraphId);
+  }, [activeGraphId, graphController]);
+
+  const hasClearableNodes = nodes.some((n) => n.data.nodeType === "default");
+
   // Stable nodeTypes reference — must not be recreated on every render
   const nodeTypes = useMemo(() => NODE_TYPES, []);
 
   return (
-    <div className="canvas-area w-full h-full" onDragOver={onDragOver} onDrop={onDrop}>
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        nodeTypes={nodeTypes}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-        onNodeDoubleClick={onNodeDoubleClick}
-        deleteKeyCode={["Backspace", "Delete"]}
-        fitView
-      >
-        <Background variant={BackgroundVariant.Lines} gap={20} color="rgba(255,255,255,0.03)" />
-      </ReactFlow>
+    <div className="flex flex-col w-full h-full">
+      <CanvasToolbar
+        selectedGraphId={activeGraphId}
+        hasClearableNodes={hasClearableNodes}
+        onSave={handleSave}
+        onFitView={handleFitView}
+        onClearNodes={handleClearNodes}
+        onRename={handleRename}
+        onDelete={handleDelete}
+        onCopy={handleCopy}
+      />
+      <div className="canvas-area flex-1 min-h-0" onDragOver={onDragOver} onDrop={onDrop}>
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          nodeTypes={nodeTypes}
+          onNodesChange={onNodesChangeSafe}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          onNodeDoubleClick={onNodeDoubleClick}
+          deleteKeyCode={["Backspace", "Delete"]}
+          fitView
+        >
+          <Background variant={BackgroundVariant.Lines} gap={20} color="rgba(255,255,255,0.03)" />
+        </ReactFlow>
+      </div>
     </div>
   );
 }

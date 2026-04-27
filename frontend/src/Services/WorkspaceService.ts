@@ -10,6 +10,7 @@ interface ApiWorkspaceGraphNode {
   id: number;
   graph_id?: number;
   transformId?: number | null;
+  nodeType?: string;
   position?: { x?: number; y?: number };
   params?: Record<string, number>;
 }
@@ -67,10 +68,13 @@ interface ApiWorkspaceTrack {
   region_sets: ApiWorkspaceRegionSet[];
 }
 
+const VALID_NODE_TYPES = new Set(["default", "source", "sink"]);
+
 const mapWorkspaceNode = (node: ApiWorkspaceGraphNode, graphId: number): Node => ({
   id: node.id,
   graphId: node.graph_id ?? graphId,
   transformId: node.transformId ?? null,
+  nodeType: VALID_NODE_TYPES.has(node.nodeType ?? "") ? (node.nodeType as Node["nodeType"]) : "default",
   position: { x: node.position?.x ?? 0, y: node.position?.y ?? 0 },
   params: node.params ?? {},
   ports: [],

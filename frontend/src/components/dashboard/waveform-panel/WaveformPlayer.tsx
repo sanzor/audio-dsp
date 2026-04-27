@@ -101,6 +101,20 @@ export function WaveformPlayer() {
     });
   }, []);
 
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== "Delete" && e.key !== "Backspace") return;
+      const active = document.activeElement as HTMLElement | null;
+      if (active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA" || active.isContentEditable)) return;
+      if (active?.closest(".react-flow__renderer")) return;
+      if (!regionId || isEditingBounds || createMode) return;
+      e.preventDefault();
+      regionController.handleDeleteRegion(regionId);
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [regionId, isEditingBounds, createMode, regionController]);
+
   const handleSaveBounds = async () => {
     if (!editingRegionBounds) return;
     await regionController.handleUpdateRegionBounds(

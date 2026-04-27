@@ -92,41 +92,38 @@ export function apiGetRegionsForRegionSet(_regionSetId: number): Promise<GetRegi
   throw new Error("apiGetRegionsForRegionSet is not implemented by the backend");
 }
 
-export function apiAddRegion(params: CreateRegionParams): Promise<CreateRegionResult> {
-  return http
-    .post<ApiRegionSet, { regionSetId: number; startTime: number; endTime?: number; name: string }>(
-      "/regions/add",
-      {
-        regionSetId: params.region_set_id,
-        startTime: params.start_time,
-        ...(params.end_time != null ? { endTime: params.end_time } : {}),
-        name: params.name,
-      },
-    )
-    .then((response) => ({ regionSet: mapApiRegionSet(response) }));
+export async function apiAddRegion(params: CreateRegionParams): Promise<CreateRegionResult> {
+  const response = await http.post<ApiRegionSet, { regionSetId: number; startTime: number; endTime?: number; name: string }>(
+    "/regions/add",
+    {
+      regionSetId: params.region_set_id,
+      startTime: params.start_time,
+      ...(params.end_time != null ? { endTime: params.end_time } : {}),
+      name: params.name,
+    },
+  );
+  return { regionSet: mapApiRegionSet(response) };
 }
 
-export function apiEditRegion(params: EditRegionParams): Promise<EditRegionResult> {
-  return http
-    .patch<{ region: ApiRegion }, { regionId: number; name?: string; startTime?: number; endTime?: number }>(
-      "/regions/edit",
-      {
+export async function apiEditRegion(params: EditRegionParams): Promise<EditRegionResult> {
+  const response = await http.patch<{ region: ApiRegion }, { regionId: number; name?: string; startTime?: number; endTime?: number }>(
+    "/regions/edit",
+    {
       regionId: params.regionId,
       ...(params.name != null ? { name: params.name } : {}),
       ...(params.startTime != null ? { startTime: params.startTime } : {}),
       ...(params.endTime != null ? { endTime: params.endTime } : {}),
-      },
-    )
-    .then((response) => ({ region: mapApiRegion(response.region) }));
+    },
+  );
+  return { region: mapApiRegion(response.region) };
 }
 
-export function apiRemoveRegion(params: RemoveRegionParams): Promise<RemoveRegionResult> {
-  return http
-    .delete<ApiRegionSet>(`/regions/remove?regionId=${params.regionId}`)
-    .then((response) => ({ regionSet: mapApiRegionSet(response) }));
+export async function apiRemoveRegion(params: RemoveRegionParams): Promise<RemoveRegionResult> {
+  const response = await http.delete<ApiRegionSet>(`/regions/remove?regionId=${params.regionId}`);
+  return { regionSet: mapApiRegionSet(response) };
 }
 
-export function apiCopyRegion(params: CopyRegionParams): Promise<CopyRegionResult> {
+export async function apiCopyRegion(params: CopyRegionParams): Promise<CopyRegionResult> {
   const query = new URLSearchParams({
     sourceRegionId: String(params.sourceRegionId),
     sourceRegionSetId: String(params.sourceRegionSetId),
@@ -136,7 +133,6 @@ export function apiCopyRegion(params: CopyRegionParams): Promise<CopyRegionResul
     copyName: params.copyName,
   });
 
-  return http
-    .post<{ region: ApiRegion }, undefined>(`/regions/copy?${query.toString()}`, undefined)
-    .then((response) => ({ region: mapApiRegion(response.region) }));
+  const response = await http.post<{ region: ApiRegion }, undefined>(`/regions/copy?${query.toString()}`, undefined);
+  return { region: mapApiRegion(response.region) };
 }

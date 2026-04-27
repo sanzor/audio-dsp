@@ -172,7 +172,15 @@ def has_track_storage_table() -> bool:
 
 
 def default_graph_state_json() -> str:
-    nodes: list[dict[str, object]] = []
+    source_node: dict[str, object] = {
+        "id": -1,
+        "nodeType": "source",
+        "transformId": None,
+        "position": {"x": 0, "y": 140},
+        "params": {},
+    }
+
+    middle_nodes: list[dict[str, object]] = []
     edges: list[dict[str, object]] = []
 
     if table_exists("transforms") and table_exists("transform_ports"):
@@ -218,17 +226,19 @@ LIMIT 1;
         )
 
         if gain_id and low_pass_id:
-            nodes = [
+            middle_nodes = [
                 {
                     "id": 1,
+                    "nodeType": "default",
                     "transformId": int(gain_id),
-                    "position": {"x": 180, "y": 140},
+                    "position": {"x": 200, "y": 140},
                     "params": {"gain": 1.0},
                 },
                 {
                     "id": 2,
+                    "nodeType": "default",
                     "transformId": int(low_pass_id),
-                    "position": {"x": 440, "y": 140},
+                    "position": {"x": 460, "y": 140},
                     "params": {"cutoffHz": 1200.0},
                 },
             ]
@@ -244,10 +254,19 @@ LIMIT 1;
                     }
                 ]
 
+    sink_x = 700 if middle_nodes else 400
+    sink_node: dict[str, object] = {
+        "id": -2,
+        "nodeType": "sink",
+        "transformId": None,
+        "position": {"x": sink_x, "y": 140},
+        "params": {},
+    }
+
     return json.dumps(
         {
             "schemaVersion": 1,
-            "nodes": nodes,
+            "nodes": [source_node, *middle_nodes, sink_node],
             "edges": edges,
         },
         separators=(",", ":"),

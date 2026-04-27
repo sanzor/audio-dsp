@@ -1,6 +1,7 @@
 import { useUIStore } from "@/Stores/UIStore";
 import { DetailsRegionModal } from "./details-region-modal";
 import { RenameRegionModal } from "./rename-region-modal";
+import { DeleteRegionModal } from "./delete-region-modal";
 import { PasteRegionModal } from "./paste-region-modal";
 import { useRegionController } from "@/controllers/RegionController";
 import { CreateRegionModal } from "./create-region-modal";
@@ -21,6 +22,9 @@ export function RegionModals() {
 
     case "renameRegion":
       return <RenameRegionModal regionId={modalState.regionId} open onClose={closeModal} onSubmit={regionController.handleSubmitRenameRegion} />;
+
+    case "deleteRegion":
+      return <DeleteRegionModal regionId={modalState.regionId} open onClose={closeModal} onConfirm={regionController.handleConfirmDeleteRegion} />;
 
     case "createRegion":
       return (

@@ -3,6 +3,8 @@
 import { useUIStore } from "@/Stores/UIStore";
 import { useDeleteGraph, useEditGraph } from "@/hooks/graphs/mutations";
 import { useGraphStore } from "@/Stores/GraphStore";
+import { apiSaveGraphState } from "@/Services/GraphService";
+import type { Node as RFNode, Edge as RFEdge } from "reactflow";
 
 export function useGraphController() {
   // Zustand selectors
@@ -78,6 +80,36 @@ export function useGraphController() {
       }
       copyToClipboard({ type: 'graph', graphId });
       closeContextMenu();
+    },
+
+    // ============================================
+    // SAVE GRAPH STATE
+    // ============================================
+    handleSaveGraph: async (graphId: number, nodes: RFNode[], edges: RFEdge[]) => {
+      const repr = {
+        schemaVersion: 1,
+        nodes: nodes.flatMap((n) => {
+          const numId = Number(n.id);
+          if (Number.isNaN(numId)) return [];
+          return [{
+            id: numId,
+            nodeType: n.data.nodeType as string,
+            transformId: (n.data.transformId as number | null) ?? null,
+            position: n.position,
+          }];
+        }),
+        edges: edges.flatMap((e) => {
+          const fromId = Number(e.source);
+          const toId = Number(e.target);
+          if (Number.isNaN(fromId) || Number.isNaN(toId)) return [];
+          return [{
+            id: Number(e.id) || 0,
+            fromNodeId: fromId,
+            toNodeId: toId,
+          }];
+        }),
+      };
+      await apiSaveGraphState({ graphId, state: JSON.stringify(repr) });
     },
   };
 }

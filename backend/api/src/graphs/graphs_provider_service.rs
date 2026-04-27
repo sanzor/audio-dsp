@@ -10,6 +10,7 @@ use domain::{
         copy_graph_params::CopyGraphParams,
         delete_graph_params::DeleteGraphParams,
         edit_graph_params::EditGraphParams,
+        save_graph_state_params::SaveGraphStateParams,
     },
 };
 
@@ -41,6 +42,10 @@ impl GraphsProvider for GraphsProviderService {
 
     async fn edit_graph(&self, params: EditGraphParams) -> Result<DbGraph, ServiceError> {
         self.data.edit_graph(params).await.map_err(ServiceError::from)
+    }
+
+    async fn save_graph_state(&self, params: SaveGraphStateParams) -> Result<DbGraph, ServiceError> {
+        self.data.save_graph_state(params).await.map_err(ServiceError::from)
     }
 
     async fn delete_graph(&self, params: DeleteGraphParams) -> Result<(), ServiceError> {

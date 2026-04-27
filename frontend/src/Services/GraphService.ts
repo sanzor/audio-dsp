@@ -62,6 +62,14 @@ export interface EditGraphResult {
   graph: Graph;
 }
 
+export interface SaveGraphStateParams {
+  graphId: number;
+  state: string;
+}
+export interface SaveGraphStateResult {
+  graph: Graph;
+}
+
 export interface RemoveGraphParams {
   graph_id: number;
 }
@@ -136,28 +144,34 @@ const mapGraph = (graph: ApiGraphResult): Graph => ({
 
 // ─── API ──────────────────────────────────────────────────────────────────────
 
-export function apiGetGraph(graphId: number): Promise<Graph> {
-  return http.get<ApiGraphResult>(`/graphs/get-graph?graph_id=${graphId}`).then(mapGraph);
+export async function apiGetGraph(graphId: number): Promise<Graph> {
+  const result = await http.get<ApiGraphResult>(`/graphs/get-graph?graph_id=${graphId}`);
+  return mapGraph(result);
 }
 
-export function apiCreateGraph(params: CreateGraphParams): Promise<CreateGraphResult> {
-  return http
-    .post<{ graph: ApiGraphResult }, CreateGraphParams>("/graphs/create", params)
-    .then((response) => ({ graph: mapGraph(response.graph) }));
+export async function apiCreateGraph(params: CreateGraphParams): Promise<CreateGraphResult> {
+  const response = await http.post<{ graph: ApiGraphResult }, CreateGraphParams>("/graphs/create", params);
+  return { graph: mapGraph(response.graph) };
 }
 
-export function apiUpdateGraph(params: EditGraphParams): Promise<EditGraphResult> {
-  return http
-    .patch<{ graph: ApiGraphResult }, EditGraphParams>("/graphs/edit", params)
-    .then((response) => ({ graph: mapGraph(response.graph) }));
+export async function apiUpdateGraph(params: EditGraphParams): Promise<EditGraphResult> {
+  const response = await http.patch<{ graph: ApiGraphResult }, EditGraphParams>("/graphs/edit", params);
+  return { graph: mapGraph(response.graph) };
 }
 
-export function apiRemoveGraph(params: RemoveGraphParams): Promise<void> {
-  return http.delete(`/graphs/remove?graph_id=${params.graph_id}`);
+export async function apiSaveGraphState(params: SaveGraphStateParams): Promise<SaveGraphStateResult> {
+  const response = await http.put<{ graph: ApiGraphResult }, { graphId: number; state: string }>(
+    "/graphs/save-state",
+    { graphId: params.graphId, state: params.state },
+  );
+  return { graph: mapGraph(response.graph) };
 }
 
-export function apiCopyGraph(params: CopyGraphParams): Promise<CopyGraphResult> {
-  return http
-    .post<{ graph: ApiGraphResult }, CopyGraphParams>("/graphs/copy", params)
-    .then((response) => ({ graph: mapGraph(response.graph) }));
+export async function apiRemoveGraph(params: RemoveGraphParams): Promise<void> {
+  await http.delete(`/graphs/remove?graph_id=${params.graph_id}`);
+}
+
+export async function apiCopyGraph(params: CopyGraphParams): Promise<CopyGraphResult> {
+  const response = await http.post<{ graph: ApiGraphResult }, CopyGraphParams>("/graphs/copy", params);
+  return { graph: mapGraph(response.graph) };
 }

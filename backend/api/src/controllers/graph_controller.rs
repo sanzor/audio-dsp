@@ -1,4 +1,4 @@
-use actix_web::{delete, get, patch, post, web, HttpResponse};
+use actix_web::{delete, get, patch, post, put, web, HttpResponse};
 use chrono::{DateTime, Utc};
 use domain::{
     db::{db_graph::DbGraph, GraphId, RegionId},
@@ -7,6 +7,7 @@ use domain::{
         copy_graph_params::CopyGraphParams,
         delete_graph_params::DeleteGraphParams,
         edit_graph_params::EditGraphParams,
+        save_graph_state_params::SaveGraphStateParams,
     },
 };
 use serde::{Deserialize, Serialize};
@@ -252,9 +253,56 @@ pub async fn copy_graph(
     }
 }
 
+#[derive(Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct SaveGraphStateRequest {
+    pub graph_id: GraphId,
+    pub state: String,
+}
+
+#[utoipa::path(
+    put,
+    path = "/graphs/save-state",
+    tag = "graphs",
+    request_body = SaveGraphStateRequest,
+    responses((status = 200, description = "Graph state saved", body = serde_json::Value))
+)]
+#[put("/save-state")]
+pub async fn save_graph_state(
+    role: RoleContext,
+    request: web::Json<SaveGraphStateRequest>,
+    app_state: web::Data<GraphsAppData>,
+) -> HttpResponse {
+    if !role.can_edit() {
+        return HttpResponse::Forbidden().body("Forbidden");
+    }
+
+    let request = request.into_inner();
+    let state: Value = match serde_json::from_str(&request.state) {
+        Ok(v) => v,
+        Err(_) => return HttpResponse::BadRequest().body("invalid JSON in state"),
+    };
+
+    match app_state
+        .graphs_service
+        .save_graph_state(SaveGraphStateParams {
+            graph_id: request.graph_id,
+            state,
+        })
+        .await
+    {
+        Ok(graph) => match GraphResult::from_db_graph(graph) {
+            Ok(graph) => HttpResponse::Ok().json(GraphMutationResult { graph }),
+            Err(err) => map_service_error(err),
+        },
+        Err(err) => map_service_error(err),
+    }
+}
+
 pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(create_graph)
         .service(edit_graph)
+        .service(save_graph_state)
         .service(get_graph)
         .service(remove_graph)
         .service(copy_graph);

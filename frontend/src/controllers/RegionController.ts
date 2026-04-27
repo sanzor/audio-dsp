@@ -116,24 +116,20 @@ export function useRegionController() {
     },
 
     // ============================================
-    // DELETE REGION 
+    // DELETE REGION
     // ============================================
-    handleDeleteRegion: async (regionId:number) => {
-      const region = regionMap.get(regionId);
-      if (!region) {
-        console.error('Region not found:', { regionId });
-        throw new Error('Region not found');
-      }
+    handleDeleteRegion: (regionId: number) => {
+      if (!regionMap.get(regionId)) return;
+      openModal({ type: 'deleteRegion', regionId });
+      closeContextMenu();
+    },
+
+    handleConfirmDeleteRegion: async (regionId: number) => {
       try {
-        await deleteRegionMutation.mutateAsync({
-          regionId,
-        });
-        closeContextMenu(); // ✅ Close context menu after successful action
-        // Optional: Show success toast
+        await deleteRegionMutation.mutateAsync({ regionId });
+        closeModal();
       } catch (error) {
         console.error('Failed to delete region:', error);
-        closeContextMenu(); // ✅ Still close context menu on error
-        // Optional: Show error toast
         throw error;
       }
     },

@@ -8,6 +8,7 @@ use domain::{
         copy_graph_params::CopyGraphParams,
         delete_graph_params::DeleteGraphParams,
         edit_graph_params::EditGraphParams,
+        save_graph_state_params::SaveGraphStateParams,
     },
 };
 use sqlx::PgPool;
@@ -77,6 +78,24 @@ impl GraphsDataProvider for PostgresGraphsDataProvider {
         )
         .bind(params.graph_id)
         .bind(params.name)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(|e| e.to_string())
+    }
+
+    async fn save_graph_state(&self, params: SaveGraphStateParams) -> Result<DbGraph, String> {
+        sqlx::query_as::<_, DbGraph>(
+            r#"
+            UPDATE graphs
+            SET graph_state = $2,
+                version = version + 1,
+                updated_at = now()
+            WHERE graph_id = $1
+            RETURNING graph_id, region_id, name, graph_state, version, created_at, updated_at
+            "#,
+        )
+        .bind(params.graph_id)
+        .bind(params.state)
         .fetch_one(&self.pool)
         .await
         .map_err(|e| e.to_string())
