@@ -137,6 +137,10 @@ function CanvasInner() {
     return undefined;
   });
 
+  const activeGraphVersion = useGraphStore((s) =>
+    activeGraphId != null ? s.graphs.get(activeGraphId)?.updatedAt?.getTime() : undefined
+  );
+
   const graphController = useGraphController();
 
   useEffect(() => {
@@ -169,7 +173,7 @@ function CanvasInner() {
         target: String(e.toNodeId),
       })) ?? []
     );
-  }, [regionId, activeGraphId, setNodes, setEdges]);
+  }, [regionId, activeGraphId, activeGraphVersion, setNodes, setEdges]);
 
   const onConnect = useCallback(
     (connection: Connection) => setEdges((es) => addEdge(connection, es)),
@@ -232,12 +236,9 @@ function CanvasInner() {
   }, [fitView]);
 
   const handleClearNodes = useCallback(() => {
-    const removedIds = new Set(
-      nodes.filter((n) => n.data.nodeType === "default").map((n) => n.id)
-    );
-    setNodes((ns) => ns.filter((n) => n.data.nodeType !== "default"));
-    setEdges((es) => es.filter((e) => !removedIds.has(e.source) && !removedIds.has(e.target)));
-  }, [nodes, setNodes, setEdges]);
+    if (activeGraphId == null) return;
+    graphController.handleClearGraphNodes(activeGraphId);
+  }, [activeGraphId, graphController]);
 
   const handleRename = useCallback(() => {
     if (activeGraphId == null) return;

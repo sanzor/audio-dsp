@@ -3,6 +3,7 @@ import { useUIStore } from "@/Stores/UIStore";
 import { DetailsGraphModal } from "./details-graph-modal";
 import { RenameGraphModal } from "./rename-graph-modal";
 import { CreateGraphModal } from "./create-graph-modal";
+import { ClearNodesModal } from "./clear-nodes-modal";
 import { useRegionController } from "@/controllers/RegionController";
 import { PasteGraphModal } from "./paste-graph-modal";
 import { NodeDetailsModal } from "./node-details-modal";
@@ -63,6 +64,15 @@ export function GraphModals() {
           transformId={modalState.transformId}
           open
           onClose={closeModal}
+        />
+      );
+
+    case "clearGraphNodes":
+      return (
+        <ClearNodesModal
+          open
+          onClose={closeModal}
+          onConfirm={() => graphController.handleConfirmClearGraphNodes(modalState.graphId)}
         />
       );
   }

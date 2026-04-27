@@ -66,6 +66,7 @@ export type ModalState =
   | { type: 'pasteGraph'; params: PasteGraphParams }
   // Canvas node modals
   | { type: 'nodeDetails'; nodeId: number | null; transformId: number | null }
+  | { type: 'clearGraphNodes'; graphId: number }
   // Transform store modals
   | { type: 'transformDetails'; transformId: number }
   | null;

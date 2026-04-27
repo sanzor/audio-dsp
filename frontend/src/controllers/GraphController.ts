@@ -1,9 +1,8 @@
 // hooks/useGraphController.ts
 
 import { useUIStore } from "@/Stores/UIStore";
-import { useDeleteGraph, useEditGraph } from "@/hooks/graphs/mutations";
+import { useDeleteGraph, useEditGraph, useSaveGraphState } from "@/hooks/graphs/mutations";
 import { useGraphStore } from "@/Stores/GraphStore";
-import { apiSaveGraphState } from "@/Services/GraphService";
 import type { Node as RFNode, Edge as RFEdge } from "reactflow";
 
 export function useGraphController() {
@@ -17,6 +16,7 @@ export function useGraphController() {
   const graphMap = useGraphStore(x => x.graphs);
   const deleteGraphMutation = useDeleteGraph();
   const renameGraphMutation = useEditGraph();
+  const saveGraphStateMutation = useSaveGraphState();
 
   return {
     // ============================================
@@ -109,7 +109,36 @@ export function useGraphController() {
           }];
         }),
       };
-      await apiSaveGraphState({ graphId, state: JSON.stringify(repr) });
+      await saveGraphStateMutation.mutateAsync({ graphId, state: JSON.stringify(repr) });
+    },
+
+    // ============================================
+    // CLEAR GRAPH NODES
+    // ============================================
+    handleClearGraphNodes: (graphId: number) => {
+      if (!graphMap.get(graphId)) return;
+      openModal({ type: 'clearGraphNodes', graphId });
+    },
+
+    handleConfirmClearGraphNodes: async (graphId: number) => {
+      const graph = graphMap.get(graphId);
+      if (!graph) return;
+      const structuralNodes = graph.nodes.filter(
+        (n) => n.nodeType === "source" || n.nodeType === "sink"
+      );
+      const repr = {
+        schemaVersion: 1,
+        nodes: structuralNodes.map((n) => ({
+          id: n.id,
+          nodeType: n.nodeType,
+          transformId: null,
+          position: n.position,
+          params: {},
+        })),
+        edges: [],
+      };
+      await saveGraphStateMutation.mutateAsync({ graphId, state: JSON.stringify(repr) });
+      closeModal();
     },
   };
 }

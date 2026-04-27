@@ -3,6 +3,7 @@ import {
   apiCopyGraph,
   apiCreateGraph,
   apiRemoveGraph,
+  apiSaveGraphState,
   apiUpdateGraph,
   type CopyGraphParams,
   type CopyGraphResult,
@@ -11,6 +12,8 @@ import {
   type EditGraphParams,
   type EditGraphResult,
   type RemoveGraphParams,
+  type SaveGraphStateParams,
+  type SaveGraphStateResult,
 } from "@/Services/GraphService";
 import { useGraphStore } from "@/Stores/GraphStore";
 import { useRegionStore } from "@/Stores/RegionStore";
@@ -93,6 +96,19 @@ export const useEditGraph = () => {
     },
     onError: (error) => {
       console.error('Failed to edit graph:', error);
+    },
+  });
+};
+
+export const useSaveGraphState = () => {
+  const queryClient = useQueryClient();
+  const updateGraph = useGraphStore.getState().updateGraph;
+
+  return useMutation<SaveGraphStateResult, Error, SaveGraphStateParams>({
+    mutationFn: (params) => apiSaveGraphState(params),
+    onSuccess: (data) => {
+      updateGraph(data.graph.id, data.graph);
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.graphs.byId(data.graph.id) });
     },
   });
 };
