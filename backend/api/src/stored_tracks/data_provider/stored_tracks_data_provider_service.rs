@@ -50,4 +50,14 @@ impl StoredTracksDataProvider for PostgresStoredTracksDataProvider {
             canonical_audio: row.data,
         })
     }
+
+    async fn insert_track_to_storage(&self, track_id: &TrackId, canonical_audio: Vec<u8>) -> Result<(), String> {
+        sqlx::query("INSERT INTO track_storage (track_id, data) VALUES ($1, $2)")
+            .bind(track_id)
+            .bind(canonical_audio)
+            .execute(&self.pool)
+            .await
+            .map(|_| ())
+            .map_err(|e| e.to_string())
+    }
 }

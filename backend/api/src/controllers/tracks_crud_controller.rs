@@ -67,7 +67,10 @@ pub async fn add_track(
     };
 
     match app_state.tracks_service.insert_track(request.track, project.0).await {
-        Ok(meta) => HttpResponse::Ok().json(AddTrackResult { track_id: meta.track_id, track_info: meta.track_info }),
+        Ok(track) => HttpResponse::Ok().json(AddTrackResult {
+            track_id: track.meta.track_id,
+            track_info: track.meta.track_info,
+        }),
         Err(_e) => HttpResponse::InternalServerError().body("Could not insert track"),
     }
 }
@@ -88,9 +91,9 @@ pub async fn add_track(
 )]
 #[post("/add-track-multi")]
 pub async fn add_track_multi(
-    role: RoleContext,
+    _role: RoleContext,
     project: ProjectContext,
-    mut payload: Multipart,
+    payload: Multipart,
     app_state: web::Data<TracksAppData>,
 ) -> HttpResponse {
     info!("add-track-multi request received");
@@ -107,9 +110,12 @@ pub async fn add_track_multi(
     };
 
     match app_state.tracks_service.insert_track(raw_track, project.0).await {
-        Ok(meta) => {
-            info!(track_id = %meta.track_id, "add-track-multi insert complete");
-            HttpResponse::Ok().json(AddTrackResult { track_id: meta.track_id, track_info: meta.track_info })
+        Ok(track) => {
+            info!(track_id = %track.meta.track_id, "add-track-multi insert complete");
+            HttpResponse::Ok().json(AddTrackResult {
+                track_id: track.meta.track_id,
+                track_info: track.meta.track_info,
+            })
         }
         Err(err) => {
             error!(error = %err, "add-track-multi insert failed");
@@ -265,7 +271,7 @@ pub async fn get_meta(
     )
 )]
 #[get("/get-all")]
-pub async fn get_tracks(role: RoleContext, app_state: web::Data<TracksAppData>) -> HttpResponse {
+pub async fn get_tracks(_role: RoleContext, app_state: web::Data<TracksAppData>) -> HttpResponse {
     // if !role.can_view() {
     //     return HttpResponse::Forbidden().body("Forbidden");
     // }
@@ -316,6 +322,4 @@ pub fn init(cfg: &mut web::ServiceConfig) {
         .service(get_tracks)
         .service(copy_track);
 }
-
-
 

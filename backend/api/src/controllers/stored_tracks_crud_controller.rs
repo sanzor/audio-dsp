@@ -31,19 +31,19 @@ pub async fn get_stored_track(
         return HttpResponse::Forbidden().body("Forbidden");
     }
     let request = query.into_inner();
-    let stored_track = match app_state.stored_tracks_service.get_stored_track(&request.track_id).await {
+    let track = match app_state.tracks_service.get_track(&request.track_id).await {
         Ok(t) => t,
         Err(_) => return HttpResponse::NotFound().body("Could not find track"),
     };
-    let ext = stored_track.track_info.extension.to_lowercase();
+    let ext = track.meta.track_info.extension.to_lowercase();
     let mime_type = from_ext(&ext).first_or_octet_stream().essence_str().to_owned();
     HttpResponse::Ok()
         .insert_header(("Content-Type", mime_type))
         .insert_header((
             "Content-Disposition",
-            format!("inline; filename=\"{}.{}\"", stored_track.track_info.name, ext),
+            format!("inline; filename=\"{}.{}\"", track.meta.track_info.name, ext),
         ))
-        .body(stored_track.canonical_audio)
+        .body(track.payload.canonical_audio)
 }
 
 pub fn init(cfg: &mut web::ServiceConfig) {

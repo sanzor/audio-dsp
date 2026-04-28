@@ -17,22 +17,21 @@ use domain::{
         stop::Stop,
     },
     db::TrackId,
-    track_meta::TrackMeta,
 };
 use player::sink::AudioSink;
 
-use crate::stored_tracks::stored_tracks_provider::StoredTracksProvider;
+use crate::tracks::tracks_provider::TracksProvider;
 
 use super::player_provider::{AttachSinkParams, AttachSinkResult, PlayerProvider};
 
 pub struct PlayerService {
     registry: Arc<AudioPlayerRegistry>,
-    stored_tracks_provider: Arc<dyn StoredTracksProvider>,
+    tracks_provider: Arc<dyn TracksProvider>,
 }
 
 impl PlayerService {
-    pub fn new(registry: Arc<AudioPlayerRegistry>, stored_tracks_provider: Arc<dyn StoredTracksProvider>) -> Self {
-        Self { registry, stored_tracks_provider }
+    pub fn new(registry: Arc<AudioPlayerRegistry>, tracks_provider: Arc<dyn TracksProvider>) -> Self {
+        Self { registry, tracks_provider }
     }
 
     fn player_key(user_id: i32, track_id: TrackId) -> String {
@@ -94,12 +93,8 @@ impl PlayerProvider for PlayerService {
             });
         }
 
-        let db_track = self.stored_tracks_provider.get_stored_track(&params.track_id).await?;
-        let meta = TrackMeta {
-            track_info: db_track.track_info,
-            track_id: db_track.track_id.clone(),
-        };
-        let decoded = decode_canonical_audio(&db_track.canonical_audio)?;
+        let track = self.tracks_provider.get_track(&params.track_id).await?;
+        let decoded = decode_canonical_audio(&track.payload.canonical_audio)?;
 
         let sink_id = ulid::Ulid::new().to_string();
         let mut sinks: HashMap<String, Box<dyn AudioSink + Sync + Send>> = HashMap::new();
@@ -109,7 +104,7 @@ impl PlayerProvider for PlayerService {
             .insert(
                 key,
                 CreateAudioPlayerActorParams {
-                    track_payload: PlayerTrackPayload { audio: decoded, meta },
+                    track_payload: PlayerTrackPayload { audio: decoded, meta: track.meta },
                     cursor: 0,
                     sinks,
                 },

@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use super::stored_tracks_provider::StoredTracksProvider;
+use crate::tracks::tracks_provider::TracksProvider;
 
 #[derive(Clone)]
 pub struct StoredTracksAppData {
-    pub stored_tracks_service: Arc<dyn StoredTracksProvider>,
+    pub tracks_service: Arc<dyn TracksProvider>,
 }

@@ -1,5 +1,4 @@
 use actix_web::{
-    http::header,
     web::{self},
     App, HttpServer,
 };
@@ -52,6 +51,7 @@ use api::{
     },
     tracks::{
         data_provider::tracks_data_provider_service::PostgresTracksDataProvider,
+        storage_provider::track_storage_provider_service::TrackStorageProviderService,
         multipart_audio_parser::multipart_audio_parser_service::MultipartAudioParserService,
         tracks_app_data::TracksAppData,
         tracks_provider_service::TracksProviderService,
@@ -59,7 +59,6 @@ use api::{
     stored_tracks::{
         data_provider::stored_tracks_data_provider_service::PostgresStoredTracksDataProvider,
         stored_tracks_app_data::StoredTracksAppData,
-        stored_tracks_provider_service::StoredTracksProviderService,
     },
     workspace::{
         data_provider::workspace_data_provider_service::PostgresWorkspaceDataProvider,
@@ -234,15 +233,17 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
         UserDataProviderService::new(pool.clone()),
     )));
 
-    let tracks_service = Arc::new(TracksProviderService::new(Arc::new(
-        PostgresTracksDataProvider::new(pool.clone()),
-    )));
-    let stored_tracks_service = Arc::new(StoredTracksProviderService::new(Arc::new(
+    let track_storage_service = Arc::new(TrackStorageProviderService::new(Arc::new(
         PostgresStoredTracksDataProvider::new(pool.clone()),
     )));
+    let tracks_service = Arc::new(TracksProviderService::new(
+        Arc::new(PostgresTracksDataProvider::new(pool.clone())),
+        Arc::clone(&track_storage_service)
+            as Arc<dyn api::tracks::storage_provider::track_storage_provider::TrackStorageProvider>,
+    ));
     let player_service = Arc::new(PlayerService::new(
         Arc::new(AudioPlayerRegistry::new()),
-        Arc::clone(&stored_tracks_service) as Arc<dyn api::stored_tracks::stored_tracks_provider::StoredTracksProvider>,
+        Arc::clone(&tracks_service) as Arc<dyn api::tracks::tracks_provider::TracksProvider>,
     ));
     let region_sets_service = Arc::new(RegionSetsProviderService::new(Arc::new(
         PostgresRegionSetsDataProvider::new(pool.clone()),
@@ -356,8 +357,8 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
         ))),
     };
     let stored_tracks_app_data = StoredTracksAppData {
-        stored_tracks_service: Arc::clone(&stored_tracks_service)
-            as Arc<dyn api::stored_tracks::stored_tracks_provider::StoredTracksProvider>,
+        tracks_service: Arc::clone(&tracks_service)
+            as Arc<dyn api::tracks::tracks_provider::TracksProvider>,
     };
     let workspace_app_data = WorkspaceAppData {
         workspace_service: Arc::new(WorkspaceProviderService::new(Arc::new(
