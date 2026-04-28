@@ -28,7 +28,6 @@ export class GraphController {
   }
 
   setEffects(enabled: boolean): void {
-    useAudioEffectsStore.getState().setWithEffects(enabled)
     this.sendToWorklet({ type: 'SET_EFFECTS', enabled })
   }
 

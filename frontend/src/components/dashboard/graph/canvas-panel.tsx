@@ -6,95 +6,28 @@ import ReactFlow, {
   useEdgesState,
   useReactFlow,
   addEdge,
-  Handle,
-  Position,
+  reconnectEdge,
   type Node,
+  type Edge,
   type Connection,
-  type NodeProps,
   type NodeChange,
 } from "reactflow";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "reactflow/dist/style.css";
 import { useUIStore } from "@/Stores/UIStore";
 import { useGraphStore } from "@/Stores/GraphStore";
 import { useRegionStore } from "@/Stores/RegionStore";
 import { useRegionSetStore } from "@/Stores/RegionSetStore";
+import { useTransformStore } from "@/Stores/TransformStore";
+import { useAudioEffectsStore } from "@/Stores/AudioEffectsStore";
 import type { NodeType } from "@/domain/Graph/Node";
 import { CanvasToolbar } from "./canvas-toolbar";
 import { useGraphController } from "@/controllers/GraphController";
+import { SourceNode } from "./source-node";
+import { SinkNode } from "./sink-node";
+import { useActiveGraphId } from "@/hooks/graphs/useActiveGraphId";
+import { NodeDetailsModal } from "../modals/graph/node-details-modal";
 
-// ─── Structural node components ──────────────────────────────────────────────
-
-function SourceNode(_: NodeProps) {
-  return (
-    <div
-      style={{
-        width: 88,
-        height: 88,
-        borderRadius: "50%",
-        background: "radial-gradient(circle at 40% 40%, rgba(6,182,212,0.28) 0%, rgba(8,145,178,0.10) 100%)",
-        border: "2px solid #06b6d4",
-        boxShadow: "0 0 14px rgba(6,182,212,0.35)",
-        color: "#67e8f9",
-        fontWeight: 700,
-        fontSize: 12,
-        letterSpacing: "0.05em",
-        textTransform: "uppercase",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        userSelect: "none",
-        position: "relative",
-      }}
-    >
-      Input
-      <Handle
-        type="source"
-        position={Position.Right}
-        style={{ background: "#06b6d4", border: "2px solid #164e63", width: 11, height: 11 }}
-      />
-    </div>
-  );
-}
-
-function SinkNode(_: NodeProps) {
-  return (
-    <div
-      style={{
-        width: 88,
-        height: 88,
-        borderRadius: "12px",
-        transform: "rotate(45deg)",
-        background: "linear-gradient(135deg, rgba(245,158,11,0.22) 0%, rgba(180,83,9,0.12) 100%)",
-        border: "2px solid #f59e0b",
-        boxShadow: "0 0 14px rgba(245,158,11,0.30)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        userSelect: "none",
-        position: "relative",
-      }}
-    >
-      <span
-        style={{
-          transform: "rotate(-45deg)",
-          color: "#fcd34d",
-          fontWeight: 700,
-          fontSize: 12,
-          letterSpacing: "0.05em",
-          textTransform: "uppercase",
-        }}
-      >
-        Output
-      </span>
-      <Handle
-        type="target"
-        position={Position.Left}
-        style={{ background: "#f59e0b", border: "2px solid #78350f", width: 11, height: 11, transform: "rotate(-45deg) translateY(-50%)" }}
-      />
-    </div>
-  );
-}
 
 const NODE_TYPES = { source: SourceNode, sink: SinkNode };
 
@@ -103,6 +36,11 @@ const NODE_TYPES = { source: SourceNode, sink: SinkNode };
 function CanvasInner() {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [saveProgress, setSaveProgress] = useState(0);
+  const [saveState, setSaveState] = useState<"hidden" | "saving" | "success" | "error">("hidden");
+  const saveProgressTimerRef = useRef<number | null>(null);
+  const saveHideTimerRef = useRef<number | null>(null);
+  const nextCanvasTempIdRef = useRef(-1);
 
   const onNodesChangeSafe = useCallback(
     (changes: NodeChange[]) => {
@@ -115,6 +53,8 @@ function CanvasInner() {
   );
   const { screenToFlowPosition, fitView } = useReactFlow();
   const openModal = useUIStore((s) => s.openModal);
+  const closeModal = useUIStore((s) => s.closeModal);
+  const modalState = useUIStore((s) => s.modalState);
   const activeSelection = useUIStore((s) => s.activeSelection);
   const region = useRegionStore((s) =>
     activeSelection.regionId != null ? s.regions.get(activeSelection.regionId) : undefined
@@ -129,19 +69,40 @@ function CanvasInner() {
     region.regionSetId === regionSet.id &&
     regionSet.region_ids.includes(region.regionId);
 
-  const activeGraphId = useGraphStore((s) => {
-    if (regionId == null) return undefined;
-    for (const g of s.graphs.values()) {
-      if (g.regionId === regionId) return g.id;
-    }
-    return undefined;
-  });
-
+  const activeGraphId = useActiveGraphId();
   const activeGraphVersion = useGraphStore((s) =>
     activeGraphId != null ? s.graphs.get(activeGraphId)?.updatedAt?.getTime() : undefined
   );
 
+  const transforms = useTransformStore((s) => s.transforms);
+  const effectsEnabled = useAudioEffectsStore((s) => s.effectsEnabled);
+  const setEffectsEnabled = useAudioEffectsStore((s) => s.setEffectsEnabled);
   const graphController = useGraphController();
+  const isGraphLive = activeGraphId != null && effectsEnabled;
+  const nodeDetailsModalState = modalState?.type === "nodeDetails" ? modalState : null;
+  const nodeDetailsTarget = useMemo(() => {
+    if (!nodeDetailsModalState?.nodeId) return null;
+    return nodes.find((node) => (node.data.nodeId as number | undefined) === nodeDetailsModalState.nodeId) ?? null;
+  }, [nodeDetailsModalState, nodes]);
+
+  const clearSaveTimers = useCallback(() => {
+    if (saveProgressTimerRef.current != null) {
+      window.clearInterval(saveProgressTimerRef.current);
+      saveProgressTimerRef.current = null;
+    }
+    if (saveHideTimerRef.current != null) {
+      window.clearTimeout(saveHideTimerRef.current);
+      saveHideTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => clearSaveTimers, [clearSaveTimers]);
+
+  const nextCanvasTempId = useCallback(() => {
+    const id = nextCanvasTempIdRef.current;
+    nextCanvasTempIdRef.current -= 1;
+    return id;
+  }, []);
 
   useEffect(() => {
     const graph = activeGraphId != null
@@ -151,6 +112,9 @@ function CanvasInner() {
     setNodes(
       graph?.nodes.map((n) => {
         const isStructural = n.nodeType === "source" || n.nodeType === "sink";
+        const transformName = n.transformId != null
+          ? (transforms.get(n.transformId)?.name ?? String(n.id))
+          : String(n.id);
         return {
           id: String(n.id),
           type: (n.nodeType ?? "default") as NodeType,
@@ -158,9 +122,10 @@ function CanvasInner() {
           deletable: !isStructural,
           draggable: true,
           data: {
-            label: n.nodeType === "source" ? "Input" : n.nodeType === "sink" ? "Output" : String(n.id),
+            label: n.nodeType === "source" ? "Input" : n.nodeType === "sink" ? "Output" : transformName,
             nodeId: n.id,
             transformId: n.transformId ?? null,
+            params: n.params ?? {},
             nodeType: n.nodeType,
           },
         };
@@ -173,10 +138,28 @@ function CanvasInner() {
         target: String(e.toNodeId),
       })) ?? []
     );
-  }, [regionId, activeGraphId, activeGraphVersion, setNodes, setEdges]);
+  }, [regionId, activeGraphId, activeGraphVersion, transforms, setNodes, setEdges]);
 
   const onConnect = useCallback(
-    (connection: Connection) => setEdges((es) => addEdge(connection, es)),
+    (connection: Connection) =>
+      setEdges((es) =>
+        addEdge(
+          {
+            ...connection,
+            id: String(nextCanvasTempId()),
+          },
+          es
+        )
+      ),
+    [setEdges, nextCanvasTempId]
+  );
+
+  const onReconnect = useCallback(
+    (oldEdge: Edge, newConnection: Connection) => {
+      setEdges((es) =>
+        reconnectEdge(oldEdge, newConnection, es, { shouldReplaceId: false })
+      );
+    },
     [setEdges]
   );
 
@@ -211,25 +194,64 @@ function CanvasInner() {
 
       const { transformId, name } = JSON.parse(raw) as { transformId: number; name: string };
       const position = screenToFlowPosition({ x: e.clientX, y: e.clientY });
+      const tempNodeId = nextCanvasTempId();
 
       const node: Node = {
-        id: `transform-${transformId}-${Date.now()}`,
+        id: String(tempNodeId),
         type: "default",
         position,
-        data: { label: name, transformId, nodeType: "default" },
+        data: {
+          label: name,
+          nodeId: tempNodeId,
+          transformId,
+          params: {},
+          nodeType: "default",
+        },
       };
 
       setNodes((ns) => [...ns, node]);
     },
-    [canDropTransform, screenToFlowPosition, setNodes]
+    [canDropTransform, screenToFlowPosition, setNodes, nextCanvasTempId]
   );
 
   // ─── Toolbar handlers ───────────────────────────────────────────────────────
 
   const handleSave = useCallback(async () => {
-    if (activeGraphId == null) return;
-    await graphController.handleSaveGraph(activeGraphId, nodes, edges);
-  }, [activeGraphId, nodes, edges, graphController]);
+    if (activeGraphId == null || saveState === "saving") return;
+
+    clearSaveTimers();
+    setSaveState("saving");
+    setSaveProgress(8);
+    saveProgressTimerRef.current = window.setInterval(() => {
+      setSaveProgress((current) => {
+        const remaining = 94 - current;
+        if (remaining <= 0) return current;
+        return current + Math.max(1, remaining * 0.18);
+      });
+    }, 140);
+
+    try {
+      await graphController.handleSaveGraph(activeGraphId, nodes, edges);
+      clearSaveTimers();
+      setSaveState("success");
+      setSaveProgress(100);
+      saveHideTimerRef.current = window.setTimeout(() => {
+        setSaveState("hidden");
+        setSaveProgress(0);
+        saveHideTimerRef.current = null;
+      }, 550);
+    } catch (error) {
+      clearSaveTimers();
+      setSaveState("error");
+      setSaveProgress(100);
+      saveHideTimerRef.current = window.setTimeout(() => {
+        setSaveState("hidden");
+        setSaveProgress(0);
+        saveHideTimerRef.current = null;
+      }, 1800);
+      throw error;
+    }
+  }, [activeGraphId, nodes, edges, graphController, saveState, clearSaveTimers]);
 
   const handleFitView = useCallback(() => {
     fitView({ padding: 0.2 });
@@ -255,24 +277,57 @@ function CanvasInner() {
     graphController.handleCopyGraph(activeGraphId);
   }, [activeGraphId, graphController]);
 
+  const clearCanvasSelection = useCallback(() => {
+    setNodes((ns) =>
+      ns.map((node) =>
+        node.selected ? { ...node, selected: false } : node
+      )
+    );
+    setEdges((es) =>
+      es.map((edge) =>
+        edge.selected ? { ...edge, selected: false } : edge
+      )
+    );
+  }, [setNodes, setEdges]);
+
+  const handleCanvasMouseDownCapture = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      if (!(event.target instanceof Element)) return;
+      const interactiveTarget = event.target.closest(
+        ".react-flow__node, .react-flow__edge, .react-flow__handle, .react-flow__controls"
+      );
+      if (interactiveTarget) return;
+      clearCanvasSelection();
+    },
+    [clearCanvasSelection]
+  );
+
   const hasClearableNodes = nodes.some((n) => n.data.nodeType === "default");
 
   // Stable nodeTypes reference — must not be recreated on every render
   const nodeTypes = useMemo(() => NODE_TYPES, []);
 
   return (
-    <div className="flex flex-col w-full h-full">
+    <div className={`flex flex-col w-full h-full overflow-hidden rounded-[10px]${isGraphLive ? " graph-live-shell" : ""}`}>
       <CanvasToolbar
         selectedGraphId={activeGraphId}
         hasClearableNodes={hasClearableNodes}
+        isSaving={saveState === "saving"}
+        effectsEnabled={isGraphLive}
         onSave={handleSave}
+        onToggleEffects={() => setEffectsEnabled(!effectsEnabled)}
         onFitView={handleFitView}
         onClearNodes={handleClearNodes}
         onRename={handleRename}
         onDelete={handleDelete}
         onCopy={handleCopy}
       />
-      <div className="canvas-area flex-1 min-h-0" onDragOver={onDragOver} onDrop={onDrop}>
+      <div
+        className="canvas-area relative flex-1 min-h-0"
+        onDragOver={onDragOver}
+        onDrop={onDrop}
+        onMouseDownCapture={handleCanvasMouseDownCapture}
+      >
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -280,13 +335,61 @@ function CanvasInner() {
           onNodesChange={onNodesChangeSafe}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
+          onReconnect={onReconnect}
           onNodeDoubleClick={onNodeDoubleClick}
+          onPaneClick={clearCanvasSelection}
+          edgesUpdatable
           deleteKeyCode={["Backspace", "Delete"]}
           fitView
         >
           <Background variant={BackgroundVariant.Lines} gap={20} color="rgba(255,255,255,0.03)" />
         </ReactFlow>
+        {saveState !== "hidden" && (
+          <div className="graph-save-progress">
+            <div className="graph-save-progress__meta">
+              <span>
+                {saveState === "saving"
+                  ? "Saving graph..."
+                  : saveState === "success"
+                    ? "Graph saved"
+                    : "Save failed"}
+              </span>
+              <span>{Math.round(saveProgress)}%</span>
+            </div>
+            <div className="graph-save-progress__track">
+              <div
+                className={`graph-save-progress__fill graph-save-progress__fill--${saveState}`}
+                style={{ width: `${saveProgress}%` }}
+              />
+            </div>
+          </div>
+        )}
       </div>
+      {nodeDetailsModalState && (
+        <NodeDetailsModal
+          nodeId={nodeDetailsModalState.nodeId}
+          position={nodeDetailsTarget?.position ?? null}
+          initialParams={(nodeDetailsTarget?.data.params as Record<string, number> | undefined) ?? {}}
+          transformId={nodeDetailsModalState.transformId}
+          open
+          onClose={closeModal}
+          onSubmitParams={(nodeId, params) => {
+            setNodes((current) =>
+              current.map((node) =>
+                (node.data.nodeId as number | undefined) === nodeId
+                  ? {
+                      ...node,
+                      data: {
+                        ...node.data,
+                        params,
+                      },
+                    }
+                  : node
+              )
+            );
+          }}
+        />
+      )}
     </div>
   );
 }

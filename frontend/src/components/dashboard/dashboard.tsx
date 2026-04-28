@@ -17,8 +17,10 @@ import { useRegionStore } from "@/Stores/RegionStore";
 import { useGraphStore } from "@/Stores/GraphStore";
 import { QUERY_KEYS } from "@/constants/queryKeys";
 import { useWorkspace } from "@/hooks/workspace/queries";
+import { useActiveGraphId } from "@/hooks/graphs/useActiveGraphId";
 import { ProjectsPanel } from "./projects/ProjectsPanel";
 import { SidebarPanel } from "./sidebar/SidebarPanel";
+import { useAudioEffectsStore } from "@/Stores/AudioEffectsStore";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,6 +33,8 @@ import {
 export function Dashboard() {
   const user = useAuthStore((state) => state.user);
   const activeProjectId = useProjectStore((s) => s.activeProject?.project_id);
+  const activeGraphId = useActiveGraphId();
+  const toggleEffectsEnabled = useAudioEffectsStore((s) => s.toggleEffectsEnabled);
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -54,6 +58,20 @@ export function Dashboard() {
     if (sidebarTracks.length === 0) return;
     setActiveTrack(sidebarTracks[0].trackId);
   }, [sidebarTracks, activeTrackId, setActiveTrack]);
+
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      if (!event.shiftKey || event.key.toLowerCase() !== "g") return;
+      const active = document.activeElement as HTMLElement | null;
+      if (active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA" || active.isContentEditable)) return;
+      if (activeGraphId == null) return;
+      event.preventDefault();
+      toggleEffectsEnabled();
+    };
+
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [activeGraphId, toggleEffectsEnabled]);
 
   return (
     <>

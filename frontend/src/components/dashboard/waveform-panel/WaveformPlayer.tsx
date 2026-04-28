@@ -8,14 +8,15 @@ import { WaveformToolbar } from "./WaveformToolbar";
 import { PlaybackControls } from "./PlaybackControls";
 import { useWaveSurferPlaybackControls } from "./useWaveSurferPlaybackControls";
 import { useUIStore } from "@/Stores/UIStore";
+import { useAudioEffectsStore } from "@/Stores/AudioEffectsStore";
 import { useRegionController } from "@/controllers/RegionController";
 import { useRegionSetController } from "@/controllers/RegionSetController";
+import { useActiveGraphId } from "@/hooks/graphs/useActiveGraphId";
 
 export function WaveformPlayer() {
   const activeSelection = useUIStore((x) => x.activeSelection);
   const editingRegionBounds = useUIStore((x) => x.editingRegionBounds);
   const setActiveRegion = useUIStore((x) => x.setActiveRegion);
-  const clearActiveRegion = useUIStore((x) => x.clearActiveRegion);
   const beginEditingRegionBounds = useUIStore((x) => x.beginEditingRegionBounds);
   const updateEditingRegionBounds = useUIStore((x) => x.updateEditingRegionBounds);
   const clearEditingRegionBounds = useUIStore((x) => x.clearEditingRegionBounds);
@@ -37,8 +38,13 @@ export function WaveformPlayer() {
   const [createDraftBounds, setCreateDraftBounds] = useState<{ start: number; end: number } | null>(null);
   const waveRef = useRef<WaveSurfer | null>(null);
   const playback = useWaveSurferPlaybackControls(waveRef);
-  const effectsChain = useAudioEffectsChain();
+  const { onWaveformBound, setEffects } = useAudioEffectsChain();
+  const activeGraphId = useActiveGraphId();
+  const effectsEnabled = useAudioEffectsStore((s) => s.effectsEnabled);
+  const setEffectsEnabled = useAudioEffectsStore((s) => s.setEffectsEnabled);
+  const hasGraph = activeGraphId != null;
   const isPlaying = playback.isPlaying;
+  const bindPlaybackWaveform = playback.bindWaveform;
   const play = playback.play;
   const playRange = playback.playRange;
   const seekToTime = playback.seekToTime;
@@ -61,10 +67,14 @@ export function WaveformPlayer() {
   }, [editingRegionBounds, regionId, regionSetViewModel]);
 
   const bindWaveform = useCallback((ws: WaveSurfer) => {
-    const cleanupPlayback = playback.bindWaveform(ws);
-    const cleanupEffects = effectsChain.onWaveformBound(ws);
+    const cleanupPlayback = bindPlaybackWaveform(ws);
+    const cleanupEffects = onWaveformBound(ws);
     return () => { cleanupPlayback(); cleanupEffects(); };
-  }, [playback.bindWaveform, effectsChain.onWaveformBound]);
+  }, [bindPlaybackWaveform, onWaveformBound]);
+
+  useEffect(() => {
+    setEffects(hasGraph && effectsEnabled);
+  }, [setEffects, hasGraph, effectsEnabled]);
 
   useEffect(() => {
     if (!createMode) {
@@ -100,6 +110,17 @@ export function WaveformPlayer() {
       return { start, end };
     });
   }, []);
+
+  const handleRegionSelect = useCallback((nextRegionId: number) => {
+    const nextRegion = regionSetViewModel?.regions.find((region) => region.regionId === nextRegionId);
+
+    if (!isPlaying && regionId == null && nextRegion) {
+      playback.stop();
+      seekToTime(nextRegion.start);
+    }
+
+    setActiveRegion(nextRegionId);
+  }, [isPlaying, playback, regionId, regionSetViewModel, seekToTime, setActiveRegion]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -159,8 +180,7 @@ export function WaveformPlayer() {
           createMode={createMode}
           onCancelCreate={() => setCreateMode(false)}
           editingRegionBounds={editingRegionBounds}
-          onRegionSelect={(id) => setActiveRegion(id)}
-          onRegionDeselect={() => clearActiveRegion()}
+          onRegionSelect={handleRegionSelect}
           onRegionDetails={(id) => regionController.handleDetailsRegion(id)}
           onEditRegion={(id) => regionController.handleEditRegion(id)}
           onDeleteRegion={(id) => regionController.handleDeleteRegion(id)}
@@ -175,6 +195,8 @@ export function WaveformPlayer() {
         />
         <PlaybackControls
           hasWaveform={playback.hasWaveform}
+          hasGraph={hasGraph}
+          effectsEnabled={hasGraph && effectsEnabled}
           isLoading={playback.isLoading}
           isPlaying={playback.isPlaying}
           currentTime={playback.currentTime}
@@ -184,6 +206,7 @@ export function WaveformPlayer() {
           onPlay={handlePlay}
           onPause={playback.pause}
           onStop={playback.stop}
+          onToggleEffects={() => setEffectsEnabled(!effectsEnabled)}
           onVolumeChange={playback.setVolume}
           onPlaybackRateChange={playback.setPlaybackRate}
           onPlaybackRateStep={playback.stepPlaybackRate}

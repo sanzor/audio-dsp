@@ -6,7 +6,6 @@ import { CreateGraphModal } from "./create-graph-modal";
 import { ClearNodesModal } from "./clear-nodes-modal";
 import { useRegionController } from "@/controllers/RegionController";
 import { PasteGraphModal } from "./paste-graph-modal";
-import { NodeDetailsModal } from "./node-details-modal";
 
 export function GraphModals() {
   const modalState = useUIStore((state) => state.modalState);
@@ -54,16 +53,6 @@ export function GraphModals() {
               copyName
             )
           }
-        />
-      );
-
-    case "nodeDetails":
-      return (
-        <NodeDetailsModal
-          nodeId={modalState.nodeId}
-          transformId={modalState.transformId}
-          open
-          onClose={closeModal}
         />
       );
 

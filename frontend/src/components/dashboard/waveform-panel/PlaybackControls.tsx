@@ -5,6 +5,8 @@ import { PLAYBACK_RATE_PRESETS, PLAYBACK_RATES } from "./useWaveSurferPlaybackCo
 
 interface PlaybackControlsProps {
   hasWaveform: boolean;
+  hasGraph: boolean;
+  effectsEnabled: boolean;
   isLoading: boolean;
   isPlaying: boolean;
   currentTime: number;
@@ -14,6 +16,7 @@ interface PlaybackControlsProps {
   onPlay: () => void;
   onPause: () => void;
   onStop: () => void;
+  onToggleEffects: () => void;
   onVolumeChange: (value: number) => void;
   onPlaybackRateChange: (value: number) => void;
   onPlaybackRateStep: (direction: -1 | 1) => void;
@@ -21,6 +24,8 @@ interface PlaybackControlsProps {
 
 export function PlaybackControls({
   hasWaveform,
+  hasGraph,
+  effectsEnabled,
   isLoading,
   isPlaying,
   currentTime,
@@ -30,6 +35,7 @@ export function PlaybackControls({
   onPlay,
   onPause,
   onStop,
+  onToggleEffects,
   onVolumeChange,
   onPlaybackRateChange,
   onPlaybackRateStep,
@@ -77,6 +83,21 @@ export function PlaybackControls({
         <div className="min-w-28 text-sm tabular-nums" style={{ color: "var(--text-muted)" }}>
           {formatTime(currentTime)} / {formatTime(duration)}
         </div>
+        <Button
+          type="button"
+          size="sm"
+          variant={hasGraph && effectsEnabled ? "default" : "outline"}
+          onClick={onToggleEffects}
+          disabled={!hasGraph}
+          aria-label={hasGraph && effectsEnabled ? "Turn effects off" : "Turn effects on"}
+          className={
+            hasGraph && effectsEnabled
+              ? "h-9 bg-emerald-600 px-3 text-white shadow-none hover:bg-emerald-500"
+              : "h-9 border-white/10 bg-white/5 px-3 text-white hover:bg-white/10 hover:text-white disabled:opacity-40"
+          }
+        >
+          {hasGraph && effectsEnabled ? "Effects Off" : "Effects On"}
+        </Button>
       </div>
 
       <div className="flex items-center gap-6">

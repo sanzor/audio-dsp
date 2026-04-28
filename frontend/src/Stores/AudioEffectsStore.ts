@@ -7,16 +7,18 @@ const graphController = new GraphController(pipeline)
 
 interface AudioEffectsState {
   hasCompiledGraph: boolean
-  withEffects: boolean
+  effectsEnabled: boolean
   graphController: GraphController
   setHasCompiledGraph: (v: boolean) => void
-  setWithEffects: (v: boolean) => void
+  setEffectsEnabled: (v: boolean) => void
+  toggleEffectsEnabled: () => void
 }
 
 export const useAudioEffectsStore = create<AudioEffectsState>()((set) => ({
   hasCompiledGraph: false,
-  withEffects: true,
+  effectsEnabled: false,
   graphController,
   setHasCompiledGraph: (v) => set({ hasCompiledGraph: v }),
-  setWithEffects: (v) => set({ withEffects: v }),
+  setEffectsEnabled: (v) => set({ effectsEnabled: v }),
+  toggleEffectsEnabled: () => set((state) => ({ effectsEnabled: !state.effectsEnabled })),
 }))

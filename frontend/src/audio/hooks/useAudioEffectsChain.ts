@@ -42,6 +42,7 @@ export function useAudioEffectsChain() {
         workletNode.connect(audioCtx.destination)
 
         graphController.connectWorklet(workletNode.port)
+        graphController.setEffects(useAudioEffectsStore.getState().effectsEnabled)
       } catch (error) {
         if (disposed) return
         if (error instanceof DOMException && error.name === 'InvalidStateError') {

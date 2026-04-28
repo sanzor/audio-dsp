@@ -11,6 +11,7 @@ export function createWaveFormPlayer(
   container: HTMLElement,
   onRegionDetails?: (regionId: number) => void,
   onRegionSelect?: (regionId: number) => void,
+  onRegionSeek?: (time: number) => void,
   onRegionUpdated?: (region: Region, side?: "start" | "end") => Promise<void> | void,
 ): { wave: WaveSurfer; regions: RegionsPlugin } {
   let activeRegion: Region | null = null;
@@ -62,6 +63,14 @@ export function createWaveFormPlayer(
     event.preventDefault();
     event.stopImmediatePropagation();
     activeRegion = region;
+    const clickTime = Math.min(
+      region.end,
+      Math.max(
+        region.start,
+        clientXToTime((event as MouseEvent).clientX, container, wave.getDuration()),
+      ),
+    );
+    onRegionSeek?.(clickTime);
     onRegionSelect?.(Number(region.id));
   });
 

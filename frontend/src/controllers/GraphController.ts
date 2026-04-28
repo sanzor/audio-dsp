@@ -87,30 +87,60 @@ export function useGraphController() {
     // SAVE GRAPH STATE
     // ============================================
     handleSaveGraph: async (graphId: number, nodes: RFNode[], edges: RFEdge[]) => {
+      let nextTempId = -1;
+      const normalizedNodeIds = new Map<string, number>();
+      const normalizedEdgeIds = new Map<string, number>();
+      const normalizeId = (rawId: string, cache: Map<string, number>) => {
+        const numericId = Number(rawId);
+        if (!Number.isNaN(numericId)) {
+          return numericId;
+        }
+        const existing = cache.get(rawId);
+        if (existing != null) {
+          return existing;
+        }
+        const tempId = nextTempId--;
+        cache.set(rawId, tempId);
+        return tempId;
+      };
+
       const repr = {
         schemaVersion: 1,
-        nodes: nodes.flatMap((n) => {
-          const numId = Number(n.id);
-          if (Number.isNaN(numId)) return [];
-          return [{
-            id: numId,
-            nodeType: n.data.nodeType as string,
-            transformId: (n.data.transformId as number | null) ?? null,
-            position: n.position,
-          }];
-        }),
-        edges: edges.flatMap((e) => {
-          const fromId = Number(e.source);
-          const toId = Number(e.target);
-          if (Number.isNaN(fromId) || Number.isNaN(toId)) return [];
-          return [{
-            id: Number(e.id) || 0,
-            fromNodeId: fromId,
-            toNodeId: toId,
-          }];
-        }),
+        nodes: nodes.map((n) => ({
+          id: normalizeId(String(n.id), normalizedNodeIds),
+          nodeType: n.data.nodeType as string,
+          transformId: (n.data.transformId as number | null) ?? null,
+          position: n.position,
+          params: (n.data.params as Record<string, number> | undefined) ?? {},
+        })),
+        edges: edges.map((e) => ({
+          id: normalizeId(String(e.id), normalizedEdgeIds),
+          fromNodeId: normalizeId(String(e.source), normalizedNodeIds),
+          toNodeId: normalizeId(String(e.target), normalizedNodeIds),
+        })),
       };
       await apiSaveGraphState({ graphId, state: JSON.stringify(repr) });
+    },
+
+    handleUpdateNodeParams: (nodeId: number, params: Record<string, number>) => {
+      for (const graph of graphMap.values()) {
+        const nodeIndex = graph.nodes.findIndex((node) => node.id === nodeId);
+        if (nodeIndex === -1) continue;
+
+        const nextNodes = [...graph.nodes];
+        nextNodes[nodeIndex] = {
+          ...nextNodes[nodeIndex],
+          params,
+        };
+
+        useGraphStore.getState().updateGraph(graph.id, {
+          nodes: nextNodes,
+          updatedAt: new Date(),
+        });
+        return;
+      }
+
+      console.error('Node not found:', { nodeId });
     },
 
     // ============================================

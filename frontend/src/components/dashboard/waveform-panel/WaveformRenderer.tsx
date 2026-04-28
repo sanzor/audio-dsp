@@ -32,7 +32,6 @@ export interface WaveformRendererProps{
     createMode?: boolean,
     editingRegionBounds?: EditingRegionBounds,
     onRegionSelect?: (regionId: number) => void,
-    onRegionDeselect?: () => void,
 }
 
 
@@ -50,7 +49,6 @@ export function WaveformRenderer({
     createMode,
     editingRegionBounds,
     onRegionSelect,
-    onRegionDeselect,
   }:WaveformRendererProps
   ){
     const waveformShellRef = useRef<HTMLDivElement | null>(null);
@@ -60,7 +58,6 @@ export function WaveformRenderer({
     const onUpdateRegionBoundsRef = useRef(onUpdateRegionBounds);
     const onCreateRegionDragRef = useRef(onCreateRegionDrag);
     const onRegionSelectRef = useRef(onRegionSelect);
-    const onRegionDeselectRef = useRef(onRegionDeselect);
     const createModeRef = useRef(createMode ?? false);
     const editingRegionBoundsRef = useRef<EditingRegionBounds>(editingRegionBounds ?? null);
     const seekToTimeRef = useRef(playback.seekToTime);
@@ -87,7 +84,6 @@ export function WaveformRenderer({
     }, [onCreateRegionDrag]);
 
     useEffect(() => { onRegionSelectRef.current = onRegionSelect; }, [onRegionSelect]);
-    useEffect(() => { onRegionDeselectRef.current = onRegionDeselect; }, [onRegionDeselect]);
     useEffect(() => { createModeRef.current = createMode ?? false; }, [createMode]);
     useEffect(() => { editingRegionBoundsRef.current = editingRegionBounds ?? null; }, [editingRegionBounds]);
     useEffect(() => { seekToTimeRef.current = playback.seekToTime; }, [playback.seekToTime]);
@@ -108,6 +104,7 @@ export function WaveformRenderer({
             waveformElement,
             (regionId) => onRegionDetailsRef.current?.(regionId),
             (regionId) => onRegionSelectRef.current?.(regionId),
+            (time) => seekToTimeRef.current(time),
             async (updatedRegion, side) => {
                 const currentRegionSet = regionSetRef.current;
                 if (!currentRegionSet?.regions) return;
@@ -219,7 +216,7 @@ export function WaveformRenderer({
 
         }
         renderedRegionIds.current = new Set(regionsPlugin.getRegions().map((region) => region.id));
-    },[editingRegionBounds, regionSet, regionSet?.regions, regionsPlugin, selectedRegionId]);
+    },[editingRegionBounds, regionSet, regionSet?.regions, regionsPlugin, selectedRegionId, waveRef]);
 
     useEffect(() => {
         const waveformShellElement = waveformShellRef.current;
@@ -235,7 +232,6 @@ export function WaveformRenderer({
 
             const time = clientXToTime(event.clientX, waveformShellElement, wave.getDuration());
             if (!isPointInsideRegion(time, regionSet.regions)) {
-                onRegionDeselectRef.current?.();
                 seekToTimeRef.current(time);
             }
         };

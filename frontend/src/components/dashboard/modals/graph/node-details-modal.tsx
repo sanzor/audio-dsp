@@ -6,32 +6,73 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { useGraphStore } from "@/Stores/GraphStore";
 import { useTransformStore } from "@/Stores/TransformStore";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useEffect, useState } from "react";
 
 interface NodeDetailsModalProps {
   nodeId: number | null;
+  position?: { x: number; y: number } | null;
+  initialParams: Record<string, number>;
   transformId: number | null;
   open: boolean;
   onClose: () => void;
+  onSubmitParams: (nodeId: number, params: Record<string, number>) => void;
 }
 
-export function NodeDetailsModal({ nodeId, transformId, open, onClose }: NodeDetailsModalProps) {
-  const node = useGraphStore((s) => {
-    if (nodeId == null) return undefined;
-    for (const graph of s.graphs.values()) {
-      const found = graph.nodes.find((n) => n.id === nodeId);
-      if (found) return found;
-    }
-    return undefined;
-  });
-
+export function NodeDetailsModal({ nodeId, position, initialParams, transformId, open, onClose, onSubmitParams }: NodeDetailsModalProps) {
   const transform = useTransformStore((s) =>
     transformId != null ? s.transforms.get(transformId) : undefined
   );
 
   const inputs = transform?.ports.filter((p) => p.direction === "input") ?? [];
   const outputs = transform?.ports.filter((p) => p.direction === "output") ?? [];
+  const [paramEntries, setParamEntries] = useState<Array<{ key: string; value: string }>>([]);
+
+  useEffect(() => {
+    const entries = Object.entries(initialParams).map(([key, value]) => ({
+      key,
+      value: String(value),
+    }));
+    setParamEntries(entries.length > 0 ? entries : [{ key: "", value: "" }]);
+  }, [initialParams, open, nodeId]);
+
+  const handleParamChange = (index: number, field: "key" | "value", value: string) => {
+    setParamEntries((current) =>
+      current.map((entry, entryIndex) =>
+        entryIndex === index ? { ...entry, [field]: value } : entry
+      )
+    );
+  };
+
+  const handleAddParam = () => {
+    setParamEntries((current) => [...current, { key: "", value: "" }]);
+  };
+
+  const handleRemoveParam = (index: number) => {
+    setParamEntries((current) => {
+      const next = current.filter((_, entryIndex) => entryIndex !== index);
+      return next.length > 0 ? next : [{ key: "", value: "" }];
+    });
+  };
+
+  const handleSave = () => {
+    if (nodeId == null) return;
+
+    const nextParams: Record<string, number> = {};
+    for (const entry of paramEntries) {
+      const key = entry.key.trim();
+      const value = entry.value.trim();
+      if (!key || !value) continue;
+      const numeric = Number(value);
+      if (Number.isNaN(numeric)) continue;
+      nextParams[key] = numeric;
+    }
+
+    onSubmitParams(nodeId, nextParams);
+    onClose();
+  };
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -45,15 +86,15 @@ export function NodeDetailsModal({ nodeId, transformId, open, onClose }: NodeDet
             <p className="text-muted-foreground">{transform.description}</p>
           )}
 
-          {node && (
+          {nodeId != null && position && (
             <div className="space-y-1">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Node ID</span>
-                <span>{node.id}</span>
+                <span>{nodeId}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Position</span>
-                <span>x: {Math.round(node.position.x)}, y: {Math.round(node.position.y)}</span>
+                <span>x: {Math.round(position.x)}, y: {Math.round(position.y)}</span>
               </div>
             </div>
           )}
@@ -88,9 +129,50 @@ export function NodeDetailsModal({ nodeId, transformId, open, onClose }: NodeDet
               </div>
             </div>
           )}
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="font-medium">Parameters</div>
+              <Button type="button" variant="outline" size="sm" onClick={handleAddParam}>
+                Add Param
+              </Button>
+            </div>
+
+            <div className="space-y-2">
+              {paramEntries.map((entry, index) => (
+                <div key={`${nodeId ?? "node"}-param-${index}`} className="grid grid-cols-[1fr_1fr_auto] gap-2">
+                  <div className="space-y-1">
+                    <Label htmlFor={`param-key-${index}`}>Name</Label>
+                    <Input
+                      id={`param-key-${index}`}
+                      value={entry.key}
+                      onChange={(event) => handleParamChange(index, "key", event.target.value)}
+                      placeholder="gain"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor={`param-value-${index}`}>Value</Label>
+                    <Input
+                      id={`param-value-${index}`}
+                      value={entry.value}
+                      onChange={(event) => handleParamChange(index, "value", event.target.value)}
+                      placeholder="1.25"
+                      inputMode="decimal"
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <Button type="button" variant="outline" size="sm" onClick={() => handleRemoveParam(index)}>
+                      Remove
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
         <DialogFooter>
+          <Button onClick={handleSave}>Save Params</Button>
           <Button variant="outline" onClick={onClose}>Close</Button>
         </DialogFooter>
       </DialogContent>

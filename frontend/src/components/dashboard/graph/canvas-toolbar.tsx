@@ -3,7 +3,10 @@ import type React from "react";
 interface CanvasToolbarProps {
   selectedGraphId: number | undefined;
   hasClearableNodes: boolean;
+  isSaving: boolean;
+  effectsEnabled: boolean;
   onSave: () => void;
+  onToggleEffects: () => void;
   onFitView: () => void;
   onClearNodes: () => void;
   onRename: () => void;
@@ -14,7 +17,10 @@ interface CanvasToolbarProps {
 export function CanvasToolbar({
   selectedGraphId,
   hasClearableNodes,
+  isSaving,
+  effectsEnabled,
   onSave,
+  onToggleEffects,
   onFitView,
   onClearNodes,
   onRename,
@@ -51,6 +57,14 @@ export function CanvasToolbar({
     cursor: "not-allowed",
   };
 
+  const btnActive: React.CSSProperties = {
+    ...btnBase,
+    color: "#dcfce7",
+    borderColor: "rgba(34,197,94,0.5)",
+    background: "rgba(22,163,74,0.18)",
+    boxShadow: "0 0 0 1px rgba(34,197,94,0.18) inset",
+  };
+
   const canClear = hasGraph && hasClearableNodes;
 
   return (
@@ -61,8 +75,15 @@ export function CanvasToolbar({
         borderBottom: "1px solid rgba(255,255,255,0.06)",
       }}
     >
-      <button style={hasGraph ? btnBase : btnDisabled} disabled={!hasGraph} onClick={onSave}>
-        Save
+      <button
+        style={hasGraph ? (effectsEnabled ? btnActive : btnBase) : btnDisabled}
+        disabled={!hasGraph}
+        onClick={onToggleEffects}
+      >
+        {effectsEnabled ? "Effects Off" : "Effects On"}
+      </button>
+      <button style={hasGraph && !isSaving ? btnBase : btnDisabled} disabled={!hasGraph || isSaving} onClick={onSave}>
+        {isSaving ? "Saving..." : "Save"}
       </button>
       <button style={hasGraph ? btnBase : btnDisabled} disabled={!hasGraph} onClick={onFitView}>
         Fit View
