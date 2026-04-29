@@ -20,11 +20,15 @@ export class GraphController {
     this.workletPort = null
   }
 
-  updateGraph(graph: ActiveGraph): void {
+  updateGraph(graph: ActiveGraph): boolean {
     const compiled = this.pipeline.compile(graph)
-    if (!compiled) return
+    if (!compiled) {
+      useAudioEffectsStore.getState().setHasCompiledGraph(false)
+      return false
+    }
     useAudioEffectsStore.getState().setHasCompiledGraph(true)
     this.sendToWorklet({ type: 'LOAD_GRAPH', payload: compiled })
+    return true
   }
 
   setEffects(enabled: boolean): void {

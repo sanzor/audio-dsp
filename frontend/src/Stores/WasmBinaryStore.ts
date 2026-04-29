@@ -9,6 +9,7 @@ interface WasmBinaryState {
   setStatus(transformId: number, status: 'fetching' | 'error'): void;
   getBinary(transformId: number): Uint8Array | null;
   isReady(transformId: number): boolean;
+  clear(): void;
 }
 
 export const useWasmBinaryStore = create<WasmBinaryState>()((set, get) => ({
@@ -39,5 +40,9 @@ export const useWasmBinaryStore = create<WasmBinaryState>()((set, get) => ({
 
   isReady(transformId) {
     return get().status.get(transformId) === 'ready';
+  },
+
+  clear() {
+    set({ binaries: new Map(), status: new Map() });
   },
 }));

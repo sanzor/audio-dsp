@@ -5,6 +5,7 @@ export type CompileOutput = {
   bufCount: number
   feedbackCount: number
   transformIds: number[]
+  paramsByInstance: number[][]
 }
 
 export type CompiledGraph = {
@@ -12,4 +13,5 @@ export type CompiledGraph = {
   bufCount: number
   feedbackCount: number
   wasmBuffers: ArrayBuffer[]
+  paramsByInstance: number[][]
 }

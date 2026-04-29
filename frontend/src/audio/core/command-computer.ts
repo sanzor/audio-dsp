@@ -19,5 +19,6 @@ export function compute(output: CompileOutput): CompiledGraph | null {
     bufCount: output.bufCount,
     feedbackCount: output.feedbackCount,
     wasmBuffers,
+    paramsByInstance: output.paramsByInstance,
   }
 }

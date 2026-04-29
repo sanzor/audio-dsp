@@ -29,6 +29,7 @@ import { SinkNode } from "./sink-node";
 import { useActiveGraphId } from "@/hooks/graphs/useActiveGraphId";
 import { NodeDetailsModal } from "../modals/graph/node-details-modal";
 import { apiGetTransformDefinition } from "@/Services/TransformService";
+import { useLiveCanvasGraphRuntime } from "@/hooks/audio/useLiveCanvasGraphRuntime";
 
 
 const NODE_TYPES = { source: SourceNode, sink: SinkNode };
@@ -38,6 +39,18 @@ function defaultParamsForTransform(transform?: TransformDefinition) {
 
   const ordered = [...transform.params].sort((a, b) => a.param_order - b.param_order);
   return Object.fromEntries(ordered.map((param) => [param.name, param.default_value]));
+}
+
+function nextTempIdSeed(graph?: { nodes: Array<{ id: number }>; edges: Array<{ id: number }> }) {
+  if (!graph) return -1;
+
+  const ids = [
+    ...graph.nodes.map((node) => node.id),
+    ...graph.edges.map((edge) => edge.id),
+  ];
+
+  const minId = ids.length > 0 ? Math.min(...ids, -1) : -1;
+  return minId - 1;
 }
 
 // ─── Canvas ───────────────────────────────────────────────────────────────────
@@ -88,6 +101,10 @@ function CanvasInner() {
   const upsertDefinition = useTransformStore((s) => s.upsertDefinition);
   const effectsEnabled = useAudioEffectsStore((s) => s.effectsEnabled);
   const setEffectsEnabled = useAudioEffectsStore((s) => s.setEffectsEnabled);
+  const workletConnected = useAudioEffectsStore((s) => s.workletConnected);
+  const runtimeStatus = useAudioEffectsStore((s) => s.runtimeStatus);
+  const runtimeMessage = useAudioEffectsStore((s) => s.runtimeMessage);
+  const hasCompiledGraph = useAudioEffectsStore((s) => s.hasCompiledGraph);
   const graphController = useGraphController();
   const isGraphLive = activeGraphId != null && effectsEnabled;
   const nodeDetailsModalState = modalState?.type === "nodeDetails" ? modalState : null;
@@ -120,6 +137,8 @@ function CanvasInner() {
       ? useGraphStore.getState().getGraph(activeGraphId)
       : undefined;
 
+    nextCanvasTempIdRef.current = nextTempIdSeed(graph);
+
     setNodes(
       graph?.nodes.map((n) => {
         const isStructural = n.nodeType === "source" || n.nodeType === "sink";
@@ -149,7 +168,41 @@ function CanvasInner() {
         target: String(e.toNodeId),
       })) ?? []
     );
-  }, [regionId, activeGraphId, activeGraphVersion, summaries, setNodes, setEdges]);
+  }, [regionId, activeGraphId, activeGraphVersion, setNodes, setEdges]);
+
+  useEffect(() => {
+    setNodes((current) =>
+      current.map((node) => {
+        const nodeType = node.data.nodeType as NodeType;
+        if (nodeType === "source") {
+          if (node.data.label === "Input") return node;
+          return { ...node, data: { ...node.data, label: "Input" } };
+        }
+        if (nodeType === "sink") {
+          if (node.data.label === "Output") return node;
+          return { ...node, data: { ...node.data, label: "Output" } };
+        }
+
+        const transformId = node.data.transformId as number | null | undefined;
+        if (transformId == null) {
+          return node;
+        }
+
+        const label = summaries.get(transformId)?.name ?? node.data.label;
+        if (label === node.data.label) {
+          return node;
+        }
+
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            label,
+          },
+        };
+      })
+    );
+  }, [summaries, setNodes]);
 
   const onConnect = useCallback(
     (connection: Connection) =>
@@ -347,6 +400,8 @@ function CanvasInner() {
   // Stable nodeTypes reference — must not be recreated on every render
   const nodeTypes = useMemo(() => NODE_TYPES, []);
 
+  useLiveCanvasGraphRuntime(activeGraphId, effectsEnabled, nodes, edges);
+
   return (
     <div className={`flex flex-col w-full h-full overflow-hidden rounded-[10px]${isGraphLive ? " graph-live-shell" : ""}`}>
       <CanvasToolbar
@@ -384,6 +439,27 @@ function CanvasInner() {
         >
           <Background variant={BackgroundVariant.Lines} gap={20} color="rgba(255,255,255,0.03)" />
         </ReactFlow>
+        <div
+          className="pointer-events-none absolute right-3 top-3 z-20 max-w-sm rounded-md border px-3 py-2 text-xs"
+          style={{
+            background: "rgba(15, 23, 42, 0.9)",
+            borderColor:
+              runtimeStatus === "error"
+                ? "rgba(248, 113, 113, 0.45)"
+                : runtimeStatus === "ready"
+                  ? "rgba(74, 222, 128, 0.45)"
+                  : "rgba(255,255,255,0.12)",
+            color: "var(--text-main)",
+          }}
+        >
+          <div className="font-medium">
+            Runtime: {runtimeStatus}
+          </div>
+          <div>Worklet: {workletConnected ? "connected" : "disconnected"}</div>
+          <div>Effects: {effectsEnabled ? "enabled" : "bypassed"}</div>
+          <div>Compiled: {hasCompiledGraph ? "yes" : "no"}</div>
+          {runtimeMessage && <div>{runtimeMessage}</div>}
+        </div>
         {saveState !== "hidden" && (
           <div className="graph-save-progress">
             <div className="graph-save-progress__meta">

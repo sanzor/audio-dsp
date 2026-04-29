@@ -3,7 +3,6 @@
 import { useUIStore } from "@/Stores/UIStore";
 import { useDeleteGraph, useEditGraph, useSaveGraphState } from "@/hooks/graphs/mutations";
 import { useGraphStore } from "@/Stores/GraphStore";
-import { apiSaveGraphState } from "@/Services/GraphService";
 import type { Node as RFNode, Edge as RFEdge } from "reactflow";
 
 export function useGraphController() {
@@ -119,7 +118,7 @@ export function useGraphController() {
           toNodeId: normalizeId(String(e.target), normalizedNodeIds),
         })),
       };
-      await apiSaveGraphState({ graphId, state: JSON.stringify(repr) });
+      await saveGraphStateMutation.mutateAsync({ graphId, state: JSON.stringify(repr) });
     },
 
     handleUpdateNodeParams: (nodeId: number, params: Record<string, number>) => {

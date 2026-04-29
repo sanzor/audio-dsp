@@ -16,6 +16,7 @@ import {
   type SaveGraphStateResult,
 } from "@/Services/GraphService";
 import { useGraphStore } from "@/Stores/GraphStore";
+import { useProjectStore } from "@/Stores/projectStore";
 import { useRegionStore } from "@/Stores/RegionStore";
 import { QUERY_KEYS } from "@/constants/queryKeys";
 import type { Graph } from "@/domain/Graph/Graph";
@@ -108,6 +109,10 @@ export const useSaveGraphState = () => {
     mutationFn: (params) => apiSaveGraphState(params),
     onSuccess: (data) => {
       updateGraph(data.graph.id, data.graph);
+      const activeProjectId = useProjectStore.getState().activeProject?.project_id;
+      if (activeProjectId != null) {
+        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.workspace.byProject(activeProjectId) });
+      }
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.graphs.byId(data.graph.id) });
     },
   });

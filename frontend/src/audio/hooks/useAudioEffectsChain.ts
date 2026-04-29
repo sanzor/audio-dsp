@@ -5,6 +5,7 @@ import AudioWorkletAdapterUrl from '../worklet/audio-worklet-adapter.ts?url'
 
 export function useAudioEffectsChain() {
   const graphController = useAudioEffectsStore(s => s.graphController)
+  const setWorkletConnected = useAudioEffectsStore(s => s.setWorkletConnected)
   const audioCtxRef = useRef<AudioContext | null>(null)
 
   // Call this when a WaveSurfer instance is bound (alongside playback.bindWaveform).
@@ -42,6 +43,7 @@ export function useAudioEffectsChain() {
         workletNode.connect(audioCtx.destination)
 
         graphController.connectWorklet(workletNode.port)
+        setWorkletConnected(true)
         graphController.setEffects(useAudioEffectsStore.getState().effectsEnabled)
       } catch (error) {
         if (disposed) return
@@ -57,6 +59,7 @@ export function useAudioEffectsChain() {
     return () => {
       disposed = true
       graphController.disconnectWorklet()
+      setWorkletConnected(false)
       source?.disconnect()
       workletNode?.disconnect()
       void audioCtx?.close()
@@ -64,7 +67,7 @@ export function useAudioEffectsChain() {
         audioCtxRef.current = null
       }
     }
-  }, [graphController])
+  }, [graphController, setWorkletConnected])
 
   const setEffects = useCallback((enabled: boolean) => {
     graphController.setEffects(enabled)

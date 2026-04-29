@@ -7,6 +7,7 @@ interface TransformState {
   setSummaries: (transforms: TransformSummary[]) => void;
   upsertDefinition: (transform: TransformDefinition) => void;
   upsertDefinitions: (transforms: TransformDefinition[]) => void;
+  clear: () => void;
 }
 
 export const useTransformStore = create<TransformState>()((set) => ({
@@ -64,4 +65,5 @@ export const useTransformStore = create<TransformState>()((set) => ({
 
       return { definitions, summaries };
     }),
+  clear: () => set({ summaries: new Map(), definitions: new Map() }),
 }));

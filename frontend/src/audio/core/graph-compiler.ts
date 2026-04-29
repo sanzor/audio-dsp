@@ -11,8 +11,9 @@ export function compile(graph: ActiveGraph): CompileOutput {
   const plan = buildProcessingPlan(graph, feedbackBuffers)
   const [instructions, bufCount] = buildInstructions(plan, feedbackBuffers)
   const transformIds = plan.topoOrder.map(id => graph.nodes.get(id)!.transformId)
+  const paramsByInstance = plan.topoOrder.map((id) => Object.values(graph.nodes.get(id)!.params ?? {}))
 
-  return { instructions, bufCount, feedbackCount: feedbackBuffers.length, transformIds }
+  return { instructions, bufCount, feedbackCount: feedbackBuffers.length, transformIds, paramsByInstance }
 }
 
 function buildInstructions(

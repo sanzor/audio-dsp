@@ -2,14 +2,21 @@ import type { CompiledGraph } from '../types/compiled'
 import type { Instruction } from '../types/instruction'
 
 // Contract expected from each WASM transform module.
-// Pending finalisation of the actual WASM export surface.
 export type WasmExports = {
-  process: (inputPtr: number, outputPtr: number, length: number) => void
+  alloc: (len: number) => number
+  process: (inputPtr: number, length: number, paramsPtr: number, paramsLen: number) => void
   memory: WebAssembly.Memory
 }
 
+type WasmInstanceState = {
+  exports: WasmExports
+  inputPtr: number
+  paramsPtr: number
+  paramsLen: number
+}
+
 export type ExecutorState = {
-  instances: WasmExports[]
+  instances: WasmInstanceState[]
   instructions: Instruction[]
   buffers: Float32Array[]
   feedbackRegistry: Float32Array[]
@@ -21,9 +28,22 @@ export async function createExecutorState(
   blockSize: number,
 ): Promise<ExecutorState> {
   const instances = await Promise.all(
-    compiled.wasmBuffers.map(bytes =>
-      WebAssembly.instantiate(bytes).then(r => r.instance.exports as unknown as WasmExports),
-    ),
+    compiled.wasmBuffers.map(async (bytes, index) => {
+      const exports = await WebAssembly.instantiate(bytes).then(
+        (r) => r.instance.exports as unknown as WasmExports,
+      )
+      const params = compiled.paramsByInstance[index] ?? []
+      const inputPtr = exports.alloc(blockSize)
+      const paramsPtr = exports.alloc(Math.max(params.length, 1))
+      new Float32Array(exports.memory.buffer, paramsPtr, params.length).set(params)
+
+      return {
+        exports,
+        inputPtr,
+        paramsPtr,
+        paramsLen: params.length,
+      }
+    }),
   )
 
   return {
@@ -65,7 +85,13 @@ export function processBlock(
         break
       case 'ExecuteTransform': {
         const inst = state.instances[instr.instanceIdx]
-        if (inst) inst.process(instr.inputBufIdx, instr.outputBufIdx, state.blockSize)
+        if (inst) {
+          new Float32Array(inst.exports.memory.buffer, inst.inputPtr, state.blockSize)
+            .set(state.buffers[instr.inputBufIdx])
+          inst.exports.process(inst.inputPtr, state.blockSize, inst.paramsPtr, inst.paramsLen)
+          state.buffers[instr.outputBufIdx]
+            .set(new Float32Array(inst.exports.memory.buffer, inst.inputPtr, state.blockSize))
+        }
         break
       }
       case 'StoreFeedback':

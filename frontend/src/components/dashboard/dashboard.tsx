@@ -15,6 +15,8 @@ import { useTrackStore } from "@/Stores/TrackStore";
 import { useRegionSetStore } from "@/Stores/RegionSetStore";
 import { useRegionStore } from "@/Stores/RegionStore";
 import { useGraphStore } from "@/Stores/GraphStore";
+import { useTransformStore } from "@/Stores/TransformStore";
+import { useWasmBinaryStore } from "@/Stores/WasmBinaryStore";
 import { QUERY_KEYS } from "@/constants/queryKeys";
 import { useWorkspace } from "@/hooks/workspace/queries";
 import { useActiveGraphId } from "@/hooks/graphs/useActiveGraphId";
@@ -45,6 +47,8 @@ export function Dashboard() {
     useRegionSetStore.getState().clear();
     useRegionStore.getState().clear();
     useGraphStore.getState().clear();
+    useTransformStore.getState().clear();
+    useWasmBinaryStore.getState().clear();
     useUIStore.getState().clearActiveSelection();
     queryClient.invalidateQueries({ queryKey: QUERY_KEYS.workspace.byProject(activeProjectId) });
   }, [activeProjectId, queryClient]);

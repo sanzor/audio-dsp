@@ -66,15 +66,6 @@ for spec in "${optional_seeds[@]}"; do
   apply_seed "${file_name}" "${table_name}" optional
 done
 
-if table_exists "tracks"; then
-  echo "Applying generated track seeds..."
-  python3 "${ROOT_DIR}/scripts/db_seed_tracks.py"
-  applied+=("generated tracks")
-else
-  echo "Skipping generated track seeds: table 'tracks' is not present in the current schema."
-  skipped+=("generated tracks (missing table tracks)")
-fi
-
 if table_exists "transforms" && table_exists "transform_binaries" && table_exists "transform_params"; then
   echo "Applying generated transform seeds..."
   python3 "${ROOT_DIR}/scripts/db_seed_transforms.py"
@@ -82,6 +73,15 @@ if table_exists "transforms" && table_exists "transform_binaries" && table_exist
 else
   echo "Skipping generated transform seeds: required transform asset tables are not present in the current schema."
   skipped+=("generated transforms (missing transform asset tables)")
+fi
+
+if table_exists "tracks"; then
+  echo "Applying generated track seeds..."
+  python3 "${ROOT_DIR}/scripts/db_seed_tracks.py"
+  applied+=("generated tracks")
+else
+  echo "Skipping generated track seeds: table 'tracks' is not present in the current schema."
+  skipped+=("generated tracks (missing table tracks)")
 fi
 
 if ((${#applied[@]} == 0)); then

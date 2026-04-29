@@ -104,7 +104,7 @@ def seed_transforms() -> None:
         statements.append(build_sql(transform, wasm_path))
 
     sql = "BEGIN;\n" + "\n".join(statements) + "\nCOMMIT;\n"
-    run_checked([str(DB_PSQL), "-v", "ON_ERROR_STOP=1", "-f", "-"], stdin=sql)
+    run_checked(["bash", str(DB_PSQL), "-v", "ON_ERROR_STOP=1", "-f", "-"], stdin=sql)
 
 
 def main() -> int:
