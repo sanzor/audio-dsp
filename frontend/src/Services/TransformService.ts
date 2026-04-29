@@ -1,5 +1,7 @@
-import type { Transform } from "@/domain/Transform/Transform";
-import { http } from "@/Services/http";
+import type { TransformDefinition, TransformPort, TransformSummary } from "@/domain/Transform/Transform";
+import { http, API_BASE_URL } from "@/Services/http";
+import { useAuthStore } from "@/Stores/authStore";
+import { useProjectStore } from "@/Stores/projectStore";
 
 // ─── Params ──────────────────────────────────────────────────────────────────
 
@@ -25,55 +27,106 @@ export interface AddPortParams {
 // ─── API ─────────────────────────────────────────────────────────────────────
 
 export interface TransformPage {
-  transforms: Transform[];
+  transforms: TransformSummary[];
   total: number;
 }
 
-export async function apiGetTransforms(offset = 0, limit = 20): Promise<TransformPage> {
-  return http.get<TransformPage>(`/transforms/get-all?offset=${offset}&limit=${limit}`);
+export interface TransformDefinitionsResponse {
+  transforms: TransformDefinition[];
 }
 
-export async function apiGetTransformById(transform_id: number): Promise<Transform> {
-  return http.get<Transform>(`/transforms/get-by-id?transform_id=${transform_id}`);
+export interface TransformBinaryEnvelope {
+  transform_id: number;
+  wasm_base64: string;
 }
 
-export async function apiCreateTransform(params: CreateTransformParams): Promise<Transform> {
-  return http.post<Transform, CreateTransformParams>(`/transforms/create`, params);
+export interface TransformBinariesResponse {
+  binaries: TransformBinaryEnvelope[];
+}
+
+function decodeBase64Binary(encoded: string): Uint8Array {
+  const decoded = atob(encoded);
+  const bytes = new Uint8Array(decoded.length);
+  for (let i = 0; i < decoded.length; i += 1) {
+    bytes[i] = decoded.charCodeAt(i);
+  }
+  return bytes;
+}
+
+export async function apiGetTransformSummaries(offset = 0, limit = 20): Promise<TransformPage> {
+  return http.get<TransformPage>(`/transforms?offset=${offset}&limit=${limit}`);
+}
+
+export async function apiGetTransformDefinition(transform_id: number): Promise<TransformDefinition> {
+  return http.get<TransformDefinition>(`/transforms/${transform_id}`);
+}
+
+export async function apiResolveTransformDefinitions(transform_ids: number[]): Promise<TransformDefinition[]> {
+  const response = await http.post<TransformDefinitionsResponse, { ids: number[] }>(
+    `/transforms/resolve`,
+    { ids: transform_ids }
+  );
+  return response.transforms;
+}
+
+export async function apiCreateTransform(params: CreateTransformParams): Promise<TransformDefinition> {
+  return http.post<TransformDefinition, CreateTransformParams>(`/transforms`, params);
 }
 
 export async function apiUpdateTransform(
   transform_id: number,
   params: UpdateTransformParams
-): Promise<Transform> {
-  return http.put<Transform, UpdateTransformParams>(
-    `/transforms/update?transform_id=${transform_id}`,
+): Promise<TransformDefinition> {
+  return http.put<TransformDefinition, UpdateTransformParams>(
+    `/transforms/${transform_id}`,
     params
   );
 }
 
 export async function apiDeleteTransform(transform_id: number): Promise<void> {
-  await http.delete<void>(`/transforms/delete?transform_id=${transform_id}`);
+  await http.delete<void>(`/transforms/${transform_id}`);
 }
 
 export async function apiAddPort(
   transform_id: number,
   params: AddPortParams
-): Promise<Transform> {
-  return http.post<Transform, AddPortParams>(
-    `/transforms/add-port?transform_id=${transform_id}`,
+): Promise<TransformPort> {
+  return http.post<TransformPort, AddPortParams>(
+    `/transforms/${transform_id}/ports`,
     params
   );
 }
 
 export async function apiDeletePort(port_id: number): Promise<void> {
-  await http.delete<void>(`/transforms/delete-port?port_id=${port_id}`);
+  await http.delete<void>(`/transforms/ports/${port_id}`);
 }
 
 // Fetches the pre-compiled .wasm binary for a transform from the backend.
-// The binary is stored in S3 and served via the backend — the frontend never compiles.
-export async function apiGetTransformWasm(transform_id: number): Promise<Uint8Array> {
-  const response = await fetch(`/transforms/wasm?transform_id=${transform_id}`);
+// The backend reads the committed binary bytes from persisted storage; the frontend never compiles.
+export async function apiGetTransformBinary(transform_id: number): Promise<Uint8Array> {
+  const token = useAuthStore.getState().token ?? undefined;
+  const activeProjectId = useProjectStore.getState().activeProject?.project_id;
+  const response = await fetch(`${API_BASE_URL}/transforms/${transform_id}/binary`, {
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(activeProjectId != null ? { "X-Project-Id": String(activeProjectId) } : {}),
+    },
+  });
   if (!response.ok) throw new Error(`Failed to fetch wasm for transform ${transform_id}`);
   const buffer = await response.arrayBuffer();
   return new Uint8Array(buffer);
+}
+
+export async function apiGetTransformBinaries(transform_ids: number[]): Promise<Map<number, Uint8Array>> {
+  const response = await http.post<TransformBinariesResponse, { ids: number[] }>(
+    `/transforms/binaries`,
+    { ids: transform_ids }
+  );
+
+  return new Map(
+    response.binaries.map((binary) => [
+      binary.transform_id,
+      decodeBase64Binary(binary.wasm_base64),
+    ])
+  );
 }

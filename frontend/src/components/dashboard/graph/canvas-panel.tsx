@@ -21,15 +21,24 @@ import { useRegionSetStore } from "@/Stores/RegionSetStore";
 import { useTransformStore } from "@/Stores/TransformStore";
 import { useAudioEffectsStore } from "@/Stores/AudioEffectsStore";
 import type { NodeType } from "@/domain/Graph/Node";
+import type { TransformDefinition } from "@/domain/Transform/Transform";
 import { CanvasToolbar } from "./canvas-toolbar";
 import { useGraphController } from "@/controllers/GraphController";
 import { SourceNode } from "./source-node";
 import { SinkNode } from "./sink-node";
 import { useActiveGraphId } from "@/hooks/graphs/useActiveGraphId";
 import { NodeDetailsModal } from "../modals/graph/node-details-modal";
+import { apiGetTransformDefinition } from "@/Services/TransformService";
 
 
 const NODE_TYPES = { source: SourceNode, sink: SinkNode };
+
+function defaultParamsForTransform(transform?: TransformDefinition) {
+  if (!transform) return {};
+
+  const ordered = [...transform.params].sort((a, b) => a.param_order - b.param_order);
+  return Object.fromEntries(ordered.map((param) => [param.name, param.default_value]));
+}
 
 // ─── Canvas ───────────────────────────────────────────────────────────────────
 
@@ -74,7 +83,9 @@ function CanvasInner() {
     activeGraphId != null ? s.graphs.get(activeGraphId)?.updatedAt?.getTime() : undefined
   );
 
-  const transforms = useTransformStore((s) => s.transforms);
+  const summaries = useTransformStore((s) => s.summaries);
+  const definitions = useTransformStore((s) => s.definitions);
+  const upsertDefinition = useTransformStore((s) => s.upsertDefinition);
   const effectsEnabled = useAudioEffectsStore((s) => s.effectsEnabled);
   const setEffectsEnabled = useAudioEffectsStore((s) => s.setEffectsEnabled);
   const graphController = useGraphController();
@@ -113,7 +124,7 @@ function CanvasInner() {
       graph?.nodes.map((n) => {
         const isStructural = n.nodeType === "source" || n.nodeType === "sink";
         const transformName = n.transformId != null
-          ? (transforms.get(n.transformId)?.name ?? String(n.id))
+          ? (summaries.get(n.transformId)?.name ?? String(n.id))
           : String(n.id);
         return {
           id: String(n.id),
@@ -138,7 +149,7 @@ function CanvasInner() {
         target: String(e.toNodeId),
       })) ?? []
     );
-  }, [regionId, activeGraphId, activeGraphVersion, transforms, setNodes, setEdges]);
+  }, [regionId, activeGraphId, activeGraphVersion, summaries, setNodes, setEdges]);
 
   const onConnect = useCallback(
     (connection: Connection) =>
@@ -195,6 +206,7 @@ function CanvasInner() {
       const { transformId, name } = JSON.parse(raw) as { transformId: number; name: string };
       const position = screenToFlowPosition({ x: e.clientX, y: e.clientY });
       const tempNodeId = nextCanvasTempId();
+      const definition = definitions.get(transformId);
 
       const node: Node = {
         id: String(tempNodeId),
@@ -204,14 +216,42 @@ function CanvasInner() {
           label: name,
           nodeId: tempNodeId,
           transformId,
-          params: {},
+          params: defaultParamsForTransform(definition),
           nodeType: "default",
         },
       };
 
       setNodes((ns) => [...ns, node]);
+
+      if (!definition) {
+        void apiGetTransformDefinition(transformId)
+          .then((fetched) => {
+            upsertDefinition(fetched);
+            setNodes((current) =>
+              current.map((existingNode) => {
+                if ((existingNode.data.nodeId as number | undefined) !== tempNodeId) {
+                  return existingNode;
+                }
+                const currentParams = (existingNode.data.params as Record<string, number> | undefined) ?? {};
+                if (Object.keys(currentParams).length > 0) {
+                  return existingNode;
+                }
+                return {
+                  ...existingNode,
+                  data: {
+                    ...existingNode.data,
+                    params: defaultParamsForTransform(fetched),
+                  },
+                };
+              })
+            );
+          })
+          .catch((error) => {
+            console.error("Failed to load transform definition:", error);
+          });
+      }
     },
-    [canDropTransform, screenToFlowPosition, setNodes, nextCanvasTempId]
+    [canDropTransform, screenToFlowPosition, setNodes, nextCanvasTempId, definitions, upsertDefinition]
   );
 
   // ─── Toolbar handlers ───────────────────────────────────────────────────────

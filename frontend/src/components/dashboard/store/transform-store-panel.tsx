@@ -4,7 +4,7 @@ import { TransformItem } from "./TransformItem";
 
 export function TransformStorePanel() {
   const { fetchNextPage, hasNextPage, isFetchingNextPage } = useListTransforms();
-  const transforms = Array.from(useTransformStore((s) => s.transforms).values());
+  const transforms = Array.from(useTransformStore((s) => s.summaries).values());
 
   return (
     <>

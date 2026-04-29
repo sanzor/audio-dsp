@@ -1,5 +1,5 @@
 import { Activity } from "lucide-react";
-import type { Transform } from "@/domain/Transform/Transform";
+import type { TransformSummary } from "@/domain/Transform/Transform";
 import { useUIStore } from "@/Stores/UIStore";
 
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -7,7 +7,7 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
 };
 
 interface TransformItemProps {
-  transform: Transform;
+  transform: TransformSummary;
 }
 
 export function TransformItem({ transform }: TransformItemProps) {

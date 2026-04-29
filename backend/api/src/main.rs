@@ -103,6 +103,7 @@ use api::{
     },
     transforms::{
         data_provider::transforms_data_provider_service::PostgresTransformsDataProvider,
+        storage_provider::transform_storage_provider_service::DbTransformStorageProvider,
         transforms_app_data::TransformsAppData,
         transforms_provider_service::TransformsProviderService,
     },
@@ -352,9 +353,10 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
         ))),
     };
     let transforms_app_data = TransformsAppData {
-        transforms_service: Arc::new(TransformsProviderService::new(Arc::new(
-            PostgresTransformsDataProvider::new(pool.clone()),
-        ))),
+        transforms_service: Arc::new(TransformsProviderService::new(
+            Arc::new(PostgresTransformsDataProvider::new(pool.clone())),
+            Arc::new(DbTransformStorageProvider::new(pool.clone())),
+        )),
     };
     let stored_tracks_app_data = StoredTracksAppData {
         tracks_service: Arc::clone(&tracks_service)

@@ -1,60 +1,73 @@
-use std::sync::Arc;
+use std::{collections::HashSet, sync::Arc};
 
 use domain::{
-    db::db_transform::{DbTransform, DbTransformPort, TransformId},
-    transforms::{transform::Transform, transform_port::TransformPort},
+    db::db_transform::{DbTransform, DbTransformBinary, DbTransformDefinition, DbTransformPort, TransformId},
 };
 
 use super::{
     data_provider::transforms_data_provider::TransformsDataProvider,
+    storage_provider::transform_storage_provider::TransformStorageProvider,
     transforms_provider::TransformsProvider,
 };
 
 pub struct TransformsProviderService {
     data: Arc<dyn TransformsDataProvider>,
+    storage: Arc<dyn TransformStorageProvider>,
 }
 
 impl TransformsProviderService {
-    pub fn new(data: Arc<dyn TransformsDataProvider>) -> Self {
-        Self { data }
+    pub fn new(
+        data: Arc<dyn TransformsDataProvider>,
+        storage: Arc<dyn TransformStorageProvider>,
+    ) -> Self {
+        Self { data, storage }
     }
 
-    fn port_to_domain(p: DbTransformPort) -> TransformPort {
-        TransformPort {
-            port_id: p.port_id,
-            name: p.name,
-            direction: p.direction,
-            port_order: p.port_order,
-            description: p.description,
-        }
-    }
-
-    async fn with_ports(&self, db: DbTransform) -> Result<Transform, String> {
-        let ports = self.data.get_ports_for_transform(db.transform_id).await?;
-        Ok(Transform {
-            transform_id: db.transform_id,
-            name: db.name,
-            description: db.description,
-            icon: db.icon,
-            ports: ports.into_iter().map(Self::port_to_domain).collect(),
-        })
+    fn collect_missing_ids<T, F>(requested_ids: &[TransformId], items: &[T], get_id: F) -> Vec<TransformId>
+    where
+        F: Fn(&T) -> TransformId,
+    {
+        let found: HashSet<TransformId> = items.iter().map(get_id).collect();
+        requested_ids
+            .iter()
+            .copied()
+            .filter(|id| !found.contains(id))
+            .collect()
     }
 }
 
 #[async_trait::async_trait]
 impl TransformsProvider for TransformsProviderService {
-    async fn get_transform(&self, id: TransformId) -> Result<Transform, String> {
-        let db = self.data.get_transform(id).await?;
-        self.with_ports(db).await
+    async fn list_transform_summaries(&self, offset: i64, limit: i64) -> Result<(Vec<DbTransform>, i64), String> {
+        self.data.list_transform_summaries(offset, limit).await
     }
 
-    async fn get_transforms_paginated(&self, offset: i64, limit: i64) -> Result<(Vec<Transform>, i64), String> {
-        let (dbs, total) = self.data.get_transforms_paginated(offset, limit).await?;
-        let mut result = Vec::with_capacity(dbs.len());
-        for db in dbs {
-            result.push(self.with_ports(db).await?);
+    async fn get_transform_definition(&self, id: TransformId) -> Result<DbTransformDefinition, String> {
+        self.data.get_transform_definition(id).await
+    }
+
+    async fn get_transform_definitions(&self, ids: &[TransformId]) -> Result<Vec<DbTransformDefinition>, String> {
+        let definitions = self.data.get_transform_definitions(ids).await?;
+        let missing_ids = Self::collect_missing_ids(ids, &definitions, |definition| definition.transform_id);
+        if missing_ids.is_empty() {
+            Ok(definitions)
+        } else {
+            Err(format!("Transforms not found: {:?}", missing_ids))
         }
-        Ok((result, total))
+    }
+
+    async fn get_transform_binary(&self, id: TransformId) -> Result<Vec<u8>, String> {
+        self.storage.get_transform_binary(id).await
+    }
+
+    async fn get_transform_binaries(&self, ids: &[TransformId]) -> Result<Vec<DbTransformBinary>, String> {
+        let binaries = self.storage.get_transform_binaries(ids).await?;
+        let missing_ids = Self::collect_missing_ids(ids, &binaries, |binary| binary.transform_id);
+        if missing_ids.is_empty() {
+            Ok(binaries)
+        } else {
+            Err(format!("Transform binaries not found: {:?}", missing_ids))
+        }
     }
 
     async fn create_transform(
@@ -62,9 +75,9 @@ impl TransformsProvider for TransformsProviderService {
         name: String,
         description: Option<String>,
         icon: Option<String>,
-    ) -> Result<Transform, String> {
+    ) -> Result<DbTransformDefinition, String> {
         let db = self.data.insert_transform(name, description, icon).await?;
-        self.with_ports(db).await
+        self.data.get_transform_definition(db.transform_id).await
     }
 
     async fn update_transform(
@@ -73,9 +86,9 @@ impl TransformsProvider for TransformsProviderService {
         name: String,
         description: Option<String>,
         icon: Option<String>,
-    ) -> Result<Transform, String> {
+    ) -> Result<DbTransformDefinition, String> {
         let db = self.data.update_transform(id, name, description, icon).await?;
-        self.with_ports(db).await
+        self.data.get_transform_definition(db.transform_id).await
     }
 
     async fn delete_transform(&self, id: TransformId) -> Result<(), String> {
@@ -89,9 +102,8 @@ impl TransformsProvider for TransformsProviderService {
         direction: String,
         port_order: i32,
         description: Option<String>,
-    ) -> Result<TransformPort, String> {
-        let db = self.data.insert_port(transform_id, name, direction, port_order, description).await?;
-        Ok(Self::port_to_domain(db))
+    ) -> Result<DbTransformPort, String> {
+        self.data.insert_port(transform_id, name, direction, port_order, description).await
     }
 
     async fn delete_port(&self, port_id: i64) -> Result<(), String> {

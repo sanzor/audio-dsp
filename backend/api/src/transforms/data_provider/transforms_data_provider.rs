@@ -1,10 +1,13 @@
-use domain::db::db_transform::{DbTransform, DbTransformPort, TransformId};
+use domain::{
+    db::db_transform::{DbTransform, DbTransformDefinition, DbTransformPort, TransformId},
+};
 
 #[async_trait::async_trait]
 pub trait TransformsDataProvider: Send + Sync {
     async fn get_transform(&self, id: TransformId) -> Result<DbTransform, String>;
-    async fn get_transforms_paginated(&self, offset: i64, limit: i64) -> Result<(Vec<DbTransform>, i64), String>;
-    async fn get_ports_for_transform(&self, id: TransformId) -> Result<Vec<DbTransformPort>, String>;
+    async fn get_transform_definition(&self, id: TransformId) -> Result<DbTransformDefinition, String>;
+    async fn get_transform_definitions(&self, ids: &[TransformId]) -> Result<Vec<DbTransformDefinition>, String>;
+    async fn list_transform_summaries(&self, offset: i64, limit: i64) -> Result<(Vec<DbTransform>, i64), String>;
     async fn insert_transform(&self, name: String, description: Option<String>, icon: Option<String>) -> Result<DbTransform, String>;
     async fn update_transform(&self, id: TransformId, name: String, description: Option<String>, icon: Option<String>) -> Result<DbTransform, String>;
     async fn delete_transform(&self, id: TransformId) -> Result<(), String>;

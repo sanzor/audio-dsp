@@ -3,7 +3,8 @@ use crate::{
     transforms::transforms_app_data::TransformsAppData,
 };
 use actix_web::{delete, get, post, put, web, HttpResponse};
-use domain::db::db_transform::TransformId;
+use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine};
+use domain::db::db_transform::{DbTransform, DbTransformDefinition, DbTransformParam, DbTransformPort, TransformId};
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 
@@ -38,13 +39,72 @@ pub struct PaginationQuery {
 }
 
 #[derive(Serialize)]
-pub struct TransformListResponse {
-    pub transforms: Vec<domain::transforms::transform::Transform>,
+pub struct TransformSummaryListResponse {
+    pub transforms: Vec<TransformSummaryDto>,
     pub total: i64,
 }
 
-#[derive(Deserialize)]
-pub struct TransformIdQuery {
+#[derive(Debug, Serialize, ToSchema)]
+pub struct TransformSummaryDto {
+    pub transform_id: TransformId,
+    pub name: String,
+    pub description: Option<String>,
+    pub icon: Option<String>,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct TransformPortDto {
+    pub port_id: i64,
+    pub name: String,
+    pub direction: String,
+    pub port_order: i32,
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct TransformParamDto {
+    pub param_id: i64,
+    pub name: String,
+    pub param_order: i32,
+    pub default_value: f32,
+    pub min_value: Option<f32>,
+    pub max_value: Option<f32>,
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct TransformDefinitionDto {
+    pub transform_id: TransformId,
+    pub name: String,
+    pub description: Option<String>,
+    pub icon: Option<String>,
+    pub ports: Vec<TransformPortDto>,
+    pub params: Vec<TransformParamDto>,
+}
+
+#[derive(Debug, Deserialize, Serialize, ToSchema)]
+pub struct TransformIdsRequest {
+    pub ids: Vec<TransformId>,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct TransformDefinitionsResponse {
+    pub transforms: Vec<TransformDefinitionDto>,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct TransformBinaryDto {
+    pub transform_id: TransformId,
+    pub wasm_base64: String,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct TransformBinariesResponse {
+    pub binaries: Vec<TransformBinaryDto>,
+}
+
+#[derive(Deserialize, IntoParams)]
+pub struct TransformIdPath {
     pub transform_id: TransformId,
 }
 
@@ -53,44 +113,160 @@ pub struct PortIdQuery {
     pub port_id: i64,
 }
 
+impl From<DbTransform> for TransformSummaryDto {
+    fn from(value: DbTransform) -> Self {
+        Self {
+            transform_id: value.transform_id,
+            name: value.name,
+            description: value.description,
+            icon: value.icon,
+        }
+    }
+}
+
+impl From<DbTransformPort> for TransformPortDto {
+    fn from(value: DbTransformPort) -> Self {
+        Self {
+            port_id: value.port_id,
+            name: value.name,
+            direction: value.direction,
+            port_order: value.port_order,
+            description: value.description,
+        }
+    }
+}
+
+impl From<DbTransformParam> for TransformParamDto {
+    fn from(value: DbTransformParam) -> Self {
+        Self {
+            param_id: value.param_id,
+            name: value.name,
+            param_order: value.param_order,
+            default_value: value.default_value,
+            min_value: value.min_value,
+            max_value: value.max_value,
+            description: value.description,
+        }
+    }
+}
+
+impl From<DbTransformDefinition> for TransformDefinitionDto {
+    fn from(value: DbTransformDefinition) -> Self {
+        Self {
+            transform_id: value.transform_id,
+            name: value.name,
+            description: value.description,
+            icon: value.icon,
+            ports: value.ports.into_iter().map(TransformPortDto::from).collect(),
+            params: value.params.into_iter().map(TransformParamDto::from).collect(),
+        }
+    }
+}
+
+impl From<domain::db::db_transform::DbTransformBinary> for TransformBinaryDto {
+    fn from(value: domain::db::db_transform::DbTransformBinary) -> Self {
+        Self {
+            transform_id: value.transform_id,
+            wasm_base64: BASE64_STANDARD.encode(value.wasm_bytecode),
+        }
+    }
+}
+
 // ─── Handlers ────────────────────────────────────────────────────────────────
 
-#[utoipa::path(get, path = "/transforms/get-all", tag = "transforms",
+#[utoipa::path(get, path = "/transforms", tag = "transforms",
     params(PaginationQuery),
-    responses((status = 200, description = "Paginated transforms", body = serde_json::Value)))]
-#[get("/get-all")]
-pub async fn get_all_transforms(
+    responses((status = 200, description = "Paginated transform summaries", body = serde_json::Value)))]
+#[get("")]
+pub async fn list_transform_summaries(
     _role: RoleContext,
     query: web::Query<PaginationQuery>,
     app: web::Data<TransformsAppData>,
 ) -> HttpResponse {
     let offset = query.offset.unwrap_or(0);
     let limit = query.limit.unwrap_or(20).clamp(1, 100);
-    match app.transforms_service.get_transforms_paginated(offset, limit).await {
-        Ok((transforms, total)) => HttpResponse::Ok().json(TransformListResponse { transforms, total }),
+    match app.transforms_service.list_transform_summaries(offset, limit).await {
+        Ok((transforms, total)) => HttpResponse::Ok().json(TransformSummaryListResponse {
+            transforms: transforms.into_iter().map(TransformSummaryDto::from).collect(),
+            total,
+        }),
         Err(e) => HttpResponse::InternalServerError().body(e),
     }
 }
 
-#[utoipa::path(get, path = "/transforms/get-by-id", tag = "transforms",
-    params(("transform_id" = i64, Query, description = "Transform ID")),
-    responses((status = 200, description = "Transform", body = serde_json::Value)))]
-#[get("/get-by-id")]
-pub async fn get_transform_by_id(
+#[utoipa::path(get, path = "/transforms/{transform_id}", tag = "transforms",
+    params(TransformIdPath),
+    responses((status = 200, description = "Transform definition", body = serde_json::Value)))]
+#[get("/{transform_id}")]
+pub async fn get_transform_definition(
     _role: RoleContext,
-    query: web::Query<TransformIdQuery>,
+    path: web::Path<TransformIdPath>,
     app: web::Data<TransformsAppData>,
 ) -> HttpResponse {
-    match app.transforms_service.get_transform(query.transform_id).await {
-        Ok(t) => HttpResponse::Ok().json(t),
+    match app.transforms_service.get_transform_definition(path.into_inner().transform_id).await {
+        Ok(t) => HttpResponse::Ok().json(TransformDefinitionDto::from(t)),
         Err(e) => HttpResponse::NotFound().body(e),
     }
 }
 
-#[utoipa::path(post, path = "/transforms/create", tag = "transforms",
+#[utoipa::path(post, path = "/transforms/resolve", tag = "transforms",
+    request_body = TransformIdsRequest,
+    responses((status = 200, description = "Resolved transform definitions", body = serde_json::Value)))]
+#[post("/resolve")]
+pub async fn resolve_transform_definitions(
+    _role: RoleContext,
+    body: web::Json<TransformIdsRequest>,
+    app: web::Data<TransformsAppData>,
+) -> HttpResponse {
+    let request = body.into_inner();
+    match app.transforms_service.get_transform_definitions(&request.ids).await {
+        Ok(transforms) => HttpResponse::Ok().json(TransformDefinitionsResponse {
+            transforms: transforms.into_iter().map(TransformDefinitionDto::from).collect(),
+        }),
+        Err(e) => HttpResponse::NotFound().body(e),
+    }
+}
+
+#[utoipa::path(get, path = "/transforms/{transform_id}/binary", tag = "transforms",
+    params(TransformIdPath),
+    responses((status = 200, description = "Transform WASM binary", content_type = "application/wasm"),
+              (status = 404, description = "Transform not found")))]
+#[get("/{transform_id}/binary")]
+pub async fn get_transform_binary(
+    _role: RoleContext,
+    path: web::Path<TransformIdPath>,
+    app: web::Data<TransformsAppData>,
+) -> HttpResponse {
+    match app.transforms_service.get_transform_binary(path.into_inner().transform_id).await {
+        Ok(bytes) => HttpResponse::Ok()
+            .content_type("application/wasm")
+            .body(bytes),
+        Err(e) => HttpResponse::NotFound().body(e),
+    }
+}
+
+#[utoipa::path(post, path = "/transforms/binaries", tag = "transforms",
+    request_body = TransformIdsRequest,
+    responses((status = 200, description = "Resolved transform binaries", body = serde_json::Value)))]
+#[post("/binaries")]
+pub async fn get_transform_binaries(
+    _role: RoleContext,
+    body: web::Json<TransformIdsRequest>,
+    app: web::Data<TransformsAppData>,
+) -> HttpResponse {
+    let request = body.into_inner();
+    match app.transforms_service.get_transform_binaries(&request.ids).await {
+        Ok(binaries) => HttpResponse::Ok().json(TransformBinariesResponse {
+            binaries: binaries.into_iter().map(TransformBinaryDto::from).collect(),
+        }),
+        Err(e) => HttpResponse::NotFound().body(e),
+    }
+}
+
+#[utoipa::path(post, path = "/transforms", tag = "transforms",
     request_body = CreateTransformParams,
     responses((status = 200, description = "Created transform", body = serde_json::Value)))]
-#[post("/create")]
+#[post("")]
 pub async fn create_transform(
     role: RoleContext,
     body: web::Json<CreateTransformParams>,
@@ -101,19 +277,19 @@ pub async fn create_transform(
     }
     let p = body.into_inner();
     match app.transforms_service.create_transform(p.name, p.description, p.icon).await {
-        Ok(t) => HttpResponse::Ok().json(t),
+        Ok(t) => HttpResponse::Ok().json(TransformDefinitionDto::from(t)),
         Err(e) => HttpResponse::InternalServerError().body(e),
     }
 }
 
-#[utoipa::path(put, path = "/transforms/update", tag = "transforms",
-    params(("transform_id" = i64, Query, description = "Transform ID")),
+#[utoipa::path(put, path = "/transforms/{transform_id}", tag = "transforms",
+    params(TransformIdPath),
     request_body = UpdateTransformParams,
     responses((status = 200, description = "Updated transform", body = serde_json::Value)))]
-#[put("/update")]
+#[put("/{transform_id}")]
 pub async fn update_transform(
     role: RoleContext,
-    query: web::Query<TransformIdQuery>,
+    path: web::Path<TransformIdPath>,
     body: web::Json<UpdateTransformParams>,
     app: web::Data<TransformsAppData>,
 ) -> HttpResponse {
@@ -121,38 +297,38 @@ pub async fn update_transform(
         return HttpResponse::Forbidden().body("Forbidden");
     }
     let p = body.into_inner();
-    match app.transforms_service.update_transform(query.transform_id, p.name, p.description, p.icon).await {
-        Ok(t) => HttpResponse::Ok().json(t),
+    match app.transforms_service.update_transform(path.into_inner().transform_id, p.name, p.description, p.icon).await {
+        Ok(t) => HttpResponse::Ok().json(TransformDefinitionDto::from(t)),
         Err(e) => HttpResponse::InternalServerError().body(e),
     }
 }
 
-#[utoipa::path(delete, path = "/transforms/delete", tag = "transforms",
-    params(("transform_id" = i64, Query, description = "Transform ID")),
+#[utoipa::path(delete, path = "/transforms/{transform_id}", tag = "transforms",
+    params(TransformIdPath),
     responses((status = 200, description = "Deleted")))]
-#[delete("/delete")]
+#[delete("/{transform_id}")]
 pub async fn delete_transform(
     role: RoleContext,
-    query: web::Query<TransformIdQuery>,
+    path: web::Path<TransformIdPath>,
     app: web::Data<TransformsAppData>,
 ) -> HttpResponse {
     if !role.can_edit() {
         return HttpResponse::Forbidden().body("Forbidden");
     }
-    match app.transforms_service.delete_transform(query.transform_id).await {
+    match app.transforms_service.delete_transform(path.into_inner().transform_id).await {
         Ok(_) => HttpResponse::Ok().body("Deleted"),
         Err(e) => HttpResponse::InternalServerError().body(e),
     }
 }
 
-#[utoipa::path(post, path = "/transforms/add-port", tag = "transforms",
-    params(("transform_id" = i64, Query, description = "Transform ID")),
+#[utoipa::path(post, path = "/transforms/{transform_id}/ports", tag = "transforms",
+    params(TransformIdPath),
     request_body = AddPortParams,
     responses((status = 200, description = "Added port", body = serde_json::Value)))]
-#[post("/add-port")]
+#[post("/{transform_id}/ports")]
 pub async fn add_port(
     role: RoleContext,
-    query: web::Query<TransformIdQuery>,
+    path: web::Path<TransformIdPath>,
     body: web::Json<AddPortParams>,
     app: web::Data<TransformsAppData>,
 ) -> HttpResponse {
@@ -160,25 +336,25 @@ pub async fn add_port(
         return HttpResponse::Forbidden().body("Forbidden");
     }
     let p = body.into_inner();
-    match app.transforms_service.add_port(query.transform_id, p.name, p.direction, p.port_order, p.description).await {
-        Ok(port) => HttpResponse::Ok().json(port),
+    match app.transforms_service.add_port(path.into_inner().transform_id, p.name, p.direction, p.port_order, p.description).await {
+        Ok(port) => HttpResponse::Ok().json(TransformPortDto::from(port)),
         Err(e) => HttpResponse::InternalServerError().body(e),
     }
 }
 
-#[utoipa::path(delete, path = "/transforms/delete-port", tag = "transforms",
-    params(("port_id" = i64, Query, description = "Port ID")),
+#[utoipa::path(delete, path = "/transforms/ports/{port_id}", tag = "transforms",
+    params(("port_id" = i64, Path, description = "Port ID")),
     responses((status = 200, description = "Port deleted")))]
-#[delete("/delete-port")]
+#[delete("/ports/{port_id}")]
 pub async fn delete_port(
     role: RoleContext,
-    query: web::Query<PortIdQuery>,
+    path: web::Path<PortIdQuery>,
     app: web::Data<TransformsAppData>,
 ) -> HttpResponse {
     if !role.can_edit() {
         return HttpResponse::Forbidden().body("Forbidden");
     }
-    match app.transforms_service.delete_port(query.port_id).await {
+    match app.transforms_service.delete_port(path.into_inner().port_id).await {
         Ok(_) => HttpResponse::Ok().body("Deleted"),
         Err(e) => HttpResponse::InternalServerError().body(e),
     }
@@ -187,8 +363,11 @@ pub async fn delete_port(
 // ─── Route registration ───────────────────────────────────────────────────────
 
 pub fn init(cfg: &mut web::ServiceConfig) {
-    cfg.service(get_all_transforms)
-        .service(get_transform_by_id)
+    cfg.service(list_transform_summaries)
+        .service(get_transform_definition)
+        .service(resolve_transform_definitions)
+        .service(get_transform_binary)
+        .service(get_transform_binaries)
         .service(create_transform)
         .service(update_transform)
         .service(delete_transform)

@@ -13,7 +13,6 @@ required_seeds=(
 optional_seeds=(
   "tier_configs.sql:tier_configs"
   "products.sql:products"
-  "transforms.sql:transforms"
 )
 
 applied=()
@@ -74,6 +73,15 @@ if table_exists "tracks"; then
 else
   echo "Skipping generated track seeds: table 'tracks' is not present in the current schema."
   skipped+=("generated tracks (missing table tracks)")
+fi
+
+if table_exists "transforms" && table_exists "transform_binaries" && table_exists "transform_params"; then
+  echo "Applying generated transform seeds..."
+  python3 "${ROOT_DIR}/scripts/db_seed_transforms.py"
+  applied+=("generated transforms")
+else
+  echo "Skipping generated transform seeds: required transform asset tables are not present in the current schema."
+  skipped+=("generated transforms (missing transform asset tables)")
 fi
 
 if ((${#applied[@]} == 0)); then

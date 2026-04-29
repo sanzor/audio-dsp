@@ -1,4 +1,6 @@
-use domain::db::db_transform::{DbTransform, DbTransformPort, TransformId};
+use domain::{
+    db::db_transform::{DbTransform, DbTransformDefinition, DbTransformParam, DbTransformPort, TransformId},
+};
 use sqlx::PgPool;
 
 use super::transforms_data_provider::TransformsDataProvider;
@@ -13,6 +15,16 @@ impl PostgresTransformsDataProvider {
     }
 }
 
+#[derive(sqlx::FromRow)]
+struct DbTransformDefinitionRow {
+    transform_id: TransformId,
+    name: String,
+    description: Option<String>,
+    icon: Option<String>,
+    ports: sqlx::types::Json<Vec<DbTransformPort>>,
+    params: sqlx::types::Json<Vec<DbTransformParam>>,
+}
+
 #[async_trait::async_trait]
 impl TransformsDataProvider for PostgresTransformsDataProvider {
     async fn get_transform(&self, id: TransformId) -> Result<DbTransform, String> {
@@ -25,7 +37,57 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
         .map_err(|e| e.to_string())
     }
 
-    async fn get_transforms_paginated(&self, offset: i64, limit: i64) -> Result<(Vec<DbTransform>, i64), String> {
+    async fn get_transform_definition(&self, id: TransformId) -> Result<DbTransformDefinition, String> {
+        let row = sqlx::query_as::<_, DbTransformDefinitionRow>(
+            r#"SELECT * FROM get_transform_definition($1)"#,
+        )
+        .bind(id)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(|e| e.to_string())?;
+
+        Ok(DbTransformDefinition {
+            transform_id: row.transform_id,
+            name: row.name,
+            description: row.description,
+            icon: row.icon,
+            ports: row.ports.0,
+            params: row.params.0,
+        })
+    }
+
+    async fn get_transform_definitions(&self, ids: &[TransformId]) -> Result<Vec<DbTransformDefinition>, String> {
+        if ids.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let rows = sqlx::query_as::<_, DbTransformDefinitionRow>(
+            r#"
+            SELECT def.*
+            FROM unnest($1::bigint[]) WITH ORDINALITY AS requested(transform_id, ord)
+            JOIN LATERAL get_transform_definition(requested.transform_id) AS def ON true
+            ORDER BY requested.ord
+            "#,
+        )
+        .bind(ids)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| e.to_string())?;
+
+        Ok(rows
+            .into_iter()
+            .map(|row| DbTransformDefinition {
+                transform_id: row.transform_id,
+                name: row.name,
+                description: row.description,
+                icon: row.icon,
+                ports: row.ports.0,
+                params: row.params.0,
+            })
+            .collect())
+    }
+
+    async fn list_transform_summaries(&self, offset: i64, limit: i64) -> Result<(Vec<DbTransform>, i64), String> {
         #[derive(sqlx::FromRow)]
         struct Row {
             transform_id: TransformId,
@@ -56,16 +118,6 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
         }).collect();
 
         Ok((transforms, total))
-    }
-
-    async fn get_ports_for_transform(&self, id: TransformId) -> Result<Vec<DbTransformPort>, String> {
-        sqlx::query_as::<_, DbTransformPort>(
-            r#"SELECT port_id, transform_id, name, direction, port_order, description FROM transform_ports WHERE transform_id = $1 ORDER BY direction, port_order"#,
-        )
-        .bind(id)
-        .fetch_all(&self.pool)
-        .await
-        .map_err(|e| e.to_string())
     }
 
     async fn insert_transform(

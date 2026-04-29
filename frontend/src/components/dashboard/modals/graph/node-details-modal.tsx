@@ -10,6 +10,7 @@ import { useTransformStore } from "@/Stores/TransformStore";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useEffect, useState } from "react";
+import { useGetTransformDefinition } from "@/hooks/transforms/queries";
 
 interface NodeDetailsModalProps {
   nodeId: number | null;
@@ -22,21 +23,32 @@ interface NodeDetailsModalProps {
 }
 
 export function NodeDetailsModal({ nodeId, position, initialParams, transformId, open, onClose, onSubmitParams }: NodeDetailsModalProps) {
-  const transform = useTransformStore((s) =>
-    transformId != null ? s.transforms.get(transformId) : undefined
+  const summary = useTransformStore((s) =>
+    transformId != null ? s.summaries.get(transformId) : undefined
   );
+  const transform = useTransformStore((s) =>
+    transformId != null ? s.definitions.get(transformId) : undefined
+  );
+  useGetTransformDefinition(transformId, open);
 
   const inputs = transform?.ports.filter((p) => p.direction === "input") ?? [];
   const outputs = transform?.ports.filter((p) => p.direction === "output") ?? [];
   const [paramEntries, setParamEntries] = useState<Array<{ key: string; value: string }>>([]);
 
   useEffect(() => {
-    const entries = Object.entries(initialParams).map(([key, value]) => ({
+    const source = Object.keys(initialParams).length > 0
+      ? initialParams
+      : Object.fromEntries(
+          [...(transform?.params ?? [])]
+            .sort((a, b) => a.param_order - b.param_order)
+            .map((param) => [param.name, param.default_value]),
+        );
+    const entries = Object.entries(source).map(([key, value]) => ({
       key,
       value: String(value),
     }));
     setParamEntries(entries.length > 0 ? entries : [{ key: "", value: "" }]);
-  }, [initialParams, open, nodeId]);
+  }, [initialParams, open, nodeId, transform]);
 
   const handleParamChange = (index: number, field: "key" | "value", value: string) => {
     setParamEntries((current) =>
@@ -78,7 +90,7 @@ export function NodeDetailsModal({ nodeId, position, initialParams, transformId,
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{transform?.name ?? `Node #${nodeId}`}</DialogTitle>
+          <DialogTitle>{transform?.name ?? summary?.name ?? `Node #${nodeId}`}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 text-sm">

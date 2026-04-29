@@ -1,0 +1,147 @@
+[
+  {
+    "name": "Gain",
+    "description": "Amplifies or attenuates the signal level.",
+    "icon": "Activity",
+    "binary": "bin/gain.wasm",
+    "ports": [
+      { "name": "In", "direction": "input", "port_order": 0 },
+      { "name": "Out", "direction": "output", "port_order": 0 }
+    ],
+    "params": [
+      {
+        "name": "gain",
+        "param_order": 0,
+        "default_value": 1.0,
+        "min_value": 0.0,
+        "max_value": 4.0,
+        "description": "Linear gain multiplier."
+      }
+    ]
+  },
+  {
+    "name": "Low-Pass Filter",
+    "description": "One-pole low-pass smoothing filter.",
+    "icon": "Activity",
+    "binary": "bin/low_pass.wasm",
+    "ports": [
+      { "name": "In", "direction": "input", "port_order": 0 },
+      { "name": "Out", "direction": "output", "port_order": 0 }
+    ],
+    "params": [
+      {
+        "name": "alpha",
+        "param_order": 0,
+        "default_value": 0.18,
+        "min_value": 0.01,
+        "max_value": 0.99,
+        "description": "Smoothing coefficient. Higher values pass more highs."
+      }
+    ]
+  },
+  {
+    "name": "High-Pass Filter",
+    "description": "One-pole high-pass filter built from the previous input and output sample.",
+    "icon": "Activity",
+    "binary": "bin/high_pass.wasm",
+    "ports": [
+      { "name": "In", "direction": "input", "port_order": 0 },
+      { "name": "Out", "direction": "output", "port_order": 0 }
+    ],
+    "params": [
+      {
+        "name": "alpha",
+        "param_order": 0,
+        "default_value": 0.82,
+        "min_value": 0.01,
+        "max_value": 0.99,
+        "description": "Filter coefficient. Higher values preserve more transients."
+      }
+    ]
+  },
+  {
+    "name": "Compressor",
+    "description": "Static soft-knee style amplitude compressor.",
+    "icon": "Activity",
+    "binary": "bin/compressor.wasm",
+    "ports": [
+      { "name": "In", "direction": "input", "port_order": 0 },
+      { "name": "Out", "direction": "output", "port_order": 0 }
+    ],
+    "params": [
+      {
+        "name": "threshold",
+        "param_order": 0,
+        "default_value": 0.6,
+        "min_value": 0.05,
+        "max_value": 1.0,
+        "description": "Absolute amplitude where compression starts."
+      },
+      {
+        "name": "ratio",
+        "param_order": 1,
+        "default_value": 4.0,
+        "min_value": 1.0,
+        "max_value": 20.0,
+        "description": "Compression ratio above threshold."
+      },
+      {
+        "name": "makeup_gain",
+        "param_order": 2,
+        "default_value": 1.15,
+        "min_value": 0.0,
+        "max_value": 4.0,
+        "description": "Linear gain applied after compression."
+      }
+    ]
+  },
+  {
+    "name": "Reverb",
+    "description": "Simple feedback delay reverb for atmospheric tails.",
+    "icon": "Activity",
+    "binary": "bin/reverb.wasm",
+    "ports": [
+      { "name": "In", "direction": "input", "port_order": 0 },
+      { "name": "Out", "direction": "output", "port_order": 0 }
+    ],
+    "params": [
+      {
+        "name": "mix",
+        "param_order": 0,
+        "default_value": 0.25,
+        "min_value": 0.0,
+        "max_value": 1.0,
+        "description": "Dry/wet balance."
+      },
+      {
+        "name": "feedback",
+        "param_order": 1,
+        "default_value": 0.45,
+        "min_value": 0.0,
+        "max_value": 0.95,
+        "description": "Feedback amount in the delay line."
+      }
+    ]
+  },
+  {
+    "name": "Mixer",
+    "description": "Applies output trim after the graph sums upstream inputs.",
+    "icon": "Activity",
+    "binary": "bin/mixer.wasm",
+    "ports": [
+      { "name": "In A", "direction": "input", "port_order": 0 },
+      { "name": "In B", "direction": "input", "port_order": 1 },
+      { "name": "Out", "direction": "output", "port_order": 0 }
+    ],
+    "params": [
+      {
+        "name": "output_gain",
+        "param_order": 0,
+        "default_value": 1.0,
+        "min_value": 0.0,
+        "max_value": 2.0,
+        "description": "Output trim applied after the graph sum."
+      }
+    ]
+  }
+]

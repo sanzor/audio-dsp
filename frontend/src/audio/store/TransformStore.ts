@@ -1,3 +1,7 @@
+import { API_BASE_URL } from "@/Services/http"
+import { useAuthStore } from "@/Stores/authStore"
+import { useProjectStore } from "@/Stores/projectStore"
+
 export class TransformStore {
   private readonly cache = new Map<string, ArrayBuffer>()
 
@@ -5,7 +9,14 @@ export class TransformStore {
     const cached = this.cache.get(transformId)
     if (cached) return cached
 
-    const response = await fetch(`/api/transforms/${transformId}/binary`)
+    const token = useAuthStore.getState().token ?? undefined
+    const activeProjectId = useProjectStore.getState().activeProject?.project_id
+    const response = await fetch(`${API_BASE_URL}/transforms/${transformId}/binary`, {
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(activeProjectId != null ? { "X-Project-Id": String(activeProjectId) } : {}),
+      },
+    })
     if (!response.ok) throw new Error(`Failed to fetch transform ${transformId}: ${response.status}`)
 
     const buffer = await response.arrayBuffer()

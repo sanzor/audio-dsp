@@ -1,16 +1,16 @@
 import { useEffect } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { apiGetTransforms, apiGetTransformById } from "@/Services/TransformService";
+import { apiGetTransformDefinition, apiGetTransformSummaries } from "@/Services/TransformService";
 import { useTransformStore } from "@/Stores/TransformStore";
 import { QUERY_KEYS } from "@/constants/queryKeys";
-import type { Transform } from "@/domain/Transform/Transform";
+import type { TransformDefinition } from "@/domain/Transform/Transform";
 
 const PAGE_SIZE = 20;
 
 export const useListTransforms = () => {
   const query = useInfiniteQuery({
     queryKey: QUERY_KEYS.transforms.all(),
-    queryFn: ({ pageParam = 0 }) => apiGetTransforms(pageParam as number, PAGE_SIZE),
+    queryFn: ({ pageParam = 0 }) => apiGetTransformSummaries(pageParam as number, PAGE_SIZE),
     initialPageParam: 0,
     getNextPageParam: (lastPage, allPages) => {
       const loaded = allPages.flatMap((p) => p.transforms).length;
@@ -21,26 +21,27 @@ export const useListTransforms = () => {
   useEffect(() => {
     if (query.data) {
       const all = query.data.pages.flatMap((p) => p.transforms);
-      useTransformStore.getState().setTransforms(all);
+      useTransformStore.getState().setSummaries(all);
     }
   }, [query.data]);
 
   return query;
 };
 
-export const useGetTransform = (transform_id: number) => {
-  const query = useQuery<Transform>({
-    queryKey: QUERY_KEYS.transforms.byId(transform_id),
-    queryFn: () => apiGetTransformById(transform_id),
-    enabled: !!transform_id,
+export const useGetTransformDefinition = (
+  transform_id: number | null | undefined,
+  enabled = true
+) => {
+  const resolvedTransformId = transform_id ?? -1;
+  const query = useQuery<TransformDefinition>({
+    queryKey: QUERY_KEYS.transforms.byId(resolvedTransformId),
+    queryFn: () => apiGetTransformDefinition(resolvedTransformId),
+    enabled: transform_id != null && enabled,
   });
 
   useEffect(() => {
     if (query.data) {
-      useTransformStore.getState().setTransforms([
-        ...Array.from(useTransformStore.getState().transforms.values()),
-        query.data,
-      ]);
+      useTransformStore.getState().upsertDefinition(query.data);
     }
   }, [query.data]);
 

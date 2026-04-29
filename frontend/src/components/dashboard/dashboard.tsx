@@ -18,6 +18,7 @@ import { useGraphStore } from "@/Stores/GraphStore";
 import { QUERY_KEYS } from "@/constants/queryKeys";
 import { useWorkspace } from "@/hooks/workspace/queries";
 import { useActiveGraphId } from "@/hooks/graphs/useActiveGraphId";
+import { useHydrateActiveGraphTransforms } from "@/hooks/transforms/useHydrateActiveGraphTransforms";
 import { ProjectsPanel } from "./projects/ProjectsPanel";
 import { SidebarPanel } from "./sidebar/SidebarPanel";
 import { useAudioEffectsStore } from "@/Stores/AudioEffectsStore";
@@ -36,6 +37,7 @@ export function Dashboard() {
   const activeGraphId = useActiveGraphId();
   const toggleEffectsEnabled = useAudioEffectsStore((s) => s.toggleEffectsEnabled);
   const queryClient = useQueryClient();
+  useHydrateActiveGraphTransforms();
 
   useEffect(() => {
     if (!activeProjectId) return;
