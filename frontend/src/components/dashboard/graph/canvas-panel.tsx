@@ -104,7 +104,8 @@ function CanvasInner() {
   const workletConnected = useAudioEffectsStore((s) => s.workletConnected);
   const runtimeStatus = useAudioEffectsStore((s) => s.runtimeStatus);
   const runtimeMessage = useAudioEffectsStore((s) => s.runtimeMessage);
-  const hasCompiledGraph = useAudioEffectsStore((s) => s.hasCompiledGraph);
+  const graphPlaybackState = useAudioEffectsStore((s) => s.graphPlaybackState);
+  const isGraphPlayable = useAudioEffectsStore((s) => s.isGraphPlayable);
   const graphController = useGraphController();
   const isGraphLive = activeGraphId != null && effectsEnabled;
   const nodeDetailsModalState = modalState?.type === "nodeDetails" ? modalState : null;
@@ -168,7 +169,7 @@ function CanvasInner() {
         target: String(e.toNodeId),
       })) ?? []
     );
-  }, [regionId, activeGraphId, activeGraphVersion, setNodes, setEdges]);
+  }, [regionId, activeGraphId, activeGraphVersion, setNodes, setEdges, summaries]);
 
   useEffect(() => {
     setNodes((current) =>
@@ -400,7 +401,7 @@ function CanvasInner() {
   // Stable nodeTypes reference — must not be recreated on every render
   const nodeTypes = useMemo(() => NODE_TYPES, []);
 
-  useLiveCanvasGraphRuntime(activeGraphId, effectsEnabled, nodes, edges);
+  const compileLiveGraph = useLiveCanvasGraphRuntime(activeGraphId, effectsEnabled, nodes, edges);
 
   return (
     <div className={`flex flex-col w-full h-full overflow-hidden rounded-[10px]${isGraphLive ? " graph-live-shell" : ""}`}>
@@ -409,6 +410,8 @@ function CanvasInner() {
         hasClearableNodes={hasClearableNodes}
         isSaving={saveState === "saving"}
         effectsEnabled={isGraphLive}
+        graphPlaybackState={graphPlaybackState}
+        onCompile={compileLiveGraph}
         onSave={handleSave}
         onToggleEffects={() => setEffectsEnabled(!effectsEnabled)}
         onFitView={handleFitView}
@@ -444,11 +447,11 @@ function CanvasInner() {
           style={{
             background: "rgba(15, 23, 42, 0.9)",
             borderColor:
-              runtimeStatus === "error"
-                ? "rgba(248, 113, 113, 0.45)"
-                : runtimeStatus === "ready"
+              activeGraphId == null
+                ? "rgba(255,255,255,0.12)"
+                : isGraphPlayable()
                   ? "rgba(74, 222, 128, 0.45)"
-                  : "rgba(255,255,255,0.12)",
+                  : "rgba(248, 113, 113, 0.45)",
             color: "var(--text-main)",
           }}
         >
@@ -457,7 +460,8 @@ function CanvasInner() {
           </div>
           <div>Worklet: {workletConnected ? "connected" : "disconnected"}</div>
           <div>Effects: {effectsEnabled ? "enabled" : "bypassed"}</div>
-          <div>Compiled: {hasCompiledGraph ? "yes" : "no"}</div>
+          <div>Compiled: {graphPlaybackState.compiled ? "yes" : "no"}</div>
+          <div>Playable: {isGraphPlayable() ? "yes" : "no"}</div>
           {runtimeMessage && <div>{runtimeMessage}</div>}
         </div>
         {saveState !== "hidden" && (

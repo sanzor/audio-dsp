@@ -1,9 +1,10 @@
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import type { Edge as RFEdge, Node as RFNode } from "reactflow";
 import { apiGetTransformBinaries } from "@/Services/TransformService";
 import { useAudioEffectsStore } from "@/Stores/AudioEffectsStore";
 import type { ActiveEdge, ActiveGraph, ActiveNode } from "@/Stores/ActiveGraphState";
 import { useWasmBinaryStore } from "@/Stores/WasmBinaryStore";
+import type { CompiledGraph } from "@/audio/types/compiled";
 
 type RuntimeShapeNode = {
   id: string | number;
@@ -105,11 +106,11 @@ export function useLiveCanvasGraphRuntime(
   effectsEnabled: boolean,
   nodes: RFNode[],
   edges: RFEdge[],
-): void {
+): () => void {
   const graphController = useAudioEffectsStore((state) => state.graphController);
   const workletConnected = useAudioEffectsStore((state) => state.workletConnected);
   const setRuntimeState = useAudioEffectsStore((state) => state.setRuntimeState);
-  const setHasCompiledGraph = useAudioEffectsStore((state) => state.setHasCompiledGraph);
+  const setGraphPlaybackState = useAudioEffectsStore((state) => state.setGraphPlaybackState);
   const binaries = useWasmBinaryStore((state) => state.binaries);
   const status = useWasmBinaryStore((state) => state.status);
   const setBinary = useWasmBinaryStore((state) => state.setBinary);
@@ -200,12 +201,13 @@ export function useLiveCanvasGraphRuntime(
     return () => {
       cancelled = true;
     };
-  }, [setBinary, setRuntimeState, setStatus, transformIds, transformIdsKey]);
+  }, [binaries, setBinary, setRuntimeState, setStatus, status, transformIds, transformIdsKey]);
 
-  useEffect(() => {
+  const compileNow = useCallback(() => {
     if (runtimeGraph == null) {
-      setHasCompiledGraph(false);
-      setRuntimeState("idle", "No transform nodes in the current canvas graph.");
+      const message = "No transform nodes in the current canvas graph.";
+      setGraphPlaybackState({ compiled: false, playable: false, reason: message });
+      setRuntimeState("idle", message);
       return;
     }
 
@@ -213,49 +215,77 @@ export function useLiveCanvasGraphRuntime(
     const failedBinaryIds = transformIds.filter((transformId) => status.get(transformId) === "error");
 
     if (failedBinaryIds.length > 0) {
-      setHasCompiledGraph(false);
-      setRuntimeState("error", `Failed to load ${failedBinaryIds.length} transform binary${failedBinaryIds.length === 1 ? "" : "ies"}.`);
+      const message = `Failed to load ${failedBinaryIds.length} transform binary${failedBinaryIds.length === 1 ? "" : "ies"}.`;
+      setGraphPlaybackState({ compiled: false, playable: false, reason: message });
+      setRuntimeState("error", message);
       return;
     }
 
     if (missingBinaryIds.length > 0) {
-      setHasCompiledGraph(false);
-      setRuntimeState("hydrating", `Waiting on transform binaries for IDs: ${missingBinaryIds.join(", ")}`);
+      const message = `Waiting on transform binaries for IDs: ${missingBinaryIds.join(", ")}`;
+      setGraphPlaybackState({ compiled: false, playable: false, reason: message });
+      setRuntimeState("hydrating", message);
+      return;
+    }
+
+    let compiledGraph: CompiledGraph | null;
+    try {
+      compiledGraph = graphController.compileGraph(runtimeGraph);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to compile the live graph.";
+      setGraphPlaybackState({ compiled: false, playable: false, reason: message });
+      setRuntimeState("error", message);
+      return;
+    }
+
+    if (!compiledGraph) {
+      const message = "Graph compile is waiting on transform binaries.";
+      setGraphPlaybackState({ compiled: false, playable: false, reason: message });
+      setRuntimeState("hydrating", message);
       return;
     }
 
     if (!workletConnected) {
-      setHasCompiledGraph(false);
-      setRuntimeState("idle", `Graph ready with ${transformIds.length} transform${transformIds.length === 1 ? "" : "s"}, but the audio worklet is not connected yet.`);
+      const message = `Graph compiled with ${transformIds.length} transform${transformIds.length === 1 ? "" : "s"}, but the audio worklet is not connected yet.`;
+      setGraphPlaybackState({ compiled: true, playable: false, reason: message });
+      setRuntimeState("idle", message);
       return;
     }
 
     if (!effectsEnabled) {
-      setRuntimeState("idle", `Graph ready with ${transformIds.length} transform${transformIds.length === 1 ? "" : "s"}, but effects are currently bypassed.`);
+      const message = `Graph compiled with ${transformIds.length} transform${transformIds.length === 1 ? "" : "s"}, but effects are currently bypassed.`;
+      setGraphPlaybackState({ compiled: true, playable: false, reason: message });
+      setRuntimeState("idle", message);
       return;
     }
 
     try {
-      const loaded = graphController.updateGraph(runtimeGraph);
-      if (!loaded) {
-        setHasCompiledGraph(false);
-        setRuntimeState("hydrating", "Graph compile is waiting on transform binaries.");
-        return;
-      }
-      setRuntimeState("ready", `Loaded live graph with ${runtimeGraph.nodes.size} transform node${runtimeGraph.nodes.size === 1 ? "" : "s"}.`);
+      graphController.loadCompiledGraph(compiledGraph);
+      const message = `Loaded live graph with ${runtimeGraph.nodes.size} transform node${runtimeGraph.nodes.size === 1 ? "" : "s"}.`;
+      setGraphPlaybackState({ compiled: true, playable: true, reason: message });
+      setRuntimeState("ready", message);
     } catch (error) {
-      setHasCompiledGraph(false);
-      setRuntimeState("error", error instanceof Error ? error.message : "Failed to compile the live graph.");
+      const message = error instanceof Error ? error.message : "Failed to compile the live graph.";
+      setGraphPlaybackState({ compiled: false, playable: false, reason: message });
+      setRuntimeState("error", message);
     }
   }, [
     binaries,
     effectsEnabled,
     graphController,
     runtimeGraph,
-    setHasCompiledGraph,
+    setGraphPlaybackState,
     setRuntimeState,
     status,
     transformIds,
     workletConnected,
   ]);
+
+  useEffect(() => {
+    compileNow();
+  }, [
+    compileNow,
+  ]);
+
+  return compileNow;
 }

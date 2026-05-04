@@ -1,7 +1,6 @@
 import type { ActiveGraph } from '@/Stores/ActiveGraphState'
 import type { CompiledGraph } from '../types/compiled'
 import type { AudioPipeline } from '../core/audio-pipeline'
-import { useAudioEffectsStore } from '@/Stores/AudioEffectsStore'
 
 type WorkletMessage =
   | { type: 'LOAD_GRAPH'; payload: CompiledGraph }
@@ -20,14 +19,20 @@ export class GraphController {
     this.workletPort = null
   }
 
+  compileGraph(graph: ActiveGraph): CompiledGraph | null {
+    return this.pipeline.compile(graph)
+  }
+
+  loadCompiledGraph(compiled: CompiledGraph): void {
+    this.sendToWorklet({ type: 'LOAD_GRAPH', payload: compiled })
+  }
+
   updateGraph(graph: ActiveGraph): boolean {
-    const compiled = this.pipeline.compile(graph)
+    const compiled = this.compileGraph(graph)
     if (!compiled) {
-      useAudioEffectsStore.getState().setHasCompiledGraph(false)
       return false
     }
-    useAudioEffectsStore.getState().setHasCompiledGraph(true)
-    this.sendToWorklet({ type: 'LOAD_GRAPH', payload: compiled })
+    this.loadCompiledGraph(compiled)
     return true
   }
 

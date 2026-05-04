@@ -1,10 +1,13 @@
 import type React from "react";
+import type { GraphPlaybackState } from "@/Stores/AudioEffectsStore";
 
 interface CanvasToolbarProps {
   selectedGraphId: number | undefined;
   hasClearableNodes: boolean;
   isSaving: boolean;
   effectsEnabled: boolean;
+  graphPlaybackState: GraphPlaybackState;
+  onCompile: () => void;
   onSave: () => void;
   onToggleEffects: () => void;
   onFitView: () => void;
@@ -19,6 +22,8 @@ export function CanvasToolbar({
   hasClearableNodes,
   isSaving,
   effectsEnabled,
+  graphPlaybackState,
+  onCompile,
   onSave,
   onToggleEffects,
   onFitView,
@@ -65,6 +70,30 @@ export function CanvasToolbar({
     boxShadow: "0 0 0 1px rgba(34,197,94,0.18) inset",
   };
 
+  const statusBase: React.CSSProperties = {
+    padding: "3px 10px",
+    fontSize: "0.72rem",
+    borderRadius: 999,
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "rgba(255,255,255,0.04)",
+    color: "var(--text-muted)",
+    letterSpacing: "0.02em",
+  };
+
+  const statusOk: React.CSSProperties = {
+    ...statusBase,
+    color: "#dcfce7",
+    borderColor: "rgba(34,197,94,0.45)",
+    background: "rgba(22,163,74,0.18)",
+  };
+
+  const statusBad: React.CSSProperties = {
+    ...statusBase,
+    color: "#fecaca",
+    borderColor: "rgba(248,113,113,0.38)",
+    background: "rgba(185,28,28,0.18)",
+  };
+
   const canClear = hasGraph && hasClearableNodes;
 
   return (
@@ -75,12 +104,31 @@ export function CanvasToolbar({
         borderBottom: "1px solid rgba(255,255,255,0.06)",
       }}
     >
+      {hasGraph ? (
+        <>
+          <div style={graphPlaybackState.compiled ? statusOk : statusBad}>
+            {graphPlaybackState.compiled ? "Compiled" : "Not Compiled"}
+          </div>
+          <div style={graphPlaybackState.playable ? statusOk : statusBad}>
+            {graphPlaybackState.playable ? "Playable" : "Not Playable"}
+          </div>
+        </>
+      ) : (
+        <div style={statusBase}>No Graph</div>
+      )}
       <button
         style={hasGraph ? (effectsEnabled ? btnActive : btnBase) : btnDisabled}
         disabled={!hasGraph}
         onClick={onToggleEffects}
       >
         {effectsEnabled ? "Effects Off" : "Effects On"}
+      </button>
+      <button
+        style={hasGraph ? (graphPlaybackState.compiled ? btnActive : btnBase) : btnDisabled}
+        disabled={!hasGraph}
+        onClick={onCompile}
+      >
+        Compile
       </button>
       <button style={hasGraph && !isSaving ? btnBase : btnDisabled} disabled={!hasGraph || isSaving} onClick={onSave}>
         {isSaving ? "Saving..." : "Save"}
