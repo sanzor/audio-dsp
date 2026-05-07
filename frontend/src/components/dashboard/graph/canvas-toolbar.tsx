@@ -7,7 +7,9 @@ interface CanvasToolbarProps {
   isSaving: boolean;
   effectsEnabled: boolean;
   graphPlaybackState: GraphPlaybackState;
+  canActivate: boolean;
   onCompile: () => void;
+  onActivate: () => void;
   onSave: () => void;
   onToggleEffects: () => void;
   onFitView: () => void;
@@ -23,7 +25,9 @@ export function CanvasToolbar({
   isSaving,
   effectsEnabled,
   graphPlaybackState,
+  canActivate,
   onCompile,
+  onActivate,
   onSave,
   onToggleEffects,
   onFitView,
@@ -129,6 +133,13 @@ export function CanvasToolbar({
         onClick={onCompile}
       >
         Compile
+      </button>
+      <button
+        style={canActivate ? (graphPlaybackState.playable ? btnActive : btnBase) : btnDisabled}
+        disabled={!canActivate}
+        onClick={onActivate}
+      >
+        Activate
       </button>
       <button style={hasGraph && !isSaving ? btnBase : btnDisabled} disabled={!hasGraph || isSaving} onClick={onSave}>
         {isSaving ? "Saving..." : "Save"}

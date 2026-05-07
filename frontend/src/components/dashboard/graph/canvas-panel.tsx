@@ -29,7 +29,8 @@ import { SinkNode } from "./sink-node";
 import { useActiveGraphId } from "@/hooks/graphs/useActiveGraphId";
 import { NodeDetailsModal } from "../modals/graph/node-details-modal";
 import { apiGetTransformDefinition } from "@/Services/TransformService";
-import { useLiveCanvasGraphRuntime } from "@/hooks/audio/useLiveCanvasGraphRuntime";
+import { useCanvasRuntime } from "@/audio/hooks/useCanvasRuntime";
+import { CompileOutputModal } from "./compile-output-modal";
 
 
 const NODE_TYPES = { source: SourceNode, sink: SinkNode };
@@ -106,6 +107,10 @@ function CanvasInner() {
   const runtimeMessage = useAudioEffectsStore((s) => s.runtimeMessage);
   const graphPlaybackState = useAudioEffectsStore((s) => s.graphPlaybackState);
   const isGraphPlayable = useAudioEffectsStore((s) => s.isGraphPlayable);
+  const compileModalOpen = useAudioEffectsStore((s) => s.compileModalOpen);
+  const compileRun = useAudioEffectsStore((s) => s.compileRun);
+  const setCompileModalOpen = useAudioEffectsStore((s) => s.setCompileModalOpen);
+  const clearCompileRun = useAudioEffectsStore((s) => s.clearCompileRun);
   const graphController = useGraphController();
   const isGraphLive = activeGraphId != null && effectsEnabled;
   const nodeDetailsModalState = modalState?.type === "nodeDetails" ? modalState : null;
@@ -401,7 +406,7 @@ function CanvasInner() {
   // Stable nodeTypes reference — must not be recreated on every render
   const nodeTypes = useMemo(() => NODE_TYPES, []);
 
-  const compileLiveGraph = useLiveCanvasGraphRuntime(activeGraphId, effectsEnabled, nodes, edges);
+  const { compileNow, activate, canActivate } = useCanvasRuntime(activeGraphId, nodes, edges);
 
   return (
     <div className={`flex flex-col w-full h-full overflow-hidden rounded-[10px]${isGraphLive ? " graph-live-shell" : ""}`}>
@@ -411,7 +416,9 @@ function CanvasInner() {
         isSaving={saveState === "saving"}
         effectsEnabled={isGraphLive}
         graphPlaybackState={graphPlaybackState}
-        onCompile={compileLiveGraph}
+        canActivate={canActivate}
+        onCompile={compileNow}
+        onActivate={activate}
         onSave={handleSave}
         onToggleEffects={() => setEffectsEnabled(!effectsEnabled)}
         onFitView={handleFitView}
@@ -510,6 +517,12 @@ function CanvasInner() {
           }}
         />
       )}
+      <CompileOutputModal
+        open={compileModalOpen}
+        run={compileRun}
+        onClear={clearCompileRun}
+        onOpenChange={setCompileModalOpen}
+      />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type WaveSurfer from "wavesurfer.js";
-import { useAudioEffectsChain } from "@/audio/hooks/useAudioEffectsChain";
+import { useWorkletSetup } from "@/audio/hooks/useWorkletSetup";
 import { useRegionSetViewModel } from "@/Selectors/trackViewModels";
 import { useWaveformAudio } from "./WaveformAudio";
 import { WaveformRenderer } from "./WaveformRenderer";
@@ -38,7 +38,7 @@ export function WaveformPlayer() {
   const [createDraftBounds, setCreateDraftBounds] = useState<{ start: number; end: number } | null>(null);
   const waveRef = useRef<WaveSurfer | null>(null);
   const playback = useWaveSurferPlaybackControls(waveRef);
-  const { onWaveformBound, setEffects } = useAudioEffectsChain();
+  const { onWaveformBound, setEffects } = useWorkletSetup();
   const activeGraphId = useActiveGraphId();
   const effectsEnabled = useAudioEffectsStore((s) => s.effectsEnabled);
   const setEffectsEnabled = useAudioEffectsStore((s) => s.setEffectsEnabled);

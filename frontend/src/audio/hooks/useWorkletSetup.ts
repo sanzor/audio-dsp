@@ -3,7 +3,7 @@ import type WaveSurfer from 'wavesurfer.js'
 import { useAudioEffectsStore } from '@/Stores/AudioEffectsStore'
 import AudioWorkletAdapterUrl from '../worklet/audio-worklet-adapter.ts?url'
 
-export function useAudioEffectsChain() {
+export function useWorkletSetup() {
   const graphController = useAudioEffectsStore(s => s.graphController)
   const setWorkletConnected = useAudioEffectsStore(s => s.setWorkletConnected)
   const audioCtxRef = useRef<AudioContext | null>(null)
@@ -23,7 +23,7 @@ export function useAudioEffectsChain() {
         audioCtxRef.current = audioCtx
 
         await audioCtx.audioWorklet.addModule(AudioWorkletAdapterUrl)
-        if (disposed || audioCtx.state === 'closed') return
+        if (disposed || (audioCtx.state as string) === 'closed') return
 
         source = audioCtx.createMediaElementSource(mediaElement)
         try {
@@ -37,7 +37,7 @@ export function useAudioEffectsChain() {
           }
           throw error
         }
-        if (disposed || audioCtx.state === 'closed') return
+        if (disposed || (audioCtx.state as string) === 'closed') return
 
         source.connect(workletNode)
         workletNode.connect(audioCtx.destination)
