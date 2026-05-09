@@ -35,6 +35,10 @@ export interface TransformDefinitionsResponse {
   transforms: TransformDefinition[];
 }
 
+export interface TransformIdsRequest {
+  ids: number[];
+}
+
 export interface TransformBinaryEnvelope {
   transform_id: number;
   wasm_base64: string;
@@ -62,7 +66,7 @@ export async function apiGetTransformDefinition(transform_id: number): Promise<T
 }
 
 export async function apiResolveTransformDefinitions(transform_ids: number[]): Promise<TransformDefinition[]> {
-  const response = await http.post<TransformDefinitionsResponse, { ids: number[] }>(
+  const response = await http.post<TransformDefinitionsResponse, TransformIdsRequest>(
     `/transforms/resolve`,
     { ids: transform_ids }
   );
@@ -118,7 +122,7 @@ export async function apiGetTransformBinary(transform_id: number): Promise<Uint8
 }
 
 export async function apiGetTransformBinaries(transform_ids: number[]): Promise<Map<number, Uint8Array>> {
-  const response = await http.post<TransformBinariesResponse, { ids: number[] }>(
+  const response = await http.post<TransformBinariesResponse, TransformIdsRequest>(
     `/transforms/binaries`,
     { ids: transform_ids }
   );

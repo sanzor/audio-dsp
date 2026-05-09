@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { apiGetTransformBinary } from "@/Services/TransformService";
+import { apiGetTransformBinaries } from "@/Services/TransformService";
 import { useWasmBinaryStore } from "@/Stores/WasmBinaryStore";
 import { QUERY_KEYS } from "@/constants/queryKeys";
 
@@ -16,22 +16,28 @@ export function useEnsureTransformBinaries(): (transformIds: number[]) => Promis
       return;
     }
 
-    await Promise.all(
-      missingIds.map(async (transformId) => {
-        setStatus(transformId, "fetching");
+    for (const transformId of missingIds) {
+      setStatus(transformId, "fetching");
+    }
 
-        try {
-          const binary = await queryClient.fetchQuery({
-            queryKey: QUERY_KEYS.transforms.wasm(transformId),
-            queryFn: () => apiGetTransformBinary(transformId),
-            staleTime: Infinity,
-          });
-          setBinary(transformId, binary);
-        } catch (error) {
+    try {
+      const resolvedBinaries = await apiGetTransformBinaries(missingIds);
+
+      for (const transformId of missingIds) {
+        const binary = resolvedBinaries.get(transformId);
+        if (!binary) {
           setStatus(transformId, "error");
-          throw error;
+          continue;
         }
-      })
-    );
+
+        queryClient.setQueryData(QUERY_KEYS.transforms.wasm(transformId), binary);
+        setBinary(transformId, binary);
+      }
+    } catch (error) {
+      for (const transformId of missingIds) {
+        setStatus(transformId, "error");
+      }
+      throw error;
+    }
   }, [queryClient]);
 }
