@@ -1,8 +1,8 @@
 import { create } from 'zustand'
-import { GraphController } from '@/audio/controller/GraphController'
+import { AudioGraphController } from '@/audio/controller/AudioGraphController'
 import type { CompiledGraph } from '@/audio/types/compiled'
 
-const graphController = new GraphController()
+const graphController = new AudioGraphController()
 
 export type RuntimeStatus = 'idle' | 'hydrating' | 'ready' | 'error'
 export type CompileLogLevel = 'info' | 'success' | 'warning' | 'error'
@@ -64,7 +64,7 @@ interface AudioEffectsState {
   workletConnected: boolean
   runtimeStatus: RuntimeStatus
   runtimeMessage: string | null
-  graphController: GraphController
+  graphController: AudioGraphController
   setGraphPlaybackState: (graphPlaybackState: GraphPlaybackState) => void
   setCompiledGraph: (compiled: CompiledGraph | null) => void
   setCompileModalOpen: (open: boolean) => void
@@ -95,7 +95,12 @@ export const useAudioEffectsStore = create<AudioEffectsState>()((set, get) => ({
   runtimeMessage: null,
   graphController,
   setGraphPlaybackState: (graphPlaybackState) => set({ graphPlaybackState }),
-  setCompiledGraph: (compiledGraph) => set({ compiledGraph }),
+  setCompiledGraph: (compiledGraph) => set({
+    compiledGraph,
+    graphPlaybackState: compiledGraph == null
+      ? { compiled: false, playable: false, reason: null }
+      : { compiled: true, playable: false, reason: "Compiled graph is ready to activate." },
+  }),
   setCompileModalOpen: (compileModalOpen) => set({ compileModalOpen }),
   clearCompileRun: () => set({ compileRun: null }),
   beginCompileRun: (trigger, openModal = false) => {

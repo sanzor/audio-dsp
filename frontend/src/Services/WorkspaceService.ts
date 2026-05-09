@@ -8,20 +8,28 @@ import { http } from "@/Services/http";
 
 interface ApiWorkspaceGraphNode {
   id: number;
+  graphId?: number;
   graph_id?: number;
   transformId?: number | null;
+  transform_id?: number | null;
   nodeType?: string;
+  node_type?: string;
   position?: { x?: number; y?: number };
   params?: Record<string, number>;
 }
 
 interface ApiWorkspaceGraphEdge {
   id: number;
+  graphId?: number;
   graph_id?: number;
   fromNodeId?: number;
+  from_node_id?: number;
   toNodeId?: number;
+  to_node_id?: number;
   fromPortId?: number | null;
+  from_port_id?: number | null;
   toPortId?: number | null;
+  to_port_id?: number | null;
   to?: string;
 }
 
@@ -72,9 +80,11 @@ const VALID_NODE_TYPES = new Set(["default", "source", "sink"]);
 
 const mapWorkspaceNode = (node: ApiWorkspaceGraphNode, graphId: number): Node => ({
   id: node.id,
-  graphId: node.graph_id ?? graphId,
-  transformId: node.transformId ?? null,
-  nodeType: VALID_NODE_TYPES.has(node.nodeType ?? "") ? (node.nodeType as Node["nodeType"]) : "default",
+  graphId: node.graphId ?? node.graph_id ?? graphId,
+  transformId: node.transformId ?? node.transform_id ?? null,
+  nodeType: VALID_NODE_TYPES.has(node.nodeType ?? node.node_type ?? "")
+    ? ((node.nodeType ?? node.node_type) as Node["nodeType"])
+    : "default",
   position: { x: node.position?.x ?? 0, y: node.position?.y ?? 0 },
   params: node.params ?? {},
   ports: [],
@@ -83,11 +93,11 @@ const mapWorkspaceNode = (node: ApiWorkspaceGraphNode, graphId: number): Node =>
 
 const mapWorkspaceEdge = (edge: ApiWorkspaceGraphEdge, graphId: number): Edge => ({
   id: edge.id,
-  graphId: edge.graph_id ?? graphId,
-  fromNodeId: edge.fromNodeId ?? 0,
-  toNodeId: edge.toNodeId ?? 0,
-  fromPortId: edge.fromPortId ?? null,
-  toPortId: edge.toPortId ?? null,
+  graphId: edge.graphId ?? edge.graph_id ?? graphId,
+  fromNodeId: edge.fromNodeId ?? edge.from_node_id ?? 0,
+  toNodeId: edge.toNodeId ?? edge.to_node_id ?? 0,
+  fromPortId: edge.fromPortId ?? edge.from_port_id ?? null,
+  toPortId: edge.toPortId ?? edge.to_port_id ?? null,
   to: edge.to ?? "",
 });
 

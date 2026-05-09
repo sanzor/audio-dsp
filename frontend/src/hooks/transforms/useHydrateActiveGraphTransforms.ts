@@ -1,9 +1,10 @@
 import { useEffect, useMemo } from "react";
-import { apiGetTransformBinaries, apiResolveTransformDefinitions } from "@/Services/TransformService";
+import { apiResolveTransformDefinitions } from "@/Services/TransformService";
 import { useGraphStore } from "@/Stores/GraphStore";
 import { useTransformStore } from "@/Stores/TransformStore";
 import { useWasmBinaryStore } from "@/Stores/WasmBinaryStore";
 import { useActiveGraphId } from "@/hooks/graphs/useActiveGraphId";
+import { useEnsureTransformBinaries } from "./useEnsureTransformBinaries";
 
 export function useHydrateActiveGraphTransforms(): void {
   const activeGraphId = useActiveGraphId();
@@ -14,9 +15,7 @@ export function useHydrateActiveGraphTransforms(): void {
   const definitions = useTransformStore((state) => state.definitions);
   const upsertDefinitions = useTransformStore((state) => state.upsertDefinitions);
   const binaries = useWasmBinaryStore((state) => state.binaries);
-  const status = useWasmBinaryStore((state) => state.status);
-  const setBinary = useWasmBinaryStore((state) => state.setBinary);
-  const setStatus = useWasmBinaryStore((state) => state.setStatus);
+  const ensureTransformBinaries = useEnsureTransformBinaries();
 
   const transformIds = useMemo(() => {
     if (!activeGraph) return [];
@@ -35,9 +34,7 @@ export function useHydrateActiveGraphTransforms(): void {
     }
 
     const missingDefinitionIds = transformIds.filter((transformId) => !definitions.has(transformId));
-    const missingBinaryIds = transformIds.filter(
-      (transformId) => !binaries.has(transformId) && status.get(transformId) == null
-    );
+    const missingBinaryIds = transformIds.filter((transformId) => !binaries.has(transformId));
 
     if (missingDefinitionIds.length === 0 && missingBinaryIds.length === 0) {
       return;
@@ -55,32 +52,16 @@ export function useHydrateActiveGraphTransforms(): void {
         }
 
         if (missingBinaryIds.length > 0) {
-          for (const transformId of missingBinaryIds) {
-            setStatus(transformId, "fetching");
-          }
-
-          const resolvedBinaries = await apiGetTransformBinaries(missingBinaryIds);
           if (cancelled) {
             return;
           }
-
-          for (const transformId of missingBinaryIds) {
-            const binary = resolvedBinaries.get(transformId);
-            if (!binary) {
-              setStatus(transformId, "error");
-              continue;
-            }
-            setBinary(transformId, binary);
-          }
+          await ensureTransformBinaries(missingBinaryIds);
         }
       } catch (error) {
         if (cancelled) {
           return;
         }
         console.error("Failed to hydrate active graph transforms", error);
-        for (const transformId of missingBinaryIds) {
-          setStatus(transformId, "error");
-        }
       }
     };
 
@@ -92,9 +73,7 @@ export function useHydrateActiveGraphTransforms(): void {
   }, [
     binaries,
     definitions,
-    setBinary,
-    setStatus,
-    status,
+    ensureTransformBinaries,
     transformIds,
     upsertDefinitions,
   ]);

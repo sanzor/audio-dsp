@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/Stores/authStore";
 import { DashboardLayout } from "./dashboard-layout";
 import { TransformStorePanel } from "./store/transform-store-panel";
-import { CanvasPanel } from "./graph/canvas-panel";
+import { CanvasPanel } from "./canvas/canvas-panel";
 import { useTrackViewModels } from "@/Selectors/trackViewModels";
 import { WaveformPlayer } from "./waveform-panel/WaveformPlayer";
 import { GlobalContextMenu } from "./context-menus/GlobalContextMenu";

@@ -4,7 +4,7 @@ type WorkletMessage =
   | { type: 'LOAD_GRAPH'; payload: CompiledGraph }
   | { type: 'SET_EFFECTS'; enabled: boolean }
 
-export class GraphController {
+export class AudioGraphController {
   private workletPort: MessagePort | null = null
 
   connectWorklet(port: MessagePort): void {

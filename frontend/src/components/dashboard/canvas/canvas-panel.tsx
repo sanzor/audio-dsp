@@ -31,9 +31,11 @@ import { NodeDetailsModal } from "../modals/graph/node-details-modal";
 import { apiGetTransformDefinition } from "@/Services/TransformService";
 import { useCanvasRuntime } from "@/audio/hooks/useCanvasRuntime";
 import { CompileOutputModal } from "./compile-output-modal";
+import { SaveCompileStatusOverlay, type SaveCompileStatusState } from "./save-compile-status-overlay";
 
 
 const NODE_TYPES = { source: SourceNode, sink: SinkNode };
+const COMPILE_AFTER_SAVE_TIMEOUT_MS = 8000;
 
 function defaultParamsForTransform(transform?: TransformDefinition) {
   if (!transform) return {};
@@ -61,8 +63,12 @@ function CanvasInner() {
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [saveProgress, setSaveProgress] = useState(0);
   const [saveState, setSaveState] = useState<"hidden" | "saving" | "success" | "error">("hidden");
+  const [saveCompileState, setSaveCompileState] = useState<SaveCompileStatusState>("hidden");
+  const [saveCompileMessage, setSaveCompileMessage] = useState<string | null>(null);
   const saveProgressTimerRef = useRef<number | null>(null);
   const saveHideTimerRef = useRef<number | null>(null);
+  const compileWaitTimerRef = useRef<number | null>(null);
+  const awaitingCompileAfterSaveRef = useRef(false);
   const nextCanvasTempIdRef = useRef(-1);
 
   const onNodesChangeSafe = useCallback(
@@ -130,7 +136,15 @@ function CanvasInner() {
     }
   }, []);
 
+  const clearCompileWaitTimer = useCallback(() => {
+    if (compileWaitTimerRef.current != null) {
+      window.clearTimeout(compileWaitTimerRef.current);
+      compileWaitTimerRef.current = null;
+    }
+  }, []);
+
   useEffect(() => clearSaveTimers, [clearSaveTimers]);
+  useEffect(() => clearCompileWaitTimer, [clearCompileWaitTimer]);
 
   const nextCanvasTempId = useCallback(() => {
     const id = nextCanvasTempIdRef.current;
@@ -315,6 +329,53 @@ function CanvasInner() {
 
   // ─── Toolbar handlers ───────────────────────────────────────────────────────
 
+  const { compileNow, activate, canActivate } = useCanvasRuntime(activeGraphId, nodes, edges);
+
+  useEffect(() => {
+    if (!awaitingCompileAfterSaveRef.current) {
+      if (saveCompileState === "error" && graphPlaybackState.compiled) {
+        setSaveCompileState("hidden");
+        setSaveCompileMessage(null);
+      }
+      return;
+    }
+
+    if (graphPlaybackState.compiled) {
+      awaitingCompileAfterSaveRef.current = false;
+      clearCompileWaitTimer();
+      setSaveCompileState("hidden");
+      setSaveCompileMessage(null);
+      return;
+    }
+
+    if (runtimeStatus === "hydrating") {
+      setSaveCompileState("waiting");
+      setSaveCompileMessage(runtimeMessage ?? "Fetching transform binaries...");
+      return;
+    }
+
+    if (runtimeStatus === "error") {
+      awaitingCompileAfterSaveRef.current = false;
+      clearCompileWaitTimer();
+      setSaveCompileState("error");
+      setSaveCompileMessage(runtimeMessage ?? "Compile failed after save.");
+      return;
+    }
+
+    if (runtimeStatus === "idle") {
+      awaitingCompileAfterSaveRef.current = false;
+      clearCompileWaitTimer();
+      setSaveCompileState("error");
+      setSaveCompileMessage(runtimeMessage ?? "Compile did not produce a runnable graph.");
+    }
+  }, [
+    clearCompileWaitTimer,
+    graphPlaybackState.compiled,
+    runtimeMessage,
+    runtimeStatus,
+    saveCompileState,
+  ]);
+
   const handleSave = useCallback(async () => {
     if (activeGraphId == null || saveState === "saving") return;
 
@@ -331,6 +392,17 @@ function CanvasInner() {
 
     try {
       await graphController.handleSaveGraph(activeGraphId, nodes, edges);
+      awaitingCompileAfterSaveRef.current = true;
+      clearCompileWaitTimer();
+      setSaveCompileState("waiting");
+      setSaveCompileMessage("Checking saved graph...");
+      compileNow();
+      compileWaitTimerRef.current = window.setTimeout(() => {
+        if (!awaitingCompileAfterSaveRef.current) return;
+        awaitingCompileAfterSaveRef.current = false;
+        setSaveCompileState("error");
+        setSaveCompileMessage("Compile timed out while waiting for transform binaries.");
+      }, COMPILE_AFTER_SAVE_TIMEOUT_MS);
       clearSaveTimers();
       setSaveState("success");
       setSaveProgress(100);
@@ -350,7 +422,7 @@ function CanvasInner() {
       }, 1800);
       throw error;
     }
-  }, [activeGraphId, nodes, edges, graphController, saveState, clearSaveTimers]);
+  }, [activeGraphId, nodes, edges, graphController, saveState, clearCompileWaitTimer, clearSaveTimers, compileNow]);
 
   const handleFitView = useCallback(() => {
     fitView({ padding: 0.2 });
@@ -405,8 +477,6 @@ function CanvasInner() {
 
   // Stable nodeTypes reference — must not be recreated on every render
   const nodeTypes = useMemo(() => NODE_TYPES, []);
-
-  const { compileNow, activate, canActivate } = useCanvasRuntime(activeGraphId, nodes, edges);
 
   return (
     <div className={`flex flex-col w-full h-full overflow-hidden rounded-[10px]${isGraphLive ? " graph-live-shell" : ""}`}>
@@ -491,6 +561,10 @@ function CanvasInner() {
             </div>
           </div>
         )}
+        <SaveCompileStatusOverlay
+          state={saveCompileState}
+          message={saveCompileMessage}
+        />
       </div>
       {nodeDetailsModalState && (
         <NodeDetailsModal

@@ -10,7 +10,9 @@ interface ApiGraphNode {
   graphId?: number;
   graph_id?: number;
   transformId?: number | null;
+  transform_id?: number | null;
   nodeType?: string;
+  node_type?: string;
   position?: { x?: number; y?: number };
   params?: Record<string, number>;
 }
@@ -20,9 +22,13 @@ interface ApiGraphEdge {
   graphId?: number;
   graph_id?: number;
   fromNodeId?: number;
+  from_node_id?: number;
   toNodeId?: number;
+  to_node_id?: number;
   fromPortId?: number | null;
+  from_port_id?: number | null;
   toPortId?: number | null;
+  to_port_id?: number | null;
   to?: string;
 }
 
@@ -34,11 +40,14 @@ interface ApiGraphRepr {
 
 interface ApiGraphResult {
   id: number;
-  region_id: number;
+  regionId?: number;
+  region_id?: number;
   name: string;
   version: number;
-  created_at: string;
-  updated_at: string;
+  createdAt?: string;
+  created_at?: string;
+  updatedAt?: string;
+  updated_at?: string;
   repr: ApiGraphRepr;
 }
 
@@ -112,32 +121,32 @@ const VALID_NODE_TYPES = new Set<NodeType>(["default", "source", "sink"]);
 const mapGraphNode = (node: ApiGraphNode, graphId: number): Node => ({
   id: node.id,
   graphId: node.graphId ?? node.graph_id ?? graphId,
-  transformId: node.transformId ?? null,
+  transformId: node.transformId ?? node.transform_id ?? null,
   position: { x: node.position?.x ?? 0, y: node.position?.y ?? 0 },
   params: node.params ?? {},
   ports: [],
   createdAt: new Date(0),
-  nodeType: VALID_NODE_TYPES.has(node.nodeType as NodeType)
-    ? (node.nodeType as NodeType)
+  nodeType: VALID_NODE_TYPES.has((node.nodeType ?? node.node_type) as NodeType)
+    ? ((node.nodeType ?? node.node_type) as NodeType)
     : "default",
 });
 
 const mapGraphEdge = (edge: ApiGraphEdge, graphId: number): Edge => ({
   id: edge.id,
   graphId: edge.graphId ?? edge.graph_id ?? graphId,
-  fromNodeId: edge.fromNodeId ?? 0,
-  toNodeId: edge.toNodeId ?? 0,
-  fromPortId: edge.fromPortId ?? null,
-  toPortId: edge.toPortId ?? null,
+  fromNodeId: edge.fromNodeId ?? edge.from_node_id ?? 0,
+  toNodeId: edge.toNodeId ?? edge.to_node_id ?? 0,
+  fromPortId: edge.fromPortId ?? edge.from_port_id ?? null,
+  toPortId: edge.toPortId ?? edge.to_port_id ?? null,
   to: edge.to ?? "",
 });
 
 const mapGraph = (graph: ApiGraphResult): Graph => ({
   id: graph.id,
-  regionId: graph.region_id,
+  regionId: graph.regionId ?? graph.region_id ?? 0,
   name: graph.name,
-  createdAt: new Date(graph.created_at),
-  updatedAt: new Date(graph.updated_at),
+  createdAt: new Date(graph.createdAt ?? graph.created_at ?? 0),
+  updatedAt: new Date(graph.updatedAt ?? graph.updated_at ?? 0),
   nodes: (graph.repr?.nodes ?? []).map((node) => mapGraphNode(node, graph.id)),
   edges: (graph.repr?.edges ?? []).map((edge) => mapGraphEdge(edge, graph.id)),
 });
