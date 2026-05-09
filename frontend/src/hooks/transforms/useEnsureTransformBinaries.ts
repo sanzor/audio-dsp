@@ -4,16 +4,34 @@ import { apiGetTransformBinaries } from "@/Services/TransformService";
 import { useWasmBinaryStore } from "@/Stores/WasmBinaryStore";
 import { QUERY_KEYS } from "@/constants/queryKeys";
 
-export function useEnsureTransformBinaries(): (transformIds: number[]) => Promise<void> {
+export function useEnsureTransformBinaries(): (transformIds: number[]) => Promise<Map<number, Uint8Array>> {
   const queryClient = useQueryClient();
 
   return useCallback(async (transformIds: number[]) => {
     const uniqueIds = Array.from(new Set(transformIds));
     const { binaries, setBinary, setStatus } = useWasmBinaryStore.getState();
+    const resolved = new Map<number, Uint8Array>();
 
-    const missingIds = uniqueIds.filter((transformId) => !binaries.has(transformId));
+    const missingIds: number[] = [];
+    for (const transformId of uniqueIds) {
+      const existingBinary = binaries.get(transformId);
+      if (existingBinary) {
+        resolved.set(transformId, existingBinary);
+        continue;
+      }
+
+      const cachedBinary = queryClient.getQueryData<Uint8Array>(QUERY_KEYS.transforms.wasm(transformId));
+      if (cachedBinary) {
+        setBinary(transformId, cachedBinary);
+        resolved.set(transformId, cachedBinary);
+        continue;
+      }
+
+      missingIds.push(transformId);
+    }
+
     if (missingIds.length === 0) {
-      return;
+      return resolved;
     }
 
     for (const transformId of missingIds) {
@@ -32,6 +50,7 @@ export function useEnsureTransformBinaries(): (transformIds: number[]) => Promis
 
         queryClient.setQueryData(QUERY_KEYS.transforms.wasm(transformId), binary);
         setBinary(transformId, binary);
+        resolved.set(transformId, binary);
       }
     } catch (error) {
       for (const transformId of missingIds) {
@@ -39,5 +58,7 @@ export function useEnsureTransformBinaries(): (transformIds: number[]) => Promis
       }
       throw error;
     }
+
+    return resolved;
   }, [queryClient]);
 }

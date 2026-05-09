@@ -57,6 +57,15 @@ function decodeBase64Binary(encoded: string): Uint8Array {
   return bytes;
 }
 
+export function mapTransformBinariesResponse(response: TransformBinariesResponse): Map<number, Uint8Array> {
+  return new Map(
+    response.binaries.map((binary) => [
+      binary.transform_id,
+      decodeBase64Binary(binary.wasm_base64),
+    ])
+  );
+}
+
 export async function apiGetTransformSummaries(offset = 0, limit = 20): Promise<TransformPage> {
   return http.get<TransformPage>(`/transforms?offset=${offset}&limit=${limit}`);
 }
@@ -121,16 +130,14 @@ export async function apiGetTransformBinary(transform_id: number): Promise<Uint8
   return new Uint8Array(buffer);
 }
 
-export async function apiGetTransformBinaries(transform_ids: number[]): Promise<Map<number, Uint8Array>> {
-  const response = await http.post<TransformBinariesResponse, TransformIdsRequest>(
+export async function apiFetchTransformBinaries(request: TransformIdsRequest): Promise<TransformBinariesResponse> {
+  return http.post<TransformBinariesResponse, TransformIdsRequest>(
     `/transforms/binaries`,
-    { ids: transform_ids }
+    request
   );
+}
 
-  return new Map(
-    response.binaries.map((binary) => [
-      binary.transform_id,
-      decodeBase64Binary(binary.wasm_base64),
-    ])
-  );
+export async function apiGetTransformBinaries(transform_ids: number[]): Promise<Map<number, Uint8Array>> {
+  const response = await apiFetchTransformBinaries({ ids: transform_ids });
+  return mapTransformBinariesResponse(response);
 }
