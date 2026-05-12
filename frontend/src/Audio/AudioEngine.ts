@@ -9,7 +9,7 @@
  * WorkletMessageSender.
  */
 
-const WORKLET_URL = new URL('./GraphProcessor/graph-worklet.js', import.meta.url).href;
+const WORKLET_URL = new URL('../audio/worklet/graph-worklet.js', import.meta.url).href;
 
 export class AudioEngine {
   private ctx:         AudioContext | null          = null;

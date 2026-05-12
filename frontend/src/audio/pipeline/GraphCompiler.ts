@@ -1,37 +1,51 @@
-/**
- * GraphCompiler
- *
- * Pure function: GraphInput → CompileResult.  No side effects, no I/O.
- *
- * Phases
- * ──────
- * 1. findBackEdges       — DFS; marks edges that close a cycle (back-edges).
- *                          A back-edge points to an ancestor still on the DFS
- *                          stack, meaning "this node feeds audio back to an
- *                          earlier node."  We break the cycle at runtime by
- *                          using the upstream node's output from the *previous*
- *                          audio frame instead of the current one.
- *
- * 2. topoSort            — Kahn's BFS on the forward-edge DAG (back-edges
- *                          excluded).  Produces an order where every node's
- *                          upstream dependencies are already processed.
- *
- * 3. assignOutputBuffers — Gives each non-sink node one numbered buffer slot
- *                          (a Float32Array the worklet allocates).  A node
- *                          writes its output once into its slot; every
- *                          downstream node reads from the same slot (fan-out
- *                          is free).  Sink nodes (nothing downstream) write
- *                          straight to the worklet output — no slot needed.
- *                          Nodes that also have back-edges out are flagged so
- *                          the worklet knows to save their slot at frame end.
- *
- * 4. buildNodes          — Assembles the final CompiledNode list in execution
- *                          order, wiring up which slots each node reads from
- *                          and which slot (or the raw output) it writes to.
- */
+import type { ActiveGraph } from '@/Stores/ActiveGraphState';
 
-import type { GraphInput, GraphInputEdge } from './dto/GraphInput';
-import type { CompiledGraph, CompiledNode, NodeInputSource } from './dto/CompiledGraph';
+// ─── Input types ─────────────────────────────────────────────────────────────
+
+export interface GraphInputNode {
+  id: number;
+  transformId: number;
+  params: Record<string, number>;
+}
+
+export interface GraphInputEdge {
+  id: number;
+  fromNodeId: number;
+  toNodeId: number;
+}
+
+export interface GraphInput {
+  nodes: Map<number, GraphInputNode>;
+  edges: Map<number, GraphInputEdge>;
+}
+
+// ─── Output types ─────────────────────────────────────────────────────────────
+
+export type NodeInputSource =
+  | { kind: 'raw' }
+  | { kind: 'buffer';   bufferIndex: number }
+  | { kind: 'feedback'; bufferIndex: number };
+
+export interface CompiledNode {
+  nodeId: number;
+  transformId: number;
+  params: number[];             // flattened from Record<string,number>, sent to WASM
+  inputs: NodeInputSource[];
+  outputBufferIndex: number;    // -1 = sink node: writes additively to worklet output
+}
+
+export interface CompiledGraph {
+  executionOrder: CompiledNode[];     // sources first, sinks last
+  bufferCount: number;                // total Float32Arrays the worklet must allocate
+  feedbackBufferIndices: number[];    // which buffers need a prev-frame copy each quantum
+}
+
+// ─── Pipeline output ──────────────────────────────────────────────────────────
+
+export interface TransformDescriptor {
+  compiledGraph: CompiledGraph;
+  binaries: Record<number, Uint8Array>; // transformId → wasm binary
+}
 
 // ─── Result type ──────────────────────────────────────────────────────────────
 
@@ -39,7 +53,72 @@ export type CompileResult =
   | { ok: true;  graph: CompiledGraph }
   | { ok: false; reason: 'empty_graph' };
 
+// ─── High-level entry point ───────────────────────────────────────────────────
+//
+// Converts an ActiveGraph and already-resolved binaries into a descriptor.
+// Returns null if the graph is empty/invalid or any required binary is missing.
+
+export function compileActiveGraph(
+  graph: ActiveGraph,
+  binaries: Map<number, Uint8Array>,
+): TransformDescriptor | null {
+  const input: GraphInput = {
+    nodes: new Map(
+      [...graph.nodes.entries()].map(([id, node]) => [
+        id,
+        { id, transformId: node.transformId, params: node.params },
+      ]),
+    ),
+    edges: new Map(
+      [...graph.edges.entries()].map(([id, edge]) => [
+        id,
+        { id, fromNodeId: edge.fromNodeId, toNodeId: edge.toNodeId },
+      ]),
+    ),
+  };
+
+  const result = process(input);
+  if (!result.ok) return null;
+
+  const resolvedBinaries: Record<number, Uint8Array> = {};
+  for (const node of graph.nodes.values()) {
+    const binary = binaries.get(node.transformId);
+    if (!binary) return null;
+    resolvedBinaries[node.transformId] = binary;
+  }
+
+  return { compiledGraph: result.graph, binaries: resolvedBinaries };
+}
+
 // ─── Entry point ──────────────────────────────────────────────────────────────
+//
+// Pure function: GraphInput → CompileResult.  No side effects, no I/O.
+//
+// Phases
+// ──────
+// 1. findBackEdges       — DFS; marks edges that close a cycle (back-edges).
+//                          A back-edge points to an ancestor still on the DFS
+//                          stack, meaning "this node feeds audio back to an
+//                          earlier node."  We break the cycle at runtime by
+//                          using the upstream node's output from the *previous*
+//                          audio frame instead of the current one.
+//
+// 2. topoSort            — Kahn's BFS on the forward-edge DAG (back-edges
+//                          excluded).  Produces an order where every node's
+//                          upstream dependencies are already processed.
+//
+// 3. assignOutputBuffers — Gives each non-sink node one numbered buffer slot
+//                          (a Float32Array the worklet allocates).  A node
+//                          writes its output once into its slot; every
+//                          downstream node reads from the same slot (fan-out
+//                          is free).  Sink nodes (nothing downstream) write
+//                          straight to the worklet output — no slot needed.
+//                          Nodes that also have back-edges out are flagged so
+//                          the worklet knows to save their slot at frame end.
+//
+// 4. buildNodes          — Assembles the final CompiledNode list in execution
+//                          order, wiring up which slots each node reads from
+//                          and which slot (or the raw output) it writes to.
 
 export function process(input: GraphInput): CompileResult {
   const { nodes, edges } = input;
@@ -78,13 +157,13 @@ function findBackEdges(
   );
 
   const visit = (id: number) => {
-    color.set(id, GRAY); // on the DFS stack
+    color.set(id, GRAY);
     for (const edge of outEdges.get(id) ?? []) {
       const neighborColor = color.get(edge.toNodeId) ?? WHITE;
-      if (neighborColor === GRAY)       backEdgeIds.add(edge.id); // ancestor → cycle
+      if (neighborColor === GRAY)       backEdgeIds.add(edge.id);
       else if (neighborColor === WHITE) visit(edge.toNodeId);
     }
-    color.set(id, BLACK); // fully explored, off the stack
+    color.set(id, BLACK);
   };
 
   for (const id of nodes.keys()) {
@@ -132,23 +211,11 @@ function topoSort(
 }
 
 // ─── Phase 3: assign one output buffer slot per non-sink node ─────────────────
-//
-// Example:  A → B → D
-//                ↘
-//                 C
-//
-//   A  gets slot 0  (has forward out-edges)
-//   B  gets slot 1  (has forward out-edges; C and D both read slot 1 — fan-out free)
-//   C  no slot      (sink: writes straight to worklet output)
-//   D  no slot      (sink: writes straight to worklet output)
-//
-// If B also had a back-edge going out (cycle), slot 1 would appear in
-// feedbackBufferIndices so the worklet saves it at the end of each frame.
 
 interface BufferMap {
-  nodeOutputBuf: Map<number, number>; // nodeId → slot index
+  nodeOutputBuf: Map<number, number>;
   bufferCount: number;
-  feedbackBufferIndices: number[];    // slots that need a prev-frame copy
+  feedbackBufferIndices: number[];
 }
 
 function assignOutputBuffers(
@@ -198,10 +265,8 @@ function buildNodes(
     const hasForwardIn  = incoming.some((e) => !backEdgeIds.has(e.id));
     const hasForwardOut = outgoing.some((e) => !backEdgeIds.has(e.id));
 
-    // Source node: no forward predecessors → read from the worklet's raw audio input.
     const rawSource: NodeInputSource = { kind: 'raw' };
 
-    // Each incoming edge maps to either a current-frame buffer or a feedback buffer.
     const edgeSources: NodeInputSource[] = incoming.map((edge) =>
       backEdgeIds.has(edge.id)
         ? { kind: 'feedback', bufferIndex: nodeOutputBuf.get(edge.fromNodeId)! }
@@ -225,7 +290,6 @@ function buildNodes(
 
 // ─── Edge-map helpers ─────────────────────────────────────────────────────────
 
-/** fromNodeId → edges; every node is pre-seeded (safe for DFS). */
 function buildEdgesByFrom(
   nodes: GraphInput['nodes'],
   edges: GraphInput['edges'],
@@ -237,7 +301,6 @@ function buildEdgesByFrom(
   return map;
 }
 
-/** fromNodeId → edges; only nodes with outgoing edges are present. */
 function buildEdgesByFromFlat(edges: GraphInput['edges']): Map<number, GraphInputEdge[]> {
   const map = new Map<number, GraphInputEdge[]>();
   for (const edge of edges.values()) {
@@ -248,7 +311,6 @@ function buildEdgesByFromFlat(edges: GraphInput['edges']): Map<number, GraphInpu
   return map;
 }
 
-/** toNodeId → edges. */
 function buildEdgesByTo(edges: GraphInput['edges']): Map<number, GraphInputEdge[]> {
   const map = new Map<number, GraphInputEdge[]>();
   for (const edge of edges.values()) {

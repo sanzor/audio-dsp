@@ -1,11 +1,14 @@
 import { useCallback, useRef } from 'react'
 import type WaveSurfer from 'wavesurfer.js'
 import { useAudioEffectsStore } from '@/Stores/AudioEffectsStore'
-import AudioWorkletAdapterUrl from '../worklet/audio-worklet-adapter.ts?url'
+
+const GRAPH_WORKLET_URL = new URL('../worklet/graph-worklet.js', import.meta.url).href
 
 export function useWorkletSetup() {
   const graphController = useAudioEffectsStore(s => s.graphController)
   const setWorkletConnected = useAudioEffectsStore(s => s.setWorkletConnected)
+  const setGraphPlaybackState = useAudioEffectsStore(s => s.setGraphPlaybackState)
+  const setRuntimeState = useAudioEffectsStore(s => s.setRuntimeState)
   const audioCtxRef = useRef<AudioContext | null>(null)
 
   // Call this when a WaveSurfer instance is bound (alongside playback.bindWaveform).
@@ -15,6 +18,8 @@ export function useWorkletSetup() {
     let audioCtx: AudioContext | null = null
     let source: MediaElementAudioSourceNode | null = null
     let workletNode: AudioWorkletNode | null = null
+    let cleanupGraphReady = () => {}
+    let cleanupModuleError = () => {}
 
     const setup = async () => {
       try {
@@ -22,12 +27,12 @@ export function useWorkletSetup() {
         audioCtx = new AudioContext()
         audioCtxRef.current = audioCtx
 
-        await audioCtx.audioWorklet.addModule(AudioWorkletAdapterUrl)
+        await audioCtx.audioWorklet.addModule(GRAPH_WORKLET_URL)
         if (disposed || (audioCtx.state as string) === 'closed') return
 
         source = audioCtx.createMediaElementSource(mediaElement)
         try {
-          workletNode = new AudioWorkletNode(audioCtx, 'audio-worklet-adapter')
+          workletNode = new AudioWorkletNode(audioCtx, 'graph-worklet')
         } catch (error) {
           if (disposed) return
           if (error instanceof DOMException && error.name === 'InvalidStateError') {
@@ -42,7 +47,19 @@ export function useWorkletSetup() {
         source.connect(workletNode)
         workletNode.connect(audioCtx.destination)
 
-        graphController.connectWorklet(workletNode.port)
+        const sender = graphController.connectWorklet(workletNode.port)
+        cleanupGraphReady = sender.onGraphReady(() => {
+          setGraphPlaybackState({ compiled: true, playable: true, reason: null })
+          setRuntimeState('ready')
+        })
+        cleanupModuleError = sender.onModuleError((transformId, error) => {
+          setGraphPlaybackState({
+            compiled: true,
+            playable: false,
+            reason: `Transform ${transformId} failed to load in the worklet.`,
+          })
+          setRuntimeState('error', error)
+        })
         setWorkletConnected(true)
         graphController.setEffects(useAudioEffectsStore.getState().effectsEnabled)
       } catch (error) {
@@ -58,8 +75,15 @@ export function useWorkletSetup() {
 
     return () => {
       disposed = true
+      cleanupGraphReady()
+      cleanupModuleError()
       graphController.disconnectWorklet()
       setWorkletConnected(false)
+      setGraphPlaybackState({
+        compiled: useAudioEffectsStore.getState().compiledGraph != null,
+        playable: false,
+        reason: 'Worklet is disconnected.',
+      })
       source?.disconnect()
       workletNode?.disconnect()
       void audioCtx?.close()
@@ -67,7 +91,7 @@ export function useWorkletSetup() {
         audioCtxRef.current = null
       }
     }
-  }, [graphController, setWorkletConnected])
+  }, [graphController, setGraphPlaybackState, setRuntimeState, setWorkletConnected])
 
   const setEffects = useCallback((enabled: boolean) => {
     graphController.setEffects(enabled)

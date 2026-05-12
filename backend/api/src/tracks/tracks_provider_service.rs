@@ -47,11 +47,7 @@ impl TracksProviderService {
         }
     }
 
-    async fn build_track_bundle(&self, track_id: &TrackId) -> Result<TrackBundle, String> {
-        let meta = self.get_track_meta(track_id).await?;
-        let payload = self.storage.get_track_payload(track_id).await?;
-        Ok(TrackBundle { meta, payload })
-    }
+
 }
 
 #[async_trait::async_trait]
@@ -62,7 +58,10 @@ impl TracksProvider for TracksProviderService {
     }
 
     async fn get_track(&self, track_id: &TrackId) -> Result<TrackBundle, String> {
-        self.build_track_bundle(track_id).await
+        let payload=self.storage.get_track_payload(track_id).await?;
+        let meta=self.data.get_track(track_id).await?;
+        let meta=Self::to_meta(&meta);
+        Ok(TrackBundle{payload,meta})
     }
 
     async fn get_tracks(&self) -> Result<Vec<TrackBundle>, String> {

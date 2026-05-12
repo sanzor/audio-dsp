@@ -1,23 +1,17 @@
-/**
- * WorkletMessageSender — main-thread side of the worklet message channel.
- *
- * Wraps the AudioWorkletNode's MessagePort with typed send methods and
- * typed response subscriptions.  Nothing in the rest of the codebase
- * should call port.postMessage directly.
- *
- * Sending:
- *   sendGraph()        → SET_GRAPH  (binaries are sliced + transferred)
- *   sendBypass()       → SET_BYPASS
- *   sendUpdateParams() → UPDATE_PARAMS
- *
- * Receiving (worklet → main thread):
- *   onGraphReady()     → GRAPH_READY
- *   onModuleError()    → MODULE_ERROR
- *   Both return an unsubscribe function.
- */
+import type { CompiledGraph } from '@/audio/pipeline/GraphCompiler';
 
-import type { CompiledGraph } from './dto/CompiledGraph';
-import type { WorkletInboundMessage, WorkletOutboundMessage } from './dto/WorkletMessage';
+// ─── Message types ────────────────────────────────────────────────────────────
+
+export type WorkletInboundMessage =
+  | { type: 'SET_GRAPH';     graph: CompiledGraph; binaries: Record<number, ArrayBuffer> }
+  | { type: 'SET_BYPASS';    bypass: boolean }
+  | { type: 'UPDATE_PARAMS'; nodeIndex: number; params: number[] };
+
+export type WorkletOutboundMessage =
+  | { type: 'GRAPH_READY' }
+  | { type: 'MODULE_ERROR'; transformId: number; error: string };
+
+// ─── Sender ───────────────────────────────────────────────────────────────────
 
 type UnsubscribeFn = () => void;
 type HandlerSet     = Set<(data: WorkletOutboundMessage) => void>;
@@ -38,7 +32,7 @@ export class WorkletMessageSender {
     const transfers: ArrayBuffer[] = [];
 
     for (const [id, bin] of Object.entries(binaries)) {
-      const copy = bin.slice().buffer; // copy so WasmBinaryStore keeps its original
+      const copy = bin.slice().buffer;
       transferableBinaries[Number(id)] = copy;
       transfers.push(copy);
     }

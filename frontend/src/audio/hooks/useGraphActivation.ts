@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from "react"
 import { useAudioEffectsStore } from "@/Stores/AudioEffectsStore"
-import type { CompiledGraph } from "@/audio/types/compiled"
+import type { TransformDescriptor } from "@/audio/pipeline/GraphCompiler"
 
 export function useGraphActivation(): { activate: () => void; canActivate: boolean } {
   const graphController = useAudioEffectsStore((s) => s.graphController)
@@ -12,11 +12,15 @@ export function useGraphActivation(): { activate: () => void; canActivate: boole
 
   const canActivate = compiledGraph != null && workletConnected
 
-  const doActivate = useCallback((compiled: CompiledGraph) => {
+  const doActivate = useCallback((compiled: TransformDescriptor) => {
     try {
       graphController.loadCompiledGraph(compiled)
-      setGraphPlaybackState({ compiled: true, playable: true, reason: null })
-      setRuntimeState("ready")
+      setGraphPlaybackState({
+        compiled: true,
+        playable: false,
+        reason: "Waiting for the worklet to finish loading the graph.",
+      })
+      setRuntimeState("hydrating", "Loading graph in audio worklet...")
     } catch (error) {
       setGraphPlaybackState({ compiled: true, playable: false, reason: "Activation failed." })
       setRuntimeState("error", error instanceof Error ? error.message : "Activation failed.")

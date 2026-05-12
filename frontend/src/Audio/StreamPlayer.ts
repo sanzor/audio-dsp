@@ -16,10 +16,10 @@
  */
 
 import { AudioEngine } from './AudioEngine';
-import { WorkletMessageSender } from './GraphProcessor/WorkletMessageSender';
-import { AudioCommandDispatcher } from './GraphProcessor/AudioCommandDispatcher';
-import type { AudioPlaybackHandlers } from './GraphProcessor/AudioCommandDispatcher';
-import type { AudioCommand } from './GraphProcessor/dto/AudioCommand';
+import { WorkletMessageSender } from '@/audio/transport/WorkletMessageSender';
+import { AudioCommandDispatcher } from '@/audio/transport/AudioCommandDispatcher';
+import type { AudioPlaybackHandlers } from '@/audio/transport/AudioCommandDispatcher';
+import type { AudioCommand } from '@/audio/transport/AudioCommandDispatcher';
 
 export class StreamPlayer implements AudioPlaybackHandlers {
   private engine:     AudioEngine;
