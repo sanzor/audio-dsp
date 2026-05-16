@@ -502,7 +502,7 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
                 web::scope("/stored-tracks")
                     .wrap(role_middleware.clone())
                     .wrap(jwt_middleware.clone())
-                    .configure(controllers::stored_tracks_crud_controller::init),
+                    .configure(controllers::track_payload_controller::init),
             )
     })
     .bind((host.as_str(), port))?

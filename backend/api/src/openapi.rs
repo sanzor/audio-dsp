@@ -33,7 +33,7 @@ use utoipa::OpenApi;
         crate::controllers::tracks_crud_controller::update_track_info,
         crate::controllers::tracks_crud_controller::remove_track,
         crate::controllers::tracks_crud_controller::get_meta,
-        crate::controllers::stored_tracks_crud_controller::get_stored_track,
+        crate::controllers::track_payload_controller::get_stored_track,
         crate::controllers::tracks_crud_controller::get_tracks,
         crate::controllers::tracks_crud_controller::get_track_info,
         // Transforms
