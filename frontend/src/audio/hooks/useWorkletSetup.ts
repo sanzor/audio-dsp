@@ -5,7 +5,7 @@ import { useAudioEffectsStore } from '@/Stores/AudioEffectsStore'
 const GRAPH_WORKLET_URL = new URL('../worklet/graph-worklet.js', import.meta.url).href
 
 export function useWorkletSetup() {
-  const graphController = useAudioEffectsStore(s => s.graphController)
+  const graphController = useAudioEffectsStore(s => s.workletController)
   const setWorkletConnected = useAudioEffectsStore(s => s.setWorkletConnected)
   const setGraphPlaybackState = useAudioEffectsStore(s => s.setGraphPlaybackState)
   const setRuntimeState = useAudioEffectsStore(s => s.setRuntimeState)

@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { WorkletController } from '@/audio/transport/WorkletController'
-import type { TransformDescriptor } from '@/audio/pipeline/GraphCompiler'
+import type { CompiledGraphResult } from '@/audio/pipeline/compileRuntimeGraph'
 
 const graphController = new WorkletController()
 
@@ -57,16 +57,16 @@ let nextCompileLogId = 1
 
 interface AudioEffectsState {
   graphPlaybackState: GraphPlaybackState
-  compiledGraph: TransformDescriptor | null
+  compiledGraph: CompiledGraphResult | null
   compileModalOpen: boolean
   compileRun: CompileRun | null
   effectsEnabled: boolean
   workletConnected: boolean
   runtimeStatus: RuntimeStatus
   runtimeMessage: string | null
-  graphController: WorkletController
+  workletController: WorkletController
   setGraphPlaybackState: (graphPlaybackState: GraphPlaybackState) => void
-  setCompiledGraph: (compiled: TransformDescriptor | null) => void
+  setCompiledGraph: (compiled: CompiledGraphResult | null) => void
   setCompileModalOpen: (open: boolean) => void
   clearCompileRun: () => void
   beginCompileRun: (trigger: 'manual' | 'auto', openModal?: boolean) => number
@@ -93,7 +93,7 @@ export const useAudioEffectsStore = create<AudioEffectsState>()((set, get) => ({
   workletConnected: false,
   runtimeStatus: 'idle',
   runtimeMessage: null,
-  graphController,
+  workletController: graphController,
   setGraphPlaybackState: (graphPlaybackState) => set({ graphPlaybackState }),
   setCompiledGraph: (compiledGraph) => set({
     compiledGraph,

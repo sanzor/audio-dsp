@@ -1,4 +1,5 @@
 import type { ActiveGraph } from '@/Stores/ActiveGraphState';
+import type { CompileErrorResult } from './validateRuntimeGraph';
 
 // ─── Input types ─────────────────────────────────────────────────────────────
 
@@ -40,13 +41,6 @@ export interface CompiledGraph {
   feedbackBufferIndices: number[];    // which buffers need a prev-frame copy each quantum
 }
 
-// ─── Pipeline output ──────────────────────────────────────────────────────────
-
-export interface TransformDescriptor {
-  compiledGraph: CompiledGraph;
-  binaries: Record<number, Uint8Array>; // transformId → wasm binary
-}
-
 // ─── Result type ──────────────────────────────────────────────────────────────
 
 export type CompileResult =
@@ -55,13 +49,24 @@ export type CompileResult =
 
 // ─── High-level entry point ───────────────────────────────────────────────────
 //
-// Converts an ActiveGraph and already-resolved binaries into a descriptor.
-// Returns null if the graph is empty/invalid or any required binary is missing.
+// Converts an ActiveGraph into a compiled graph descriptor.
+// Returns null if the graph is empty/invalid.
+
+function compileFailedResult(
+  detail: string,
+  transformIds: number[],
+): CompileErrorResult {
+  return {
+    ok: false,
+    reason: "compile_failed",
+    detail,
+    transformIds,
+  };
+}
 
 export function compileActiveGraph(
   graph: ActiveGraph,
-  binaries: Map<number, Uint8Array>,
-): TransformDescriptor | null {
+): CompiledGraph | null {
   const input: GraphInput = {
     nodes: new Map(
       [...graph.nodes.entries()].map(([id, node]) => [
@@ -79,15 +84,7 @@ export function compileActiveGraph(
 
   const result = process(input);
   if (!result.ok) return null;
-
-  const resolvedBinaries: Record<number, Uint8Array> = {};
-  for (const node of graph.nodes.values()) {
-    const binary = binaries.get(node.transformId);
-    if (!binary) return null;
-    resolvedBinaries[node.transformId] = binary;
-  }
-
-  return { compiledGraph: result.graph, binaries: resolvedBinaries };
+  return result.graph;
 }
 
 // ─── Entry point ──────────────────────────────────────────────────────────────

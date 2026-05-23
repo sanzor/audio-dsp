@@ -1,55 +1,112 @@
-import { useCallback } from "react"
-import { useWasmBinaryStore } from "@/Stores/WasmBinaryStore"
+import { useCallback, useRef } from "react"
 import { useAudioEffectsStore } from "@/Stores/AudioEffectsStore"
+import { useWasmBinaryStore } from "@/Stores/WasmBinaryStore"
 import type { ActiveGraph } from "@/Stores/ActiveGraphState"
-import { useEnsureTransformBinaries } from "@/hooks/transforms/useEnsureTransformBinaries"
-import { compileActiveGraph } from "@/audio/pipeline/GraphCompiler"
+import { ensureTransformBinariesExist } from "@/hooks/transforms/useEnsureTransformBinaries"
+import {
+  compileGraph,
+  type CompileGraphResult,
+} from "@/audio/pipeline/compileRuntimeGraph"
+import {
+  prepareRuntimeGraphCompile,
+  validateRuntimeGraph,
+} from "@/audio/pipeline/validateRuntimeGraph"
 
-export function useCompile(runtimeGraph: ActiveGraph | null): () => void {
-  const ensureTransformBinaries = useEnsureTransformBinaries()
+function getRuntimeStatus(result: CompileGraphResult): "idle" | "hydrating" | "error" {
+  if (result.ok) return "idle"
+  if (result.reason === "empty_graph") return "idle"
+  if (result.reason === "missing_binaries") return "hydrating"
+  return "error"
+}
+
+export function useCompile(): (runtimeGraph: ActiveGraph | null) => Promise<CompileGraphResult> {
+  const ensureTransformBinaries = ensureTransformBinariesExist()
   const setCompiledGraph = useAudioEffectsStore((s) => s.setCompiledGraph)
   const setRuntimeState = useAudioEffectsStore((s) => s.setRuntimeState)
+  const compileSequenceRef = useRef(0)
 
-  return useCallback(() => {
-    void (async () => {
-      if (!runtimeGraph || runtimeGraph.nodes.size === 0) {
-        setCompiledGraph(null)
-        setRuntimeState("idle", "No transform nodes.")
-        return
+  return useCallback(async (runtimeGraph: ActiveGraph | null) => {
+    const sequence = ++compileSequenceRef.current
+    const validated = validateRuntimeGraph(runtimeGraph)
+    if (!validated.ok) {
+      if (sequence === compileSequenceRef.current) {
+        if (validated.reason === "empty_graph") {
+          setCompiledGraph(null)
+          setRuntimeState("idle", validated.detail)
+        } else {
+          setCompiledGraph(null)
+          setRuntimeState(getRuntimeStatus(validated), validated.detail)
+        }
       }
 
-      const requiredTransformIds = Array.from(
-        new Set(Array.from(runtimeGraph.nodes.values(), (node) => node.transformId))
-      )
+      return validated
+    }
+
+    const getDeps = () => {
+      const state = useWasmBinaryStore.getState()
+      return {
+        binaries: state.binaries,
+        statuses: state.status,
+      }
+    }
+
+    const preflight = prepareRuntimeGraphCompile(validated.value, getDeps())
+    if (!preflight.ok && preflight.reason === "missing_binaries") {
+      if (sequence === compileSequenceRef.current) {
+        setCompiledGraph(null)
+        setRuntimeState("hydrating", preflight.detail)
+      }
 
       try {
-        await ensureTransformBinaries(requiredTransformIds)
-      } catch {}
+        await ensureTransformBinaries(validated.value.transformIds)
+      } catch (error) {
+        const failedResult: CompileGraphResult = {
+          ok: false,
+          reason: "binary_load_failed",
+          detail: error instanceof Error ? error.message : "Failed to fetch transform binaries.",
+          transformIds: validated.value.transformIds,
+        }
 
-      const { binaries, status } = useWasmBinaryStore.getState()
-      const failedIds = requiredTransformIds.filter((id) => status.get(id) === "error")
-      if (failedIds.length > 0) {
-        setCompiledGraph(null)
-        setRuntimeState("error", `Binary load failed: ${failedIds.join(", ")}`)
-        return
+        if (sequence === compileSequenceRef.current) {
+          setCompiledGraph(null)
+          setRuntimeState("error", failedResult.detail)
+        }
+
+        return failedResult
+      }
+    }
+
+    const prepared = prepareRuntimeGraphCompile(validated.value, getDeps())
+    if (!prepared.ok) {
+      if (sequence !== compileSequenceRef.current) {
+        return prepared
       }
 
-      const missingIds = requiredTransformIds.filter((id) => !binaries.has(id))
-      if (missingIds.length > 0) {
-        setCompiledGraph(null)
-        setRuntimeState("hydrating", `Waiting on binaries: ${missingIds.join(", ")}`)
-        return
-      }
+      setCompiledGraph(null)
+      setRuntimeState(getRuntimeStatus(prepared), prepared.detail)
+      return prepared
+    }
 
-      const descriptor = compileActiveGraph(runtimeGraph, binaries)
-      if (!descriptor) {
-        setCompiledGraph(null)
-        setRuntimeState("error", "Compile failed.")
-        return
-      }
+    const result = compileGraph(prepared.value)
 
-      setCompiledGraph(descriptor)
+    if (sequence !== compileSequenceRef.current) {
+      return result
+    }
+
+    if (result.ok) {
+      setCompiledGraph(result.descriptor)
       setRuntimeState("idle", null)
-    })()
-  }, [ensureTransformBinaries, runtimeGraph, setCompiledGraph, setRuntimeState])
+      return result
+    }
+
+    if (result.reason === "empty_graph") {
+      setCompiledGraph(null)
+      setRuntimeState("idle", result.detail)
+      return result
+    }
+
+    setCompiledGraph(null)
+    setRuntimeState(getRuntimeStatus(result), result.detail)
+    return result
+  }, [ensureTransformBinaries, setCompiledGraph, setRuntimeState])
 }

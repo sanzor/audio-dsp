@@ -4,7 +4,7 @@ import { apiGetTransformBinaries } from "@/Services/TransformService";
 import { useWasmBinaryStore } from "@/Stores/WasmBinaryStore";
 import { QUERY_KEYS } from "@/constants/queryKeys";
 
-export function useEnsureTransformBinaries(): (transformIds: number[]) => Promise<Map<number, Uint8Array>> {
+export function ensureTransformBinariesExist(): (transformIds: number[]) => Promise<Map<number, Uint8Array>> {
   const queryClient = useQueryClient();
 
   return useCallback(async (transformIds: number[]) => {

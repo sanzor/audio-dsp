@@ -1,10 +1,10 @@
 import { useEffect } from "react";
 import { useTransformStore } from "@/Stores/TransformStore";
-import { useEnsureTransformBinaries } from "./useEnsureTransformBinaries";
+import { ensureTransformBinariesExist } from "./useEnsureTransformBinaries";
 
 export function usePreloadWasmBinaries(): void {
   const summaries = useTransformStore((s) => s.summaries);
-  const ensureTransformBinaries = useEnsureTransformBinaries();
+  const ensureTransformBinaries = ensureTransformBinariesExist();
 
   useEffect(() => {
     const transformIds = [...summaries.keys()];

@@ -1,9 +1,9 @@
 import { useCallback, useEffect } from "react"
 import { useAudioEffectsStore } from "@/Stores/AudioEffectsStore"
-import type { TransformDescriptor } from "@/audio/pipeline/GraphCompiler"
+import type { CompiledGraphResult } from "@/audio/pipeline/compileRuntimeGraph"
 
 export function useGraphActivation(): { activate: () => void; canActivate: boolean } {
-  const graphController = useAudioEffectsStore((s) => s.graphController)
+  const workletController = useAudioEffectsStore((s) => s.workletController)
   const compiledGraph = useAudioEffectsStore((s) => s.compiledGraph)
   const workletConnected = useAudioEffectsStore((s) => s.workletConnected)
   const effectsEnabled = useAudioEffectsStore((s) => s.effectsEnabled)
@@ -12,9 +12,9 @@ export function useGraphActivation(): { activate: () => void; canActivate: boole
 
   const canActivate = compiledGraph != null && workletConnected
 
-  const doActivate = useCallback((compiled: TransformDescriptor) => {
+  const doActivate = useCallback((compiled: CompiledGraphResult) => {
     try {
-      graphController.loadCompiledGraph(compiled)
+      workletController.loadCompiledGraphToWorklet(compiled)
       setGraphPlaybackState({
         compiled: true,
         playable: false,
@@ -25,7 +25,7 @@ export function useGraphActivation(): { activate: () => void; canActivate: boole
       setGraphPlaybackState({ compiled: true, playable: false, reason: "Activation failed." })
       setRuntimeState("error", error instanceof Error ? error.message : "Activation failed.")
     }
-  }, [graphController, setGraphPlaybackState, setRuntimeState])
+  }, [workletController, setGraphPlaybackState, setRuntimeState])
 
   // Auto-activate when all conditions are met (graph compiled + worklet ready + effects on).
   useEffect(() => {

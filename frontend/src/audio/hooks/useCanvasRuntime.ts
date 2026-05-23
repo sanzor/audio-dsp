@@ -80,14 +80,16 @@ export function useCanvasRuntime(
     [graphId, nodes, edges],
   )
 
-  const compile = useCompile(runtimeGraph)
+  const compile = useCompile()
   const { activate, canActivate } = useGraphActivation()
 
   useEffect(() => {
-    compile()
-  }, [compile])
+    void compile(runtimeGraph)
+  }, [compile, runtimeGraph])
 
-  const compileNow = useCallback(() => compile(), [compile])
+  const compileNow = useCallback(() => {
+    void compile(runtimeGraph)
+  }, [compile, runtimeGraph])
 
   return { compileNow, activate, canActivate }
 }

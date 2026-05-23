@@ -4,7 +4,7 @@ import { useGraphStore } from "@/Stores/GraphStore";
 import { useTransformStore } from "@/Stores/TransformStore";
 import { useWasmBinaryStore } from "@/Stores/WasmBinaryStore";
 import { useActiveGraphId } from "@/hooks/graphs/useActiveGraphId";
-import { useEnsureTransformBinaries } from "./useEnsureTransformBinaries";
+import { ensureTransformBinariesExist } from "./useEnsureTransformBinaries";
 
 export function useHydrateActiveGraphTransforms(): void {
   const activeGraphId = useActiveGraphId();
@@ -15,7 +15,7 @@ export function useHydrateActiveGraphTransforms(): void {
   const definitions = useTransformStore((state) => state.definitions);
   const upsertDefinitions = useTransformStore((state) => state.upsertDefinitions);
   const binaries = useWasmBinaryStore((state) => state.binaries);
-  const ensureTransformBinaries = useEnsureTransformBinaries();
+  const ensureTransformBinaries = ensureTransformBinariesExist();
 
   const transformIds = useMemo(() => {
     if (!activeGraph) return [];

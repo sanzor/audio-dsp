@@ -1,5 +1,5 @@
 import { WorkletMessageSender } from './WorkletMessageSender';
-import type { TransformDescriptor } from '@/audio/pipeline/GraphCompiler';
+import type { CompiledGraphResult } from '@/audio/pipeline/compileRuntimeGraph';
 
 export class WorkletController {
   private sender: WorkletMessageSender | null = null;
@@ -14,8 +14,8 @@ export class WorkletController {
     this.sender = null;
   }
 
-  loadCompiledGraph(descriptor: TransformDescriptor): void {
-    this.sender?.sendGraph(descriptor.compiledGraph, descriptor.binaries);
+  loadCompiledGraphToWorklet(descriptor: CompiledGraphResult): void {
+    this.sender?.sendGraph(descriptor.compiledGraph, descriptor.resolved_binaries);
   }
 
   setEffects(enabled: boolean): void {
