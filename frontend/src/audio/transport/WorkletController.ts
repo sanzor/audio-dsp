@@ -1,5 +1,5 @@
 import { WorkletMessageSender } from './WorkletMessageSender';
-import type { CompiledGraphResult } from '@/audio/pipeline/compileRuntimeGraph';
+import type { CompiledGraphResult } from '@/audio/pipeline/compileGraph';
 
 export class WorkletController {
   private sender: WorkletMessageSender | null = null;

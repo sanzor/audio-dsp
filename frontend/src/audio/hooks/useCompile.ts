@@ -6,7 +6,7 @@ import { ensureTransformBinariesExist } from "@/hooks/transforms/useEnsureTransf
 import {
   compileGraph,
   type CompileGraphResult,
-} from "@/audio/pipeline/compileRuntimeGraph"
+} from "@/audio/pipeline/compileGraph"
 import {
   prepareRuntimeGraphCompile,
   validateRuntimeGraph,
@@ -20,7 +20,7 @@ function getRuntimeStatus(result: CompileGraphResult): "idle" | "hydrating" | "e
 }
 
 export function useCompile(): (runtimeGraph: ActiveGraph | null) => Promise<CompileGraphResult> {
-  const ensureTransformBinaries = ensureTransformBinariesExist()
+  const ensureTransformBinariesExistFunc = ensureTransformBinariesExist()
   const setCompiledGraph = useAudioEffectsStore((s) => s.setCompiledGraph)
   const setRuntimeState = useAudioEffectsStore((s) => s.setRuntimeState)
   const compileSequenceRef = useRef(0)
@@ -58,7 +58,7 @@ export function useCompile(): (runtimeGraph: ActiveGraph | null) => Promise<Comp
       }
 
       try {
-        await ensureTransformBinaries(validated.value.transformIds)
+        await ensureTransformBinariesExistFunc(validated.value.transformIds)
       } catch (error) {
         const failedResult: CompileGraphResult = {
           ok: false,
@@ -108,5 +108,5 @@ export function useCompile(): (runtimeGraph: ActiveGraph | null) => Promise<Comp
     setCompiledGraph(null)
     setRuntimeState(getRuntimeStatus(result), result.detail)
     return result
-  }, [ensureTransformBinaries, setCompiledGraph, setRuntimeState])
+  }, [ensureTransformBinariesExistFunc, setCompiledGraph, setRuntimeState])
 }

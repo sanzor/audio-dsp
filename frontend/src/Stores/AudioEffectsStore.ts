@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { WorkletController } from '@/audio/transport/WorkletController'
-import type { CompiledGraphResult } from '@/audio/pipeline/compileRuntimeGraph'
+import type { CompiledGraphResult } from '@/audio/pipeline/compileGraph'
 
 const graphController = new WorkletController()
 

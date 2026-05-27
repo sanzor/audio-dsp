@@ -10,11 +10,10 @@ import {
   DialogTitle,
 } from "../../../ui/dialog"
 import type { CreateTrackParams } from "@/Services/TracksService"
-import type { CanonicalAudio } from "@/Audio/CanonicalAudio"
 import type { ABuffer } from "@/domain/ABuffer"
-
-import { toAudioBuffer, interleave, encodeWav } from "@/Audio/Utils"
 import { getFileExtension } from "@/Utils/AudioUtils"
+import type { CanonicalAudio } from "@/audio/canonicalAudio"
+import { encodeWav, interleave, toAudioBuffer } from "@/audio/utils"
 
 interface CreateTrackModalProps {
   open: boolean

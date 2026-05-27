@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from "react"
 import { useAudioEffectsStore } from "@/Stores/AudioEffectsStore"
-import type { CompiledGraphResult } from "@/audio/pipeline/compileRuntimeGraph"
+import type { CompiledGraphResult } from "@/audio/pipeline/compileGraph"
 
 export function useGraphActivation(): { activate: () => void; canActivate: boolean } {
   const workletController = useAudioEffectsStore((s) => s.workletController)

@@ -1,5 +1,5 @@
 import type { ActiveGraph } from '@/Stores/ActiveGraphState';
-import type { CompileErrorResult } from './validateRuntimeGraph';
+import type { CompiledGraph } from './compiledGraph';
 
 // ─── Input types ─────────────────────────────────────────────────────────────
 
@@ -35,11 +35,6 @@ export interface CompiledNode {
   outputBufferIndex: number;    // -1 = sink node: writes additively to worklet output
 }
 
-export interface CompiledGraph {
-  executionOrder: CompiledNode[];     // sources first, sinks last
-  bufferCount: number;                // total Float32Arrays the worklet must allocate
-  feedbackBufferIndices: number[];    // which buffers need a prev-frame copy each quantum
-}
 
 // ─── Result type ──────────────────────────────────────────────────────────────
 
@@ -51,20 +46,7 @@ export type CompileResult =
 //
 // Converts an ActiveGraph into a compiled graph descriptor.
 // Returns null if the graph is empty/invalid.
-
-function compileFailedResult(
-  detail: string,
-  transformIds: number[],
-): CompileErrorResult {
-  return {
-    ok: false,
-    reason: "compile_failed",
-    detail,
-    transformIds,
-  };
-}
-
-export function compileActiveGraph(
+export function compileGraph(
   graph: ActiveGraph,
 ): CompiledGraph | null {
   const input: GraphInput = {

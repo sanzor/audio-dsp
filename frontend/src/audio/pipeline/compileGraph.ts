@@ -1,28 +1,17 @@
 import type { ActiveNode } from "@/Stores/ActiveGraphState";
-import { compileActiveGraph, type CompiledGraph } from "@/audio/pipeline/GraphCompiler";
-import type {
-  CompileParams,
-  CompileErrorResult,
-} from "@/audio/pipeline/validateRuntimeGraph";
+import { compileGraph as compileActiveGraph } from "@/audio/pipeline/GraphCompiler";
+import type { CompileGraphResult } from "./compileGraphResult";
+import type { CompiledGraph } from "./compiledGraph";
+import type { CompileParams } from "./compileParams";
+
+export type { CompileGraphResult } from "./compileGraphResult";
 
 export interface CompiledGraphResult {
   compiledGraph: CompiledGraph;
   resolved_binaries: Record<number, Uint8Array>;
 }
 
-export interface CompileOkResult {
-  ok: true;
-  descriptor: CompiledGraphResult;
-  transformIds: number[];
-}
-
-export type CompileGraphResult =
-  | CompileOkResult
-  | CompileErrorResult;
-
-
-
-function constructResolvedBinaries(
+function resolveTransformBinaries(
   nodes: Iterable<ActiveNode>,
   binaries: Map<number, Uint8Array>,
 ): Record<number, Uint8Array> | null {
@@ -33,11 +22,22 @@ function constructResolvedBinaries(
     if (!binary) {
       return null;
     }
-
     resolvedBinaries[node.transformId] = binary;
   }
 
   return resolvedBinaries;
+}
+
+function compileFailedResult(
+  detail: string,
+  transformIds: number[],
+): CompileGraphResult {
+  return {
+    ok: false,
+    reason: "compile_failed",
+    detail,
+    transformIds,
+  };
 }
 
 export function compileGraph(
@@ -46,25 +46,21 @@ export function compileGraph(
   try {
     const compiledGraph = compileActiveGraph(params.graph);
     if (!compiledGraph) {
-      return {
-        ok: false,
-        reason: "empty_graph",
-        detail: "Graph is empty.",
-        transformIds: params.transformIds,
-      };
+      return compileFailedResult("Compile failed.", params.transformIds);
     }
-    const resolvedBinaries = constructResolvedBinaries(
+
+    const resolvedBinaries = resolveTransformBinaries(
       params.graph.nodes.values(),
       params.binaries,
     );
+
     if (!resolvedBinaries) {
-      return {
-        ok:false,
-        reason: "missing_binaries",
-        detail: "Compile finished but resolved binaries were incomplete.",
-        transformIds:[]
-      }
+      return compileFailedResult(
+        "Compile finished but resolved binaries were incomplete.",
+        params.transformIds,
+      );
     }
+
     return {
       ok: true,
       descriptor: {
@@ -74,11 +70,9 @@ export function compileGraph(
       transformIds: params.transformIds,
     };
   } catch (error) {
-    return {
-      ok: false,
-      reason: "compile_failed",
-      detail: String(error),
-      transformIds: params.transformIds,
-    }
+    return compileFailedResult(
+      error instanceof Error ? error.message : "Compile failed.",
+      params.transformIds,
+    );
   }
 }

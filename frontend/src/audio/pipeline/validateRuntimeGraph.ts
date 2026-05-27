@@ -1,4 +1,5 @@
 import type { ActiveGraph, BinaryStatus } from "@/Stores/ActiveGraphState";
+import type { CompileParams } from "./compileParams";
 
 export interface CompileRuntimeGraphDeps {
   binaries: Map<number, Uint8Array>;
@@ -24,11 +25,7 @@ export interface ValidatedRuntimeGraph {
   transformIds: number[];
 }
 
-export interface CompileParams {
-  graph: ActiveGraph;
-  transformIds: number[];
-  binaries: Map<number, Uint8Array>;
-}
+
 
 export type ValidateRuntimeGraphResult =
   | { ok: true; value: ValidatedRuntimeGraph }
