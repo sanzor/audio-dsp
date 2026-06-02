@@ -1,4 +1,4 @@
-import type { CompiledGraph } from '@/audio/pipeline/GraphCompiler';
+import type { CompiledGraph } from '@/audio/pipeline/compile-graph/compiledGraph';
 
 // ─── Message types ────────────────────────────────────────────────────────────
 
@@ -65,6 +65,11 @@ export class WorkletMessageSender {
     return this.subscribe('MODULE_ERROR', (data) => {
       if (data.type === 'MODULE_ERROR') cb(data.transformId, data.error);
     });
+  }
+
+  dispose(): void {
+    this.port.onmessage = null
+    this.handlers.clear()
   }
 
   // ── Private ────────────────────────────────────────────────────────────────
