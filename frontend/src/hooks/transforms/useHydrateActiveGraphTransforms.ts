@@ -2,9 +2,8 @@ import { useEffect, useMemo } from "react";
 import { apiResolveTransformDefinitions } from "@/Services/TransformService";
 import { useGraphStore } from "@/Stores/GraphStore";
 import { useTransformStore } from "@/Stores/TransformStore";
-import { useWasmBinaryStore } from "@/Stores/WasmBinaryStore";
 import { useActiveGraphId } from "@/hooks/graphs/useActiveGraphId";
-import { ensureTransformBinariesExist } from "./useEnsureTransformBinaries";
+import { usePreloadBinaries } from "@/hooks/transforms/queries";
 
 export function useHydrateActiveGraphTransforms(): void {
   const activeGraphId = useActiveGraphId();
@@ -14,8 +13,6 @@ export function useHydrateActiveGraphTransforms(): void {
   const activeGraphVersion = activeGraph?.updatedAt?.getTime() ?? 0;
   const definitions = useTransformStore((state) => state.definitions);
   const upsertDefinitions = useTransformStore((state) => state.upsertDefinitions);
-  const binaries = useWasmBinaryStore((state) => state.binaries);
-  const ensureTransformBinaries = ensureTransformBinariesExist();
 
   const transformIds = useMemo(() => {
     if (!activeGraph) return [];
@@ -23,58 +20,32 @@ export function useHydrateActiveGraphTransforms(): void {
       new Set(
         activeGraph.nodes
           .map((node) => node.transformId)
-          .filter((transformId): transformId is number => transformId != null)
+          .filter((id): id is number => id != null)
       )
     );
   }, [activeGraph, activeGraphVersion]);
 
+  usePreloadBinaries(transformIds);
+
   useEffect(() => {
-    if (transformIds.length === 0) {
-      return;
-    }
+    if (transformIds.length === 0) return;
 
-    const missingDefinitionIds = transformIds.filter((transformId) => !definitions.has(transformId));
-    const missingBinaryIds = transformIds.filter((transformId) => !binaries.has(transformId));
-
-    if (missingDefinitionIds.length === 0 && missingBinaryIds.length === 0) {
-      return;
-    }
+    const missingDefinitionIds = transformIds.filter((id) => !definitions.has(id));
+    if (missingDefinitionIds.length === 0) return;
 
     let cancelled = false;
 
     const hydrate = async () => {
       try {
-        if (missingDefinitionIds.length > 0) {
-          const resolved = await apiResolveTransformDefinitions(missingDefinitionIds);
-          if (!cancelled) {
-            upsertDefinitions(resolved);
-          }
-        }
-
-        if (missingBinaryIds.length > 0) {
-          if (cancelled) {
-            return;
-          }
-          await ensureTransformBinaries(missingBinaryIds);
-        }
+        const resolved = await apiResolveTransformDefinitions(missingDefinitionIds);
+        if (!cancelled) upsertDefinitions(resolved);
       } catch (error) {
-        if (cancelled) {
-          return;
-        }
+        if (cancelled) return;
         console.error("Failed to hydrate active graph transforms", error);
       }
     };
 
     void hydrate();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    binaries,
-    definitions,
-    ensureTransformBinaries,
-    transformIds,
-    upsertDefinitions,
-  ]);
+    return () => { cancelled = true; };
+  }, [transformIds, definitions, upsertDefinitions]);
 }

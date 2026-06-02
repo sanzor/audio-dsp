@@ -29,7 +29,8 @@ import { SinkNode } from "./sink-node";
 import { useActiveGraphId } from "@/hooks/graphs/useActiveGraphId";
 import { NodeDetailsModal } from "../modals/graph/node-details-modal";
 import { apiGetTransformDefinition } from "@/Services/TransformService";
-import { useCanvasRuntime } from "@/audio/hooks/useCanvasRuntime";
+import { useCanvasRuntime as useCompile } from "@/audio/hooks/useCanvasRuntime";
+import { useGraphActivation } from "@/audio/hooks/useGraphActivation";
 import { CompileOutputModal } from "./compile-output-modal";
 import { SaveCompileStatusOverlay, type SaveCompileStatusState } from "./save-compile-status-overlay";
 
@@ -329,7 +330,8 @@ function CanvasInner() {
 
   // ─── Toolbar handlers ───────────────────────────────────────────────────────
 
-  const { compileNow, activate, canActivate } = useCanvasRuntime(activeGraphId, nodes, edges);
+  const { compileNow } = useCompile(activeGraphId, nodes, edges);
+  const { activate, canActivate } = useGraphActivation();
 
   useEffect(() => {
     if (!awaitingCompileAfterSaveRef.current) {

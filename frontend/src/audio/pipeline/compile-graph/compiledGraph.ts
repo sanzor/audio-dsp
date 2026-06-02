@@ -1,4 +1,4 @@
-import type { CompiledNode } from "./GraphCompiler";
+import type { CompiledNode } from "../GraphCompiler";
 
 export interface CompiledGraph {
   executionOrder: CompiledNode[];     // sources first, sinks last

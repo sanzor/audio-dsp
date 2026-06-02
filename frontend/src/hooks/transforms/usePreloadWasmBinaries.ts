@@ -1,17 +1,9 @@
-import { useEffect } from "react";
+import { useMemo } from "react";
 import { useTransformStore } from "@/Stores/TransformStore";
-import { ensureTransformBinariesExist } from "./useEnsureTransformBinaries";
+import { usePreloadBinaries } from "@/hooks/transforms/queries";
 
 export function usePreloadWasmBinaries(): void {
   const summaries = useTransformStore((s) => s.summaries);
-  const ensureTransformBinaries = ensureTransformBinariesExist();
-
-  useEffect(() => {
-    const transformIds = [...summaries.keys()];
-    if (transformIds.length === 0) {
-      return;
-    }
-
-    void ensureTransformBinaries(transformIds);
-  }, [summaries, ensureTransformBinaries]);
+  const transformIds = useMemo(() => [...summaries.keys()], [summaries]);
+  usePreloadBinaries(transformIds);
 }

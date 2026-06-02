@@ -1,13 +1,54 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { apiGetTransformDefinition, apiGetTransformSummaries } from "@/Services/TransformService";
+import { apiGetTransformBinaries, apiGetTransformDefinition, apiGetTransformSummaries } from "@/Services/TransformService";
 import { useTransformStore } from "@/Stores/TransformStore";
+import { useWasmBinaryStore } from "@/Stores/WasmBinaryStore";
 import { useAuthStore } from "@/Stores/authStore";
 import { useProjectStore } from "@/Stores/projectStore";
 import { QUERY_KEYS } from "@/constants/queryKeys";
+import type { ActiveGraph } from "@/Stores/ActiveGraphState";
 import type { TransformDefinition } from "@/domain/Transform/Transform";
 
 const PAGE_SIZE = 20;
+
+function useBatchBinaries(transformIds: number[]): boolean {
+  const existingBinaries = useWasmBinaryStore((s) => s.binaries)
+
+  const missingIds = useMemo(
+    () => transformIds.filter((id) => !existingBinaries.has(id)),
+    [transformIds, existingBinaries],
+  )
+
+  const query = useQuery({
+    queryKey: QUERY_KEYS.transforms.wasmBatch(missingIds),
+    queryFn: () => apiGetTransformBinaries(missingIds),
+    enabled: missingIds.length > 0,
+    staleTime: Infinity,
+  })
+
+  useEffect(() => {
+    if (!query.data) return
+    for (const [id, binary] of query.data.entries()) {
+      useWasmBinaryStore.getState().setBinary(id, binary)
+    }
+  }, [query.data])
+
+  return missingIds.length === 0
+}
+
+export function useGraphBinaries(graph: ActiveGraph | null): boolean {
+  const transformIds = useMemo(
+    () => graph
+      ? Array.from(new Set(Array.from(graph.nodes.values(), (n) => n.transformId)))
+      : [],
+    [graph],
+  )
+  return useBatchBinaries(transformIds)
+}
+
+export function usePreloadBinaries(transformIds: number[]): void {
+  useBatchBinaries(transformIds)
+}
 
 export const useListTransforms = () => {
   const user = useAuthStore((state) => state.user);

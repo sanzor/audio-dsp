@@ -1,5 +1,5 @@
 import type { ActiveGraph } from '@/Stores/ActiveGraphState';
-import type { CompiledGraph } from './compiledGraph';
+import type { CompiledGraph } from './compile-graph/compiledGraph';
 
 // ─── Input types ─────────────────────────────────────────────────────────────
 
