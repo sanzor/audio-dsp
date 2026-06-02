@@ -1,5 +1,5 @@
 import type React from "react";
-import type { GraphPlaybackState } from "@/Stores/AudioEffectsStore";
+import type { GraphPlaybackState } from "@/Stores/WorkletStore";
 
 interface CanvasToolbarProps {
   selectedGraphId: number | undefined;

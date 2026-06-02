@@ -20,6 +20,7 @@ import { useRegionStore } from "@/Stores/RegionStore";
 import { useRegionSetStore } from "@/Stores/RegionSetStore";
 import { useTransformStore } from "@/Stores/TransformStore";
 import { useAudioEffectsStore } from "@/Stores/AudioEffectsStore";
+import { useWorkletStore } from "@/Stores/WorkletStore";
 import type { NodeType } from "@/domain/Graph/Node";
 import type { TransformDefinition } from "@/domain/Transform/Transform";
 import { CanvasToolbar } from "./canvas-toolbar";
@@ -29,7 +30,7 @@ import { SinkNode } from "./sink-node";
 import { useActiveGraphId } from "@/hooks/graphs/useActiveGraphId";
 import { NodeDetailsModal } from "../modals/graph/node-details-modal";
 import { apiGetTransformDefinition } from "@/Services/TransformService";
-import { useCanvasRuntime as useCompile } from "@/audio/hooks/useCanvasRuntime";
+import { useCanvasRuntime } from "@/audio/hooks/useCanvasRuntime";
 import { useGraphActivation } from "@/audio/hooks/useGraphActivation";
 import { CompileOutputModal } from "./compile-output-modal";
 import { SaveCompileStatusOverlay, type SaveCompileStatusState } from "./save-compile-status-overlay";
@@ -107,13 +108,13 @@ function CanvasInner() {
   const summaries = useTransformStore((s) => s.summaries);
   const definitions = useTransformStore((s) => s.definitions);
   const upsertDefinition = useTransformStore((s) => s.upsertDefinition);
-  const effectsEnabled = useAudioEffectsStore((s) => s.effectsEnabled);
-  const setEffectsEnabled = useAudioEffectsStore((s) => s.setEffectsEnabled);
-  const workletConnected = useAudioEffectsStore((s) => s.workletConnected);
+  const effectsEnabled = useWorkletStore((s) => s.effectsEnabled);
+  const setEffectsEnabled = useWorkletStore((s) => s.setEffectsEnabled);
+  const workletConnected = useWorkletStore((s) => s.workletConnected);
+  const graphPlaybackState = useWorkletStore((s) => s.graphPlaybackState);
+  const isGraphPlayable = useWorkletStore((s) => s.isGraphPlayable);
   const runtimeStatus = useAudioEffectsStore((s) => s.runtimeStatus);
   const runtimeMessage = useAudioEffectsStore((s) => s.runtimeMessage);
-  const graphPlaybackState = useAudioEffectsStore((s) => s.graphPlaybackState);
-  const isGraphPlayable = useAudioEffectsStore((s) => s.isGraphPlayable);
   const compileModalOpen = useAudioEffectsStore((s) => s.compileModalOpen);
   const compileRun = useAudioEffectsStore((s) => s.compileRun);
   const setCompileModalOpen = useAudioEffectsStore((s) => s.setCompileModalOpen);
@@ -330,7 +331,7 @@ function CanvasInner() {
 
   // ─── Toolbar handlers ───────────────────────────────────────────────────────
 
-  const { compileNow } = useCompile(activeGraphId, nodes, edges);
+  const { compileNow } = useCanvasRuntime(activeGraphId, nodes, edges);
   const { activate, canActivate } = useGraphActivation();
 
   useEffect(() => {

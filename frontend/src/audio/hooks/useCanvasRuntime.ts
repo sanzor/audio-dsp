@@ -4,6 +4,7 @@ import { buildRuntimeGraph } from "@/audio/pipeline/buildRuntimeGraph"
 import { useGraphBinaries } from "@/hooks/transforms/queries"
 import { runPipeline, type CompileGraphResult } from "@/audio/pipeline/runPipeline"
 import { useAudioEffectsStore, type RuntimeStatus } from "@/Stores/AudioEffectsStore"
+import { useWorkletStore } from "@/Stores/WorkletStore"
 import { useWasmBinaryStore } from "@/Stores/WasmBinaryStore"
 
 function getRuntimeStatus(result: CompileGraphResult): RuntimeStatus {
@@ -15,11 +16,14 @@ function getRuntimeStatus(result: CompileGraphResult): RuntimeStatus {
 
 function applyCompileResult(result: CompileGraphResult): void {
   const { setCompiledGraph, setRuntimeState } = useAudioEffectsStore.getState()
+  const { setGraphPlaybackState } = useWorkletStore.getState()
   if (result.ok) {
     setCompiledGraph(result.descriptor)
+    setGraphPlaybackState({ compiled: true, playable: false, reason: "Compiled graph is ready to activate." })
     setRuntimeState("idle", null)
   } else {
     setCompiledGraph(null)
+    setGraphPlaybackState({ compiled: false, playable: false, reason: null })
     setRuntimeState(getRuntimeStatus(result), result.detail)
   }
 }

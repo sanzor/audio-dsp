@@ -23,7 +23,7 @@ import { useActiveGraphId } from "@/hooks/graphs/useActiveGraphId";
 import { useHydrateActiveGraphTransforms } from "@/hooks/transforms/useHydrateActiveGraphTransforms";
 import { ProjectsPanel } from "./projects/ProjectsPanel";
 import { SidebarPanel } from "./sidebar/SidebarPanel";
-import { useAudioEffectsStore } from "@/Stores/AudioEffectsStore";
+import { useAudioEffectsStore } from "@/Stores/WorkletStore";
 import {
   DropdownMenu,
   DropdownMenuContent,

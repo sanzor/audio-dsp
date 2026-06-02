@@ -8,7 +8,7 @@ import { WaveformToolbar } from "./WaveformToolbar";
 import { PlaybackControls } from "./PlaybackControls";
 import { useWaveSurferPlaybackControls } from "./useWaveSurferPlaybackControls";
 import { useUIStore } from "@/Stores/UIStore";
-import { useAudioEffectsStore } from "@/Stores/AudioEffectsStore";
+import { useAudioEffectsStore } from "@/Stores/WorkletStore";
 import { useRegionController } from "@/controllers/RegionController";
 import { useRegionSetController } from "@/controllers/RegionSetController";
 import { useActiveGraphId } from "@/hooks/graphs/useActiveGraphId";

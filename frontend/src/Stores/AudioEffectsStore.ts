@@ -1,19 +1,10 @@
 import { create } from 'zustand'
-import { WorkletController } from '@/audio/transport/WorkletController'
 import type { CompiledGraphResult } from '@/audio/pipeline/compile-graph/compileGraph'
 
-const graphController = new WorkletController()
-
-export type RuntimeStatus = 'idle' | 'hydrating' | 'ready' | 'error'
+export type RuntimeStatus = 'idle' | 'hydrating' | 'error'
 export type CompileLogLevel = 'info' | 'success' | 'warning' | 'error'
 export type CompileRunStatus = 'running' | 'success' | 'error'
 export type CompileStepStatus = 'pending' | 'running' | 'success' | 'warning' | 'error'
-
-export interface GraphPlaybackState {
-  compiled: boolean
-  playable: boolean
-  reason: string | null
-}
 
 export interface CompileStep {
   id: 'shape' | 'binaries' | 'compile' | 'activate'
@@ -39,12 +30,6 @@ export interface CompileRun {
   logs: CompileLogEntry[]
 }
 
-const DEFAULT_GRAPH_PLAYBACK_STATE: GraphPlaybackState = {
-  compiled: false,
-  playable: false,
-  reason: null,
-}
-
 const DEFAULT_COMPILE_STEPS = (): CompileStep[] => ([
   { id: 'shape', label: 'Inspect graph shape', status: 'pending', detail: null },
   { id: 'binaries', label: 'Resolve transform binaries', status: 'pending', detail: null },
@@ -56,16 +41,11 @@ let nextCompileRunId = 1
 let nextCompileLogId = 1
 
 interface AudioEffectsState {
-  graphPlaybackState: GraphPlaybackState
   compiledGraph: CompiledGraphResult | null
   compileModalOpen: boolean
   compileRun: CompileRun | null
-  effectsEnabled: boolean
-  workletConnected: boolean
   runtimeStatus: RuntimeStatus
   runtimeMessage: string | null
-  workletController: WorkletController
-  setGraphPlaybackState: (graphPlaybackState: GraphPlaybackState) => void
   setCompiledGraph: (compiled: CompiledGraphResult | null) => void
   setCompileModalOpen: (open: boolean) => void
   clearCompileRun: () => void
@@ -77,30 +57,16 @@ interface AudioEffectsState {
   ) => void
   appendCompileLog: (runId: number, level: CompileLogLevel, message: string) => void
   finishCompileRun: (runId: number, status: CompileRunStatus) => void
-  setEffectsEnabled: (v: boolean) => void
-  setWorkletConnected: (v: boolean) => void
   setRuntimeState: (status: RuntimeStatus, message?: string | null) => void
-  isGraphPlayable: () => boolean
-  toggleEffectsEnabled: () => void
 }
 
-export const useAudioEffectsStore = create<AudioEffectsState>()((set, get) => ({
-  graphPlaybackState: DEFAULT_GRAPH_PLAYBACK_STATE,
+export const useAudioEffectsStore = create<AudioEffectsState>()((set) => ({
   compiledGraph: null,
   compileModalOpen: false,
   compileRun: null,
-  effectsEnabled: false,
-  workletConnected: false,
   runtimeStatus: 'idle',
   runtimeMessage: null,
-  workletController: graphController,
-  setGraphPlaybackState: (graphPlaybackState) => set({ graphPlaybackState }),
-  setCompiledGraph: (compiledGraph) => set({
-    compiledGraph,
-    graphPlaybackState: compiledGraph == null
-      ? { compiled: false, playable: false, reason: null }
-      : { compiled: true, playable: false, reason: "Compiled graph is ready to activate." },
-  }),
+  setCompiledGraph: (compiledGraph) => set({ compiledGraph }),
   setCompileModalOpen: (compileModalOpen) => set({ compileModalOpen }),
   clearCompileRun: () => set({ compileRun: null }),
   beginCompileRun: (trigger, openModal = false) => {
@@ -114,12 +80,10 @@ export const useAudioEffectsStore = create<AudioEffectsState>()((set, get) => ({
       steps: DEFAULT_COMPILE_STEPS(),
       logs: [],
     }
-
     set((state) => ({
       compileModalOpen: openModal || state.compileModalOpen,
       compileRun: run,
     }))
-
     return runId
   },
   updateCompileStep: (runId, stepId, patch) => set((state) => ({
@@ -127,14 +91,9 @@ export const useAudioEffectsStore = create<AudioEffectsState>()((set, get) => ({
       ? state.compileRun
       : {
           ...state.compileRun,
-          steps: state.compileRun.steps.map((step) => (
-            step.id !== stepId
-              ? step
-              : {
-                  ...step,
-                  ...patch,
-                }
-          )),
+          steps: state.compileRun.steps.map((step) =>
+            step.id !== stepId ? step : { ...step, ...patch }
+          ),
         },
   })),
   appendCompileLog: (runId, level, message) => set((state) => ({
@@ -144,30 +103,14 @@ export const useAudioEffectsStore = create<AudioEffectsState>()((set, get) => ({
           ...state.compileRun,
           logs: [
             ...state.compileRun.logs,
-            {
-              id: nextCompileLogId++,
-              at: Date.now(),
-              level,
-              message,
-            },
+            { id: nextCompileLogId++, at: Date.now(), level, message },
           ].slice(-200),
         },
   })),
   finishCompileRun: (runId, status) => set((state) => ({
     compileRun: state.compileRun?.id !== runId
       ? state.compileRun
-      : {
-          ...state.compileRun,
-          status,
-          finishedAt: Date.now(),
-        },
+      : { ...state.compileRun, status, finishedAt: Date.now() },
   })),
-  setEffectsEnabled: (v) => set({ effectsEnabled: v }),
-  setWorkletConnected: (v) => set({ workletConnected: v }),
   setRuntimeState: (runtimeStatus, runtimeMessage = null) => set({ runtimeStatus, runtimeMessage }),
-  isGraphPlayable: () => {
-    const { graphPlaybackState, effectsEnabled, workletConnected } = get()
-    return graphPlaybackState.compiled && graphPlaybackState.playable && effectsEnabled && workletConnected
-  },
-  toggleEffectsEnabled: () => set((state) => ({ effectsEnabled: !state.effectsEnabled })),
 }))

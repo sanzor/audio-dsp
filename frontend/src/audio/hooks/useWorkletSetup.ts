@@ -1,18 +1,17 @@
 import { useCallback, useRef } from 'react'
 import type WaveSurfer from 'wavesurfer.js'
 import { useAudioEffectsStore } from '@/Stores/AudioEffectsStore'
+import { useWorkletStore } from '@/Stores/WorkletStore'
 
 const GRAPH_WORKLET_URL = new URL('../worklet/graph-worklet.js', import.meta.url).href
 
 export function useWorkletSetup() {
-  const graphController = useAudioEffectsStore(s => s.workletController)
-  const setWorkletConnected = useAudioEffectsStore(s => s.setWorkletConnected)
-  const setGraphPlaybackState = useAudioEffectsStore(s => s.setGraphPlaybackState)
-  const setRuntimeState = useAudioEffectsStore(s => s.setRuntimeState)
+  const graphController = useWorkletStore(s => s.workletController)
+  const setWorkletConnected = useWorkletStore(s => s.setWorkletConnected)
+  const setGraphPlaybackState = useWorkletStore(s => s.setGraphPlaybackState)
+  const setWorkletState = useWorkletStore(s => s.setWorkletState)
   const audioCtxRef = useRef<AudioContext | null>(null)
 
-  // Call this when a WaveSurfer instance is bound (alongside playback.bindWaveform).
-  // Returns a cleanup function — call it when the waveform unmounts.
   const onWaveformBound = useCallback((ws: WaveSurfer): (() => void) => {
     let disposed = false
     let audioCtx: AudioContext | null = null
@@ -50,7 +49,7 @@ export function useWorkletSetup() {
         const sender = graphController.connectWorklet(workletNode.port)
         cleanupGraphReady = sender.onGraphReady(() => {
           setGraphPlaybackState({ compiled: true, playable: true, reason: null })
-          setRuntimeState('ready')
+          setWorkletState('ready')
         })
         cleanupModuleError = sender.onModuleError((transformId, error) => {
           setGraphPlaybackState({
@@ -58,15 +57,13 @@ export function useWorkletSetup() {
             playable: false,
             reason: `Transform ${transformId} failed to load in the worklet.`,
           })
-          setRuntimeState('error', error)
+          setWorkletState('error', error)
         })
         setWorkletConnected(true)
-        graphController.setEffects(useAudioEffectsStore.getState().effectsEnabled)
+        graphController.setEffects(useWorkletStore.getState().effectsEnabled)
       } catch (error) {
         if (disposed) return
-        if (error instanceof DOMException && error.name === 'InvalidStateError') {
-          return
-        }
+        if (error instanceof DOMException && error.name === 'InvalidStateError') return
         console.error('Failed to initialize waveform effects chain', error)
       }
     }
@@ -87,11 +84,9 @@ export function useWorkletSetup() {
       source?.disconnect()
       workletNode?.disconnect()
       void audioCtx?.close()
-      if (audioCtxRef.current === audioCtx) {
-        audioCtxRef.current = null
-      }
+      if (audioCtxRef.current === audioCtx) audioCtxRef.current = null
     }
-  }, [graphController, setGraphPlaybackState, setRuntimeState, setWorkletConnected])
+  }, [graphController, setGraphPlaybackState, setWorkletState, setWorkletConnected])
 
   const setEffects = useCallback((enabled: boolean) => {
     graphController.setEffects(enabled)
