@@ -23,7 +23,6 @@ import { useActiveGraphId } from "@/hooks/graphs/useActiveGraphId";
 import { useHydrateActiveGraphTransforms } from "@/hooks/transforms/useHydrateActiveGraphTransforms";
 import { ProjectsPanel } from "./projects/ProjectsPanel";
 import { SidebarPanel } from "./sidebar/SidebarPanel";
-import { useAudioEffectsStore } from "@/Stores/WorkletStore";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,12 +31,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useWorkletStore } from "@/Stores/WorkletStore";
 
 export function Dashboard() {
   const user = useAuthStore((state) => state.user);
   const activeProjectId = useProjectStore((s) => s.activeProject?.project_id);
   const activeGraphId = useActiveGraphId();
-  const toggleEffectsEnabled = useAudioEffectsStore((s) => s.toggleEffectsEnabled);
+  const toggleEffectsEnabled = useWorkletStore((s) => s.toggleEffectsEnabled);
   const queryClient = useQueryClient();
   useHydrateActiveGraphTransforms();
 

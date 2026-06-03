@@ -379,7 +379,7 @@ function CanvasInner() {
     saveCompileState,
   ]);
 
-  const handleSave = useCallback(async () => {
+  const handleSave = useCallback(async (nodesOverride?: Node[]) => {
     if (activeGraphId == null || saveState === "saving") return;
 
     clearSaveTimers();
@@ -394,12 +394,12 @@ function CanvasInner() {
     }, 140);
 
     try {
-      await graphController.handleSaveGraph(activeGraphId, nodes, edges);
+      await graphController.handleSaveGraph(activeGraphId, nodesOverride ?? nodes, edges);
       awaitingCompileAfterSaveRef.current = true;
       clearCompileWaitTimer();
       setSaveCompileState("waiting");
       setSaveCompileMessage("Checking saved graph...");
-      compileNow();
+      compileNow(nodesOverride);
       compileWaitTimerRef.current = window.setTimeout(() => {
         if (!awaitingCompileAfterSaveRef.current) return;
         awaitingCompileAfterSaveRef.current = false;
@@ -578,19 +578,14 @@ function CanvasInner() {
           open
           onClose={closeModal}
           onSubmitParams={(nodeId, params) => {
-            setNodes((current) =>
-              current.map((node) =>
-                (node.data.nodeId as number | undefined) === nodeId
-                  ? {
-                      ...node,
-                      data: {
-                        ...node.data,
-                        params,
-                      },
-                    }
-                  : node
-              )
+            const updatedNodes = nodes.map((node) =>
+              (node.data.nodeId as number | undefined) === nodeId
+                ? { ...node, data: { ...node.data, params } }
+                : node
             );
+            setNodes(updatedNodes);
+            compileNow(updatedNodes);
+            handleSave(updatedNodes);
           }}
         />
       )}

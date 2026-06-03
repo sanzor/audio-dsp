@@ -32,7 +32,7 @@ export function useCanvasRuntime(
   graphId: number | undefined,
   nodes: RFNode[],
   edges: RFEdge[],
-): { compileNow: () => void } {
+): { compileNow: (nodesOverride?: RFNode[]) => CompileGraphResult } {
   const runtimeGraph = useMemo(
     () => buildRuntimeGraph(graphId, nodes, edges),
     [graphId, nodes, edges],
@@ -40,9 +40,14 @@ export function useCanvasRuntime(
 
   useGraphBinaries(runtimeGraph)
 
-  const compileNow = useCallback(() => {
-    applyCompileResult(runPipeline(runtimeGraph, useWasmBinaryStore.getState().binaries))
-  }, [runtimeGraph])
+  const compileNow = useCallback((nodesOverride?: RFNode[]): CompileGraphResult => {
+    const graph = nodesOverride
+      ? buildRuntimeGraph(graphId, nodesOverride, edges)
+      : runtimeGraph
+    const result = runPipeline(graph, useWasmBinaryStore.getState().binaries)
+    applyCompileResult(result)
+    return result
+  }, [graphId, edges, runtimeGraph])
 
   return { compileNow }
 }

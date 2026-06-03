@@ -58,18 +58,8 @@ export function NodeDetailsModal({ nodeId, position, initialParams, transformId,
     );
   };
 
-  const handleAddParam = () => {
-    setParamEntries((current) => [...current, { key: "", value: "" }]);
-  };
 
-  const handleRemoveParam = (index: number) => {
-    setParamEntries((current) => {
-      const next = current.filter((_, entryIndex) => entryIndex !== index);
-      return next.length > 0 ? next : [{ key: "", value: "" }];
-    });
-  };
-
-  const handleSave = () => {
+  const handleApply = () => {
     if (nodeId == null) return;
 
     const nextParams: Record<string, number> = {};
@@ -143,24 +133,18 @@ export function NodeDetailsModal({ nodeId, position, initialParams, transformId,
           )}
 
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="font-medium">Parameters</div>
-              <Button type="button" variant="outline" size="sm" onClick={handleAddParam}>
-                Add Param
-              </Button>
-            </div>
 
             <div className="space-y-2">
               {paramEntries.map((entry, index) => (
                 <div key={`${nodeId ?? "node"}-param-${index}`} className="grid grid-cols-[1fr_1fr_auto] gap-2">
                   <div className="space-y-1">
                     <Label htmlFor={`param-key-${index}`}>Name</Label>
-                    <Input
+                    <Label htmlFor={`param-key-${index}`}>{entry.key}</Label>
+                    {/* <Label
                       id={`param-key-${index}`}
                       value={entry.key}
-                      onChange={(event) => handleParamChange(index, "key", event.target.value)}
                       placeholder="gain"
-                    />
+                    /> */}
                   </div>
                   <div className="space-y-1">
                     <Label htmlFor={`param-value-${index}`}>Value</Label>
@@ -172,11 +156,6 @@ export function NodeDetailsModal({ nodeId, position, initialParams, transformId,
                       inputMode="decimal"
                     />
                   </div>
-                  <div className="flex items-end">
-                    <Button type="button" variant="outline" size="sm" onClick={() => handleRemoveParam(index)}>
-                      Remove
-                    </Button>
-                  </div>
                 </div>
               ))}
             </div>
@@ -184,7 +163,7 @@ export function NodeDetailsModal({ nodeId, position, initialParams, transformId,
         </div>
 
         <DialogFooter>
-          <Button onClick={handleSave}>Save Params</Button>
+          <Button onClick={handleApply}>Apply</Button>
           <Button variant="outline" onClick={onClose}>Close</Button>
         </DialogFooter>
       </DialogContent>
