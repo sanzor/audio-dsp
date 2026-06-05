@@ -1,11 +1,9 @@
-import { useCallback, useMemo } from "react"
+import { useCallback } from "react"
 import type { Edge as RFEdge, Node as RFNode } from "reactflow"
-import { buildRuntimeGraph } from "@/audio/pipeline/buildRuntimeGraph"
 import { useGraphBinaries } from "@/hooks/transforms/queries"
 import { runPipeline, type CompileGraphResult } from "@/audio/pipeline/runPipeline"
 import { useAudioEffectsStore, type RuntimeStatus } from "@/Stores/AudioEffectsStore"
 import { useWorkletStore } from "@/Stores/WorkletStore"
-import { useWasmBinaryStore } from "@/Stores/WasmBinaryStore"
 
 function getRuntimeStatus(result: CompileGraphResult): RuntimeStatus {
   if (result.ok) return "idle"
@@ -14,7 +12,7 @@ function getRuntimeStatus(result: CompileGraphResult): RuntimeStatus {
   return "error"
 }
 
-function applyCompileResult(result: CompileGraphResult): void {
+function saveCompileResult(result: CompileGraphResult): void {
   const { setCompiledGraph, setRuntimeState } = useAudioEffectsStore.getState()
   const { setGraphPlaybackState } = useWorkletStore.getState()
   if (result.ok) {
@@ -33,21 +31,16 @@ export function useCanvasRuntime(
   nodes: RFNode[],
   edges: RFEdge[],
 ): { compileNow: (nodesOverride?: RFNode[]) => CompileGraphResult } {
-  const runtimeGraph = useMemo(
-    () => buildRuntimeGraph(graphId, nodes, edges),
-    [graphId, nodes, edges],
-  )
-
-  useGraphBinaries(runtimeGraph)
+  const binaries = useGraphBinaries(nodes)
 
   const compileNow = useCallback((nodesOverride?: RFNode[]): CompileGraphResult => {
-    const graph = nodesOverride
-      ? buildRuntimeGraph(graphId, nodesOverride, edges)
-      : runtimeGraph
-    const result = runPipeline(graph, useWasmBinaryStore.getState().binaries)
-    applyCompileResult(result)
+    const result = runPipeline({
+      graphParams: { graphId, nodes: nodesOverride ?? nodes, edges },
+      binaries,
+    })
+    saveCompileResult(result)
     return result
-  }, [graphId, edges, runtimeGraph])
+  }, [graphId, nodes, edges, binaries])
 
   return { compileNow }
 }

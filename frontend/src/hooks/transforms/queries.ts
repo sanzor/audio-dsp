@@ -6,17 +6,17 @@ import { useWasmBinaryStore } from "@/Stores/WasmBinaryStore";
 import { useAuthStore } from "@/Stores/authStore";
 import { useProjectStore } from "@/Stores/projectStore";
 import { QUERY_KEYS } from "@/constants/queryKeys";
-import type { ActiveGraph } from "@/Stores/ActiveGraphState";
+import type { Node as RFNode } from "reactflow";
 import type { TransformDefinition } from "@/domain/Transform/Transform";
 
 const PAGE_SIZE = 20;
 
-function useBatchBinaries(transformIds: number[]): boolean {
-  const existingBinaries = useWasmBinaryStore((s) => s.binaries)
+function getTransformBinaries(transformIds: number[]): Map<number, Uint8Array> {
+  const binaries = useWasmBinaryStore((s) => s.binaries)
 
   const missingIds = useMemo(
-    () => transformIds.filter((id) => !existingBinaries.has(id)),
-    [transformIds, existingBinaries],
+    () => transformIds.filter((id) => !binaries.has(id)),
+    [transformIds, binaries],
   )
 
   const query = useQuery({
@@ -33,21 +33,22 @@ function useBatchBinaries(transformIds: number[]): boolean {
     }
   }, [query.data])
 
-  return missingIds.length === 0
+  return binaries
 }
 
-export function useGraphBinaries(graph: ActiveGraph | null): boolean {
+export function useGraphBinaries(nodes: RFNode[]): Map<number, Uint8Array> {
   const transformIds = useMemo(
-    () => graph
-      ? Array.from(new Set(Array.from(graph.nodes.values(), (n) => n.transformId)))
-      : [],
-    [graph],
+    () => [...new Set(nodes.flatMap((n) => {
+      const id = n.data.transformId as number | null | undefined
+      return id != null ? [id] : []
+    }))],
+    [nodes],
   )
-  return useBatchBinaries(transformIds)
+  return getTransformBinaries(transformIds)
 }
 
 export function usePreloadBinaries(transformIds: number[]): void {
-  useBatchBinaries(transformIds)
+  getTransformBinaries(transformIds)
 }
 
 export const useListTransforms = () => {

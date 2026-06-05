@@ -1,9 +1,10 @@
-import type { ActiveGraph } from "@/Stores/ActiveGraphState"
+import { buildRuntimeGraph } from "./buildRuntimeGraph"
 import { compileGraph } from "./compile-graph/compileGraph"
 import { resolveBinaries } from "./resolve-binaries/resolveBinaries"
 import type { CompiledGraphResult } from "./compile-graph/compileGraph"
 import type { PipelineErrorResult } from "./pipelineErrorResult"
 import { validateGraph } from "./validateRuntimeGraph"
+import type { RunPipelineParams } from "./RunPipelineParams"
 
 
 export interface CompileOkResult {
@@ -19,9 +20,9 @@ export type CompileGraphResult =
 
   
 export function runPipeline(
-  runtimeGraph: ActiveGraph | null,
-  binaries: Map<number, Uint8Array>,
+  { graphParams: { graphId, nodes, edges }, binaries }: RunPipelineParams,
 ): CompileGraphResult {
+  const runtimeGraph = buildRuntimeGraph(graphId, nodes, edges)
   const validated = validateGraph(runtimeGraph)
   if (!validated.ok) return validated
 

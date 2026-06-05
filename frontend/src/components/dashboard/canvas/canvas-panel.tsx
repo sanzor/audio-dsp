@@ -31,7 +31,7 @@ import { useActiveGraphId } from "@/hooks/graphs/useActiveGraphId";
 import { NodeDetailsModal } from "../modals/graph/node-details-modal";
 import { apiGetTransformDefinition } from "@/Services/TransformService";
 import { useCanvasRuntime } from "@/audio/hooks/useCanvasRuntime";
-import { useGraphActivation } from "@/audio/hooks/useGraphActivation";
+import { useWorklet as useWorklet } from "@/audio/hooks/useWorklet";
 import { CompileOutputModal } from "./compile-output-modal";
 import { SaveCompileStatusOverlay, type SaveCompileStatusState } from "./save-compile-status-overlay";
 
@@ -272,7 +272,7 @@ function CanvasInner() {
   }, [canDropTransform]);
 
   const onDrop = useCallback(
-    (e: React.DragEvent) => {
+    async (e: React.DragEvent) => {
       if (!canDropTransform) return;
       e.preventDefault();
       const raw = e.dataTransfer.getData("application/transform");
@@ -283,47 +283,37 @@ function CanvasInner() {
       const tempNodeId = nextCanvasTempId();
       const definition = definitions.get(transformId);
 
-      const node: Node = {
-        id: String(tempNodeId),
-        type: "default",
-        position,
-        data: {
-          label: name,
-          nodeId: tempNodeId,
-          transformId,
-          params: defaultParamsForTransform(definition),
-          nodeType: "default",
+      setNodes((ns) => [
+        ...ns,
+        {
+          id: String(tempNodeId),
+          type: "default",
+          position,
+          data: {
+            label: name,
+            nodeId: tempNodeId,
+            transformId,
+            params: defaultParamsForTransform(definition),
+            nodeType: "default",
+          },
         },
-      };
-
-      setNodes((ns) => [...ns, node]);
+      ]);
 
       if (!definition) {
-        void apiGetTransformDefinition(transformId)
-          .then((fetched) => {
-            upsertDefinition(fetched);
-            setNodes((current) =>
-              current.map((existingNode) => {
-                if ((existingNode.data.nodeId as number | undefined) !== tempNodeId) {
-                  return existingNode;
-                }
-                const currentParams = (existingNode.data.params as Record<string, number> | undefined) ?? {};
-                if (Object.keys(currentParams).length > 0) {
-                  return existingNode;
-                }
-                return {
-                  ...existingNode,
-                  data: {
-                    ...existingNode.data,
-                    params: defaultParamsForTransform(fetched),
-                  },
-                };
-              })
-            );
-          })
-          .catch((error) => {
-            console.error("Failed to load transform definition:", error);
-          });
+        try {
+          const fetched = await apiGetTransformDefinition(transformId);
+          upsertDefinition(fetched);
+          setNodes((current) =>
+            current.map((n) => {
+              if ((n.data.nodeId as number | undefined) !== tempNodeId) return n;
+              const params = (n.data.params as Record<string, number> | undefined) ?? {};
+              if (Object.keys(params).length > 0) return n;
+              return { ...n, data: { ...n.data, params: defaultParamsForTransform(fetched) } };
+            })
+          );
+        } catch (error) {
+          console.error("Failed to load transform definition:", error);
+        }
       }
     },
     [canDropTransform, screenToFlowPosition, setNodes, nextCanvasTempId, definitions, upsertDefinition]
@@ -332,7 +322,7 @@ function CanvasInner() {
   // ─── Toolbar handlers ───────────────────────────────────────────────────────
 
   const { compileNow } = useCanvasRuntime(activeGraphId, nodes, edges);
-  const { activate, canActivate } = useGraphActivation();
+  const { uploadToWorklet, canUploadToWorklet} = useWorklet();
 
   useEffect(() => {
     if (!awaitingCompileAfterSaveRef.current) {
@@ -489,9 +479,9 @@ function CanvasInner() {
         isSaving={saveState === "saving"}
         effectsEnabled={isGraphLive}
         graphPlaybackState={graphPlaybackState}
-        canActivate={canActivate}
+        canActivate={canUploadToWorklet}
         onCompile={compileNow}
-        onActivate={activate}
+        onActivate={uploadToWorklet}
         onSave={handleSave}
         onToggleEffects={() => setEffectsEnabled(!effectsEnabled)}
         onFitView={handleFitView}
