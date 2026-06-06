@@ -8,6 +8,7 @@ import {
   superAdminNavItems,
 } from "@/components/layout/app/routes";
 import { Dashboard } from "@/components/dashboard/dashboard";
+import { CreatorShell } from "@/components/creator";
 import AdminSectionPage from "@/pages/admin/AdminSectionPage";
 import AccountProfile from "@/pages/account/AccountProfile";
 import AccountSubscriptions from "@/pages/account/AccountSubscriptions";
@@ -141,6 +142,21 @@ export default function App() {
           <Route path="billing" element={<AccountBilling />} />
           <Route path="settings" element={<AccountSettings />} />
         </Route>
+
+        <Route
+          path="/creator"
+          element={
+            !isAuthenticated ? (
+              <Navigate to="/login" replace />
+            ) : isAdmin ? (
+              <Navigate to={DEFAULT_SUPER_ADMIN_PATH} replace />
+            ) : projectCount === 0 ? (
+              <Navigate to="/onboarding" replace />
+            ) : (
+              <CreatorShell />
+            )
+          }
+        />
 
         <Route
           path="*"

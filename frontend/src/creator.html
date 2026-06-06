@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700&amp;family=JetBrains+Mono:wght@400;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 20;
+            font-size: 18px;
+        }
+        .node-canvas-bg {
+            background-image: radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #131313;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #353535;
+            border-radius: 2px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #424754;
+        }
+        .code-syntax-keyword { color: #adc6ff; }
+        .code-syntax-func { color: #4ae176; }
+        .code-syntax-string { color: #ffb786; }
+        .code-syntax-comment { color: #8c909f; }
+        
+        /* Node Port Styles */
+        .port {
+            width: 8px;
+            height: 8px;
+            background: #131313;
+            border: 1px solid #adc6ff;
+            border-radius: 50%;
+            position: absolute;
+            transition: all 0.2s;
+        }
+        .port:hover {
+            background: #adc6ff;
+            box-shadow: 0 0 8px #adc6ff;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "tertiary-fixed": "#ffdcc6",
+                      "surface-variant": "#353535",
+                      "surface": "#131313",
+                      "error-container": "#93000a",
+                      "surface-tint": "#adc6ff",
+                      "tertiary": "#ffb786",
+                      "surface-container-high": "#2a2a2a",
+                      "inverse-primary": "#005ac2",
+                      "surface-dim": "#131313",
+                      "on-secondary": "#003915",
+                      "text-muted": "#a3a3a3",
+                      "outline-variant": "#424754",
+                      "on-error-container": "#ffdad6",
+                      "outline": "#8c909f",
+                      "bg-panel": "#1e1e1e",
+                      "on-tertiary-fixed-variant": "#723600",
+                      "status-success": "#22c55e",
+                      "on-error": "#690005",
+                      "secondary-container": "#00b954",
+                      "on-primary": "#002e6a",
+                      "text-main": "#e5e5e5",
+                      "on-primary-fixed-variant": "#004395",
+                      "surface-container-lowest": "#0e0e0e",
+                      "surface-bright": "#393939",
+                      "surface-container-highest": "#353535",
+                      "border-subtle": "rgba(255, 255, 255, 0.05)",
+                      "surface-container": "#20201f",
+                      "on-secondary-fixed": "#002109",
+                      "error": "#ffb4ab",
+                      "on-secondary-fixed-variant": "#005321",
+                      "primary-container": "#4d8eff",
+                      "on-primary-fixed": "#001a42",
+                      "bg-darkest": "#1a1a1a",
+                      "inverse-on-surface": "#313030",
+                      "secondary-fixed": "#6bff8f",
+                      "bg-surface": "#2a2a2a",
+                      "secondary": "#4ae176",
+                      "primary": "#adc6ff",
+                      "primary-fixed": "#d8e2ff",
+                      "background": "#131313",
+                      "status-error": "#991b1b",
+                      "secondary-fixed-dim": "#4ae176",
+                      "on-background": "#e5e2e1",
+                      "surface-container-low": "#1c1b1b",
+                      "on-tertiary-container": "#461f00",
+                      "on-tertiary-fixed": "#311400",
+                      "on-surface-variant": "#c2c6d6",
+                      "primary-fixed-dim": "#adc6ff",
+                      "tertiary-container": "#df7412",
+                      "on-surface": "#e5e2e1",
+                      "tertiary-fixed-dim": "#ffb786",
+                      "on-primary-container": "#00285d",
+                      "inverse-surface": "#e5e2e1",
+                      "on-secondary-container": "#004119",
+                      "on-tertiary": "#502400"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "grid-unit": "4px",
+                      "container-padding": "12px",
+                      "element-gap": "8px",
+                      "panel-gap": "1px"
+              },
+              "fontFamily": {
+                      "label-caps": ["JetBrains Mono"],
+                      "headline-md": ["Hanken Grotesk"],
+                      "headline-lg": ["Hanken Grotesk"],
+                      "body-sm": ["Hanken Grotesk"],
+                      "code-md": ["JetBrains Mono"],
+                      "body-md": ["Hanken Grotesk"]
+              },
+              "fontSize": {
+                      "label-caps": ["10px", {"lineHeight": "12px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                      "headline-md": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                      "headline-lg": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                      "body-sm": ["12px", {"lineHeight": "16px", "fontWeight": "400"}],
+                      "code-md": ["13px", {"lineHeight": "20px", "fontWeight": "400"}],
+                      "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}]
+              }
+            },
+          },
+        }
+    </script>
+</head>
+<body class="bg-surface-dim text-on-surface overflow-hidden font-body-md h-screen flex flex-col">
+<!-- TopNavBar (Shared Component) -->
+<header class="flex justify-between items-center w-full px-grid-unit h-12 z-50 bg-surface dark:bg-surface border-b border-outline-variant docked full-width top-0">
+<div class="flex items-center gap-element-gap">
+<span class="text-headline-md font-headline-md font-bold text-primary dark:text-primary">Collaborative DAW Project</span>
+<div class="ml-4 flex gap-4">
+<a class="text-primary font-bold border-b-2 border-primary pb-1 font-label-caps text-label-caps hover:text-primary transition-colors duration-200" href="#">Build</a>
+<a class="text-on-surface-variant font-medium font-label-caps text-label-caps hover:text-primary transition-colors duration-200" href="#">Test</a>
+<a class="text-on-surface-variant font-medium font-label-caps text-label-caps hover:text-primary transition-colors duration-200" href="#">Deploy</a>
+</div>
+</div>
+<div class="flex-1 max-w-xl px-4">
+<div class="relative group">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
+<input class="w-full bg-surface-container-low border border-outline-variant rounded h-8 pl-10 pr-4 text-body-sm focus:outline-none focus:border-primary" placeholder="Search transforms, nodes, or samples..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4"><span class="text-label-caps text-muted">UTF-8</span><span class="text-label-caps text-tertiary-fixed font-bold border border-tertiary-fixed/30 px-2 rounded">RUST (WASM)</span></div>
+</header>
+<div class="flex flex-1 overflow-hidden">
+<!-- SideNavBar / Transform Library (Left) -->
+<aside class="flex flex-col w-64 h-full z-40 bg-surface-container-low dark:bg-surface-container-low border-r border-outline-variant docked h-full left-0">
+<div class="p-container-padding flex flex-col gap-2 border-b border-outline-variant">
+<div class="flex items-center gap-2">
+<span class="text-label-caps font-label-caps text-on-surface uppercase">Creator Workspace</span>
+<span class="text-[8px] bg-outline-variant px-1 rounded">v1.4.2-beta</span>
+</div>
+<div class="text-label-caps font-label-caps text-muted">Library / Existing Transforms</div>
+</div>
+<div class="flex-1 overflow-y-auto px-1 py-2"><div class="mb-4"><div class="flex items-center gap-2 px-2 py-1 mb-1"><span class="material-symbols-outlined text-[14px]">expand_more</span><span class="text-label-caps font-label-caps text-muted">UNITARY TRANSFORMS</span></div><div class="flex flex-col"><button class="flex items-center gap-3 h-8 px-4 text-primary border-l-2 border-primary bg-surface-container-high transition-all text-body-sm"><span class="material-symbols-outlined">settings_input_component</span><span>RMS_DETECTOR (Rust)</span></button><button class="flex items-center gap-3 h-8 px-4 text-on-surface-variant hover:bg-surface-container transition-all text-body-sm"><span class="material-symbols-outlined">filter_alt</span><span>Low Pass Filter</span></button></div></div><div class="mb-4"><div class="flex items-center gap-2 px-2 py-1 mb-1"><span class="material-symbols-outlined text-[14px]">expand_more</span><span class="text-label-caps font-label-caps text-muted">COMPOSITE BLUEPRINTS</span></div><div class="flex flex-col"><button class="flex items-center gap-3 h-8 px-4 text-on-surface-variant hover:bg-surface-container transition-all text-body-sm"><span class="material-symbols-outlined">account_tree</span><span>Mastering Chain</span></button><button class="flex items-center gap-3 h-8 px-4 text-on-surface-variant hover:bg-surface-container transition-all text-body-sm"><span class="material-symbols-outlined">account_tree</span><span>Vocal Processor</span></button></div></div></div>
+<div class="p-2 border-t border-outline-variant bg-surface-container"><div class="grid grid-cols-2 gap-2"><button class="h-8 border border-primary text-primary text-[10px] font-label-caps rounded flex items-center justify-center gap-1 hover:bg-primary/10 transition-all"><span class="material-symbols-outlined text-[14px]">add</span>RUST NODE</button><button class="h-8 border border-secondary text-secondary text-[10px] font-label-caps rounded flex items-center justify-center gap-1 hover:bg-secondary/10 transition-all"><span class="material-symbols-outlined text-[14px]">account_tree</span>COMPOSITE</button></div><button class="w-full h-8 mt-2 bg-primary text-on-primary text-label-caps font-label-caps rounded flex items-center justify-center gap-2 hover:opacity-90 active:scale-95 transition-all"><span class="material-symbols-outlined text-[16px]">rocket_launch</span>Deploy Transform</button></div>
+<div class="flex flex-col border-t border-outline-variant">
+<button class="flex items-center gap-3 h-10 px-4 text-on-surface-variant hover:bg-surface-container transition-all text-body-sm">
+<span class="material-symbols-outlined">shopping_cart</span>
+<span class="text-label-caps">Store</span>
+</button>
+<button class="flex items-center gap-3 h-10 px-4 text-on-surface-variant hover:bg-surface-container transition-all text-body-sm">
+<span class="material-symbols-outlined">help_outline</span>
+<span class="text-label-caps">Support</span>
+</button>
+</div>
+</aside>
+<!-- Main Workspace Canvas -->
+<main class="flex-1 flex flex-col bg-background relative overflow-hidden">
+<!-- Center Top: Node Composition Area -->
+<div class="flex-[0.6] relative node-canvas-bg border-b border-outline-variant">
+<div class="absolute top-4 left-4 z-10">
+<h1 class="text-headline-md font-headline-md text-main">Dynamic Multiband Compressor</h1>
+<p class="text-body-sm text-text-muted">Mastering / Dynamics / v2.1.0</p>
+</div>
+<!-- Simulation of Node Grid (SVG for edges) -->
+<svg class="absolute inset-0 w-full h-full pointer-events-none">
+<path d="M 240 180 C 340 180, 260 220, 360 220" fill="none" opacity="0.6" stroke="#adc6ff" stroke-width="2"></path>
+<path d="M 240 200 C 340 200, 260 380, 360 380" fill="none" opacity="0.4" stroke="#adc6ff" stroke-width="2"></path>
+<path d="M 520 220 C 620 220, 540 220, 640 220" fill="none" stroke="#4ae176" stroke-dasharray="4" stroke-width="2"></path>
+</svg>
+<!-- Audio In Node -->
+<div class="absolute top-[140px] left-[80px] w-40 bg-bg-panel border border-border-subtle rounded shadow-xl">
+<div class="h-6 bg-surface-variant flex items-center px-2">
+<span class="text-label-caps font-label-caps text-on-surface">INPUT_BUFFER</span>
+</div>
+<div class="p-2 h-16 flex flex-col justify-center">
+<div class="flex justify-between items-center">
+<span class="text-body-sm text-text-muted">Stereo Main</span>
+<div class="flex flex-col gap-1">
+<div class="w-16 h-1 bg-surface-container-highest overflow-hidden">
+<div class="w-3/4 h-full bg-secondary"></div>
+</div>
+<div class="w-16 h-1 bg-surface-container-highest overflow-hidden">
+<div class="w-2/3 h-full bg-secondary"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Ports -->
+<div class="port top-[44px] -right-[4px]"></div>
+<div class="port top-[60px] -right-[4px]"></div>
+</div>
+<!-- The Highlighted Active Node -->
+<div class="absolute top-[160px] left-[360px] w-48 bg-bg-panel border-2 border-primary rounded shadow-2xl">
+<div class="h-6 bg-primary-container/20 flex items-center justify-between px-2">
+<span class="text-label-caps font-label-caps text-primary">RMS_DETECTOR</span>
+<span class="material-symbols-outlined text-[12px] text-primary">tune</span>
+</div>
+<div class="p-3">
+<div class="flex flex-col gap-2">
+<div class="flex justify-between items-center text-[10px] text-muted font-label-caps">
+<span>IN L</span>
+<span>WET L</span>
+</div>
+<div class="flex justify-between items-center text-[10px] text-muted font-label-caps mt-2">
+<span>IN R</span>
+<span>WET R</span>
+</div>
+<div class="mt-2 pt-2 border-t border-border-subtle flex justify-end">
+<span class="text-[10px] text-primary font-label-caps">DRY OUT</span>
+</div>
+</div>
+</div>
+<!-- Ports L -->
+<div class="port top-[38px] -left-[4px]"></div>
+<div class="port top-[58px] -left-[4px]"></div>
+<!-- Ports R -->
+<div class="port top-[38px] -right-[4px]"></div>
+<div class="port top-[58px] -right-[4px]"></div>
+<div class="port top-[82px] -right-[4px]"></div>
+</div>
+<!-- Output Node -->
+<div class="absolute top-[180px] left-[640px] w-48 bg-bg-panel border border-secondary/50 rounded shadow-xl"><div class="h-6 bg-secondary/10 flex items-center justify-between px-2"><span class="text-label-caps font-label-caps text-secondary">COMPOSITE: OUTPUT</span><span class="material-symbols-outlined text-[12px] text-secondary">account_tree</span></div><div class="p-3 flex flex-col items-center gap-2"><span class="material-symbols-outlined text-secondary opacity-50 text-[24px]">view_in_ar</span><button class="w-full py-1 border border-secondary/30 text-[9px] font-label-caps text-secondary hover:bg-secondary/10 rounded transition-all">ENTER SUB-GRAPH</button></div><div class="port top-[44px] -left-[4px] border-secondary"></div></div>
+<!-- Canvas Controls -->
+<div class="absolute bottom-4 left-4 flex gap-2">
+<button class="w-8 h-8 bg-bg-panel border border-outline-variant flex items-center justify-center rounded hover:bg-surface-container">
+<span class="material-symbols-outlined">add</span>
+</button>
+<button class="w-8 h-8 bg-bg-panel border border-outline-variant flex items-center justify-center rounded hover:bg-surface-container">
+<span class="material-symbols-outlined">pan_tool</span>
+</button>
+<button class="px-3 h-8 bg-bg-panel border border-outline-variant flex items-center gap-2 rounded hover:bg-surface-container text-label-caps">
+<span class="material-symbols-outlined text-[16px]">grid_on</span>
+<span>Grid: 24px</span>
+</button>
+</div>
+</div>
+<!-- Center Bottom: Code Editor -->
+<div class="flex-[0.4] bg-bg-darkest flex flex-col relative">
+<div class="h-8 bg-surface-container-low flex items-center justify-between px-4 border-b border-border-subtle">
+<div class="flex gap-4">
+<div class="flex items-center gap-2 border-b-2 border-primary h-8 px-2">
+<span class="material-symbols-outlined text-[14px] text-primary">javascript</span>
+<span class="text-label-caps text-primary">RMS_DETECTOR.js</span>
+</div>
+<div class="flex items-center gap-2 h-8 px-2 opacity-50">
+<span class="material-symbols-outlined text-[14px]">data_object</span>
+<span class="text-label-caps">config.json</span>
+</div>
+</div>
+<div class="flex gap-4 items-center"><span class="text-label-caps text-muted">UTF-8</span><span class="text-label-caps text-tertiary-fixed font-bold border border-tertiary-fixed/30 px-2 rounded">RUST (WASM)</span></div>
+</div>
+<div class="flex-1 overflow-auto flex font-code-md text-code-md leading-relaxed p-2">
+<!-- Line Numbers -->
+<div class="w-10 flex flex-col text-right pr-4 text-outline select-none opacity-40">
+<span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span><span>11</span><span>12</span>
+</div>
+<!-- Code Content -->
+<div class="flex-1 text-on-surface-variant whitespace-pre"><span class="code-syntax-keyword">use</span> wasm_bindgen::prelude::*;
+
+<span class="code-syntax-comment">#[wasm_bindgen]</span>
+<span class="code-syntax-keyword">pub struct</span> RMSDetector {
+    window_size: <span class="code-syntax-string">usize</span>,
+    buffer: <span class="code-syntax-keyword">Vec</span>&lt;<span class="code-syntax-string">f32</span>&gt;,
+}
+
+<span class="code-syntax-keyword">impl</span> TransformNode <span class="code-syntax-keyword">for</span> RMSDetector {
+    <span class="code-syntax-keyword">fn</span> <span class="code-syntax-func">process</span>(&amp;<span class="code-syntax-keyword">mut self</span>, input: &amp;[<span class="code-syntax-string">f32</span>]) -&gt; <span class="code-syntax-string">f32</span> {
+        <span class="code-syntax-keyword">let</span> sum_sq: <span class="code-syntax-string">f32</span> = input.iter().map(|&amp;x| x * x).sum();
+        (sum_sq / input.len() <span class="code-syntax-keyword">as</span> <span class="code-syntax-string">f32</span>).<span class="code-syntax-func">sqrt</span>()
+    }
+}</div>
+</div>
+<!-- Floating Save Progress -->
+<div class="absolute bottom-4 right-4 flex items-center gap-3 bg-surface-container-highest/80 backdrop-blur-md border border-primary/30 px-4 py-2 rounded-full shadow-2xl">
+<span class="text-label-caps text-primary animate-pulse">AUTOSAVING...</span>
+<div class="w-24 h-1 bg-surface-variant rounded-full overflow-hidden">
+<div class="h-full bg-primary w-2/3 shadow-[0_0_8px_#adc6ff]"></div>
+</div>
+<button class="material-symbols-outlined text-on-surface hover:text-primary transition-colors">close</button>
+</div>
+</div>
+</main>
+<!-- Sidebar Right: Properties -->
+<aside class="w-80 bg-surface-container-low border-l border-outline-variant flex flex-col z-40">
+<div class="p-container-padding flex flex-col gap-2 border-b border-outline-variant">
+<div class="flex justify-between items-center">
+<span class="text-label-caps font-label-caps text-on-surface">PROPERTIES</span>
+<span class="material-symbols-outlined text-on-surface-variant">more_vert</span>
+</div>
+<div class="text-headline-md font-headline-md text-primary">RMS_DETECTOR</div><div class="flex gap-2 mt-2"><div class="flex-1 flex flex-col gap-1"><span class="text-[9px] text-muted font-label-caps uppercase">Node Type</span><div class="text-body-sm text-on-surface border border-outline-variant px-2 py-0.5 rounded bg-surface-container">Unitary (Rust)</div></div><div class="flex-1 flex flex-col gap-1"><span class="text-[9px] text-muted font-label-caps uppercase">Compilation</span><div class="text-body-sm text-status-success flex items-center gap-1 border border-status-success/30 px-2 py-0.5 rounded bg-status-success/10"><span class="material-symbols-outlined text-[10px]">check_circle</span>OK</div></div></div>
+</div>
+<div class="flex-1 overflow-y-auto p-4 flex flex-col gap-6">
+<!-- Transform Settings -->
+<section>
+<h3 class="text-label-caps text-muted mb-3 border-b border-border-subtle pb-1">NODE CONFIG</h3>
+<div class="flex flex-col gap-4">
+<div class="flex flex-col gap-1">
+<div class="flex justify-between text-body-sm">
+<label class="text-on-surface-variant">Window Size (samples)</label>
+<span class="text-primary font-label-caps">512</span>
+</div>
+<input class="accent-primary w-full h-1 bg-surface-variant rounded-lg appearance-none cursor-pointer" type="range"/>
+<div class="flex justify-between text-[10px] text-outline">
+<span>64</span>
+<span>2048</span>
+</div>
+</div>
+<div class="flex flex-col gap-1">
+<div class="flex justify-between text-body-sm">
+<label class="text-on-surface-variant">Threshold (dB)</label>
+<span class="text-primary font-label-caps">-18.4</span>
+</div>
+<input class="accent-primary w-full h-1 bg-surface-variant rounded-lg appearance-none cursor-pointer" type="range"/>
+<div class="flex justify-between text-[10px] text-outline">
+<span>-60</span>
+<span>0</span>
+</div>
+</div>
+<div class="flex items-center justify-between">
+<label class="text-body-sm text-on-surface-variant">Auto-Gain Makeup</label>
+<button class="w-8 h-4 bg-primary rounded-full relative flex items-center px-1">
+<div class="w-2 h-2 bg-on-primary rounded-full ml-auto"></div>
+</button>
+</div>
+</div>
+</section>
+<!-- Port Configuration -->
+<section>
+<h3 class="text-label-caps text-muted mb-3 border-b border-border-subtle pb-1">I/O CHANNELS</h3>
+<div class="flex flex-col gap-2">
+<div class="flex items-center justify-between bg-surface-container p-2 rounded border border-border-subtle">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<span class="text-body-sm">IN L</span>
+</div>
+<span class="text-[10px] font-label-caps text-outline">FLOAT32</span>
+</div>
+<div class="flex items-center justify-between bg-surface-container p-2 rounded border border-border-subtle">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<span class="text-body-sm">IN R</span>
+</div>
+<span class="text-[10px] font-label-caps text-outline">FLOAT32</span>
+</div>
+<div class="flex items-center justify-between bg-surface-container p-2 rounded border border-border-subtle">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-secondary"></div>
+<span class="text-body-sm">WET OUT</span>
+</div>
+<span class="text-[10px] font-label-caps text-outline">FLOAT32</span>
+</div>
+</div>
+</section>
+<!-- History Visualizer -->
+<section>
+<h3 class="text-label-caps text-muted mb-3 border-b border-border-subtle pb-1">REAL-TIME TELEMETRY</h3>
+<div class="h-24 bg-surface-container-lowest rounded border border-border-subtle relative overflow-hidden flex items-end">
+<!-- Simulated Waveform/Graph -->
+<div class="w-full h-full opacity-30 flex items-end gap-[1px] px-1">
+<div class="flex-1 bg-primary" style="height: 40%"></div>
+<div class="flex-1 bg-primary" style="height: 55%"></div>
+<div class="flex-1 bg-primary" style="height: 70%"></div>
+<div class="flex-1 bg-primary" style="height: 45%"></div>
+<div class="flex-1 bg-primary" style="height: 30%"></div>
+<div class="flex-1 bg-primary" style="height: 60%"></div>
+<div class="flex-1 bg-primary" style="height: 80%"></div>
+<div class="flex-1 bg-primary" style="height: 50%"></div>
+<div class="flex-1 bg-primary" style="height: 40%"></div>
+<div class="flex-1 bg-primary" style="height: 90%"></div>
+</div>
+<div class="absolute inset-0 flex items-center justify-center">
+<span class="text-label-caps text-primary bg-background/50 px-2 rounded">MONITORING...</span>
+</div>
+</div>
+</section>
+</div>
+<div class="p-4 border-t border-outline-variant bg-surface-container flex gap-2">
+<button class="flex-1 h-8 border border-outline-variant text-label-caps font-label-caps rounded hover:bg-surface-container-high transition-colors">RESET</button>
+<button class="flex-1 h-8 bg-primary text-on-primary text-label-caps font-label-caps rounded hover:opacity-90 transition-colors">APPLY</button>
+</div>
+</aside>
+</div>
+<!-- Status Bar (Extra Density) -->
+<footer class="h-6 bg-surface-container-highest border-t border-outline-variant flex items-center justify-between px-4 text-[10px] font-label-caps text-on-surface-variant select-none">
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[10px] text-secondary">check_circle</span>
+<span>ENGINE: CONNECTED (LOCAL)</span>
+</div>
+<span>LATENCY: 4.2ms</span>
+<span>CPU: 12%</span>
+</div>
+<div class="flex items-center gap-4"><span class="text-label-caps text-muted">UTF-8</span><span class="text-label-caps text-tertiary-fixed font-bold border border-tertiary-fixed/30 px-2 rounded">RUST (WASM)</span></div>
+</footer>
+<script>
+        // Simple Interaction logic for active state feeling
+        document.querySelectorAll('button, a').forEach(el => {
+            el.addEventListener('mousedown', () => el.classList.add('scale-95'));
+            el.addEventListener('mouseup', () => el.classList.remove('scale-95'));
+            el.addEventListener('mouseleave', () => el.classList.remove('scale-95'));
+        });
+
+        // Toggle Switch behavior simulation
+        document.querySelectorAll('.rounded-full.relative').forEach(sw => {
+            sw.addEventListener('click', () => {
+                const inner = sw.querySelector('div');
+                const isOff = inner.classList.contains('ml-auto');
+                if(isOff) {
+                    inner.classList.remove('ml-auto');
+                    sw.classList.remove('bg-primary');
+                    sw.classList.add('bg-surface-variant');
+                } else {
+                    inner.classList.add('ml-auto');
+                    sw.classList.add('bg-primary');
+                    sw.classList.remove('bg-surface-variant');
+                }
+            });
+        });
+    </script>
+</body></html>
