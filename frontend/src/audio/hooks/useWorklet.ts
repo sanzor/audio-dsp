@@ -16,10 +16,10 @@ export function useWorklet(): { uploadToWorklet: () => void; canUploadToWorklet:
     }
   }, [compiledGraph, workletConnected, effectsEnabled, workletController])
 
-  const uploadGraphToWorklet = useCallback(() => {
+  const uploadToWorklet = useCallback(() => {
     if (!compiledGraph || !workletConnected) return
     workletController.loadCompiledGraphToWorklet(compiledGraph)
   }, [compiledGraph, workletConnected, workletController])
 
-  return { uploadToWorklet: uploadGraphToWorklet,  canUploadToWorklet }
+  return { uploadToWorklet,  canUploadToWorklet }
 }

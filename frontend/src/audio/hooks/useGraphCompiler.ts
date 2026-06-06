@@ -26,7 +26,7 @@ function saveCompileResult(result: CompileGraphResult): void {
   }
 }
 
-export function useCanvasRuntime(
+export function useGraphCompiler(
   graphId: number | undefined,
   nodes: RFNode[],
   edges: RFEdge[],

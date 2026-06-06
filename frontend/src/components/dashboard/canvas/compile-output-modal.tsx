@@ -1,4 +1,5 @@
-import type { CompileLogEntry, CompileRun, CompileStep, CompileStepStatus } from "@/Stores/AudioEffectsStore";
+import type { CompileLogEntry, CompileStep, CompileStepStatus } from "@/Stores/AudioEffectsStore";
+import { useAudioEffectsStore } from "@/Stores/AudioEffectsStore";
 import {
   Dialog,
   DialogContent,
@@ -6,13 +7,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-
-interface CompileOutputModalProps {
-  open: boolean;
-  run: CompileRun | null;
-  onClear: () => void;
-  onOpenChange: (open: boolean) => void;
-}
 
 const STEP_STATUS_STYLES: Record<CompileStepStatus, { dot: string; text: string }> = {
   pending: { dot: "rgba(148, 163, 184, 0.75)", text: "var(--text-muted)" },
@@ -65,12 +59,11 @@ function renderStep(step: CompileStep) {
   );
 }
 
-export function CompileOutputModal({
-  open,
-  run,
-  onClear,
-  onOpenChange,
-}: CompileOutputModalProps) {
+export function CompileOutputModal() {
+  const open = useAudioEffectsStore((s) => s.compileModalOpen);
+  const run = useAudioEffectsStore((s) => s.compileRun);
+  const onClear = useAudioEffectsStore((s) => s.clearCompileRun);
+  const onOpenChange = useAudioEffectsStore((s) => s.setCompileModalOpen);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -170,7 +163,7 @@ export function CompileOutputModal({
                     current run
                   </div>
                   <div className="space-y-1.5">
-                    {run.logs.map((entry) => (
+                    {run.logs.map((entry: CompileLogEntry) => (
                       <div key={entry.id} className="flex gap-3">
                         <span style={{ color: "rgba(148, 163, 184, 0.9)" }}>{formatClock(entry.at)}</span>
                         <span style={{ color: LOG_COLORS[entry.level], minWidth: 56 }}>

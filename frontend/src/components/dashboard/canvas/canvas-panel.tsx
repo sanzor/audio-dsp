@@ -16,13 +16,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "reactflow/dist/style.css";
 import { useUIStore } from "@/Stores/UIStore";
 import { useGraphStore } from "@/Stores/GraphStore";
-import { useRegionStore } from "@/Stores/RegionStore";
-import { useRegionSetStore } from "@/Stores/RegionSetStore";
 import { useTransformStore } from "@/Stores/TransformStore";
-import { useAudioEffectsStore } from "@/Stores/AudioEffectsStore";
 import { useWorkletStore } from "@/Stores/WorkletStore";
 import type { NodeType } from "@/domain/Graph/Node";
 import type { TransformDefinition } from "@/domain/Transform/Transform";
+import type { Graph } from "@/domain/Graph/Graph";
 import { CanvasToolbar } from "./canvas-toolbar";
 import { useGraphController } from "@/controllers/GraphController";
 import { SourceNode } from "./source-node";
@@ -30,10 +28,13 @@ import { SinkNode } from "./sink-node";
 import { useActiveGraphId } from "@/hooks/graphs/useActiveGraphId";
 import { NodeDetailsModal } from "../modals/graph/node-details-modal";
 import { apiGetTransformDefinition } from "@/Services/TransformService";
-import { useCanvasRuntime } from "@/audio/hooks/useCanvasRuntime";
+import { useGraphCompiler } from "@/audio/hooks/useGraphCompiler";
 import { useWorklet as useWorklet } from "@/audio/hooks/useWorklet";
 import { CompileOutputModal } from "./compile-output-modal";
 import { SaveCompileStatusOverlay, type SaveCompileStatusState } from "./save-compile-status-overlay";
+import { useCanDropTransform } from "./useCanDropTransform";
+import { RuntimeStatusOverlay } from "./runtime-status-overlay";
+import { useAudioEffectsStore } from "@/Stores/AudioEffectsStore";
 
 
 const NODE_TYPES = { source: SourceNode, sink: SinkNode };
@@ -60,7 +61,7 @@ function nextTempIdSeed(graph?: { nodes: Array<{ id: number }>; edges: Array<{ i
 
 // ─── Canvas ───────────────────────────────────────────────────────────────────
 
-function CanvasInner() {
+function CanvasInner({ graphId, graph }: { graphId: number | undefined; graph: Graph | undefined }) {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [saveProgress, setSaveProgress] = useState(0);
@@ -83,45 +84,18 @@ function CanvasInner() {
     [nodes, onNodesChange],
   );
   const { screenToFlowPosition, fitView } = useReactFlow();
-  const openModal = useUIStore((s) => s.openModal);
-  const closeModal = useUIStore((s) => s.closeModal);
-  const modalState = useUIStore((s) => s.modalState);
-  const activeSelection = useUIStore((s) => s.activeSelection);
-  const region = useRegionStore((s) =>
-    activeSelection.regionId != null ? s.regions.get(activeSelection.regionId) : undefined
-  );
-  const regionSet = useRegionSetStore((s) =>
-    activeSelection.regionSetId != null ? s.regionSets.get(activeSelection.regionSetId) : undefined
-  );
-  const regionId = activeSelection.regionId;
-  const canDropTransform =
-    region != null &&
-    regionSet != null &&
-    region.regionSetId === regionSet.id &&
-    regionSet.region_ids.includes(region.regionId);
+  const {openModal,closeModal,modalState} = useUIStore();
 
-  const activeGraphId = useActiveGraphId();
-  const activeGraphVersion = useGraphStore((s) =>
-    activeGraphId != null ? s.graphs.get(activeGraphId)?.updatedAt?.getTime() : undefined
-  );
+  const { canDropTransform, regionId } = useCanDropTransform();
 
-  const summaries = useTransformStore((s) => s.summaries);
-  const definitions = useTransformStore((s) => s.definitions);
-  const upsertDefinition = useTransformStore((s) => s.upsertDefinition);
-  const effectsEnabled = useWorkletStore((s) => s.effectsEnabled);
-  const setEffectsEnabled = useWorkletStore((s) => s.setEffectsEnabled);
-  const workletConnected = useWorkletStore((s) => s.workletConnected);
-  const graphPlaybackState = useWorkletStore((s) => s.graphPlaybackState);
-  const isGraphPlayable = useWorkletStore((s) => s.isGraphPlayable);
-  const runtimeStatus = useAudioEffectsStore((s) => s.runtimeStatus);
-  const runtimeMessage = useAudioEffectsStore((s) => s.runtimeMessage);
-  const compileModalOpen = useAudioEffectsStore((s) => s.compileModalOpen);
-  const compileRun = useAudioEffectsStore((s) => s.compileRun);
-  const setCompileModalOpen = useAudioEffectsStore((s) => s.setCompileModalOpen);
-  const clearCompileRun = useAudioEffectsStore((s) => s.clearCompileRun);
+  const {summaries,definitions,upsertDefinition}=useTransformStore();
+  const  {effectsEnabled,setEffectsEnabled,graphPlaybackState }=useWorkletStore();
+  const {runtimeStatus,runtimeMessage}=useAudioEffectsStore();
+
   const graphController = useGraphController();
-  const isGraphLive = activeGraphId != null && effectsEnabled;
+  const isGraphLive = graphId != null && effectsEnabled;
   const nodeDetailsModalState = modalState?.type === "nodeDetails" ? modalState : null;
+
   const nodeDetailsTarget = useMemo(() => {
     if (!nodeDetailsModalState?.nodeId) return null;
     return nodes.find((node) => (node.data.nodeId as number | undefined) === nodeDetailsModalState.nodeId) ?? null;
@@ -155,10 +129,6 @@ function CanvasInner() {
   }, []);
 
   useEffect(() => {
-    const graph = activeGraphId != null
-      ? useGraphStore.getState().getGraph(activeGraphId)
-      : undefined;
-
     nextCanvasTempIdRef.current = nextTempIdSeed(graph);
 
     setNodes(
@@ -190,7 +160,7 @@ function CanvasInner() {
         target: String(e.toNodeId),
       })) ?? []
     );
-  }, [regionId, activeGraphId, activeGraphVersion, setNodes, setEdges, summaries]);
+  }, [regionId, graphId, graph, setNodes, setEdges, summaries]);
 
   useEffect(() => {
     setNodes((current) =>
@@ -321,7 +291,7 @@ function CanvasInner() {
 
   // ─── Toolbar handlers ───────────────────────────────────────────────────────
 
-  const { compileNow } = useCanvasRuntime(activeGraphId, nodes, edges);
+  const { compileNow } = useGraphCompiler(graphId, nodes, edges);
   const { uploadToWorklet, canUploadToWorklet} = useWorklet();
 
   useEffect(() => {
@@ -370,7 +340,7 @@ function CanvasInner() {
   ]);
 
   const handleSave = useCallback(async (nodesOverride?: Node[]) => {
-    if (activeGraphId == null || saveState === "saving") return;
+    if (graphId == null || saveState === "saving") return;
 
     clearSaveTimers();
     setSaveState("saving");
@@ -384,12 +354,12 @@ function CanvasInner() {
     }, 140);
 
     try {
-      await graphController.handleSaveGraph(activeGraphId, nodesOverride ?? nodes, edges);
+      await graphController.handleSaveGraph(graphId, nodesOverride ?? nodes, edges);
       awaitingCompileAfterSaveRef.current = true;
       clearCompileWaitTimer();
       setSaveCompileState("waiting");
       setSaveCompileMessage("Checking saved graph...");
-      compileNow(nodesOverride);
+      var compileResult=compileNow(nodesOverride);
       compileWaitTimerRef.current = window.setTimeout(() => {
         if (!awaitingCompileAfterSaveRef.current) return;
         awaitingCompileAfterSaveRef.current = false;
@@ -415,31 +385,31 @@ function CanvasInner() {
       }, 1800);
       throw error;
     }
-  }, [activeGraphId, nodes, edges, graphController, saveState, clearCompileWaitTimer, clearSaveTimers, compileNow]);
+  }, [graphId, nodes, edges, graphController, saveState, clearCompileWaitTimer, clearSaveTimers, compileNow]);
 
   const handleFitView = useCallback(() => {
     fitView({ padding: 0.2 });
   }, [fitView]);
 
   const handleClearNodes = useCallback(() => {
-    if (activeGraphId == null) return;
-    graphController.handleClearGraphNodes(activeGraphId);
-  }, [activeGraphId, graphController]);
+    if (graphId == null) return;
+    graphController.handleClearGraphNodes(graphId);
+  }, [graphId, graphController]);
 
   const handleRename = useCallback(() => {
-    if (activeGraphId == null) return;
-    graphController.handleRenameGraph(activeGraphId);
-  }, [activeGraphId, graphController]);
+    if (graphId == null) return;
+    graphController.handleRenameGraph(graphId);
+  }, [graphId, graphController]);
 
   const handleDelete = useCallback(async () => {
-    if (activeGraphId == null) return;
-    await graphController.handleDeleteGraph(activeGraphId);
-  }, [activeGraphId, graphController]);
+    if (graphId == null) return;
+    await graphController.handleDeleteGraph(graphId);
+  }, [graphId, graphController]);
 
   const handleCopy = useCallback(() => {
-    if (activeGraphId == null) return;
-    graphController.handleCopyGraph(activeGraphId);
-  }, [activeGraphId, graphController]);
+    if (graphId == null) return;
+    graphController.handleCopyGraph(graphId);
+  }, [graphId, graphController]);
 
   const clearCanvasSelection = useCallback(() => {
     setNodes((ns) =>
@@ -474,7 +444,7 @@ function CanvasInner() {
   return (
     <div className={`flex flex-col w-full h-full overflow-hidden rounded-[10px]${isGraphLive ? " graph-live-shell" : ""}`}>
       <CanvasToolbar
-        selectedGraphId={activeGraphId}
+        selectedGraphId={graphId}
         hasClearableNodes={hasClearableNodes}
         isSaving={saveState === "saving"}
         effectsEnabled={isGraphLive}
@@ -512,28 +482,7 @@ function CanvasInner() {
         >
           <Background variant={BackgroundVariant.Lines} gap={20} color="rgba(255,255,255,0.03)" />
         </ReactFlow>
-        <div
-          className="pointer-events-none absolute right-3 top-3 z-20 max-w-sm rounded-md border px-3 py-2 text-xs"
-          style={{
-            background: "rgba(15, 23, 42, 0.9)",
-            borderColor:
-              activeGraphId == null
-                ? "rgba(255,255,255,0.12)"
-                : isGraphPlayable()
-                  ? "rgba(74, 222, 128, 0.45)"
-                  : "rgba(248, 113, 113, 0.45)",
-            color: "var(--text-main)",
-          }}
-        >
-          <div className="font-medium">
-            Runtime: {runtimeStatus}
-          </div>
-          <div>Worklet: {workletConnected ? "connected" : "disconnected"}</div>
-          <div>Effects: {effectsEnabled ? "enabled" : "bypassed"}</div>
-          <div>Compiled: {graphPlaybackState.compiled ? "yes" : "no"}</div>
-          <div>Playable: {isGraphPlayable() ? "yes" : "no"}</div>
-          {runtimeMessage && <div>{runtimeMessage}</div>}
-        </div>
+        <RuntimeStatusOverlay />
         {saveState !== "hidden" && (
           <div className="graph-save-progress">
             <div className="graph-save-progress__meta">
@@ -579,20 +528,19 @@ function CanvasInner() {
           }}
         />
       )}
-      <CompileOutputModal
-        open={compileModalOpen}
-        run={compileRun}
-        onClear={clearCompileRun}
-        onOpenChange={setCompileModalOpen}
-      />
+      <CompileOutputModal />
     </div>
   );
 }
 
 export function CanvasPanel() {
+  const graphId = useActiveGraphId();
+  const graph = useGraphStore((s) =>
+    graphId != null ? s.graphs.get(graphId) : undefined
+  );
   return (
     <ReactFlowProvider>
-      <CanvasInner />
+      <CanvasInner graphId={graphId} graph={graph} />
     </ReactFlowProvider>
   );
 }
