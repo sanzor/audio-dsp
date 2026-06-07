@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/Stores/authStore";
 import { DashboardLayout } from "./dashboard-layout";
@@ -91,8 +92,28 @@ export function Dashboard() {
           className="flex items-center justify-between px-4 border-b gap-4"
           style={{ backgroundColor: "var(--bg-darkest)", borderColor: "rgba(255,255,255,0.05)" }}
         >
-          <div className="font-semibold text-sm whitespace-nowrap" style={{ color: "var(--text-main)" }}>
-            Collaborative DAW
+          <div className="flex items-center gap-3">
+            <div className="font-semibold text-sm whitespace-nowrap" style={{ color: "var(--text-main)" }}>
+              Collaborative DAW
+            </div>
+            <div
+              className="flex items-center rounded text-[10px] font-mono overflow-hidden"
+              style={{ border: "1px solid rgba(255,255,255,0.12)" }}
+            >
+              <span
+                className="px-2.5 py-1"
+                style={{ color: "#adc6ff", backgroundColor: "rgba(173,198,255,0.12)" }}
+              >
+                DAW
+              </span>
+              <Link
+                to="/creator"
+                className="px-2.5 py-1 transition-colors"
+                style={{ color: "var(--text-muted)" }}
+              >
+                CREATOR
+              </Link>
+            </div>
           </div>
 
           <div className="flex-1 max-w-md">

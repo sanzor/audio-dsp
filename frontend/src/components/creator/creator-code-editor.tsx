@@ -1,5 +1,7 @@
 import { useState } from "react";
 import Editor from "@monaco-editor/react";
+import { useCreatorStore } from "@/Stores/CreatorStore";
+import { useGetTransformDefinition } from "@/hooks/transforms/queries";
 
 const DEFAULT_CODE = `use wasm_bindgen::prelude::*;
 
@@ -23,14 +25,18 @@ interface FileTab {
   language: string;
 }
 
-const TABS: FileTab[] = [
-  { id: "impl", name: "RMS_DETECTOR.rs", language: "rust" },
-  { id: "config", name: "config.json", language: "json" },
-];
+const CONFIG_TAB: FileTab = { id: "config", name: "config.json", language: "json" };
 
 export function CreatorCodeEditor() {
+  const selectedId = useCreatorStore((s) => s.selectedTransformId);
+  const { data: definition } = useGetTransformDefinition(selectedId);
   const [activeTab, setActiveTab] = useState("impl");
   const [code, setCode] = useState(DEFAULT_CODE);
+
+  const tabs: FileTab[] = [
+    { id: "impl", name: definition ? `${definition.name}.rs` : "untitled.rs", language: "rust" },
+    CONFIG_TAB,
+  ];
 
   return (
     <div
@@ -43,7 +49,7 @@ export function CreatorCodeEditor() {
         style={{ borderBottom: "1px solid rgba(255,255,255,0.06)", backgroundColor: "var(--bg-darker)" }}
       >
         <div className="flex items-center">
-          {TABS.map((tab) => (
+          {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
@@ -74,7 +80,7 @@ export function CreatorCodeEditor() {
       <div className="flex-1 min-h-0">
         <Editor
           height="100%"
-          language={TABS.find((t) => t.id === activeTab)?.language ?? "rust"}
+          language={tabs.find((t) => t.id === activeTab)?.language ?? "rust"}
           value={code}
           onChange={(value) => setCode(value ?? "")}
           theme="vs-dark"

@@ -2,111 +2,210 @@ import ReactFlow, {
   Background,
   BackgroundVariant,
   ReactFlowProvider,
-  useNodesState,
-  useEdgesState,
-  type Node,
-  type Edge,
+  type NodeProps,
 } from "reactflow";
+import { Handle, Position } from "reactflow";
 import "reactflow/dist/style.css";
+import { useCreatorStore } from "@/Stores/CreatorStore";
+import { useGetTransformDefinition } from "@/hooks/transforms/queries";
+import type { TransformPort } from "@/domain/Transform/Transform";
 
-const INITIAL_NODES: Node[] = [
-  {
-    id: "source",
-    type: "input",
-    position: { x: 80, y: 140 },
-    data: { label: "INPUT_BUFFER" },
-    style: {
-      backgroundColor: "#1e1e1e",
-      border: "1px solid rgba(255,255,255,0.1)",
-      color: "#e5e5e5",
-      fontSize: 11,
-      fontFamily: "JetBrains Mono, monospace",
-    },
-  },
-  {
-    id: "rms",
-    position: { x: 360, y: 155 },
-    data: { label: "RMS_DETECTOR" },
-    style: {
-      backgroundColor: "#1e1e1e",
-      border: "2px solid #adc6ff",
-      color: "#adc6ff",
-      fontSize: 11,
-      fontFamily: "JetBrains Mono, monospace",
-      boxShadow: "0 0 12px rgba(173,198,255,0.15)",
-    },
-  },
-  {
-    id: "sink",
-    type: "output",
-    position: { x: 640, y: 175 },
-    data: { label: "COMPOSITE: OUTPUT" },
-    style: {
-      backgroundColor: "#1e1e1e",
-      border: "1px solid rgba(74,225,118,0.5)",
-      color: "#4ae176",
-      fontSize: 11,
-      fontFamily: "JetBrains Mono, monospace",
-    },
-  },
-];
+// ─── Custom single-transform node ────────────────────────────────────────────
 
-const INITIAL_EDGES: Edge[] = [
-  { id: "e-src-rms", source: "source", target: "rms", style: { stroke: "#adc6ff", strokeWidth: 2, opacity: 0.6 } },
-  { id: "e-rms-sink", source: "rms", target: "sink", style: { stroke: "#4ae176", strokeWidth: 2, strokeDasharray: "4", opacity: 0.6 } },
-];
+interface TransformNodeData {
+  name: string;
+  inputs: TransformPort[];
+  outputs: TransformPort[];
+}
 
-function CreatorCanvasInner() {
-  const [nodes, , onNodesChange] = useNodesState(INITIAL_NODES);
-  const [edges, , onEdgesChange] = useEdgesState(INITIAL_EDGES);
+function TransformPreviewNode({ data }: NodeProps<TransformNodeData>) {
+  const rowHeight = 28;
+  const rows = Math.max(data.inputs.length, data.outputs.length, 1);
+  const height = rows * rowHeight + 48;
 
   return (
-    <div className="relative w-full h-full">
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        fitView
-        deleteKeyCode={["Backspace", "Delete"]}
+    <div
+      style={{
+        width: 240,
+        height,
+        backgroundColor: "#1e1e1e",
+        border: "2px solid #adc6ff",
+        borderRadius: 8,
+        boxShadow: "0 0 24px rgba(173,198,255,0.12)",
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+        position: "relative",
+      }}
+    >
+      {/* Title bar */}
+      <div
+        style={{
+          padding: "8px 12px",
+          borderBottom: "1px solid rgba(255,255,255,0.08)",
+          fontSize: 11,
+          fontFamily: "JetBrains Mono, monospace",
+          color: "#adc6ff",
+          fontWeight: 700,
+          letterSpacing: "0.05em",
+          flexShrink: 0,
+        }}
       >
-        <Background
-          variant={BackgroundVariant.Dots}
-          gap={24}
-          size={1}
-          color="rgba(255,255,255,0.04)"
-        />
-      </ReactFlow>
-
-      {/* Canvas title overlay */}
-      <div className="absolute top-4 left-4 pointer-events-none z-10">
-        <div className="text-sm font-semibold" style={{ color: "var(--text-main)" }}>
-          Dynamic Multiband Compressor
-        </div>
-        <div className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
-          Mastering / Dynamics / v2.1.0
-        </div>
+        {data.name}
       </div>
 
-      {/* Canvas controls */}
-      <div className="absolute bottom-4 left-4 flex gap-2 z-10">
-        {["zoom_in", "pan"].map((label) => (
-          <button
-            key={label}
-            className="w-8 h-8 flex items-center justify-center rounded text-xs transition-colors"
-            style={{
-              backgroundColor: "var(--bg-panel)",
-              border: "1px solid rgba(255,255,255,0.08)",
-              color: "var(--text-muted)",
-            }}
-          >
-            {label === "zoom_in" ? "+" : "✥"}
-          </button>
-        ))}
+      {/* Port rows */}
+      <div style={{ flex: 1, display: "flex", position: "relative" }}>
+        {/* Inputs column */}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", paddingTop: 4 }}>
+          {data.inputs.map((port, i) => (
+            <div
+              key={port.port_id}
+              style={{
+                height: rowHeight,
+                display: "flex",
+                alignItems: "center",
+                paddingLeft: 16,
+                position: "relative",
+              }}
+            >
+              <Handle
+                type="target"
+                position={Position.Left}
+                id={`in-${port.port_id}`}
+                style={{
+                  left: -1,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  width: 8,
+                  height: 8,
+                  backgroundColor: "#adc6ff",
+                  border: "none",
+                }}
+              />
+              <span
+                style={{
+                  fontSize: 10,
+                  fontFamily: "JetBrains Mono, monospace",
+                  color: "#adc6ff",
+                  opacity: 0.8,
+                }}
+              >
+                {port.name}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {/* Outputs column */}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", paddingTop: 4 }}>
+          {data.outputs.map((port, i) => (
+            <div
+              key={port.port_id}
+              style={{
+                height: rowHeight,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "flex-end",
+                paddingRight: 16,
+                position: "relative",
+              }}
+            >
+              <span
+                style={{
+                  fontSize: 10,
+                  fontFamily: "JetBrains Mono, monospace",
+                  color: "#4ae176",
+                  opacity: 0.8,
+                }}
+              >
+                {port.name}
+              </span>
+              <Handle
+                type="source"
+                position={Position.Right}
+                id={`out-${port.port_id}`}
+                style={{
+                  right: -1,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  width: 8,
+                  height: 8,
+                  backgroundColor: "#4ae176",
+                  border: "none",
+                }}
+              />
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
 }
+
+const NODE_TYPES = { transformPreview: TransformPreviewNode };
+
+// ─── Inner canvas that reads selected transform ───────────────────────────────
+
+function CreatorCanvasInner() {
+  const selectedId = useCreatorStore((s) => s.selectedTransformId);
+  const { data: definition, isLoading } = useGetTransformDefinition(selectedId);
+
+  if (selectedId == null) {
+    return (
+      <div className="w-full h-full flex items-center justify-center">
+        <span className="text-sm" style={{ color: "var(--text-muted)" }}>
+          Select or create a transform to begin.
+        </span>
+      </div>
+    );
+  }
+
+  if (isLoading || !definition) {
+    return (
+      <div className="w-full h-full flex items-center justify-center">
+        <span className="text-xs font-mono" style={{ color: "var(--text-muted)" }}>
+          Loading...
+        </span>
+      </div>
+    );
+  }
+
+  const inputs = definition.ports.filter((p) => p.direction === "input");
+  const outputs = definition.ports.filter((p) => p.direction === "output");
+
+  const node = {
+    id: String(definition.transform_id),
+    type: "transformPreview" as const,
+    position: { x: 0, y: 0 },
+    data: { name: definition.name, inputs, outputs },
+    draggable: false,
+  };
+
+  return (
+    <ReactFlow
+      nodes={[node]}
+      edges={[]}
+      nodeTypes={NODE_TYPES}
+      fitView
+      fitViewOptions={{ padding: 0.4 }}
+      nodesDraggable={false}
+      nodesConnectable={false}
+      elementsSelectable={false}
+      zoomOnScroll
+      panOnDrag
+    >
+      <Background
+        variant={BackgroundVariant.Dots}
+        gap={24}
+        size={1}
+        color="rgba(255,255,255,0.04)"
+      />
+    </ReactFlow>
+  );
+}
+
+// ─── Public export ────────────────────────────────────────────────────────────
 
 export function CreatorCanvas() {
   return (

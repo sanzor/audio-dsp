@@ -1,37 +1,39 @@
 import { useState } from "react";
-
-interface TransformEntry {
-  id: string;
-  name: string;
-  icon: string;
-  active?: boolean;
-}
-
-interface TransformGroup {
-  label: string;
-  items: TransformEntry[];
-}
-
-const LIBRARY: TransformGroup[] = [
-  {
-    label: "UNITARY TRANSFORMS",
-    items: [
-      { id: "rms", name: "RMS_DETECTOR (Rust)", icon: "⚙", active: true },
-      { id: "lpf", name: "Low Pass Filter", icon: "⊘" },
-      { id: "comp", name: "Compressor", icon: "⊘" },
-    ],
-  },
-  {
-    label: "COMPOSITE BLUEPRINTS",
-    items: [
-      { id: "master", name: "Mastering Chain", icon: "⬡" },
-      { id: "vocal", name: "Vocal Processor", icon: "⬡" },
-    ],
-  },
-];
+import { useListTransforms } from "@/hooks/transforms/queries";
+import { useCreateTransform } from "@/hooks/transforms/mutations";
+import { useCreatorStore } from "@/Stores/CreatorStore";
 
 export function CreatorLeftPanel() {
-  const [activeId, setActiveId] = useState("rms");
+  const [filter, setFilter] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newDesc, setNewDesc] = useState("");
+
+  const selectedId = useCreatorStore((s) => s.selectedTransformId);
+  const setSelected = useCreatorStore((s) => s.setSelectedTransformId);
+
+  const query = useListTransforms();
+  const createMutation = useCreateTransform();
+
+  const allTransforms = query.data?.pages.flatMap((p) => p.transforms) ?? [];
+  const filtered = filter
+    ? allTransforms.filter((t) => t.name.toLowerCase().includes(filter.toLowerCase()))
+    : allTransforms;
+
+  function handleCreate() {
+    if (!newName.trim()) return;
+    createMutation.mutate(
+      { name: newName.trim(), description: newDesc.trim() || undefined },
+      {
+        onSuccess: (def) => {
+          setSelected(def.transform_id);
+          setCreating(false);
+          setNewName("");
+          setNewDesc("");
+        },
+      }
+    );
+  }
 
   return (
     <aside
@@ -43,92 +45,145 @@ export function CreatorLeftPanel() {
     >
       {/* Header */}
       <div
-        className="px-3 py-2.5 flex flex-col gap-0.5"
+        className="px-3 py-2.5"
         style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
       >
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] font-mono font-bold" style={{ color: "var(--text-main)" }}>
-            CREATOR WORKSPACE
-          </span>
-          <span
-            className="text-[8px] px-1 rounded font-mono"
-            style={{ backgroundColor: "rgba(255,255,255,0.08)", color: "var(--text-muted)" }}
-          >
-            v1.4.2-beta
-          </span>
-        </div>
-        <span className="text-[10px] font-mono" style={{ color: "var(--text-muted)" }}>
-          Library / Existing Transforms
+        <span className="text-[10px] font-mono font-bold" style={{ color: "var(--text-main)" }}>
+          TRANSFORMS
         </span>
       </div>
 
-      {/* Transform list */}
-      <div className="flex-1 overflow-y-auto py-2">
-        {LIBRARY.map((group) => (
-          <div key={group.label} className="mb-3">
-            <div className="flex items-center gap-1.5 px-3 py-1 mb-0.5">
-              <span className="text-[9px] font-mono" style={{ color: "var(--text-muted)" }}>
-                ▾ {group.label}
-              </span>
-            </div>
-            {group.items.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => setActiveId(item.id)}
-                className="w-full flex items-center gap-2.5 h-8 px-4 text-xs transition-colors text-left"
-                style={
-                  activeId === item.id
-                    ? {
-                        color: "#adc6ff",
-                        borderLeft: "2px solid #adc6ff",
-                        backgroundColor: "rgba(173,198,255,0.08)",
-                      }
-                    : { color: "var(--text-muted)", borderLeft: "2px solid transparent" }
-                }
-              >
-                <span className="text-[14px]">{item.icon}</span>
-                <span>{item.name}</span>
-              </button>
-            ))}
+      {/* Filter input */}
+      <div className="px-3 py-2" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+        <input
+          type="text"
+          placeholder="Filter..."
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          className="w-full rounded px-2 py-1 text-xs"
+          style={{
+            backgroundColor: "var(--bg-dark)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            color: "var(--text-main)",
+            outline: "none",
+          }}
+        />
+      </div>
+
+      {/* List */}
+      <div className="flex-1 overflow-y-auto py-1">
+        {query.isLoading && (
+          <div className="px-4 py-3 text-xs" style={{ color: "var(--text-muted)" }}>
+            Loading...
           </div>
+        )}
+        {filtered.map((t) => (
+          <button
+            key={t.transform_id}
+            onClick={() => setSelected(t.transform_id)}
+            className="w-full flex flex-col h-auto py-2 px-4 text-left transition-colors"
+            style={
+              selectedId === t.transform_id
+                ? {
+                    color: "#adc6ff",
+                    borderLeft: "2px solid #adc6ff",
+                    backgroundColor: "rgba(173,198,255,0.08)",
+                  }
+                : { color: "var(--text-muted)", borderLeft: "2px solid transparent" }
+            }
+          >
+            <span className="text-xs">{t.name}</span>
+            {t.description && (
+              <span
+                className="text-[10px] mt-0.5 truncate w-full"
+                style={{ color: "var(--text-muted)", opacity: 0.7 }}
+              >
+                {t.description}
+              </span>
+            )}
+          </button>
         ))}
-      </div>
 
-      {/* Create buttons */}
-      <div className="p-2" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-        <div className="grid grid-cols-2 gap-2 mb-2">
-          <button
-            className="h-8 text-[10px] font-mono rounded flex items-center justify-center gap-1 transition-colors"
-            style={{ border: "1px solid #adc6ff", color: "#adc6ff" }}
-          >
-            + RUST NODE
-          </button>
-          <button
-            className="h-8 text-[10px] font-mono rounded flex items-center justify-center gap-1 transition-colors"
-            style={{ border: "1px solid #4ae176", color: "#4ae176" }}
-          >
-            ⬡ COMPOSITE
-          </button>
-        </div>
-        <button
-          className="w-full h-8 rounded text-[10px] font-mono font-bold flex items-center justify-center gap-2 transition-opacity hover:opacity-90"
-          style={{ backgroundColor: "#adc6ff", color: "#002e6a" }}
-        >
-          ↑ Deploy Transform
-        </button>
-      </div>
+        {!query.isLoading && filtered.length === 0 && (
+          <div className="px-4 py-3 text-xs" style={{ color: "var(--text-muted)" }}>
+            {filter ? "No matches." : "No transforms yet."}
+          </div>
+        )}
 
-      {/* Bottom links */}
-      <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-        {["Store", "Support"].map((label) => (
+        {query.hasNextPage && (
           <button
-            key={label}
-            className="w-full flex items-center gap-3 h-9 px-4 text-xs transition-colors"
+            onClick={() => query.fetchNextPage()}
+            disabled={query.isFetchingNextPage}
+            className="w-full text-[10px] font-mono py-2 transition-colors"
             style={{ color: "var(--text-muted)" }}
           >
-            {label}
+            {query.isFetchingNextPage ? "Loading..." : "Load more"}
           </button>
-        ))}
+        )}
+      </div>
+
+      {/* New transform form / button */}
+      <div className="p-2" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+        {creating ? (
+          <div className="flex flex-col gap-2">
+            <input
+              autoFocus
+              type="text"
+              placeholder="Transform name"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleCreate();
+                if (e.key === "Escape") setCreating(false);
+              }}
+              className="w-full rounded px-2 py-1 text-xs"
+              style={{
+                backgroundColor: "var(--bg-dark)",
+                border: "1px solid #adc6ff",
+                color: "var(--text-main)",
+                outline: "none",
+              }}
+            />
+            <input
+              type="text"
+              placeholder="Description (optional)"
+              value={newDesc}
+              onChange={(e) => setNewDesc(e.target.value)}
+              className="w-full rounded px-2 py-1 text-xs"
+              style={{
+                backgroundColor: "var(--bg-dark)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                color: "var(--text-main)",
+                outline: "none",
+              }}
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => setCreating(false)}
+                className="flex-1 h-7 rounded text-[10px] font-mono"
+                style={{ border: "1px solid rgba(255,255,255,0.12)", color: "var(--text-muted)" }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreate}
+                disabled={!newName.trim() || createMutation.isPending}
+                className="flex-1 h-7 rounded text-[10px] font-mono font-bold"
+                style={{ backgroundColor: "#adc6ff", color: "#002e6a", opacity: !newName.trim() ? 0.5 : 1 }}
+              >
+                {createMutation.isPending ? "..." : "Create"}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={() => setCreating(true)}
+            className="w-full h-8 text-[10px] font-mono rounded"
+            style={{ border: "1px solid #adc6ff", color: "#adc6ff" }}
+          >
+            + New Transform
+          </button>
+        )}
       </div>
     </aside>
   );
