@@ -263,6 +263,11 @@ pub async fn get_transform_binaries(
     }
 }
 
+#[utoipa::path(post,path="/compile",tag="transforms")]
+#[post("/compile")]
+pub async fn compile(app:web::Data::<TransformsAppData>)->HttpResponse{
+    HttpResponse::Ok().finish()
+}
 #[utoipa::path(post, path = "/transforms", tag = "transforms",
     request_body = CreateTransformParams,
     responses((status = 200, description = "Created transform", body = serde_json::Value)))]

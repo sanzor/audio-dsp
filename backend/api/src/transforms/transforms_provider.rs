@@ -2,8 +2,13 @@ use domain::db::db_transform::{
     DbTransform, DbTransformBinary, DbTransformDefinition, DbTransformPort, TransformId,
 };
 
+use crate::transforms::{compile_params::RequestCompileParams, compile_result::CompileResult, request_compile_result::RequestCompileResult, ticket::{ResourceId, TicketId, TicketStatusResult}};
+
 #[async_trait::async_trait]
 pub trait TransformsProvider: Send + Sync {
+    async fn request_compile_transform(&self,params:RequestCompileParams)->Result<RequestCompileResult,String>;
+    async fn get_compile_ticket_status(&self,ticket_id:TicketId)->Result<TicketStatusResult,String>;
+    async fn get_ticket_result(&self,id:ResourceId)->Result<CompileResult,String>;
     async fn list_transform_summaries(&self, offset: i64, limit: i64) -> Result<(Vec<DbTransform>, i64), String>;
     async fn get_transform_definition(&self, id: TransformId) -> Result<DbTransformDefinition, String>;
     async fn get_transform_definitions(&self, ids: &[TransformId]) -> Result<Vec<DbTransformDefinition>, String>;
@@ -14,4 +19,5 @@ pub trait TransformsProvider: Send + Sync {
     async fn delete_transform(&self, id: TransformId) -> Result<(), String>;
     async fn add_port(&self, transform_id: TransformId, name: String, direction: String, port_order: i32, description: Option<String>) -> Result<DbTransformPort, String>;
     async fn delete_port(&self, port_id: i64) -> Result<(), String>;
+
 }

@@ -3,6 +3,8 @@ use std::{collections::HashSet, sync::Arc};
 use domain::{
     db::db_transform::{DbTransform, DbTransformBinary, DbTransformDefinition, DbTransformPort, TransformId},
 };
+use wasmtime::*;
+use crate::transforms::{compile_params::RequestCompileParams, compile_result::CompileResult, request_compile_result::RequestCompileResult, ticket::{ResourceId, TicketId, TicketStatusResult}};
 
 use super::{
     data_provider::transforms_data_provider::TransformsDataProvider,
@@ -38,6 +40,19 @@ impl TransformsProviderService {
 
 #[async_trait::async_trait]
 impl TransformsProvider for TransformsProviderService {
+
+    async fn request_compile_transform(&self,params:RequestCompileParams)->Result<RequestCompileResult,String>{
+       
+    }
+
+    async fn get_compile_ticket_status(&self,id:TicketId)->Result<TicketStatusResult,String>{
+        todo!()
+    }
+    async fn get_ticket_result(&self,id:ResourceId)->Result<CompileResult,String>{
+        todo!()
+    }
+
+   
     async fn list_transform_summaries(&self, offset: i64, limit: i64) -> Result<(Vec<DbTransform>, i64), String> {
         self.data.list_transform_summaries(offset, limit).await
     }

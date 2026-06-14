@@ -3,3 +3,7 @@ pub mod storage_provider;
 pub mod transforms_app_data;
 pub mod transforms_provider;
 pub mod transforms_provider_service;
+pub mod compile_params;
+pub mod compile_result;
+pub mod ticket;
+pub mod request_compile_result;
