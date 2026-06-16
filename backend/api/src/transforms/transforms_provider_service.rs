@@ -1,10 +1,8 @@
 use std::{collections::HashSet, sync::Arc};
 
-use domain::{
-    db::db_transform::{DbTransform, DbTransformBinary, DbTransformDefinition, DbTransformPort, TransformId},
-};
+use domain::db::{db_transform::{DbTransform, DbTransformBinary, DbTransformDefinition, DbTransformPort, TransformId}, ticket::{create_ticket_params::CreateTicketParams, db_ticket::DbTicket}};
 use wasmtime::*;
-use crate::transforms::{compile_params::RequestCompileParams, compile_result::CompileResult, request_compile_result::RequestCompileResult, ticket::{ResourceId, TicketId, TicketStatusResult}};
+use crate::{domain::data_error::DataError, transforms::{compile_params::RequestCompileParams, compile_result::CompileResult, request_compile_result::RequestCompileResult, ticket::{ResourceId, TicketId, TicketStatusResult}}};
 
 use super::{
     data_provider::transforms_data_provider::TransformsDataProvider,
@@ -15,6 +13,7 @@ use super::{
 pub struct TransformsProviderService {
     data: Arc<dyn TransformsDataProvider>,
     storage: Arc<dyn TransformStorageProvider>,
+
 }
 
 impl TransformsProviderService {
@@ -41,8 +40,13 @@ impl TransformsProviderService {
 #[async_trait::async_trait]
 impl TransformsProvider for TransformsProviderService {
 
-    async fn request_compile_transform(&self,params:RequestCompileParams)->Result<RequestCompileResult,String>{
-       
+    async fn request_compile_transform(&self,params:RequestCompileParams)->Result<DbTicket,DataError>{
+        self.data.create_ticket(CreateTicketParams{
+            transform_id:params.transform_id,
+            user_id:params.user_id,
+            source_code:params.payload
+       }).await
+
     }
 
     async fn get_compile_ticket_status(&self,id:TicketId)->Result<TicketStatusResult,String>{

@@ -1,6 +1,4 @@
-use domain::{
-    db::db_transform::{DbTransform, DbTransformDefinition, DbTransformParam, DbTransformPort, TransformId},
-};
+use domain::db::{db_transform::{DbTransform, DbTransformDefinition, DbTransformParam, DbTransformPort, TransformId}, ticket::db_ticket::DbTicket};
 use sqlx::PgPool;
 
 use super::transforms_data_provider::TransformsDataProvider;
@@ -27,6 +25,11 @@ struct DbTransformDefinitionRow {
 
 #[async_trait::async_trait]
 impl TransformsDataProvider for PostgresTransformsDataProvider {
+
+    async fn create_ticket(&self,ticket:crate::transforms::ticket::create_ticket_params::CreateTicketParams)->Result<DbTicket,DataError>{
+    {
+        sqlx::query_as::<_,DbTicket>()
+    }
     async fn get_transform(&self, id: TransformId) -> Result<DbTransform, String> {
         sqlx::query_as::<_, DbTransform>(
             r#"SELECT transform_id, name, description, icon, created_at FROM transforms WHERE transform_id = $1"#,

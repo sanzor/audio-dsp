@@ -1,9 +1,15 @@
-use domain::{
-    db::db_transform::{DbTransform, DbTransformDefinition, DbTransformPort, TransformId},
-};
+use domain::db::{db_transform::{DbTransform, DbTransformDefinition, DbTransformPort, TransformId}, ticket::{create_ticket_params::CreateTicketParams, db_ticket::DbTicket}};
+
+use crate::{domain::data_error::DataError, transforms::ticket::TicketId};
 
 #[async_trait::async_trait]
 pub trait TransformsDataProvider: Send + Sync {
+
+    async fn create_ticket(&self,ticket:CreateTicketParams)->Result<DbTicket,DataError>;
+    async fn get_ticket(&self,ticket_id:TicketId)->Result<DbTicket,DataError>;
+    async fn remove_ticket(&self,ticket_id:TicketId)->Result<(),DataError>;
+    async fn update_ticket(&self,ticket_id:TicketId)->Result<DbTicket,DataError>;
+    
     async fn get_transform(&self, id: TransformId) -> Result<DbTransform, String>;
     async fn get_transform_definition(&self, id: TransformId) -> Result<DbTransformDefinition, String>;
     async fn get_transform_definitions(&self, ids: &[TransformId]) -> Result<Vec<DbTransformDefinition>, String>;

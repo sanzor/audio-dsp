@@ -1,5 +1,7 @@
+use crate::domain_user::UserId;
+
 pub trait User {
-    fn id(&self) -> i64;
+    fn id(&self) -> UserId;
     fn name(&self) -> &str;
     fn email(&self) -> &str;
 }
