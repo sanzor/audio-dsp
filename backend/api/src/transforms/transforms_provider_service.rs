@@ -1,8 +1,9 @@
 use std::{collections::HashSet, sync::Arc};
 
-use domain::db::{db_transform::{DbTransform, DbTransformBinary, DbTransformDefinition, DbTransformPort, TransformId}, ticket::{create_ticket_params::CreateTicketParams, db_ticket::DbTicket}};
+use domain::db::{db_transform::{DbTransform, DbTransformBinary, DbTransformDefinition, DbTransformPort, TransformId}, ticket::{create_ticket_params::CreateTicketParams, db_resource::ResourceId, db_ticket::{DbTicket, TicketId}}};
 use wasmtime::*;
-use crate::{domain::data_error::DataError, transforms::{compile_params::RequestCompileParams, compile_result::CompileResult, request_compile_result::RequestCompileResult, ticket::{ResourceId, TicketId, TicketStatusResult}}};
+use crate::{domain::{ service_error::ServiceError},
+         transforms::{compile_params::RequestCompileParams, compile_result::CompileResult}};
 
 use super::{
     data_provider::transforms_data_provider::TransformsDataProvider,
@@ -40,52 +41,55 @@ impl TransformsProviderService {
 #[async_trait::async_trait]
 impl TransformsProvider for TransformsProviderService {
 
-    async fn request_compile_transform(&self,params:RequestCompileParams)->Result<DbTicket,DataError>{
+    async fn request_compile_transform(&self,params:RequestCompileParams)->Result<DbTicket,ServiceError>{
         self.data.create_ticket(CreateTicketParams{
             transform_id:params.transform_id,
             user_id:params.user_id,
             source_code:params.payload
-       }).await
+       }).await.map_err(ServiceError::from)
 
     }
 
-    async fn get_compile_ticket_status(&self,id:TicketId)->Result<TicketStatusResult,String>{
-        todo!()
+    async fn get_compile_ticket_status(&self,id:TicketId)->Result<DbTicket,ServiceError>{
+        self.data.get_ticket(id)
+            .await
+            .map_err(ServiceError::from)
     }
-    async fn get_ticket_result(&self,id:ResourceId)->Result<CompileResult,String>{
+    async fn get_ticket_result(&self,id:ResourceId)->Result<CompileResult,ServiceError>{
         todo!()
     }
 
    
-    async fn list_transform_summaries(&self, offset: i64, limit: i64) -> Result<(Vec<DbTransform>, i64), String> {
-        self.data.list_transform_summaries(offset, limit).await
+    async fn list_transform_summaries(&self, offset: i64, limit: i64) -> Result<(Vec<DbTransform>, i64), ServiceError> {
+        self.data.list_transform_summaries(offset, limit).await.map_err(ServiceError::from)
     }
 
-    async fn get_transform_definition(&self, id: TransformId) -> Result<DbTransformDefinition, String> {
-        self.data.get_transform_definition(id).await
+    async fn get_transform_definition(&self, id: TransformId) -> Result<DbTransformDefinition, ServiceError> {
+        self.data.get_transform_definition(id).await.map_err(ServiceError::from)
     }
 
-    async fn get_transform_definitions(&self, ids: &[TransformId]) -> Result<Vec<DbTransformDefinition>, String> {
+    async fn get_transform_definitions(&self, ids: &[TransformId]) -> Result<Vec<DbTransformDefinition>, ServiceError> {
         let definitions = self.data.get_transform_definitions(ids).await?;
         let missing_ids = Self::collect_missing_ids(ids, &definitions, |definition| definition.transform_id);
         if missing_ids.is_empty() {
             Ok(definitions)
         } else {
-            Err(format!("Transforms not found: {:?}", missing_ids))
+            // ServiceError::NotFound(format!("Transforms not found: {:?}", missing_ids))
+            Err(ServiceError::NotFound)
         }
     }
 
-    async fn get_transform_binary(&self, id: TransformId) -> Result<Vec<u8>, String> {
-        self.storage.get_transform_binary(id).await
+    async fn get_transform_binary(&self, id: TransformId) -> Result<Vec<u8>, ServiceError> {
+        self.storage.get_transform_binary(id).await.map_err(ServiceError::from)
     }
 
-    async fn get_transform_binaries(&self, ids: &[TransformId]) -> Result<Vec<DbTransformBinary>, String> {
+    async fn get_transform_binaries(&self, ids: &[TransformId]) -> Result<Vec<DbTransformBinary>, ServiceError> {
         let binaries = self.storage.get_transform_binaries(ids).await?;
         let missing_ids = Self::collect_missing_ids(ids, &binaries, |binary| binary.transform_id);
         if missing_ids.is_empty() {
             Ok(binaries)
         } else {
-            Err(format!("Transform binaries not found: {:?}", missing_ids))
+             Err(ServiceError::NotFound)
         }
     }
 
@@ -94,9 +98,9 @@ impl TransformsProvider for TransformsProviderService {
         name: String,
         description: Option<String>,
         icon: Option<String>,
-    ) -> Result<DbTransformDefinition, String> {
+    ) -> Result<DbTransformDefinition, ServiceError> {
         let db = self.data.insert_transform(name, description, icon).await?;
-        self.data.get_transform_definition(db.transform_id).await
+        self.data.get_transform_definition(db.transform_id).await.map_err(ServiceError::from)
     }
 
     async fn update_transform(
@@ -105,13 +109,14 @@ impl TransformsProvider for TransformsProviderService {
         name: String,
         description: Option<String>,
         icon: Option<String>,
-    ) -> Result<DbTransformDefinition, String> {
+    ) -> Result<DbTransformDefinition, ServiceError> {
         let db = self.data.update_transform(id, name, description, icon).await?;
-        self.data.get_transform_definition(db.transform_id).await
+        self.data.get_transform_definition(db.transform_id).await.map_err(ServiceError::from)
     }
 
-    async fn delete_transform(&self, id: TransformId) -> Result<(), String> {
-        self.data.delete_transform(id).await
+    async fn delete_transform(&self, id: TransformId) -> Result<(), ServiceError> {
+        let v=self.data.delete_transform(id).await.map_err(ServiceError::from);
+        v
     }
 
     async fn add_port(
@@ -121,11 +126,11 @@ impl TransformsProvider for TransformsProviderService {
         direction: String,
         port_order: i32,
         description: Option<String>,
-    ) -> Result<DbTransformPort, String> {
-        self.data.insert_port(transform_id, name, direction, port_order, description).await
+    ) -> Result<DbTransformPort, ServiceError> {
+        self.data.insert_port(transform_id, name, direction, port_order, description).await.map_err(ServiceError::from)
     }
 
-    async fn delete_port(&self, port_id: i64) -> Result<(), String> {
-        self.data.delete_port(port_id).await
+    async fn delete_port(&self, port_id: i64) -> Result<(), ServiceError> {
+        self.data.delete_port(port_id).await.map_err(ServiceError::from)
     }
 }

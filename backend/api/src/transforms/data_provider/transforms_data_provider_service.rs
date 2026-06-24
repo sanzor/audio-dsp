@@ -1,5 +1,10 @@
-use domain::db::{db_transform::{DbTransform, DbTransformDefinition, DbTransformParam, DbTransformPort, TransformId}, ticket::db_ticket::DbTicket};
+use domain::db::{
+    db_transform::{DbTransform, DbTransformDefinition, DbTransformParam, DbTransformPort, TransformId},
+    ticket::{create_ticket_params::CreateTicketParams, db_ticket::{DbTicket, TicketId}, ticket_status::TicketStatus},
+};
 use sqlx::PgPool;
+
+use crate::{domain::data_error::DataError};
 
 use super::transforms_data_provider::TransformsDataProvider;
 
@@ -23,13 +28,106 @@ struct DbTransformDefinitionRow {
     params: sqlx::types::Json<Vec<DbTransformParam>>,
 }
 
+#[derive(sqlx::FromRow)]
+struct DbTicketRow {
+    id: TicketId,
+    issued_by: i64,
+    status: String,
+    resource_id: Option<i64>,
+    timestamp: i64,
+}
+
+impl TryFrom<DbTicketRow> for DbTicket {
+    type Error = DataError;
+
+    fn try_from(value: DbTicketRow) -> Result<Self, Self::Error> {
+        let status = match value.status.as_str() {
+            "processing" => TicketStatus::Processing,
+            "failed" => TicketStatus::Failed,
+            "successful" => {
+                let resource_id = value.resource_id.ok_or_else(|| {
+                    DataError::Internal("successful ticket is missing its resource".to_string())
+                })?;
+                TicketStatus::Successful { resource_id }
+            }
+            other => {
+                return Err(DataError::Internal(format!(
+                    "unsupported transform ticket status: {other}"
+                )))
+            }
+        };
+
+        Ok(DbTicket {
+            id: value.id,
+            issued_by: value.issued_by,
+            status,
+            timestamp: value.timestamp,
+        })
+    }
+}
+
 #[async_trait::async_trait]
 impl TransformsDataProvider for PostgresTransformsDataProvider {
+    async fn create_ticket(&self, ticket: CreateTicketParams) -> Result<DbTicket, DataError> {
+        let row = sqlx::query_as::<_, DbTicketRow>(
+            r#"
+            INSERT INTO transform_tickets (transform_id, issued_by, source_code, status)
+            VALUES ($1, $2, $3, 'processing')
+            RETURNING
+                ticket_id AS id,
+                issued_by,
+                status,
+                NULL::BIGINT AS resource_id,
+                EXTRACT(EPOCH FROM created_at)::BIGINT AS timestamp
+            "#,
+        )
+        .bind(ticket.transform_id)
+        .bind(ticket.user_id)
+        .bind(ticket.source_code)
+        .fetch_one(&self.pool)
+        .await?;
 
-    async fn create_ticket(&self,ticket:crate::transforms::ticket::create_ticket_params::CreateTicketParams)->Result<DbTicket,DataError>{
-    {
-        sqlx::query_as::<_,DbTicket>()
+        DbTicket::try_from(row)
     }
+
+    async fn get_ticket(&self, ticket_id: TicketId) -> Result<DbTicket, DataError> {
+        let row = sqlx::query_as::<_, DbTicketRow>(
+            r#"
+            SELECT
+                tt.ticket_id AS id,
+                tt.issued_by,
+                tt.status,
+                tr.resource_id,
+                EXTRACT(EPOCH FROM tt.created_at)::BIGINT AS timestamp
+            FROM transform_tickets tt
+            LEFT JOIN transform_resources tr ON tr.ticket_id = tt.ticket_id
+            WHERE tt.ticket_id = $1
+            "#,
+        )
+        .bind(ticket_id)
+        .fetch_one(&self.pool)
+        .await?;
+
+        DbTicket::try_from(row)
+    }
+
+    async fn remove_ticket(&self, ticket_id: TicketId) -> Result<(), DataError> {
+        let result = sqlx::query(r#"DELETE FROM transform_tickets WHERE ticket_id = $1"#)
+            .bind(ticket_id)
+            .execute(&self.pool)
+            .await?;
+
+        if result.rows_affected() == 0 {
+            Err(DataError::NotFound)
+        } else {
+            Ok(())
+        }
+    }
+
+    async fn update_ticket(&self, ticket_id: TicketId) -> Result<DbTicket, DataError> {
+        self.get_ticket(ticket_id).await
+    }
+
     async fn get_transform(&self, id: TransformId) -> Result<DbTransform, String> {
         sqlx::query_as::<_, DbTransform>(
             r#"SELECT transform_id, name, description, icon, created_at FROM transforms WHERE transform_id = $1"#,

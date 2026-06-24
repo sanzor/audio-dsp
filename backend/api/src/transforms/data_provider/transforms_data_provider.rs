@@ -1,6 +1,6 @@
-use domain::db::{db_transform::{DbTransform, DbTransformDefinition, DbTransformPort, TransformId}, ticket::{create_ticket_params::CreateTicketParams, db_ticket::DbTicket}};
+use domain::db::{db_transform::{DbTransform, DbTransformDefinition, DbTransformPort, TransformId}, ticket::{create_ticket_params::CreateTicketParams, db_ticket::{DbTicket, TicketId}}};
 
-use crate::{domain::data_error::DataError, transforms::ticket::TicketId};
+use crate::{domain::data_error::DataError};
 
 #[async_trait::async_trait]
 pub trait TransformsDataProvider: Send + Sync {

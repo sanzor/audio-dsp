@@ -1,8 +1,13 @@
-use crate::domain_user::UserId;
+use serde::{Deserialize, Serialize};
 
-pub type TicketId=i64;
-pub struct DbTicket{
-    pub id:TicketId,
-    pub issued_by:UserId,
-    pub timestamp:i64
+use crate::{db::ticket::ticket_status::TicketStatus, domain_user::UserId};
+
+pub type TicketId = i64;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DbTicket {
+    pub id: TicketId,
+    pub issued_by: UserId,
+    pub status: TicketStatus,
+    pub timestamp: i64,
 }
