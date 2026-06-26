@@ -107,7 +107,17 @@ use api::{
         transforms_app_data::TransformsAppData,
         transforms_provider_service::TransformsProviderService,
     },
+    infra::producer::channel_producer::ChannelProducer,
+    worker::{
+        consumer::channel_consumer::ChannelConsumer,
+        events::ticket_created_event::TicketCreatedEvent,
+        processor::processor::Processor,
+        worker::Worker,
+        worker_config::WorkerConfig,
+        worker_params::WorkerParams,
+    },
 };
+use tokio_util::sync::CancellationToken;
 use tracing_actix_web::TracingLogger;
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
@@ -352,12 +362,29 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
             UsageDataProviderService::new(pool.clone()),
         ))),
     };
+    let (tx, rx) = tokio::sync::mpsc::channel::<TicketCreatedEvent>(256);
+    let producer: Arc<dyn api::infra::producer::producer::Producer<TicketCreatedEvent>> =
+        Arc::new(ChannelProducer::new(tx));
+
+    let transforms_data_provider: Arc<dyn api::transforms::data_provider::transforms_data_provider::TransformsDataProvider> =
+        Arc::new(PostgresTransformsDataProvider::new(pool.clone()));
     let transforms_app_data = TransformsAppData {
         transforms_service: Arc::new(TransformsProviderService::new(
-            Arc::new(PostgresTransformsDataProvider::new(pool.clone())),
+            Arc::clone(&transforms_data_provider),
             Arc::new(DbTransformStorageProvider::new(pool.clone())),
+            Arc::clone(&producer),
         )),
     };
+
+    let token = CancellationToken::new();
+    let worker_handle = Worker::spawn(
+        WorkerParams {
+            consumer: Box::new(ChannelConsumer::new(rx)),
+            processor: Processor::new(Arc::clone(&transforms_data_provider)),
+        },
+        WorkerConfig::default(),
+        token.clone(),
+    );
     let stored_tracks_app_data = StoredTracksAppData {
         tracks_service: Arc::clone(&tracks_service)
             as Arc<dyn api::tracks::tracks_provider::TracksProvider>,
@@ -376,7 +403,7 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
 
     println!("Server running at http://{host}:{port}");
 
-    HttpServer::new(move || {
+    let server = HttpServer::new(move || {
         let cors = actix_cors::Cors::default()
             .allowed_origin_fn(|origin, _| {
                 let o = origin.as_bytes();
@@ -506,6 +533,22 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
             )
     })
     .bind((host.as_str(), port))?
-    .run()
-    .await
+    .run();
+
+    let server_handle = server.handle();
+    tokio::spawn(server);
+
+    tokio::select! {
+        _ = tokio::signal::ctrl_c() => {
+            tracing::info!("received ctrl+c, shutting down");
+            token.cancel();
+            server_handle.stop(true).await;
+        }
+        result = worker_handle => {
+            tracing::error!("worker exited unexpectedly: {:?}", result);
+            server_handle.stop(true).await;
+        }
+    }
+
+    Ok(())
 }

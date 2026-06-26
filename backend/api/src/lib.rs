@@ -26,3 +26,5 @@ pub mod transforms;
 pub mod stored_tracks;
 pub mod token;
 pub mod workspace;
+pub mod worker;
+pub mod infra;

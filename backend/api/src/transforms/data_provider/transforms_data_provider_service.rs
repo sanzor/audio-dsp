@@ -1,6 +1,6 @@
 use domain::db::{
     db_transform::{DbTransform, DbTransformDefinition, DbTransformParam, DbTransformPort, TransformId},
-    ticket::{create_ticket_params::CreateTicketParams, db_ticket::{DbTicket, TicketId}, ticket_status::TicketStatus},
+    ticket::{create_ticket_params::CreateTicketParams, db_resource::{DbResource, ResourceId}, db_ticket::{DbTicket, TicketId}, ticket_status::TicketStatus},
 };
 use sqlx::PgPool;
 
@@ -126,6 +126,66 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
 
     async fn update_ticket(&self, ticket_id: TicketId) -> Result<DbTicket, DataError> {
         self.get_ticket(ticket_id).await
+    }
+
+    async fn create_resource(&self, ticket_id: TicketId) -> Result<DbResource, DataError> {
+        let row = sqlx::query_as::<_, DbResource>(
+            r#"
+            INSERT INTO transform_resources (ticket_id)
+            VALUES ($1)
+            RETURNING resource_id AS id, ticket_id
+            "#,
+        )
+        .bind(ticket_id)
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(row)
+    }
+
+    async fn get_resource(&self, resource_id: ResourceId) -> Result<DbResource, DataError> {
+        let row = sqlx::query_as::<_, DbResource>(
+            r#"
+            SELECT resource_id AS id, ticket_id
+            FROM transform_resources
+            WHERE resource_id = $1
+            "#,
+        )
+        .bind(resource_id)
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(row)
+    }
+
+    async fn update_resource(&self, resource_id: ResourceId, ticket_id: TicketId) -> Result<DbResource, DataError> {
+        let row = sqlx::query_as::<_, DbResource>(
+            r#"
+            UPDATE transform_resources
+            SET ticket_id = $2
+            WHERE resource_id = $1
+            RETURNING resource_id AS id, ticket_id
+            "#,
+        )
+        .bind(resource_id)
+        .bind(ticket_id)
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(row)
+    }
+
+    async fn remove_resource(&self, resource_id: ResourceId) -> Result<(), DataError> {
+        let result = sqlx::query(r#"DELETE FROM transform_resources WHERE resource_id = $1"#)
+            .bind(resource_id)
+            .execute(&self.pool)
+            .await?;
+
+        if result.rows_affected() == 0 {
+            Err(DataError::NotFound)
+        } else {
+            Ok(())
+        }
     }
 
     async fn get_transform(&self, id: TransformId) -> Result<DbTransform, String> {

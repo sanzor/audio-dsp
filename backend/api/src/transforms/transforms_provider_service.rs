@@ -2,8 +2,12 @@ use std::{collections::HashSet, sync::Arc};
 
 use domain::db::{db_transform::{DbTransform, DbTransformBinary, DbTransformDefinition, DbTransformPort, TransformId}, ticket::{create_ticket_params::CreateTicketParams, db_resource::ResourceId, db_ticket::{DbTicket, TicketId}}};
 use wasmtime::*;
-use crate::{domain::{ service_error::ServiceError},
-         transforms::{compile_params::RequestCompileParams, compile_result::CompileResult}};
+use crate::{
+    domain::service_error::ServiceError,
+    infra::producer::producer::Producer,
+    transforms::{compile_params::RequestCompileParams, compile_result::CompileResult},
+    worker::events::ticket_created_event::TicketCreatedEvent,
+};
 
 use super::{
     data_provider::transforms_data_provider::TransformsDataProvider,
@@ -14,15 +18,16 @@ use super::{
 pub struct TransformsProviderService {
     data: Arc<dyn TransformsDataProvider>,
     storage: Arc<dyn TransformStorageProvider>,
-
+    producer: Arc<dyn Producer<TicketCreatedEvent>>,
 }
 
 impl TransformsProviderService {
     pub fn new(
         data: Arc<dyn TransformsDataProvider>,
         storage: Arc<dyn TransformStorageProvider>,
+        producer: Arc<dyn Producer<TicketCreatedEvent>>,
     ) -> Self {
-        Self { data, storage }
+        Self { data, storage, producer }
     }
 
     fn collect_missing_ids<T, F>(requested_ids: &[TransformId], items: &[T], get_id: F) -> Vec<TransformId>
@@ -41,13 +46,25 @@ impl TransformsProviderService {
 #[async_trait::async_trait]
 impl TransformsProvider for TransformsProviderService {
 
-    async fn request_compile_transform(&self,params:RequestCompileParams)->Result<DbTicket,ServiceError>{
-        self.data.create_ticket(CreateTicketParams{
-            transform_id:params.transform_id,
-            user_id:params.user_id,
-            source_code:params.payload
-       }).await.map_err(ServiceError::from)
+    async fn request_compile_transform(&self, params: RequestCompileParams) -> Result<DbTicket, ServiceError> {
+        let source_code = params.payload;
+        let transform_id = params.transform_id;
 
+        let ticket = self.data.create_ticket(CreateTicketParams {
+            transform_id,
+            user_id: params.user_id,
+            source_code: source_code.clone(),
+        }).await.map_err(ServiceError::from)?;
+
+        if let Err(e) = self.producer.produce(TicketCreatedEvent {
+            ticket_id: ticket.id,
+            transform_id,
+            source_code,
+        }).await {
+            tracing::error!(error = %e, "failed to produce TicketCreatedEvent");
+        }
+
+        Ok(ticket)
     }
 
     async fn get_compile_ticket_status(&self,id:TicketId)->Result<DbTicket,ServiceError>{
@@ -56,7 +73,11 @@ impl TransformsProvider for TransformsProviderService {
             .map_err(ServiceError::from)
     }
     async fn get_ticket_result(&self,id:ResourceId)->Result<CompileResult,ServiceError>{
-        todo!()
+        let resource = self.data.get_resource(id).await.map_err(ServiceError::from)?;
+        Ok(CompileResult {
+            resource_id: resource.id,
+            ticket_id: resource.ticket_id,
+        })
     }
 
    

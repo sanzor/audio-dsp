@@ -1,11 +1,22 @@
 use crate::{
+    domain::service_error::ServiceError,
+    middlewares::jwt::jwt_context::JwtContext,
     middlewares::role_context::role_context::RoleContext,
+    transforms::{compile_params::RequestCompileParams, compile_result::CompileResult},
     transforms::transforms_app_data::TransformsAppData,
 };
 use actix_web::{delete, get, post, put, web, HttpResponse};
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine};
-use domain::db::db_transform::{DbTransform, DbTransformDefinition, DbTransformParam, DbTransformPort, TransformId};
+use domain::{db::{
+    db_transform::{DbTransform, DbTransformDefinition, DbTransformParam, DbTransformPort, TransformId},
+    ticket::{
+        db_resource::ResourceId,
+        db_ticket::{DbTicket, TicketId},
+        ticket_status::TicketStatus,
+    },
+}, domain_user::UserId};
 use serde::{Deserialize, Serialize};
+use tracing::error;
 use utoipa::{IntoParams, ToSchema};
 
 // ─── Request / Response types ────────────────────────────────────────────────
@@ -103,9 +114,49 @@ pub struct TransformBinariesResponse {
     pub binaries: Vec<TransformBinaryDto>,
 }
 
+#[derive(Debug, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateCompileTicketRequest {
+    pub transform_id: TransformId,
+    pub source_code: String,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct CompileTicketStatusDto {
+    pub state: String,
+    pub resource_id: Option<ResourceId>,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct CompileTicketDto {
+    pub ticket_id: TicketId,
+    pub issued_by: i64,
+    pub status: CompileTicketStatusDto,
+    pub timestamp: i64,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct CompileResourceDto {
+    pub resource_id: ResourceId,
+    pub ticket_id: TicketId,
+}
+
 #[derive(Deserialize, IntoParams)]
 pub struct TransformIdPath {
     pub transform_id: TransformId,
+}
+
+#[derive(Deserialize, IntoParams)]
+pub struct TicketIdPath {
+    pub ticket_id: TicketId,
+}
+
+#[derive(Deserialize, IntoParams)]
+pub struct ResourceIdPath {
+    pub resource_id: ResourceId,
 }
 
 #[derive(Deserialize)]
@@ -172,6 +223,57 @@ impl From<domain::db::db_transform::DbTransformBinary> for TransformBinaryDto {
     }
 }
 
+impl From<TicketStatus> for CompileTicketStatusDto {
+    fn from(value: TicketStatus) -> Self {
+        match value {
+            TicketStatus::Processing => Self {
+                state: "processing".to_string(),
+                resource_id: None,
+            },
+            TicketStatus::Failed => Self {
+                state: "failed".to_string(),
+                resource_id: None,
+            },
+            TicketStatus::Successful { resource_id } => Self {
+                state: "successful".to_string(),
+                resource_id: Some(resource_id),
+            },
+        }
+    }
+}
+
+impl From<DbTicket> for CompileTicketDto {
+    fn from(value: DbTicket) -> Self {
+        Self {
+            ticket_id: value.id,
+            issued_by: value.issued_by,
+            status: value.status.into(),
+            timestamp: value.timestamp,
+        }
+    }
+}
+
+impl From<CompileResult> for CompileResourceDto {
+    fn from(value: CompileResult) -> Self {
+        Self {
+            resource_id: value.resource_id,
+            ticket_id: value.ticket_id,
+        }
+    }
+}
+
+fn map_service_error(err: ServiceError) -> HttpResponse {
+    match err {
+        ServiceError::NotFound => HttpResponse::NotFound().body("not found"),
+        ServiceError::Conflict(msg) => HttpResponse::Conflict().body(msg),
+        ServiceError::Validation(msg) => HttpResponse::BadRequest().body(msg),
+        ServiceError::Internal(msg) => {
+            error!(error = %msg, "internal error");
+            HttpResponse::InternalServerError().body("internal server error")
+        }
+    }
+}
+
 // ─── Handlers ────────────────────────────────────────────────────────────────
 
 #[utoipa::path(get, path = "/transforms", tag = "transforms",
@@ -190,7 +292,7 @@ pub async fn list_transform_summaries(
             transforms: transforms.into_iter().map(TransformSummaryDto::from).collect(),
             total,
         }),
-        Err(e) => HttpResponse::InternalServerError().body(e),
+        Err(e) => map_service_error(e),
     }
 }
 
@@ -205,7 +307,7 @@ pub async fn get_transform_definition(
 ) -> HttpResponse {
     match app.transforms_service.get_transform_definition(path.into_inner().transform_id).await {
         Ok(t) => HttpResponse::Ok().json(TransformDefinitionDto::from(t)),
-        Err(e) => HttpResponse::NotFound().body(e),
+        Err(e) => map_service_error(e),
     }
 }
 
@@ -223,7 +325,7 @@ pub async fn resolve_transform_definitions(
         Ok(transforms) => HttpResponse::Ok().json(TransformDefinitionsResponse {
             transforms: transforms.into_iter().map(TransformDefinitionDto::from).collect(),
         }),
-        Err(e) => HttpResponse::NotFound().body(e),
+        Err(e) => map_service_error(e),
     }
 }
 
@@ -241,7 +343,7 @@ pub async fn get_transform_binary(
         Ok(bytes) => HttpResponse::Ok()
             .content_type("application/wasm")
             .body(bytes),
-        Err(e) => HttpResponse::NotFound().body(e),
+        Err(e) => map_service_error(e),
     }
 }
 
@@ -259,14 +361,87 @@ pub async fn get_transform_binaries(
         Ok(binaries) => HttpResponse::Ok().json(TransformBinariesResponse {
             binaries: binaries.into_iter().map(TransformBinaryDto::from).collect(),
         }),
-        Err(e) => HttpResponse::NotFound().body(e),
+        Err(e) => map_service_error(e),
     }
 }
 
-#[utoipa::path(post,path="/compile",tag="transforms")]
-#[post("/compile")]
-pub async fn compile(app:web::Data::<TransformsAppData>)->HttpResponse{
-    HttpResponse::Ok().finish()
+#[utoipa::path(post, path = "/transforms/tickets", tag = "transforms",
+    request_body = CreateCompileTicketRequest,
+    responses((status = 201, description = "Compile ticket created", body = CompileTicketDto)))]
+#[post("/tickets")]
+pub async fn create_compile_ticket(
+    auth: JwtContext,
+    role: RoleContext,
+    body: web::Json<CreateCompileTicketRequest>,
+    app: web::Data<TransformsAppData>,
+) -> HttpResponse {
+    if !role.can_edit() {
+        return HttpResponse::Forbidden().body("Forbidden");
+    }
+
+    let request = body.into_inner();
+    if request.source_code.trim().is_empty() {
+        return HttpResponse::BadRequest().body("sourceCode is required");
+    }
+
+    match app
+        .transforms_service
+        .request_compile_transform(RequestCompileParams {
+            user_id: UserId::from(auth.user_id),
+            transform_id: request.transform_id,
+            payload: request.source_code,
+        })
+        .await
+    {
+        Ok(ticket) => HttpResponse::Created().json(CompileTicketDto::from(ticket)),
+        Err(e) => map_service_error(e),
+    }
+}
+
+#[utoipa::path(get, path = "/transforms/tickets/{ticket_id}", tag = "transforms",
+    params(TicketIdPath),
+    responses((status = 200, description = "Compile ticket status", body = CompileTicketDto)))]
+#[get("/tickets/{ticket_id}")]
+pub async fn get_compile_ticket_status(
+    role: RoleContext,
+    path: web::Path<TicketIdPath>,
+    app: web::Data<TransformsAppData>,
+) -> HttpResponse {
+    if !role.can_view() {
+        return HttpResponse::Forbidden().body("Forbidden");
+    }
+
+    match app
+        .transforms_service
+        .get_compile_ticket_status(path.into_inner().ticket_id)
+        .await
+    {
+        Ok(ticket) => HttpResponse::Ok().json(CompileTicketDto::from(ticket)),
+        Err(e) => map_service_error(e),
+    }
+}
+
+#[utoipa::path(get, path = "/transforms/resources/{resource_id}", tag = "transforms",
+    params(ResourceIdPath),
+    responses((status = 200, description = "Compile resource", body = CompileResourceDto)))]
+#[get("/resources/{resource_id}")]
+pub async fn get_compile_resource(
+    role: RoleContext,
+    path: web::Path<ResourceIdPath>,
+    app: web::Data<TransformsAppData>,
+) -> HttpResponse {
+    if !role.can_view() {
+        return HttpResponse::Forbidden().body("Forbidden");
+    }
+
+    match app
+        .transforms_service
+        .get_ticket_result(path.into_inner().resource_id)
+        .await
+    {
+        Ok(resource) => HttpResponse::Ok().json(CompileResourceDto::from(resource)),
+        Err(e) => map_service_error(e),
+    }
 }
 #[utoipa::path(post, path = "/transforms", tag = "transforms",
     request_body = CreateTransformParams,
@@ -283,7 +458,7 @@ pub async fn create_transform(
     let p = body.into_inner();
     match app.transforms_service.create_transform(p.name, p.description, p.icon).await {
         Ok(t) => HttpResponse::Ok().json(TransformDefinitionDto::from(t)),
-        Err(e) => HttpResponse::InternalServerError().body(e),
+        Err(e) => map_service_error(e),
     }
 }
 
@@ -304,7 +479,7 @@ pub async fn update_transform(
     let p = body.into_inner();
     match app.transforms_service.update_transform(path.into_inner().transform_id, p.name, p.description, p.icon).await {
         Ok(t) => HttpResponse::Ok().json(TransformDefinitionDto::from(t)),
-        Err(e) => HttpResponse::InternalServerError().body(e),
+        Err(e) => map_service_error(e),
     }
 }
 
@@ -322,7 +497,7 @@ pub async fn delete_transform(
     }
     match app.transforms_service.delete_transform(path.into_inner().transform_id).await {
         Ok(_) => HttpResponse::Ok().body("Deleted"),
-        Err(e) => HttpResponse::InternalServerError().body(e),
+        Err(e) => map_service_error(e),
     }
 }
 
@@ -343,7 +518,7 @@ pub async fn add_port(
     let p = body.into_inner();
     match app.transforms_service.add_port(path.into_inner().transform_id, p.name, p.direction, p.port_order, p.description).await {
         Ok(port) => HttpResponse::Ok().json(TransformPortDto::from(port)),
-        Err(e) => HttpResponse::InternalServerError().body(e),
+        Err(e) => map_service_error(e),
     }
 }
 
@@ -361,7 +536,7 @@ pub async fn delete_port(
     }
     match app.transforms_service.delete_port(path.into_inner().port_id).await {
         Ok(_) => HttpResponse::Ok().body("Deleted"),
-        Err(e) => HttpResponse::InternalServerError().body(e),
+        Err(e) => map_service_error(e),
     }
 }
 
@@ -373,6 +548,9 @@ pub fn init(cfg: &mut web::ServiceConfig) {
         .service(resolve_transform_definitions)
         .service(get_transform_binary)
         .service(get_transform_binaries)
+        .service(create_compile_ticket)
+        .service(get_compile_ticket_status)
+        .service(get_compile_resource)
         .service(create_transform)
         .service(update_transform)
         .service(delete_transform)
