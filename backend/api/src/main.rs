@@ -111,7 +111,7 @@ use api::{
     worker::{
         consumer::channel_consumer::ChannelConsumer,
         events::ticket_created_event::TicketCreatedEvent,
-        processor::processor::Processor,
+        processor::{processor::Processor, processor_params::ProcessorParams},
         worker::Worker,
         worker_config::WorkerConfig,
         worker_params::WorkerParams,
@@ -380,7 +380,10 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
     let worker_handle = Worker::spawn(
         WorkerParams {
             consumer: Box::new(ChannelConsumer::new(rx)),
-            processor: Processor::new(Arc::clone(&transforms_data_provider)),
+            processor: Processor::new(ProcessorParams {
+                data_provider: Arc::clone(&transforms_data_provider),
+                storage: Box::new(DbTransformStorageProvider::new(pool.clone())),
+            }),
         },
         WorkerConfig::default(),
         token.clone(),

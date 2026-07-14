@@ -4,10 +4,18 @@ import {
   apiUpdateTransform,
   apiAddPort,
   apiDeletePort,
+  apiCreateCompileTicket,
   type CreateTransformParams,
+  type CreateCompileTicketParams,
 } from "@/Services/TransformService";
 import { QUERY_KEYS } from "@/constants/queryKeys";
 import type { TransformPort } from "@/domain/Transform/Transform";
+
+export function useRequestCompileTransform() {
+  return useMutation({
+    mutationFn: (params: CreateCompileTicketParams) => apiCreateCompileTicket(params),
+  });
+}
 
 export function useCreateTransform() {
   const qc = useQueryClient();

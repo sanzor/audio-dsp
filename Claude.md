@@ -1,7 +1,7 @@
 # DAW Project Memory: Standards & Rules
 
 ## 🛠 Tech Stack
-- **Backend:** Rust (Actix/Axum) - Handles audio graph, WASM transforms and metadata (regions,region sets, graphs)  and persistence.
+- **Backend:** Rust (Actix/Axum) - Handles transform compilation, tickets, metadata (regions, region sets, graphs), and persistence.
 - **Frontend:** React + Shadcn UI + React Flow + Wavesurfer.js.
 
 
@@ -18,11 +18,13 @@
 # Project Memory: UI-Centric DSP Rules
 
 ## 🚀 High-Performance UI
-- **Engine:** All audio transforms run in the browser via WASM.
+- **Engine:** Published transform chains run in the browser via WASM and AudioWorklet.
 - **Thread Safety:** UI/React Flow must never block the Audio Thread.
 - **Audio Worklets:** Use AudioWorkletNode for all transforms. Do not process audio in the main React `useEffect` loops.
+- **Editor Runtime Boundary:** The editor may fetch and cache already-compiled transform binaries, but it must not trigger compilation.
 - **Destructive Edits:** When a user "Applies" a transform graph, the result is computed in the frontend and sent as a finished Blob/Buffer to the Rust backend for storage.
 
 ## 📦 WASM Management
-- **Persistence:** Rust backend is strictly for saving/loading Region Sets and Transform Graphs.
+- **Compilation:** Transform source is compiled on the backend through the ticket flow.
+- **Persistence:** Rust backend saves/loads Region Sets, Transform Graphs, artifacts, and related metadata.
 - **State:** The React Flow graph is the "Source of Truth" for the current audio routing.

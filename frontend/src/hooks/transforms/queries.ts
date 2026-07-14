@@ -1,6 +1,11 @@
 import { useEffect, useMemo } from "react";
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { apiGetTransformBinaries, apiGetTransformDefinition, apiGetTransformSummaries } from "@/Services/TransformService";
+import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  apiGetCompileTicketStatus,
+  apiGetTransformBinaries,
+  apiGetTransformDefinition,
+  apiGetTransformSummaries,
+} from "@/Services/TransformService";
 import { useTransformStore } from "@/Stores/TransformStore";
 import { useWasmBinaryStore } from "@/Stores/WasmBinaryStore";
 import { useAuthStore } from "@/Stores/authStore";
@@ -96,3 +101,25 @@ export const useGetTransformDefinition = (
 
   return query;
 };
+
+// Polls a compile ticket until it reaches a terminal state (successful/failed).
+// On success, invalidates the transform's cached binary and definition so the
+// newly compiled artifact gets refetched.
+export function useCompileTicketStatus(ticketId: number | null, transformId: number | null) {
+  const qc = useQueryClient();
+  const query = useQuery({
+    queryKey: QUERY_KEYS.transforms.ticket(ticketId ?? -1),
+    queryFn: () => apiGetCompileTicketStatus(ticketId!),
+    enabled: ticketId != null,
+    refetchInterval: (q) => (q.state.data?.status.state === "processing" ? 1500 : false),
+  });
+
+  useEffect(() => {
+    if (query.data?.status.state === "successful" && transformId != null) {
+      qc.invalidateQueries({ queryKey: ["transform", "wasm"] });
+      qc.invalidateQueries({ queryKey: QUERY_KEYS.transforms.byId(transformId) });
+    }
+  }, [query.data?.status.state, transformId, qc]);
+
+  return query;
+}

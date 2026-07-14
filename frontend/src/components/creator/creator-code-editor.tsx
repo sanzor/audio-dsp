@@ -1,7 +1,8 @@
 import { useState } from "react";
 import Editor from "@monaco-editor/react";
 import { useCreatorStore } from "@/Stores/CreatorStore";
-import { useGetTransformDefinition } from "@/hooks/transforms/queries";
+import { useCompileTicketStatus, useGetTransformDefinition } from "@/hooks/transforms/queries";
+import { useRequestCompileTransform } from "@/hooks/transforms/mutations";
 
 const DEFAULT_CODE = `use wasm_bindgen::prelude::*;
 
@@ -29,9 +30,26 @@ const CONFIG_TAB: FileTab = { id: "config", name: "config.json", language: "json
 
 export function CreatorCodeEditor() {
   const selectedId = useCreatorStore((s) => s.selectedTransformId);
+  const activeTicketByTransform = useCreatorStore((s) => s.activeTicketByTransform);
+  const setActiveTicket = useCreatorStore((s) => s.setActiveTicket);
   const { data: definition } = useGetTransformDefinition(selectedId);
   const [activeTab, setActiveTab] = useState("impl");
   const [code, setCode] = useState(DEFAULT_CODE);
+
+  const ticketId = selectedId != null ? activeTicketByTransform[selectedId] ?? null : null;
+  const compileMutation = useRequestCompileTransform();
+  const ticketStatus = useCompileTicketStatus(ticketId, selectedId);
+
+  const buildState = ticketStatus.data?.status.state ?? null;
+  const isCompiling = compileMutation.isPending || buildState === "processing";
+
+  function handleCompile() {
+    if (selectedId == null || !code.trim() || isCompiling) return;
+    compileMutation.mutate(
+      { transform_id: selectedId, source_code: code },
+      { onSuccess: (ticket) => setActiveTicket(selectedId, ticket.ticket_id) }
+    );
+  }
 
   const tabs: FileTab[] = [
     { id: "impl", name: definition ? `${definition.name}.rs` : "untitled.rs", language: "rust" },
@@ -68,12 +86,45 @@ export function CreatorCodeEditor() {
             </button>
           ))}
         </div>
-        <span
-          className="font-mono font-bold px-2 py-0.5 rounded text-[10px]"
-          style={{ color: "#ffb786", border: "1px solid rgba(255,183,134,0.3)" }}
-        >
-          RUST (WASM)
-        </span>
+        <div className="flex items-center gap-2">
+          {buildState === "processing" && (
+            <span className="font-mono text-[10px]" style={{ color: "#ffd166" }}>
+              Compiling…
+            </span>
+          )}
+          {buildState === "successful" && (
+            <span className="font-mono text-[10px]" style={{ color: "#4ae176" }}>
+              Compiled ✓{ticketStatus.data?.status.resource_id != null ? ` (resource #${ticketStatus.data.status.resource_id})` : ""}
+            </span>
+          )}
+          {buildState === "failed" && (
+            <span
+              className="font-mono text-[10px] max-w-[280px] truncate"
+              title={ticketStatus.data?.status.message}
+              style={{ color: "#ff6b6b" }}
+            >
+              Failed{ticketStatus.data?.status.message ? `: ${ticketStatus.data.status.message}` : ""}
+            </span>
+          )}
+          <button
+            onClick={handleCompile}
+            disabled={selectedId == null || !code.trim() || isCompiling}
+            className="font-mono font-bold px-2.5 py-0.5 rounded text-[10px] transition-colors"
+            style={{
+              color: "#adc6ff",
+              border: "1px solid rgba(173,198,255,0.4)",
+              opacity: selectedId == null || !code.trim() || isCompiling ? 0.5 : 1,
+            }}
+          >
+            Compile
+          </button>
+          <span
+            className="font-mono font-bold px-2 py-0.5 rounded text-[10px]"
+            style={{ color: "#ffb786", border: "1px solid rgba(255,183,134,0.3)" }}
+          >
+            RUST (WASM)
+          </span>
+        </div>
       </div>
 
       {/* Monaco editor */}

@@ -1,10 +1,10 @@
 import { create, type StoreApi, type UseBoundStore } from 'zustand';
 import { devtools, subscribeWithSelector } from 'zustand/middleware';
 import type { PasteGraphParams, PasteRegionParams, PasteRegionSetParams } from './PasteParams';
-import type { CanonicalAudio } from '@/Audio/CanonicalAudio';
 import { useRegionSetStore } from './RegionSetStore';
 import { useRegionStore } from './RegionStore';
 import { useGraphStore } from './GraphStore';
+import type { CanonicalAudio } from '@/audio/canonicalAudio';
 
 export type RightClickContext =
   | { type: 'track'; trackId: number; x: number; y: number }
@@ -68,6 +68,7 @@ export type ModalState =
   | { type: 'nodeDetails'; nodeId: number | null; transformId: number | null }
   | { type: 'clearGraphNodes'; graphId: number }
   // Transform store modals
+  | { type: 'createTransform' }
   | { type: 'transformDetails'; transformId: number }
   | null;
 

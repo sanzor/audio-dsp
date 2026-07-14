@@ -1,7 +1,16 @@
-Digital Audio Workstation (DAW) SaaS platform with Rust (Kameo actors, Tokio, Actix) supporting:
+Digital Audio Workstation (DAW) SaaS platform with Rust (Kameo actors, Tokio, Actix) and a React editor supporting:
 - track management
 - streaming audio files
 - applying digital transforms on tracks
+
+Architecture at a glance:
+
+- transform creators author transform code in the creator surface
+- the backend compiles transforms through a poll-based ticket workflow
+- compiled transforms are saved/published by the platform
+- the editor may fetch and cache published transform binaries for local runtime use
+- artists use the editor surface to compose region-level transform graphs
+- published transform chains execute on the frontend through an audio worklet pipeline
 
 Currently supported operations:
 - Load audio track

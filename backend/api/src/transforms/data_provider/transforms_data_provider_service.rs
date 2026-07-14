@@ -1,6 +1,6 @@
 use domain::db::{
     db_transform::{DbTransform, DbTransformDefinition, DbTransformParam, DbTransformPort, TransformId},
-    ticket::{create_ticket_params::CreateTicketParams, db_resource::{DbResource, ResourceId}, db_ticket::{DbTicket, TicketId}, ticket_status::TicketStatus},
+    ticket::{create_ticket_params::CreateTicketParams, db_resource::{DbResource, ResourceId}, db_ticket::{DbTicket, TicketId}, ticket_status::TicketStatus, update_ticket_params::UpdateTicketParams},
 };
 use sqlx::PgPool;
 
@@ -34,6 +34,7 @@ struct DbTicketRow {
     issued_by: i64,
     status: String,
     resource_id: Option<i64>,
+    error_message: Option<String>,
     timestamp: i64,
 }
 
@@ -43,7 +44,9 @@ impl TryFrom<DbTicketRow> for DbTicket {
     fn try_from(value: DbTicketRow) -> Result<Self, Self::Error> {
         let status = match value.status.as_str() {
             "processing" => TicketStatus::Processing,
-            "failed" => TicketStatus::Failed,
+            "failed" => TicketStatus::Failed {
+                message: value.error_message.unwrap_or_default(),
+            },
             "successful" => {
                 let resource_id = value.resource_id.ok_or_else(|| {
                     DataError::Internal("successful ticket is missing its resource".to_string())
@@ -78,6 +81,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
                 issued_by,
                 status,
                 NULL::BIGINT AS resource_id,
+                error_message,
                 EXTRACT(EPOCH FROM created_at)::BIGINT AS timestamp
             "#,
         )
@@ -98,6 +102,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
                 tt.issued_by,
                 tt.status,
                 tr.resource_id,
+                tt.error_message,
                 EXTRACT(EPOCH FROM tt.created_at)::BIGINT AS timestamp
             FROM transform_tickets tt
             LEFT JOIN transform_resources tr ON tr.ticket_id = tt.ticket_id
@@ -124,8 +129,43 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
         }
     }
 
-    async fn update_ticket(&self, ticket_id: TicketId) -> Result<DbTicket, DataError> {
-        self.get_ticket(ticket_id).await
+    async fn update_ticket(&self, params: UpdateTicketParams) -> Result<DbTicket, DataError> {
+        let status_str = match &params.status {
+            TicketStatus::Processing => "processing",
+            TicketStatus::Failed { .. } => "failed",
+            TicketStatus::Successful { .. } => "successful",
+        };
+        let error_message = match &params.status {
+            TicketStatus::Failed { message } => Some(message.clone()),
+            _ => None,
+        };
+
+        let row = sqlx::query_as::<_, DbTicketRow>(
+            r#"
+            WITH updated AS (
+                UPDATE transform_tickets
+                SET status = $2, error_message = $3
+                WHERE ticket_id = $1
+                RETURNING ticket_id, issued_by, status, error_message, created_at
+            )
+            SELECT
+                u.ticket_id AS id,
+                u.issued_by,
+                u.status,
+                tr.resource_id,
+                u.error_message,
+                EXTRACT(EPOCH FROM u.created_at)::BIGINT AS timestamp
+            FROM updated u
+            LEFT JOIN transform_resources tr ON tr.ticket_id = u.ticket_id
+            "#,
+        )
+        .bind(params.ticket_id)
+        .bind(status_str)
+        .bind(error_message)
+        .fetch_one(&self.pool)
+        .await?;
+
+        DbTicket::try_from(row)
     }
 
     async fn create_resource(&self, ticket_id: TicketId) -> Result<DbResource, DataError> {

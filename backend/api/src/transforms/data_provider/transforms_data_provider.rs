@@ -1,4 +1,4 @@
-use domain::db::{db_transform::{DbTransform, DbTransformDefinition, DbTransformPort, TransformId}, ticket::{create_ticket_params::CreateTicketParams, db_resource::{DbResource, ResourceId}, db_ticket::{DbTicket, TicketId}}};
+use domain::db::{db_transform::{DbTransform, DbTransformDefinition, DbTransformPort, TransformId}, ticket::{create_ticket_params::CreateTicketParams, db_resource::{DbResource, ResourceId}, db_ticket::{DbTicket, TicketId}, update_ticket_params::UpdateTicketParams}};
 
 use crate::{domain::data_error::DataError};
 
@@ -13,7 +13,7 @@ pub trait TransformsDataProvider: Send + Sync {
     async fn update_resource(&self, resource_id: ResourceId, ticket_id: TicketId) -> Result<DbResource, DataError>;
     async fn remove_resource(&self, resource_id: ResourceId) -> Result<(), DataError>;
     async fn remove_ticket(&self,ticket_id:TicketId)->Result<(),DataError>;
-    async fn update_ticket(&self,ticket_id:TicketId)->Result<DbTicket,DataError>;
+    async fn update_ticket(&self,ticket:UpdateTicketParams)->Result<DbTicket,DataError>;
     
     async fn get_transform(&self, id: TransformId) -> Result<DbTransform, String>;
     async fn get_transform_definition(&self, id: TransformId) -> Result<DbTransformDefinition, String>;

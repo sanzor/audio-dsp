@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { CreatorHeader } from "./creator-header";
-import { CreatorLeftPanel } from "./creator-left-panel";
+import { TransformsSidebar } from "./transforms-sidebar";
 import { CreatorWorkspace } from "./creator-workspace";
-import { CreatorRightPanel } from "./creator-right-panel";
+import { TransformPropertiesPanel } from "./transform-properties-panel";
 import { CreatorStatusBar } from "./creator-status-bar";
 
 type BuildTab = "build" | "test" | "deploy";
@@ -18,9 +18,9 @@ export function CreatorShell() {
       <CreatorHeader activeTab={activeTab} onTabChange={setActiveTab} />
 
       <div className="flex flex-1 overflow-hidden">
-        <CreatorLeftPanel />
+        <TransformsSidebar />
         <CreatorWorkspace />
-        <CreatorRightPanel />
+        <TransformPropertiesPanel />
       </div>
 
       <CreatorStatusBar />

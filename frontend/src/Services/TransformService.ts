@@ -34,6 +34,7 @@ export type CompileTicketState = "processing" | "failed" | "successful";
 export interface CompileTicketStatus {
   state: CompileTicketState;
   resource_id?: number;
+  message?: string;
 }
 
 export interface CompileTicket {

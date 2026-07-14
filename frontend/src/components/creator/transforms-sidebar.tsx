@@ -1,39 +1,22 @@
 import { useState } from "react";
+import { Plus } from "lucide-react";
 import { useListTransforms } from "@/hooks/transforms/queries";
-import { useCreateTransform } from "@/hooks/transforms/mutations";
 import { useCreatorStore } from "@/Stores/CreatorStore";
+import { useTransformController } from "@/controllers/TransformController";
 
-export function CreatorLeftPanel() {
+export function TransformsSidebar() {
   const [filter, setFilter] = useState("");
-  const [creating, setCreating] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [newDesc, setNewDesc] = useState("");
 
   const selectedId = useCreatorStore((s) => s.selectedTransformId);
   const setSelected = useCreatorStore((s) => s.setSelectedTransformId);
 
   const query = useListTransforms();
-  const createMutation = useCreateTransform();
+  const transformController = useTransformController();
 
   const allTransforms = query.data?.pages.flatMap((p) => p.transforms) ?? [];
   const filtered = filter
     ? allTransforms.filter((t) => t.name.toLowerCase().includes(filter.toLowerCase()))
     : allTransforms;
-
-  function handleCreate() {
-    if (!newName.trim()) return;
-    createMutation.mutate(
-      { name: newName.trim(), description: newDesc.trim() || undefined },
-      {
-        onSuccess: (def) => {
-          setSelected(def.transform_id);
-          setCreating(false);
-          setNewName("");
-          setNewDesc("");
-        },
-      }
-    );
-  }
 
   return (
     <aside
@@ -45,12 +28,20 @@ export function CreatorLeftPanel() {
     >
       {/* Header */}
       <div
-        className="px-3 py-2.5"
+        className="px-3 py-2.5 flex items-center justify-between"
         style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
       >
         <span className="text-[10px] font-mono font-bold" style={{ color: "var(--text-main)" }}>
           TRANSFORMS
         </span>
+        <button
+          onClick={transformController.handleCreateTransform}
+          className="w-6 h-6 rounded flex items-center justify-center hover:bg-white/10 transition-colors"
+          title="New Transform"
+          style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}
+        >
+          <Plus className="w-4 h-4" style={{ color: "var(--text-muted)" }} />
+        </button>
       </div>
 
       {/* Filter input */}
@@ -118,70 +109,6 @@ export function CreatorLeftPanel() {
             style={{ color: "var(--text-muted)" }}
           >
             {query.isFetchingNextPage ? "Loading..." : "Load more"}
-          </button>
-        )}
-      </div>
-
-      {/* New transform form / button */}
-      <div className="p-2" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-        {creating ? (
-          <div className="flex flex-col gap-2">
-            <input
-              autoFocus
-              type="text"
-              placeholder="Transform name"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleCreate();
-                if (e.key === "Escape") setCreating(false);
-              }}
-              className="w-full rounded px-2 py-1 text-xs"
-              style={{
-                backgroundColor: "var(--bg-dark)",
-                border: "1px solid #adc6ff",
-                color: "var(--text-main)",
-                outline: "none",
-              }}
-            />
-            <input
-              type="text"
-              placeholder="Description (optional)"
-              value={newDesc}
-              onChange={(e) => setNewDesc(e.target.value)}
-              className="w-full rounded px-2 py-1 text-xs"
-              style={{
-                backgroundColor: "var(--bg-dark)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                color: "var(--text-main)",
-                outline: "none",
-              }}
-            />
-            <div className="flex gap-2">
-              <button
-                onClick={() => setCreating(false)}
-                className="flex-1 h-7 rounded text-[10px] font-mono"
-                style={{ border: "1px solid rgba(255,255,255,0.12)", color: "var(--text-muted)" }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCreate}
-                disabled={!newName.trim() || createMutation.isPending}
-                className="flex-1 h-7 rounded text-[10px] font-mono font-bold"
-                style={{ backgroundColor: "#adc6ff", color: "#002e6a", opacity: !newName.trim() ? 0.5 : 1 }}
-              >
-                {createMutation.isPending ? "..." : "Create"}
-              </button>
-            </div>
-          </div>
-        ) : (
-          <button
-            onClick={() => setCreating(true)}
-            className="w-full h-8 text-[10px] font-mono rounded"
-            style={{ border: "1px solid #adc6ff", color: "#adc6ff" }}
-          >
-            + New Transform
           </button>
         )}
       </div>

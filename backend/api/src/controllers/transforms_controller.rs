@@ -126,6 +126,7 @@ pub struct CreateCompileTicketRequest {
 pub struct CompileTicketStatusDto {
     pub state: String,
     pub resource_id: Option<ResourceId>,
+    pub message: Option<String>,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -229,14 +230,17 @@ impl From<TicketStatus> for CompileTicketStatusDto {
             TicketStatus::Processing => Self {
                 state: "processing".to_string(),
                 resource_id: None,
+                message: None,
             },
-            TicketStatus::Failed => Self {
+            TicketStatus::Failed { message } => Self {
                 state: "failed".to_string(),
                 resource_id: None,
+                message: Some(message),
             },
             TicketStatus::Successful { resource_id } => Self {
                 state: "successful".to_string(),
                 resource_id: Some(resource_id),
+                message: None,
             },
         }
     }

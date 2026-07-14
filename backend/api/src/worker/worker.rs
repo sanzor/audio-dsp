@@ -16,6 +16,7 @@ pub struct Worker {
     token: CancellationToken,
 }
 
+
 impl Worker {
     pub fn new(params: WorkerParams, config: WorkerConfig, token: CancellationToken) -> Self {
         Self {
@@ -35,7 +36,7 @@ impl Worker {
         tokio::spawn(async move { worker.run_loop().await })
     }
 
-    async fn run_loop(self) -> Result<(), String> {
+    async fn run_loop(mut self) -> Result<(), String> {
         loop {
             tokio::select! {
                 _ = self.token.cancelled() => {

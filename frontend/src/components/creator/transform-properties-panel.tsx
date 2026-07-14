@@ -48,7 +48,7 @@ function PortsList({ direction, ports }: PortsListProps) {
   );
 }
 
-export function CreatorRightPanel() {
+export function TransformPropertiesPanel() {
   const selectedId = useCreatorStore((s) => s.selectedTransformId);
   const { data: definition } = useGetTransformDefinition(selectedId);
 
