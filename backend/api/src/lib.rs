@@ -23,6 +23,7 @@ pub mod subscriptions;
 pub mod purchased_products;
 pub mod usage;
 pub mod transforms;
+pub mod tickets;
 pub mod stored_tracks;
 pub mod token;
 pub mod workspace;

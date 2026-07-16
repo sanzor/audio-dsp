@@ -6,7 +6,7 @@ use sqlx::PgPool;
 
 use crate::{domain::data_error::DataError};
 
-use super::transforms_data_provider::TransformsDataProvider;
+use super::transforms_data_provider::{NewTransformParam, NewTransformPort, TransformsDataProvider};
 
 pub struct PostgresTransformsDataProvider {
     pool: PgPool,
@@ -398,5 +398,77 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
             .await
             .map(|_| ())
             .map_err(|e| e.to_string())
+    }
+
+    async fn publish_compiled_transform(
+        &self,
+        transform_id: TransformId,
+        wasm_bytecode: Vec<u8>,
+        source_code: String,
+        ports: Vec<NewTransformPort>,
+        params: Vec<NewTransformParam>,
+    ) -> Result<(), String> {
+        let mut tx = self.pool.begin().await.map_err(|e| e.to_string())?;
+
+        sqlx::query(r#"DELETE FROM transform_ports WHERE transform_id = $1"#)
+            .bind(transform_id)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| e.to_string())?;
+
+        sqlx::query(r#"DELETE FROM transform_params WHERE transform_id = $1"#)
+            .bind(transform_id)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| e.to_string())?;
+
+        for port in &ports {
+            sqlx::query(
+                r#"INSERT INTO transform_ports (transform_id, name, direction, port_order, description)
+                   VALUES ($1, $2, $3, $4, $5)"#,
+            )
+            .bind(transform_id)
+            .bind(&port.name)
+            .bind(&port.direction)
+            .bind(port.order)
+            .bind(&port.description)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| e.to_string())?;
+        }
+
+        for param in &params {
+            sqlx::query(
+                r#"INSERT INTO transform_params (transform_id, name, param_order, default_value, min_value, max_value, description)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7)"#,
+            )
+            .bind(transform_id)
+            .bind(&param.name)
+            .bind(param.order)
+            .bind(param.default_value)
+            .bind(param.min_value)
+            .bind(param.max_value)
+            .bind(&param.description)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| e.to_string())?;
+        }
+
+        sqlx::query(
+            r#"INSERT INTO transform_binaries (transform_id, wasm_bytecode, source)
+               VALUES ($1, $2, $3)
+               ON CONFLICT (transform_id)
+               DO UPDATE SET wasm_bytecode = EXCLUDED.wasm_bytecode, source = EXCLUDED.source, updated_at = now()"#,
+        )
+        .bind(transform_id)
+        .bind(&wasm_bytecode)
+        .bind(&source_code)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| e.to_string())?;
+
+        tx.commit().await.map_err(|e| e.to_string())?;
+
+        Ok(())
     }
 }

@@ -1,20 +1,11 @@
 use crate::{
     domain::service_error::ServiceError,
-    middlewares::jwt::jwt_context::JwtContext,
     middlewares::role_context::role_context::RoleContext,
-    transforms::{compile_params::RequestCompileParams, compile_result::CompileResult},
     transforms::transforms_app_data::TransformsAppData,
 };
 use actix_web::{delete, get, post, put, web, HttpResponse};
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine};
-use domain::{db::{
-    db_transform::{DbTransform, DbTransformDefinition, DbTransformParam, DbTransformPort, TransformId},
-    ticket::{
-        db_resource::ResourceId,
-        db_ticket::{DbTicket, TicketId},
-        ticket_status::TicketStatus,
-    },
-}, domain_user::UserId};
+use domain::db::db_transform::{DbTransform, DbTransformDefinition, DbTransformParam, DbTransformPort, TransformId};
 use serde::{Deserialize, Serialize};
 use tracing::error;
 use utoipa::{IntoParams, ToSchema};
@@ -114,50 +105,9 @@ pub struct TransformBinariesResponse {
     pub binaries: Vec<TransformBinaryDto>,
 }
 
-#[derive(Debug, Deserialize, ToSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct CreateCompileTicketRequest {
-    pub transform_id: TransformId,
-    pub source_code: String,
-}
-
-#[derive(Debug, Serialize, ToSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct CompileTicketStatusDto {
-    pub state: String,
-    pub resource_id: Option<ResourceId>,
-    pub message: Option<String>,
-}
-
-#[derive(Debug, Serialize, ToSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct CompileTicketDto {
-    pub ticket_id: TicketId,
-    pub issued_by: i64,
-    pub status: CompileTicketStatusDto,
-    pub timestamp: i64,
-}
-
-#[derive(Debug, Serialize, ToSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct CompileResourceDto {
-    pub resource_id: ResourceId,
-    pub ticket_id: TicketId,
-}
-
 #[derive(Deserialize, IntoParams)]
 pub struct TransformIdPath {
     pub transform_id: TransformId,
-}
-
-#[derive(Deserialize, IntoParams)]
-pub struct TicketIdPath {
-    pub ticket_id: TicketId,
-}
-
-#[derive(Deserialize, IntoParams)]
-pub struct ResourceIdPath {
-    pub resource_id: ResourceId,
 }
 
 #[derive(Deserialize)]
@@ -220,48 +170,6 @@ impl From<domain::db::db_transform::DbTransformBinary> for TransformBinaryDto {
         Self {
             transform_id: value.transform_id,
             wasm_base64: BASE64_STANDARD.encode(value.wasm_bytecode),
-        }
-    }
-}
-
-impl From<TicketStatus> for CompileTicketStatusDto {
-    fn from(value: TicketStatus) -> Self {
-        match value {
-            TicketStatus::Processing => Self {
-                state: "processing".to_string(),
-                resource_id: None,
-                message: None,
-            },
-            TicketStatus::Failed { message } => Self {
-                state: "failed".to_string(),
-                resource_id: None,
-                message: Some(message),
-            },
-            TicketStatus::Successful { resource_id } => Self {
-                state: "successful".to_string(),
-                resource_id: Some(resource_id),
-                message: None,
-            },
-        }
-    }
-}
-
-impl From<DbTicket> for CompileTicketDto {
-    fn from(value: DbTicket) -> Self {
-        Self {
-            ticket_id: value.id,
-            issued_by: value.issued_by,
-            status: value.status.into(),
-            timestamp: value.timestamp,
-        }
-    }
-}
-
-impl From<CompileResult> for CompileResourceDto {
-    fn from(value: CompileResult) -> Self {
-        Self {
-            resource_id: value.resource_id,
-            ticket_id: value.ticket_id,
         }
     }
 }
@@ -369,84 +277,6 @@ pub async fn get_transform_binaries(
     }
 }
 
-#[utoipa::path(post, path = "/transforms/tickets", tag = "transforms",
-    request_body = CreateCompileTicketRequest,
-    responses((status = 201, description = "Compile ticket created", body = CompileTicketDto)))]
-#[post("/tickets")]
-pub async fn create_compile_ticket(
-    auth: JwtContext,
-    role: RoleContext,
-    body: web::Json<CreateCompileTicketRequest>,
-    app: web::Data<TransformsAppData>,
-) -> HttpResponse {
-    if !role.can_edit() {
-        return HttpResponse::Forbidden().body("Forbidden");
-    }
-
-    let request = body.into_inner();
-    if request.source_code.trim().is_empty() {
-        return HttpResponse::BadRequest().body("sourceCode is required");
-    }
-
-    match app
-        .transforms_service
-        .request_compile_transform(RequestCompileParams {
-            user_id: UserId::from(auth.user_id),
-            transform_id: request.transform_id,
-            payload: request.source_code,
-        })
-        .await
-    {
-        Ok(ticket) => HttpResponse::Created().json(CompileTicketDto::from(ticket)),
-        Err(e) => map_service_error(e),
-    }
-}
-
-#[utoipa::path(get, path = "/transforms/tickets/{ticket_id}", tag = "transforms",
-    params(TicketIdPath),
-    responses((status = 200, description = "Compile ticket status", body = CompileTicketDto)))]
-#[get("/tickets/{ticket_id}")]
-pub async fn get_compile_ticket_status(
-    role: RoleContext,
-    path: web::Path<TicketIdPath>,
-    app: web::Data<TransformsAppData>,
-) -> HttpResponse {
-    if !role.can_view() {
-        return HttpResponse::Forbidden().body("Forbidden");
-    }
-
-    match app
-        .transforms_service
-        .get_compile_ticket_status(path.into_inner().ticket_id)
-        .await
-    {
-        Ok(ticket) => HttpResponse::Ok().json(CompileTicketDto::from(ticket)),
-        Err(e) => map_service_error(e),
-    }
-}
-
-#[utoipa::path(get, path = "/transforms/resources/{resource_id}", tag = "transforms",
-    params(ResourceIdPath),
-    responses((status = 200, description = "Compile resource", body = CompileResourceDto)))]
-#[get("/resources/{resource_id}")]
-pub async fn get_compile_resource(
-    role: RoleContext,
-    path: web::Path<ResourceIdPath>,
-    app: web::Data<TransformsAppData>,
-) -> HttpResponse {
-    if !role.can_view() {
-        return HttpResponse::Forbidden().body("Forbidden");
-    }
-
-    match app
-        .transforms_service
-        .get_ticket_result(path.into_inner().resource_id)
-        .await
-    {
-        Ok(resource) => HttpResponse::Ok().json(CompileResourceDto::from(resource)),
-        Err(e) => map_service_error(e),
-    }
-}
 #[utoipa::path(post, path = "/transforms", tag = "transforms",
     request_body = CreateTransformParams,
     responses((status = 200, description = "Created transform", body = serde_json::Value)))]
@@ -552,9 +382,6 @@ pub fn init(cfg: &mut web::ServiceConfig) {
         .service(resolve_transform_definitions)
         .service(get_transform_binary)
         .service(get_transform_binaries)
-        .service(create_compile_ticket)
-        .service(get_compile_ticket_status)
-        .service(get_compile_resource)
         .service(create_transform)
         .service(update_transform)
         .service(delete_transform)

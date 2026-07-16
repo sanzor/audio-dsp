@@ -6,4 +6,5 @@ members = [
     "backend/player",
     "backend/actors",
     "backend/api",
+    "backend/transform-sdk",
 ]

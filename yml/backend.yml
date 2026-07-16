@@ -13,5 +13,12 @@ services:
       DATABASE_URL: ${DATABASE_URL:-postgres://postgres:postgres@postgres:5432/audio_dsp}
     ports:
       - "${BACKEND_PORT:-3080}:3080"
+    volumes:
+      # Persist the shared transform-sdk build cache across container restarts
+      # so creator compiles don't rebuild the SDK's dependency graph every time.
+      - transform-cargo-target:/opt/transform-sdk/target
     depends_on:
       - postgres
+
+volumes:
+  transform-cargo-target:

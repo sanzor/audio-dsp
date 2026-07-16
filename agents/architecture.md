@@ -127,6 +127,12 @@ That remains true even when source is AI-generated inside the creator UI. AI-ass
 After a transform is successfully compiled and published, it becomes part of the editor-side transform catalog.
 The editor may fetch those published binaries and cache them locally for runtime use, but it does not submit compile jobs or trigger backend compilation.
 
+Creator source compiles against `backend/transform-sdk` — a small crate defining the `Transform` trait and the `export_transform!` macro that generates the wasm ABI the editor's audio worklet expects (zero-import instantiation; `alloc`/`process`/`memory` exports). This is the real contract creator source is compiled against.
+
+Ports/params are code-first: after a successful compile, the backend instantiates the produced wasm module with wasmtime and calls its metadata export to read back the transform's declared ports/params, then replaces the transform's `transform_ports`/`transform_params` rows with that result. They are not hand-authored through the UI. The `add_port`/`delete_port` endpoints still exist but are effectively superseded for any transform that has gone through a compile — a later compile always overwrites what they set.
+
+Current v1 behavior is auto-publish-on-success: a successful compile ticket immediately overwrites the transform's live binary and definition in the same transaction — there is no separate staging/versioning gate yet, despite step 6 above implying a distinct publish step. A future staging table would sit between a successful `publish_compiled_transform` call and the binary becoming visible via `GET /transforms/{id}/binary`.
+
 ## Editor graph execution planning
 
 The editor should do as much graph-assembly work locally as is practical, provided it does not hurt interaction or playback responsiveness.

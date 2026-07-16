@@ -15,6 +15,7 @@ pub mod subscriptions_controller;
 pub mod purchased_products_controller;
 pub mod usage_controller;
 pub mod transforms_controller;
+pub mod ticket_controller;
 pub mod track_payload_controller;
 pub mod workspace_controller;
 pub mod graph_controller;

@@ -107,11 +107,12 @@ use api::{
         transforms_app_data::TransformsAppData,
         transforms_provider_service::TransformsProviderService,
     },
+    tickets::{tickets_app_data::TicketsAppData, tickets_provider_service::TicketsProviderService},
     infra::producer::channel_producer::ChannelProducer,
     worker::{
         consumer::channel_consumer::ChannelConsumer,
         events::ticket_created_event::TicketCreatedEvent,
-        processor::{processor::Processor, processor_params::ProcessorParams},
+        processor::{build_job::BuildJobConfig, processor::Processor, processor_params::ProcessorParams},
         worker::Worker,
         worker_config::WorkerConfig,
         worker_params::WorkerParams,
@@ -372,9 +373,42 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
         transforms_service: Arc::new(TransformsProviderService::new(
             Arc::clone(&transforms_data_provider),
             Arc::new(DbTransformStorageProvider::new(pool.clone())),
+        )),
+    };
+    let tickets_app_data = TicketsAppData {
+        tickets_service: Arc::new(TicketsProviderService::new(
+            Arc::clone(&transforms_data_provider),
             Arc::clone(&producer),
         )),
     };
+
+    // Path to the transform-sdk crate the generated per-compile Cargo.toml
+    // depends on. Defaults to the workspace-relative path for local dev;
+    // overridden to /opt/transform-sdk in the container image (see Dockerfile).
+    let transform_sdk_path = std::env::var("TRANSFORM_SDK_PATH")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|_| std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../transform-sdk"));
+    let transform_build_workdir = std::env::var("TRANSFORM_BUILD_WORKDIR")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|_| std::env::temp_dir().join("audio-dsp-builds"));
+    let transform_cargo_target_dir = std::env::var("TRANSFORM_CARGO_TARGET_DIR")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|_| std::env::temp_dir().join("audio-dsp-cargo-target"));
+    let transform_cargo_home = std::env::var("CARGO_HOME")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|_| std::path::PathBuf::from(std::env::var("HOME").unwrap_or_else(|_| "/root".to_string())).join(".cargo"));
+    let transform_compile_timeout_secs: u64 = std::env::var("TRANSFORM_COMPILE_TIMEOUT_SECS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(60);
+    let transform_max_wasm_bytes: u64 = std::env::var("TRANSFORM_MAX_WASM_BYTES")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(5 * 1024 * 1024);
+    let transform_metadata_fuel_limit: u64 = std::env::var("TRANSFORM_METADATA_FUEL_LIMIT")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(10_000_000);
 
     let token = CancellationToken::new();
     let worker_handle = Worker::spawn(
@@ -382,7 +416,15 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
             consumer: Box::new(ChannelConsumer::new(rx)),
             processor: Processor::new(ProcessorParams {
                 data_provider: Arc::clone(&transforms_data_provider),
-                storage: Box::new(DbTransformStorageProvider::new(pool.clone())),
+                build_job_config: BuildJobConfig {
+                    sdk_path: transform_sdk_path,
+                    build_workdir: transform_build_workdir,
+                    cargo_target_dir: transform_cargo_target_dir,
+                    cargo_home: transform_cargo_home,
+                    compile_timeout: std::time::Duration::from_secs(transform_compile_timeout_secs),
+                    max_wasm_bytes: transform_max_wasm_bytes,
+                },
+                metadata_fuel_limit: transform_metadata_fuel_limit,
             }),
         },
         WorkerConfig::default(),
@@ -442,6 +484,7 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
             .app_data(web::Data::new(purchased_products_app_data.clone()))
             .app_data(web::Data::new(usage_app_data.clone()))
             .app_data(web::Data::new(transforms_app_data.clone()))
+            .app_data(web::Data::new(tickets_app_data.clone()))
             .app_data(web::Data::new(stored_tracks_app_data.clone()))
             .app_data(web::Data::new(workspace_app_data.clone()))
             .configure(controllers::openapi_controller::init)
@@ -526,7 +569,8 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
                 web::scope("/transforms")
                     .wrap(role_middleware.clone())
                     .wrap(jwt_middleware.clone())
-                    .configure(controllers::transforms_controller::init),
+                    .configure(controllers::transforms_controller::init)
+                    .configure(controllers::ticket_controller::init),
             )
             .service(
                 web::scope("/stored-tracks")

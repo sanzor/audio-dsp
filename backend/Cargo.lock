@@ -552,7 +552,6 @@ dependencies = [
  "urlencoding",
  "utoipa",
  "wasmtime",
- "wat",
 ]
 
 [[package]]

@@ -1,14 +1,11 @@
-use domain::db::{db_transform::{
+use domain::db::db_transform::{
     DbTransform, DbTransformBinary, DbTransformDefinition, DbTransformPort, TransformId,
-}, ticket::{db_resource::ResourceId, db_ticket::{DbTicket, TicketId}}};
+};
 
-use crate::{domain::service_error::ServiceError, transforms::{compile_params::RequestCompileParams, compile_result::CompileResult}};
+use crate::domain::service_error::ServiceError;
 
 #[async_trait::async_trait]
 pub trait TransformsProvider: Send + Sync {
-    async fn request_compile_transform(&self,params:RequestCompileParams)->Result<DbTicket,ServiceError>;
-    async fn get_compile_ticket_status(&self,ticket_id:TicketId)->Result<DbTicket,ServiceError>;
-    async fn get_ticket_result(&self,id:ResourceId)->Result<CompileResult,ServiceError>;
     async fn list_transform_summaries(&self, offset: i64, limit: i64) -> Result<(Vec<DbTransform>, i64), ServiceError>;
     async fn get_transform_definition(&self, id: TransformId) -> Result<DbTransformDefinition, ServiceError>;
     async fn get_transform_definitions(&self, ids: &[TransformId]) -> Result<Vec<DbTransformDefinition>, ServiceError>;

@@ -9,6 +9,7 @@
 - Never put heavy DSP, decoding, or unbounded graph recomputation on the React main thread during interaction or playback.
 - Never block an audio callback path with network, disk, or UI work.
 - Any lifecycle around Wavesurfer or playback resources must clean up deterministically.
+- Post-compile metadata introspection (`backend/api/src/worker/processor/metadata_introspector.rs`) briefly executes attacker-controlled wasm server-side. It must stay fuel-limited, use zero host imports, and never grant WASI/IO access.
 
 ## State ownership
 
@@ -22,6 +23,8 @@
 
 - AI-generated transform source must go through the same validation, compilation, ticketing, and publish flow as manually authored source.
 - AI-assisted editor flows may only use published transforms from the catalog, not unpublished source or ad hoc binaries.
+- A successful compile ticket must leave a transform's binary and its ports/params definition mutually consistent; if post-compile metadata introspection or validation fails, the ticket must be marked Failed even though the wasm module itself compiled.
+- Ports/params for a compiled transform are derived from the compiled artifact's exported metadata, not hand-entered.
 - Migrations must be reversible unless there is a documented exception.
 - Seeds should stay idempotent for local development.
 - API and DTO changes must be reflected consistently across frontend consumers and backend producers.
