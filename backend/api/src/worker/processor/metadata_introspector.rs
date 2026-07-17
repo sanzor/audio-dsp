@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use serde::Deserialize;
+use tokio::sync::Mutex;
 use wasmtime::{Config, Engine, Linker, Module, Store};
 
 /// Backend-side mirror of `transform_sdk::TransformMetadata`. Kept separate

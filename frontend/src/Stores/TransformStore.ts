@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { TransformDefinition, TransformSummary } from "@/domain/Transform/Transform";
+import type { TransformDefinition, TransformSummary } from "@/domain/Transform/TransformDefinition";
 
 interface TransformState {
   summaries: Map<number, TransformSummary>;

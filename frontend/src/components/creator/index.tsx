@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CreatorHeader } from "./creator-header";
+import { CreatorHeader } from "./header";
 import { TransformsSidebar } from "./transforms-sidebar";
 import { CreatorWorkspace } from "./creator-workspace";
 import { TransformPropertiesPanel } from "./transform-properties-panel";

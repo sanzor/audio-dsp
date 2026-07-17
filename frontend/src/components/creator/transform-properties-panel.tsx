@@ -1,6 +1,9 @@
+import { useEffect, useState } from "react";
 import { useCreatorStore } from "@/Stores/CreatorStore";
+import type { TransformPort } from "@/domain/Transform/TransformPort";
 import { useGetTransformDefinition } from "@/hooks/transforms/queries";
-import type { TransformPort } from "@/domain/Transform/Transform";
+import { useSaveTransform } from "@/hooks/transforms/mutations";
+
 
 interface PortsListProps {
   direction: "input" | "output";
@@ -51,6 +54,22 @@ function PortsList({ direction, ports }: PortsListProps) {
 export function TransformPropertiesPanel() {
   const selectedId = useCreatorStore((s) => s.selectedTransformId);
   const { data: definition } = useGetTransformDefinition(selectedId);
+  const saveMutation = useSaveTransform(selectedId ?? -1);
+
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+
+  useEffect(() => {
+    setName(definition?.name ?? "");
+    setDescription(definition?.description ?? "");
+  }, [definition?.name, definition?.description]);
+
+  const isDirty = name !== (definition?.name ?? "") || description !== (definition?.description ?? "");
+
+  function handleSave() {
+    if (selectedId == null || !isDirty) return;
+    saveMutation.mutate({ name, description: description || undefined });
+  }
 
   if (selectedId == null) {
     return (
@@ -77,15 +96,29 @@ export function TransformPropertiesPanel() {
       }}
     >
       <div
-        className="px-4 py-3"
+        className="px-4 py-3 flex items-center justify-between"
         style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
       >
-        <span className="text-[10px] font-mono font-bold" style={{ color: "var(--text-main)" }}>
-          PROPERTIES
-        </span>
-        <p className="mt-1 text-[10px]" style={{ color: "var(--text-muted)", opacity: 0.7 }}>
-          Read-only. Generated from transform source.
-        </p>
+        <div>
+          <span className="text-[10px] font-mono font-bold" style={{ color: "var(--text-main)" }}>
+            PROPERTIES
+          </span>
+          <p className="mt-1 text-[10px]" style={{ color: "var(--text-muted)", opacity: 0.7 }}>
+            Ports/params are read-only, generated from transform source.
+          </p>
+        </div>
+        <button
+          onClick={handleSave}
+          disabled={!isDirty || saveMutation.isPending}
+          className="font-mono font-bold px-2.5 py-0.5 rounded text-[10px] transition-colors flex-shrink-0"
+          style={{
+            color: "#adc6ff",
+            border: "1px solid rgba(173,198,255,0.4)",
+            opacity: !isDirty || saveMutation.isPending ? 0.5 : 1,
+          }}
+        >
+          {saveMutation.isPending ? "Saving…" : "Save"}
+        </button>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-5">
@@ -97,31 +130,33 @@ export function TransformPropertiesPanel() {
             <label className="text-[10px]" style={{ color: "var(--text-muted)" }}>
               Name
             </label>
-            <div
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
               className="w-full rounded px-2 py-1.5 text-xs"
               style={{
                 backgroundColor: "var(--bg-dark)",
                 border: "1px solid rgba(255,255,255,0.08)",
                 color: "var(--text-main)",
+                outline: "none",
               }}
-            >
-              {definition?.name ?? "Untitled"}
-            </div>
+            />
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-[10px]" style={{ color: "var(--text-muted)" }}>
               Description
             </label>
-            <div
-              className="w-full rounded px-2 py-1.5 text-xs min-h-14"
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="w-full rounded px-2 py-1.5 text-xs min-h-14 resize-none"
               style={{
                 backgroundColor: "var(--bg-dark)",
                 border: "1px solid rgba(255,255,255,0.08)",
                 color: "var(--text-main)",
+                outline: "none",
               }}
-            >
-              {definition?.description?.trim() || "No description"}
-            </div>
+            />
           </div>
         </section>
 

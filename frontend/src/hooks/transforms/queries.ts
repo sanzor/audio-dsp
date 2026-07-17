@@ -11,7 +11,7 @@ import { useAuthStore } from "@/Stores/authStore";
 import { useProjectStore } from "@/Stores/projectStore";
 import { QUERY_KEYS } from "@/constants/queryKeys";
 import type { Node as RFNode } from "reactflow";
-import type { TransformDefinition } from "@/domain/Transform/Transform";
+import type { TransformDefinition } from "@/domain/Transform/TransformDefinition";
 
 const PAGE_SIZE = 20;
 

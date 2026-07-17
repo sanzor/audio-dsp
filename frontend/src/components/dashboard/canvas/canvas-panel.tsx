@@ -19,7 +19,7 @@ import { useGraphStore } from "@/Stores/GraphStore";
 import { useTransformStore } from "@/Stores/TransformStore";
 import { useWorkletStore } from "@/Stores/WorkletStore";
 import type { NodeType } from "@/domain/Graph/Node";
-import type { TransformDefinition } from "@/domain/Transform/Transform";
+import type { TransformDefinition } from "@/domain/Transform/TransformDefinition";
 import type { Graph } from "@/domain/Graph/Graph";
 import { CanvasToolbar } from "./canvas-toolbar";
 import { useGraphController } from "@/controllers/GraphController";

@@ -8,7 +8,8 @@ import { Handle, Position } from "reactflow";
 import "reactflow/dist/style.css";
 import { useCreatorStore } from "@/Stores/CreatorStore";
 import { useGetTransformDefinition } from "@/hooks/transforms/queries";
-import type { TransformPort } from "@/domain/Transform/Transform";
+import type { TransformPort } from "@/domain/Transform/TransformPort";
+
 
 // ─── Custom single-transform node ────────────────────────────────────────────
 

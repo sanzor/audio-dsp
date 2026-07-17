@@ -1,4 +1,4 @@
-import type { TransformDefinition, TransformPort, TransformSummary } from "@/domain/Transform/Transform";
+import type { TransformDefinition, TransformPort, TransformSummary } from "@/domain/Transform/TransformDefinition";
 import { http, API_BASE_URL } from "@/Services/http";
 import { useAuthStore } from "@/Stores/authStore";
 import { useProjectStore } from "@/Stores/projectStore";

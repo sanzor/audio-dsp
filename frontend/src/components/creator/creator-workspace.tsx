@@ -1,5 +1,5 @@
-import { CreatorCanvas } from "./creator-canvas";
-import { CreatorCodeEditor } from "./creator-code-editor";
+import { CreatorCanvas } from "./canvas";
+import { CreatorCodeEditor } from "./code-editor";
 
 export function CreatorWorkspace() {
   return (
