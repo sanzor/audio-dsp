@@ -43,10 +43,9 @@ use utoipa::OpenApi;
         crate::controllers::transforms_controller::get_transform_binary,
         crate::controllers::transforms_controller::get_transform_binaries,
         crate::controllers::transforms_controller::create_transform,
-        crate::controllers::transforms_controller::update_transform,
+        crate::controllers::transforms_controller::save_transform,
+        crate::controllers::transforms_controller::publish_transform,
         crate::controllers::transforms_controller::delete_transform,
-        crate::controllers::transforms_controller::add_port,
-        crate::controllers::transforms_controller::delete_port,
         // Tickets
         crate::controllers::ticket_controller::create_compile_ticket,
         crate::controllers::ticket_controller::get_compile_ticket_status,

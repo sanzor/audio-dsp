@@ -1,4 +1,9 @@
-use domain::db::{db_transform::{DbTransform, DbTransformDefinition, DbTransformPort, TransformId}, ticket::{create_ticket_params::CreateTicketParams, db_resource::{DbResource, ResourceId}, db_ticket::{DbTicket, TicketId}, update_ticket_params::UpdateTicketParams}};
+use domain::db::{
+    db_transform::{DbTransform, DbTransformDefinition, TransformId},
+    ticket::{create_ticket_params::CreateTicketParams, db_resource::{DbResource, ResourceId}, db_ticket::{DbTicket, TicketId}, update_ticket_params::UpdateTicketParams},
+    transform_saved_state::DbTransformSavedState,
+    transform_snapshot::{ParamSnapshot, PortSnapshot},
+};
 
 use crate::{domain::data_error::DataError};
 
@@ -23,13 +28,48 @@ pub struct NewTransformParam {
     pub description: Option<String>,
 }
 
+impl From<NewTransformPort> for PortSnapshot {
+    fn from(p: NewTransformPort) -> Self {
+        Self { name: p.name, direction: p.direction, port_order: p.order, description: p.description }
+    }
+}
+
+impl From<PortSnapshot> for NewTransformPort {
+    fn from(p: PortSnapshot) -> Self {
+        Self { name: p.name, direction: p.direction, order: p.port_order, description: p.description }
+    }
+}
+
+impl From<NewTransformParam> for ParamSnapshot {
+    fn from(p: NewTransformParam) -> Self {
+        Self { name: p.name, param_order: p.order, default_value: p.default_value, min_value: p.min_value, max_value: p.max_value, description: p.description }
+    }
+}
+
+impl From<ParamSnapshot> for NewTransformParam {
+    fn from(p: ParamSnapshot) -> Self {
+        Self { name: p.name, order: p.param_order, default_value: p.default_value, min_value: p.min_value, max_value: p.max_value, description: p.description }
+    }
+}
+
 #[async_trait::async_trait]
 pub trait TransformsDataProvider: Send + Sync {
 
     async fn create_ticket(&self,ticket:CreateTicketParams)->Result<DbTicket,DataError>;
     async fn get_ticket(&self,ticket_id:TicketId)->Result<DbTicket,DataError>;
 
-    async fn create_resource(&self, ticket_id: TicketId) -> Result<DbResource, DataError>;
+    /// Stores the full artifact a successful compile ticket produced —
+    /// bucket 1. Immutable history; never touches bucket 2 (save) or
+    /// bucket 3 (published) state.
+    async fn create_resource(
+        &self,
+        ticket_id: TicketId,
+        wasm_bytecode: Vec<u8>,
+        name: String,
+        description: Option<String>,
+        ports: Vec<NewTransformPort>,
+        params: Vec<NewTransformParam>,
+    ) -> Result<DbResource, DataError>;
     async fn get_resource(&self,resource_id:ResourceId)->Result<DbResource,DataError>;
     async fn update_resource(&self, resource_id: ResourceId, ticket_id: TicketId) -> Result<DbResource, DataError>;
     async fn remove_resource(&self, resource_id: ResourceId) -> Result<(), DataError>;
@@ -40,21 +80,39 @@ pub trait TransformsDataProvider: Send + Sync {
     async fn get_transform_definition(&self, id: TransformId) -> Result<DbTransformDefinition, String>;
     async fn get_transform_definitions(&self, ids: &[TransformId]) -> Result<Vec<DbTransformDefinition>, String>;
     async fn list_transform_summaries(&self, offset: i64, limit: i64) -> Result<(Vec<DbTransform>, i64), String>;
+    /// Also creates the transform's (bucket 2) saved-state row, so it's
+    /// always present — save/publish never have to special-case "no row yet".
     async fn insert_transform(&self, name: String, description: Option<String>, icon: Option<String>) -> Result<DbTransform, String>;
-    async fn update_transform(&self, id: TransformId, name: String, description: Option<String>, icon: Option<String>) -> Result<DbTransform, String>;
-    async fn delete_transform(&self, id: TransformId) -> Result<(), String>;
-    async fn insert_port(&self, transform_id: TransformId, name: String, direction: String, port_order: i32, description: Option<String>) -> Result<DbTransformPort, String>;
-    async fn delete_port(&self, port_id: i64) -> Result<(), String>;
+    /// Only allowed when the transform has never been published (no row in
+    /// `transform_binaries`) — see `agents/decisions/0002-transform-draft-lifecycle-decisions.md`.
+    /// Cascades to `transform_saved_state`/`transform_tickets`/`transform_resources`
+    /// via existing FK `ON DELETE CASCADE`.
+    async fn delete_transform(&self, id: TransformId) -> Result<(), DataError>;
 
-    /// Atomically replaces a transform's ports/params with the set derived
-    /// from a successful compile, and publishes the compiled binary as the
-    /// live artifact. One transaction so a transform's definition and its
-    /// binary can never observably drift from each other.
+    async fn get_saved_state(&self, transform_id: TransformId) -> Result<DbTransformSavedState, DataError>;
+    /// Bucket 2 — "save". Always overwrites source_code. If `resource_id` is
+    /// given, also copies that resource's (bucket 1) binary/metadata into the
+    /// saved state; the resource must belong to this transform. If omitted,
+    /// any previously saved binary/metadata is left untouched — a source-only
+    /// save never wipes out the last good build.
+    async fn save_transform_state(
+        &self,
+        transform_id: TransformId,
+        source_code: String,
+        resource_id: Option<ResourceId>,
+    ) -> Result<DbTransformSavedState, DataError>;
+
+    /// Atomically replaces a transform's name/description/ports/params with
+    /// the set derived from a successful compile, and publishes the compiled
+    /// binary as the live artifact. One transaction so a transform's
+    /// definition and its binary can never observably drift from each other.
     async fn publish_compiled_transform(
         &self,
         transform_id: TransformId,
         wasm_bytecode: Vec<u8>,
         source_code: String,
+        name: String,
+        description: Option<String>,
         ports: Vec<NewTransformPort>,
         params: Vec<NewTransformParam>,
     ) -> Result<(), String>;

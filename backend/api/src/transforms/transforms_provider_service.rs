@@ -1,11 +1,14 @@
 use std::{collections::HashSet, sync::Arc};
 
-use domain::db::db_transform::{DbTransform, DbTransformBinary, DbTransformDefinition, DbTransformPort, TransformId};
+use domain::db::{
+    db_transform::{DbTransform, DbTransformBinary, DbTransformDefinition, TransformId},
+    ticket::db_resource::ResourceId,
+};
 use wasmtime::*;
 use crate::domain::service_error::ServiceError;
 
 use super::{
-    data_provider::transforms_data_provider::TransformsDataProvider,
+    data_provider::transforms_data_provider::{NewTransformParam, NewTransformPort, TransformsDataProvider},
     storage_provider::transform_storage_provider::TransformStorageProvider,
     transforms_provider::TransformsProvider,
 };
@@ -81,34 +84,181 @@ impl TransformsProvider for TransformsProviderService {
         self.data.get_transform_definition(db.transform_id).await.map_err(ServiceError::from)
     }
 
-    async fn update_transform(
-        &self,
-        id: TransformId,
-        name: String,
-        description: Option<String>,
-        icon: Option<String>,
-    ) -> Result<DbTransformDefinition, ServiceError> {
-        let db = self.data.update_transform(id, name, description, icon).await?;
-        self.data.get_transform_definition(db.transform_id).await.map_err(ServiceError::from)
+    async fn save_transform_state(&self, id: TransformId, source_code: String, resource_id: Option<ResourceId>) -> Result<DbTransformDefinition, ServiceError> {
+        self.data.save_transform_state(id, source_code, resource_id).await?;
+        self.data.get_transform_definition(id).await.map_err(ServiceError::from)
+    }
+
+    async fn publish_transform(&self, id: TransformId) -> Result<DbTransformDefinition, ServiceError> {
+        let saved = self.data.get_saved_state(id).await?;
+        let Some(wasm_bytecode) = saved.wasm_bytecode else {
+            return Err(ServiceError::Validation(
+                "nothing has been saved with a successful build yet".to_string(),
+            ));
+        };
+
+        // Defense-in-depth: save_transform_state's attach branch now checks
+        // provenance at write time, so a save can no longer *create* a
+        // mismatched pair. But a source-only save after an earlier attach
+        // moves source_code forward while leaving wasm_bytecode (and this
+        // wasm_source_code snapshot) pointing at the older text — that's the
+        // real, still-reachable drift this guards against. See
+        // agents/decisions/0002-transform-draft-lifecycle-decisions.md.
+        if saved.wasm_source_code.as_deref() != Some(saved.source_code.as_str()) {
+            return Err(ServiceError::Validation(
+                "saved binary no longer corresponds to the saved source; recompile and re-attach before publishing".to_string(),
+            ));
+        }
+
+        self.data
+            .publish_compiled_transform(
+                id,
+                wasm_bytecode,
+                saved.source_code,
+                saved.name.unwrap_or_default(),
+                saved.description,
+                saved.ports.into_iter().map(NewTransformPort::from).collect(),
+                saved.params.into_iter().map(NewTransformParam::from).collect(),
+            )
+            .await?;
+
+        self.data.get_transform_definition(id).await.map_err(ServiceError::from)
     }
 
     async fn delete_transform(&self, id: TransformId) -> Result<(), ServiceError> {
-        let v=self.data.delete_transform(id).await.map_err(ServiceError::from);
-        v
+        self.data.delete_transform(id).await.map_err(ServiceError::from)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    //! `publish_transform`'s source/binary consistency gate (item 2 of the
+    //! transform-draft-lifecycle follow-ups, see
+    //! agents/decisions/0002-transform-draft-lifecycle-decisions.md) is pure
+    //! Rust logic over whatever `get_saved_state` returns — no DB needed to
+    //! exercise it. There's no DB-backed test harness in this repo yet (the
+    //! only other transform test, transform_compile_pipeline.rs, drives the
+    //! real compiler/wasmtime and is `#[ignore]`d), so this uses a minimal
+    //! in-memory `TransformsDataProvider` double instead. Anything the
+    //! publish path doesn't touch panics with `unimplemented!()` so a test
+    //! relying on unexercised behavior fails loudly rather than silently
+    //! doing the wrong thing.
+    use super::*;
+    use domain::db::{
+        db_transform::DbTransformDefinition,
+        ticket::{
+            create_ticket_params::CreateTicketParams, db_resource::DbResource,
+            db_ticket::{DbTicket, TicketId},
+            update_ticket_params::UpdateTicketParams,
+        },
+        transform_saved_state::DbTransformSavedState,
+    };
+
+    struct FakeDataProvider {
+        saved_state: DbTransformSavedState,
     }
 
-    async fn add_port(
-        &self,
-        transform_id: TransformId,
-        name: String,
-        direction: String,
-        port_order: i32,
-        description: Option<String>,
-    ) -> Result<DbTransformPort, ServiceError> {
-        self.data.insert_port(transform_id, name, direction, port_order, description).await.map_err(ServiceError::from)
+    #[async_trait::async_trait]
+    impl TransformsDataProvider for FakeDataProvider {
+        async fn create_ticket(&self, _: CreateTicketParams) -> Result<DbTicket, crate::domain::data_error::DataError> { unimplemented!() }
+        async fn get_ticket(&self, _: TicketId) -> Result<DbTicket, crate::domain::data_error::DataError> { unimplemented!() }
+        async fn create_resource(&self, _: TicketId, _: Vec<u8>, _: String, _: Option<String>, _: Vec<NewTransformPort>, _: Vec<NewTransformParam>) -> Result<DbResource, crate::domain::data_error::DataError> { unimplemented!() }
+        async fn get_resource(&self, _: ResourceId) -> Result<DbResource, crate::domain::data_error::DataError> { unimplemented!() }
+        async fn update_resource(&self, _: ResourceId, _: TicketId) -> Result<DbResource, crate::domain::data_error::DataError> { unimplemented!() }
+        async fn remove_resource(&self, _: ResourceId) -> Result<(), crate::domain::data_error::DataError> { unimplemented!() }
+        async fn remove_ticket(&self, _: TicketId) -> Result<(), crate::domain::data_error::DataError> { unimplemented!() }
+        async fn update_ticket(&self, _: UpdateTicketParams) -> Result<DbTicket, crate::domain::data_error::DataError> { unimplemented!() }
+        async fn get_transform(&self, _: TransformId) -> Result<DbTransform, String> { unimplemented!() }
+
+        async fn get_transform_definition(&self, id: TransformId) -> Result<DbTransformDefinition, String> {
+            Ok(DbTransformDefinition {
+                transform_id: id,
+                name: self.saved_state.name.clone().unwrap_or_default(),
+                description: self.saved_state.description.clone(),
+                icon: None,
+                source_code: Some(self.saved_state.source_code.clone()),
+                ports: vec![],
+                params: vec![],
+            })
+        }
+
+        async fn get_transform_definitions(&self, _: &[TransformId]) -> Result<Vec<DbTransformDefinition>, String> { unimplemented!() }
+        async fn list_transform_summaries(&self, _: i64, _: i64) -> Result<(Vec<DbTransform>, i64), String> { unimplemented!() }
+        async fn insert_transform(&self, _: String, _: Option<String>, _: Option<String>) -> Result<DbTransform, String> { unimplemented!() }
+        async fn delete_transform(&self, _: TransformId) -> Result<(), crate::domain::data_error::DataError> { unimplemented!() }
+
+        async fn get_saved_state(&self, _: TransformId) -> Result<DbTransformSavedState, crate::domain::data_error::DataError> {
+            Ok(self.saved_state.clone())
+        }
+
+        async fn save_transform_state(&self, _: TransformId, _: String, _: Option<ResourceId>) -> Result<DbTransformSavedState, crate::domain::data_error::DataError> { unimplemented!() }
+
+        async fn publish_compiled_transform(&self, _: TransformId, _: Vec<u8>, _: String, _: String, _: Option<String>, _: Vec<NewTransformPort>, _: Vec<NewTransformParam>) -> Result<(), String> {
+            Ok(())
+        }
     }
 
-    async fn delete_port(&self, port_id: i64) -> Result<(), ServiceError> {
-        self.data.delete_port(port_id).await.map_err(ServiceError::from)
+    struct FakeStorageProvider;
+
+    #[async_trait::async_trait]
+    impl TransformStorageProvider for FakeStorageProvider {
+        async fn get_transform_binary(&self, _: TransformId) -> Result<Vec<u8>, String> { unimplemented!() }
+        async fn get_transform_binaries(&self, _: &[TransformId]) -> Result<Vec<DbTransformBinary>, String> { unimplemented!() }
+        async fn write_transform_binary(&self, _: TransformId, _: &[u8]) -> Result<(), String> { unimplemented!() }
+    }
+
+    fn make_saved_state(source_code: &str, wasm_source_code: Option<&str>, has_binary: bool) -> DbTransformSavedState {
+        DbTransformSavedState {
+            transform_id: 1,
+            source_code: source_code.to_string(),
+            wasm_bytecode: if has_binary { Some(vec![0, 1, 2]) } else { None },
+            wasm_source_code: wasm_source_code.map(|s| s.to_string()),
+            name: Some("Test".to_string()),
+            description: None,
+            ports: vec![],
+            params: vec![],
+        }
+    }
+
+    fn service_with(saved_state: DbTransformSavedState) -> TransformsProviderService {
+        TransformsProviderService::new(
+            Arc::new(FakeDataProvider { saved_state }),
+            Arc::new(FakeStorageProvider),
+        )
+    }
+
+    #[tokio::test]
+    async fn publish_fails_when_saved_binary_no_longer_matches_saved_source() {
+        // Models: resource attached while source was "v1" (item 1 stamps
+        // wasm_source_code = "v1" at that moment), then a later source-only
+        // save moves source_code to "v2" without touching the binary. This
+        // is the drift item 2's gate exists to catch.
+        let service = service_with(make_saved_state("v2", Some("v1"), true));
+
+        let result = service.publish_transform(1).await;
+
+        assert!(
+            matches!(result, Err(ServiceError::Validation(_))),
+            "expected a validation error on source/binary drift, got {:?}",
+            result.err()
+        );
+    }
+
+    #[tokio::test]
+    async fn publish_succeeds_when_saved_binary_matches_saved_source() {
+        let service = service_with(make_saved_state("v1", Some("v1"), true));
+
+        let result = service.publish_transform(1).await;
+
+        assert!(result.is_ok(), "expected publish to succeed, got {:?}", result.err());
+    }
+
+    #[tokio::test]
+    async fn publish_fails_when_nothing_saved_with_a_binary_yet() {
+        let service = service_with(make_saved_state("v1", None, false));
+
+        let result = service.publish_transform(1).await;
+
+        assert!(matches!(result, Err(ServiceError::Validation(_))));
     }
 }

@@ -1,11 +1,22 @@
 use serde::{Deserialize, Serialize};
 
-use crate::db::ticket::db_ticket::TicketId;
+use crate::db::{
+    ticket::db_ticket::TicketId,
+    transform_snapshot::{ParamSnapshot, PortSnapshot},
+};
 
 pub type ResourceId = i64;
 
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+/// Bucket 1 — "compile check". An immutable snapshot of what one specific
+/// successful compile ticket produced. Never touched by save or publish;
+/// history/audit trail only.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DbResource {
     pub id: ResourceId,
     pub ticket_id: TicketId,
+    pub wasm_bytecode: Vec<u8>,
+    pub name: String,
+    pub description: Option<String>,
+    pub ports: Vec<PortSnapshot>,
+    pub params: Vec<ParamSnapshot>,
 }

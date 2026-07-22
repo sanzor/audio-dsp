@@ -1,17 +1,33 @@
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { useListTransforms } from "@/hooks/transforms/queries";
 import { useCreatorStore } from "@/Stores/CreatorStore";
 import { useTransformController } from "@/controllers/TransformController";
 
 export function TransformsSidebar() {
   const [filter, setFilter] = useState("");
+  // Tracks which row's delete failed (e.g. 409 — already published), so the
+  // error can be shown inline next to that specific row rather than
+  // globally, mirroring the inline error pattern already used for
+  // publish errors in code-editor.tsx.
+  const [deleteErrorFor, setDeleteErrorFor] = useState<{ transformId: number; message: string } | null>(null);
 
   const selectedId = useCreatorStore((s) => s.selectedTransformId);
-  const setSelected = useCreatorStore((s) => s.setSelectedTransformId);
+  const requestSelectTransform = useCreatorStore((s) => s.requestSelectTransform);
+  const requestCreateTransform = useCreatorStore((s) => s.requestCreateTransform);
+  const { handleDeleteTransform, deleteTransformMutation } = useTransformController();
 
   const query = useListTransforms();
-  const transformController = useTransformController();
+
+  async function onDelete(transformId: number, e: React.MouseEvent) {
+    e.stopPropagation();
+    setDeleteErrorFor(null);
+    try {
+      await handleDeleteTransform(transformId);
+    } catch (error) {
+      setDeleteErrorFor({ transformId, message: error instanceof Error ? error.message : "Failed to delete" });
+    }
+  }
 
   const allTransforms = query.data?.pages.flatMap((p) => p.transforms) ?? [];
   const filtered = filter
@@ -35,7 +51,7 @@ export function TransformsSidebar() {
           TRANSFORMS
         </span>
         <button
-          onClick={transformController.handleCreateTransform}
+          onClick={requestCreateTransform}
           className="w-6 h-6 rounded flex items-center justify-center hover:bg-white/10 transition-colors"
           title="New Transform"
           style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}
@@ -69,30 +85,49 @@ export function TransformsSidebar() {
           </div>
         )}
         {filtered.map((t) => (
-          <button
-            key={t.transform_id}
-            onClick={() => setSelected(t.transform_id)}
-            className="w-full flex flex-col h-auto py-2 px-4 text-left transition-colors"
-            style={
-              selectedId === t.transform_id
-                ? {
-                    color: "#adc6ff",
-                    borderLeft: "2px solid #adc6ff",
-                    backgroundColor: "rgba(173,198,255,0.08)",
-                  }
-                : { color: "var(--text-muted)", borderLeft: "2px solid transparent" }
-            }
-          >
-            <span className="text-xs">{t.name}</span>
-            {t.description && (
-              <span
-                className="text-[10px] mt-0.5 truncate w-full"
-                style={{ color: "var(--text-muted)", opacity: 0.7 }}
+          <div key={t.transform_id} className="group relative">
+            <button
+              onClick={() => requestSelectTransform(t.transform_id)}
+              className="w-full flex flex-col h-auto py-2 pl-4 pr-8 text-left transition-colors"
+              style={
+                selectedId === t.transform_id
+                  ? {
+                      color: "#adc6ff",
+                      borderLeft: "2px solid #adc6ff",
+                      backgroundColor: "rgba(173,198,255,0.08)",
+                    }
+                  : { color: "var(--text-muted)", borderLeft: "2px solid transparent" }
+              }
+            >
+              <span className="text-xs">{t.name}</span>
+              {t.description && (
+                <span
+                  className="text-[10px] mt-0.5 truncate w-full"
+                  style={{ color: "var(--text-muted)", opacity: 0.7 }}
+                >
+                  {t.description}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={(e) => onDelete(t.transform_id, e)}
+              disabled={deleteTransformMutation.isPending}
+              title="Delete draft (only allowed if never published)"
+              className="absolute right-2 top-2 w-5 h-5 rounded flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-white/10 transition-opacity"
+              style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}
+            >
+              <Trash2 className="w-3 h-3" style={{ color: "#ff8a8a" }} />
+            </button>
+            {deleteErrorFor != null && deleteErrorFor.transformId === t.transform_id && (
+              <div
+                className="px-4 pb-1.5 text-[10px] font-mono truncate"
+                title={deleteErrorFor.message}
+                style={{ color: "#ff8a8a" }}
               >
-                {t.description}
-              </span>
+                {deleteErrorFor.message}
+              </div>
             )}
-          </button>
+          </div>
         ))}
 
         {!query.isLoading && filtered.length === 0 && (

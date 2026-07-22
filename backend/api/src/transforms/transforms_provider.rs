@@ -1,5 +1,6 @@
-use domain::db::db_transform::{
-    DbTransform, DbTransformBinary, DbTransformDefinition, DbTransformPort, TransformId,
+use domain::db::{
+    db_transform::{DbTransform, DbTransformBinary, DbTransformDefinition, TransformId},
+    ticket::db_resource::ResourceId,
 };
 
 use crate::domain::service_error::ServiceError;
@@ -12,9 +13,11 @@ pub trait TransformsProvider: Send + Sync {
     async fn get_transform_binary(&self, id: TransformId) -> Result<Vec<u8>, ServiceError>;
     async fn get_transform_binaries(&self, ids: &[TransformId]) -> Result<Vec<DbTransformBinary>, ServiceError>;
     async fn create_transform(&self, name: String, description: Option<String>, icon: Option<String>) -> Result<DbTransformDefinition, ServiceError>;
-    async fn update_transform(&self, id: TransformId, name: String, description: Option<String>, icon: Option<String>) -> Result<DbTransformDefinition, ServiceError>;
+    /// Bucket 2 — save. Always overwrites source_code; if `resource_id` is
+    /// given, also attaches that compile resource's binary/metadata.
+    async fn save_transform_state(&self, id: TransformId, source_code: String, resource_id: Option<ResourceId>) -> Result<DbTransformDefinition, ServiceError>;
+    /// Bucket 3 — publish. Bundles whatever's currently saved (bucket 2) into
+    /// the live artifact. Fails if nothing has been saved with a binary yet.
+    async fn publish_transform(&self, id: TransformId) -> Result<DbTransformDefinition, ServiceError>;
     async fn delete_transform(&self, id: TransformId) -> Result<(), ServiceError>;
-    async fn add_port(&self, transform_id: TransformId, name: String, direction: String, port_order: i32, description: Option<String>) -> Result<DbTransformPort, ServiceError>;
-    async fn delete_port(&self, port_id: i64) -> Result<(), ServiceError>;
-
 }

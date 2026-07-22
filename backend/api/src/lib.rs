@@ -13,7 +13,6 @@ pub mod projects;
 pub mod region_sets;
 pub mod regions;
 pub mod tracks;
-
 pub mod dtos;
 pub mod users;
 pub mod invoices;
@@ -27,5 +26,5 @@ pub mod tickets;
 pub mod stored_tracks;
 pub mod token;
 pub mod workspace;
-pub mod worker;
+pub mod ticket_worker;
 pub mod infra;

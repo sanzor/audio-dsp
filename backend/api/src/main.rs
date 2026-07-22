@@ -109,7 +109,7 @@ use api::{
     },
     tickets::{tickets_app_data::TicketsAppData, tickets_provider_service::TicketsProviderService},
     infra::producer::channel_producer::ChannelProducer,
-    worker::{
+    ticket_worker::{
         consumer::channel_consumer::ChannelConsumer,
         events::ticket_created_event::TicketCreatedEvent,
         processor::{build_job::BuildJobConfig, processor::Processor, processor_params::ProcessorParams},

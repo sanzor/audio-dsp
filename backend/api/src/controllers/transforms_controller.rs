@@ -5,7 +5,7 @@ use crate::{
 };
 use actix_web::{delete, get, post, put, web, HttpResponse};
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine};
-use domain::db::db_transform::{DbTransform, DbTransformDefinition, DbTransformParam, DbTransformPort, TransformId};
+use domain::db::{db_transform::{DbTransform, DbTransformDefinition, DbTransformParam, DbTransformPort, TransformId}, ticket::db_resource::ResourceId};
 use serde::{Deserialize, Serialize};
 use tracing::error;
 use utoipa::{IntoParams, ToSchema};
@@ -20,18 +20,12 @@ pub struct CreateTransformParams {
 }
 
 #[derive(Deserialize, Serialize, ToSchema)]
-pub struct UpdateTransformParams {
-    pub name: String,
-    pub description: Option<String>,
-    pub icon: Option<String>,
-}
-
-#[derive(Deserialize, Serialize, ToSchema)]
-pub struct AddPortParams {
-    pub name: String,
-    pub direction: String,
-    pub port_order: i32,
-    pub description: Option<String>,
+pub struct SaveTransformParams {
+    pub source_code: String,
+    /// A resource_id from a successful compile ticket, if the frontend wants
+    /// to attach that build's binary/metadata to this save. Omit to save
+    /// source only, leaving any previously saved binary untouched.
+    pub resource_id: Option<ResourceId>,
 }
 
 #[derive(Deserialize, IntoParams)]
@@ -80,6 +74,7 @@ pub struct TransformDefinitionDto {
     pub name: String,
     pub description: Option<String>,
     pub icon: Option<String>,
+    pub source_code: Option<String>,
     pub ports: Vec<TransformPortDto>,
     pub params: Vec<TransformParamDto>,
 }
@@ -108,11 +103,6 @@ pub struct TransformBinariesResponse {
 #[derive(Deserialize, IntoParams)]
 pub struct TransformIdPath {
     pub transform_id: TransformId,
-}
-
-#[derive(Deserialize)]
-pub struct PortIdQuery {
-    pub port_id: i64,
 }
 
 impl From<DbTransform> for TransformSummaryDto {
@@ -159,6 +149,7 @@ impl From<DbTransformDefinition> for TransformDefinitionDto {
             name: value.name,
             description: value.description,
             icon: value.icon,
+            source_code: value.source_code,
             ports: value.ports.into_iter().map(TransformPortDto::from).collect(),
             params: value.params.into_iter().map(TransformParamDto::from).collect(),
         }
@@ -296,22 +287,43 @@ pub async fn create_transform(
     }
 }
 
-#[utoipa::path(put, path = "/transforms/{transform_id}", tag = "transforms",
+#[utoipa::path(put, path = "/transforms/{transform_id}/save", tag = "transforms",
     params(TransformIdPath),
-    request_body = UpdateTransformParams,
-    responses((status = 200, description = "Updated transform", body = serde_json::Value)))]
-#[put("/{transform_id}")]
-pub async fn update_transform(
+    request_body = SaveTransformParams,
+    responses((status = 200, description = "Saved transform state", body = serde_json::Value)))]
+#[put("/{transform_id}/save")]
+pub async fn save_transform(
     role: RoleContext,
     path: web::Path<TransformIdPath>,
-    body: web::Json<UpdateTransformParams>,
+    body: web::Json<SaveTransformParams>,
     app: web::Data<TransformsAppData>,
 ) -> HttpResponse {
     if !role.can_edit() {
         return HttpResponse::Forbidden().body("Forbidden");
     }
     let p = body.into_inner();
-    match app.transforms_service.update_transform(path.into_inner().transform_id, p.name, p.description, p.icon).await {
+    match app.transforms_service.save_transform_state(path.into_inner().transform_id, p.source_code, p.resource_id).await {
+        Ok(t) => HttpResponse::Ok().json(TransformDefinitionDto::from(t)),
+        Err(e) => map_service_error(e),
+    }
+}
+
+#[utoipa::path(post, path = "/transforms/{transform_id}/publish", tag = "transforms",
+    params(TransformIdPath),
+    responses(
+        (status = 200, description = "Published transform", body = serde_json::Value),
+        (status = 400, description = "Nothing saved with a successful build yet")
+    ))]
+#[post("/{transform_id}/publish")]
+pub async fn publish_transform(
+    role: RoleContext,
+    path: web::Path<TransformIdPath>,
+    app: web::Data<TransformsAppData>,
+) -> HttpResponse {
+    if !role.can_edit() {
+        return HttpResponse::Forbidden().body("Forbidden");
+    }
+    match app.transforms_service.publish_transform(path.into_inner().transform_id).await {
         Ok(t) => HttpResponse::Ok().json(TransformDefinitionDto::from(t)),
         Err(e) => map_service_error(e),
     }
@@ -335,45 +347,6 @@ pub async fn delete_transform(
     }
 }
 
-#[utoipa::path(post, path = "/transforms/{transform_id}/ports", tag = "transforms",
-    params(TransformIdPath),
-    request_body = AddPortParams,
-    responses((status = 200, description = "Added port", body = serde_json::Value)))]
-#[post("/{transform_id}/ports")]
-pub async fn add_port(
-    role: RoleContext,
-    path: web::Path<TransformIdPath>,
-    body: web::Json<AddPortParams>,
-    app: web::Data<TransformsAppData>,
-) -> HttpResponse {
-    if !role.can_edit() {
-        return HttpResponse::Forbidden().body("Forbidden");
-    }
-    let p = body.into_inner();
-    match app.transforms_service.add_port(path.into_inner().transform_id, p.name, p.direction, p.port_order, p.description).await {
-        Ok(port) => HttpResponse::Ok().json(TransformPortDto::from(port)),
-        Err(e) => map_service_error(e),
-    }
-}
-
-#[utoipa::path(delete, path = "/transforms/ports/{port_id}", tag = "transforms",
-    params(("port_id" = i64, Path, description = "Port ID")),
-    responses((status = 200, description = "Port deleted")))]
-#[delete("/ports/{port_id}")]
-pub async fn delete_port(
-    role: RoleContext,
-    path: web::Path<PortIdQuery>,
-    app: web::Data<TransformsAppData>,
-) -> HttpResponse {
-    if !role.can_edit() {
-        return HttpResponse::Forbidden().body("Forbidden");
-    }
-    match app.transforms_service.delete_port(path.into_inner().port_id).await {
-        Ok(_) => HttpResponse::Ok().body("Deleted"),
-        Err(e) => map_service_error(e),
-    }
-}
-
 // ─── Route registration ───────────────────────────────────────────────────────
 
 pub fn init(cfg: &mut web::ServiceConfig) {
@@ -383,8 +356,7 @@ pub fn init(cfg: &mut web::ServiceConfig) {
         .service(get_transform_binary)
         .service(get_transform_binaries)
         .service(create_transform)
-        .service(update_transform)
-        .service(delete_transform)
-        .service(add_port)
-        .service(delete_port);
+        .service(save_transform)
+        .service(publish_transform)
+        .service(delete_transform);
 }

@@ -67,6 +67,8 @@ impl Processor {
             }
         };
 
+        let name = metadata.name;
+        let description = metadata.description;
         let ports = metadata
             .ports
             .into_iter()
@@ -90,26 +92,12 @@ impl Processor {
             })
             .collect();
 
-        // 4 — publish binary + ports/params atomically
-        if let Err(e) = self
-            .data_provider
-            .publish_compiled_transform(
-                event.transform_id,
-                wasm_bytecode,
-                event.source_code.clone(),
-                ports,
-                new_params,
-            )
-            .await
-        {
-            self.mark_failed(event.ticket_id, e.clone()).await;
-            return Err(ProcessorError::WriteError(e));
-        }
-
-        // 5 — create resource record and mark ticket successful
+        // 4 — store the artifact as a resource (bucket 1: compile check).
+        // This never touches live state — a compile ticket is purely a check;
+        // becoming the published transform is a separate, explicit action.
         let resource = self
             .data_provider
-            .create_resource(event.ticket_id)
+            .create_resource(event.ticket_id, wasm_bytecode, name, description, ports, new_params)
             .await
             .map_err(|e| ProcessorError::DataError(e.to_string()))?;
 

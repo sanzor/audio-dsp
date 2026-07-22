@@ -31,16 +31,16 @@ Planned extension:
 
 ## Surface 2: Editor
 
-The editor surface is where an artist or audio engineer builds audio work by combining existing transforms.
+The editor surface is where an artist or audio engineer builds audio work by combining existing transforms into a node-based graphical DAG, applied over specific parts of a track (regions) — destructively or non-destructively — with immediate preview as they iterate. See `agents/mission.md` for why this is framed as hands-on experimentation, not just "graph composition."
 
 Core responsibilities:
 
 - load tracks and regions
-- drag and drop nodes
+- drag and drop nodes — sourced from the published catalog, whether authored by this user or by someone else (see `agents/mission.md`'s marketplace framing)
 - link transforms into graphs
 - fetch and cache published transform binaries for runtime use
 - attach graphs to regions or other editing scopes
-- preview, iterate, and apply processing
+- preview, iterate, and apply processing — the distinction between a destructive apply (renders/replaces audio) and non-destructive (graph stays live, re-editable) must stay explicit per feature; see the "Decision rule for future changes" below
 
 This is the DAW-facing experience. It should optimize for graph clarity, playback responsiveness, and editing speed.
 
@@ -115,8 +115,8 @@ The expected flow is:
 2. backend creates a compile ticket
 3. worker or compiler process picks up the ticket
 4. creator frontend polls ticket status
-5. backend stores build result, errors, and produced artifact metadata
-6. successful transforms become available to the editor surface
+5. backend stores build result, errors, and produced artifact metadata as a compile resource (not yet live)
+6. the creator explicitly saves and then publishes before a transform becomes available to the editor surface — a successful compile ticket alone does not do this
 
 This compile pipeline should be treated as a product subsystem, not as a side detail of the editor.
 
@@ -127,11 +127,9 @@ That remains true even when source is AI-generated inside the creator UI. AI-ass
 After a transform is successfully compiled and published, it becomes part of the editor-side transform catalog.
 The editor may fetch those published binaries and cache them locally for runtime use, but it does not submit compile jobs or trigger backend compilation.
 
-Creator source compiles against `backend/transform-sdk` — a small crate defining the `Transform` trait and the `export_transform!` macro that generates the wasm ABI the editor's audio worklet expects (zero-import instantiation; `alloc`/`process`/`memory` exports). This is the real contract creator source is compiled against.
+Creator source compiles against `backend/transform-sdk` — see `agents/transforms.md` for the full ABI, compilation pipeline, and metadata-validation details.
 
-Ports/params are code-first: after a successful compile, the backend instantiates the produced wasm module with wasmtime and calls its metadata export to read back the transform's declared ports/params, then replaces the transform's `transform_ports`/`transform_params` rows with that result. They are not hand-authored through the UI. The `add_port`/`delete_port` endpoints still exist but are effectively superseded for any transform that has gone through a compile — a later compile always overwrites what they set.
-
-Current v1 behavior is auto-publish-on-success: a successful compile ticket immediately overwrites the transform's live binary and definition in the same transaction — there is no separate staging/versioning gate yet, despite step 6 above implying a distinct publish step. A future staging table would sit between a successful `publish_compiled_transform` call and the binary becoming visible via `GET /transforms/{id}/binary`.
+A transform's in-progress state is split into three independently-writable buckets — compile (check), save, and publish — with an explicit action required to move between them. A successful compile ticket never auto-publishes; see `agents/transforms.md` for the full model.
 
 ## Editor graph execution planning
 
@@ -200,8 +198,9 @@ The creator surface owns:
 - compile submission UX
 - build status UX
 - transform packaging metadata
+- client-side "try it" preview execution of a just-compiled (not yet saved/published) binary — a narrow, preview-only runtime dependency on the Editor's worklet machinery (`graph-worklet.js` / `WorkletMessageSender`), reused directly so preview can't diverge from post-publish playback; see `agents/decisions/0003-transform-preview-flow.md` and the worklet dependency noted in `agents/ownership.md`'s Shared zones
 
-It should not own DAW graph editing concerns.
+It should not own DAW graph editing concerns, and this preview dependency does not extend to reusing the Editor's stateful worklet controller/hooks (`WorkletController`, `useWorkletSetup`) or its global playback state.
 
 ### Editor boundary
 
@@ -215,7 +214,7 @@ The editor surface owns:
 - fetching and caching published transform binaries
 - frontend execution of published transform chains through the worklet runtime
 
-It should consume published transforms, not define how transforms are authored internally or trigger compilation.
+It should consume published transforms, not define how transforms are authored internally or trigger compilation. The worklet runtime module and message protocol are also relied on by the Creator surface's preview-only flow (read-only reuse, not a fork) — a change to the worklet message protocol or its API must be checked against that dependency too, not just editor playback.
 
 ### Shared boundary
 

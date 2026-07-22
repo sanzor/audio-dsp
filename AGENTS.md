@@ -4,13 +4,43 @@ This repository uses a root entrypoint plus a dedicated top-level `agents/` fold
 
 ## Canonical files
 
+- `agents/mission.md`: what this product is, who it's for, and why the creator/editor split exists — read this first
 - `agents/architecture.md`: current system shape, boundaries, and unresolved architecture questions
 - `agents/invariants.md`: rules that changes must not violate
-- `agents/ownership.md`: directory and subsystem ownership
+- `agents/ownership.md`: directory and subsystem ownership, and how the two agent layers below relate to each other
 - `agents/testing-matrix.md`: what to test for each change category
 - `agents/skills/*.md`: repeatable workflows and checklists
+- `agents/consultants/*.md`: advisory personas (not invocable agents) for domain judgment outside software engineering
+- `agents/roster/*.md`: canonical instructions for each real subagent — `.claude/agents/*.md` only shims to these
+- `agents/market-research.md`: evolving evidence on the product bet — not yet decisions
+- `agents/decisions/*.md`: append-only log of decisions actually made — see `agents/decisions/README.md` for the flow (design doc → business-analyst/product-owner → decision recorded here → handed to editor-agent/creator-agent → living docs updated)
 
-## Default agent set
+## Agents (real, invocable subagents)
+
+Invocable via the Agent tool from `.claude/agents/*.md` — but those are thin shims. The canonical instructions for each live in `agents/roster/*.md`; edit there, not in `.claude/agents/`.
+
+Product shape (no implementation):
+
+- `product-owner`: scopes and prioritizes already-agreed work, decides which surface(s) a request touches, hands scoped tasks to the two builders below
+- `business-analyst`: questions whether the work is the right work — who the product actually serves, unvalidated assumptions, unknown-unknowns, competitive/market context. Distinct from `product-owner`, which assumes the work is worth doing and focuses on scoping it.
+
+Surface builders:
+
+- `editor-agent`: owns the Editor/DAW surface end-to-end (frontend + the backend that serves it)
+- `creator-agent`: owns the Creator surface end-to-end (frontend + the backend that serves it)
+
+`editor-agent`/`creator-agent` must consult `product-owner` before cross-surface work, and update the relevant doc in `agents/` in the same change if they make a destructive change to data the other surface depends on — see `agents/ownership.md`'s escalation rule.
+
+## Expert consultants (advisory personas, not invocable agents)
+
+Read the relevant file in `agents/consultants/` and adopt that framing when a decision needs domain judgment rather than more code:
+
+- `sound-engineer`: DSP/audio-domain correctness — transform design, timing, terminology
+- `dag-ui-expert`: node-graph UI/UX — port/edge conventions, legibility, ergonomics
+- `brainstormer`: divergent-thinking mode for explicit ideation requests
+- `marketing-ui-expert`: landing-page/marketing conventions, for a surface that doesn't exist yet
+
+## Default agent set (technical layers, documentation-only)
 
 - `audio-runtime-agent`: `backend/audiolib`, `backend/player`, transform execution, playback behavior
 - `frontend-graph-agent`: React Flow, Wavesurfer, Zustand, orchestration, node UX
@@ -18,9 +48,11 @@ This repository uses a root entrypoint plus a dedicated top-level `agents/` fold
 - `regression-review-agent`: targeted review of risks, regressions, invariants, and missing tests
 - `observability-debug-agent`: logs, dashboards, queue/worker debugging, deployment runtime signals
 
-## Planned product agents
+## Planned in-product AI features (not dev-time agents)
 
-- `creator-ai-agent`: chat-assisted transform authoring inside the creator surface; generates or edits source and metadata, then hands off to the normal compile and publish pipeline
+Not to be confused with `editor-agent`/`creator-agent` above — those build and maintain the surfaces; these are planned chat assistants that would run *inside* the product for end users:
+
+- `creator-ai-agent`: chat-assisted transform authoring inside the creator surface; generates or edits source and metadata, then hands off to the normal compile/save/publish pipeline
 - `editor-ai-agent`: chat-assisted graph composition inside the editor surface; inspects audio and region context, uses the published transform catalog, builds graph changes, and saves them through the normal editor flows
 
 ## Working rules
@@ -97,8 +129,8 @@ The current intended model is hybrid:
 
 - transforms are authored in the creator surface
 - creator AI may assist with source generation and editing in the UI
-- WASM compilation happens on the backend through the ticket pipeline
-- compiled transforms are published for editor use
+- WASM compilation happens on the backend through the ticket pipeline (a check only — see `agents/transforms.md`'s three-bucket model)
+- transforms move from compile → save → publish as three independent, explicit steps; a successful compile never auto-publishes
 - editor AI may assist with graph composition using the published transform store
 - the editor may fetch and cache published transform binaries on the frontend
 - the editor builds region-level graphs on the frontend

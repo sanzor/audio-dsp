@@ -7,7 +7,7 @@ use crate::{
     infra::producer::producer::Producer,
     tickets::{compile_params::RequestCompileParams, compile_result::CompileResult},
     transforms::data_provider::transforms_data_provider::TransformsDataProvider,
-    worker::events::ticket_created_event::TicketCreatedEvent,
+    ticket_worker::events::ticket_created_event::TicketCreatedEvent,
 };
 
 use super::tickets_provider::TicketsProvider;
@@ -57,6 +57,8 @@ impl TicketsProvider for TicketsProviderService {
         Ok(CompileResult {
             resource_id: resource.id,
             ticket_id: resource.ticket_id,
+            wasm_bytecode: resource.wasm_bytecode,
+            params: resource.params,
         })
     }
 }

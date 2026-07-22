@@ -9,10 +9,27 @@ export interface CreateCompileTicketParams {
 
 export type CompileTicketState = "processing" | "failed" | "successful";
 
+export interface CompileParam {
+  name: string;
+  param_order: number;
+  default_value: number;
+  min_value?: number;
+  max_value?: number;
+  description?: string;
+}
+
 export interface CompileTicketStatus {
   state: CompileTicketState;
   resource_id?: number;
   message?: string;
+  // Present only once state === "successful" — the compiled binary,
+  // base64-encoded, so the creator surface can run a "Try it" preview
+  // before deciding to save. Never sent back to the backend. See
+  // agents/decisions/0003-transform-preview-flow.md.
+  wasm_base64?: string;
+  // Present alongside wasm_base64 — lets "Try it" seed the preview with
+  // this build's real declared param defaults instead of zeros.
+  params?: CompileParam[];
 }
 
 export interface CompileTicket {
@@ -25,6 +42,8 @@ export interface CompileTicket {
 export interface CompileResource {
   resource_id: number;
   ticket_id: number;
+  wasm_base64: string;
+  params: CompileParam[];
 }
 
 // ─── API ─────────────────────────────────────────────────────────────────────

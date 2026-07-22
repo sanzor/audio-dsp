@@ -4,6 +4,8 @@ import { TransformsSidebar } from "./transforms-sidebar";
 import { CreatorWorkspace } from "./creator-workspace";
 import { TransformPropertiesPanel } from "./transform-properties-panel";
 import { CreatorStatusBar } from "./creator-status-bar";
+import { UnsavedTransformSourceModal } from "./unsaved-transform-source-modal";
+import { TransformModals } from "@/components/dashboard/modals/transform/transform-modals";
 
 type BuildTab = "build" | "test" | "deploy";
 
@@ -24,6 +26,9 @@ export function CreatorShell() {
       </div>
 
       <CreatorStatusBar />
+
+      <TransformModals />
+      <UnsavedTransformSourceModal />
     </div>
   );
 }

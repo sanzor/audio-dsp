@@ -1,4 +1,4 @@
-import type { TransformDefinition, TransformPort, TransformSummary } from "@/domain/Transform/TransformDefinition";
+import type { TransformDefinition, TransformSummary } from "@/domain/Transform/TransformDefinition";
 import { http, API_BASE_URL } from "@/Services/http";
 import { useAuthStore } from "@/Stores/authStore";
 import { useProjectStore } from "@/Stores/projectStore";
@@ -11,17 +11,11 @@ export interface CreateTransformParams {
   icon?: string;
 }
 
-export interface UpdateTransformParams {
-  name: string;
-  description?: string;
-  icon?: string;
-}
-
-export interface AddPortParams {
-  name: string;
-  direction: "input" | "output";
-  port_order: number;
-  description?: string;
+export interface SaveTransformParams {
+  source_code: string;
+  // A resource_id from a successful compile ticket, if attaching that
+  // build's binary/metadata to this save. Omit to save source only.
+  resource_id?: number;
 }
 
 // ─── API ─────────────────────────────────────────────────────────────────────
@@ -48,7 +42,11 @@ export interface TransformBinariesResponse {
   binaries: TransformBinaryEnvelope[];
 }
 
-function decodeBase64Binary(encoded: string): Uint8Array {
+// Exported for reuse by the creator surface's "Try it" preview flow, which
+// decodes a compile ticket/resource's wasm_base64 the same way this file
+// already decodes published TransformBinaryDto payloads — see
+// agents/decisions/0003-transform-preview-flow.md.
+export function decodeBase64Binary(encoded: string): Uint8Array {
   const decoded = atob(encoded);
   const bytes = new Uint8Array(decoded.length);
   for (let i = 0; i < decoded.length; i += 1) {
@@ -86,32 +84,27 @@ export async function apiCreateTransform(params: CreateTransformParams): Promise
   return http.post<TransformDefinition, CreateTransformParams>(`/transforms`, params);
 }
 
-export async function apiUpdateTransform(
-  transform_id: number,
-  params: UpdateTransformParams
-): Promise<TransformDefinition> {
-  return http.put<TransformDefinition, UpdateTransformParams>(
-    `/transforms/${transform_id}`,
-    params
-  );
-}
-
 export async function apiDeleteTransform(transform_id: number): Promise<void> {
   await http.delete<void>(`/transforms/${transform_id}`);
 }
 
-export async function apiAddPort(
+// Bucket 2 — save. Always overwrites source_code; optionally attaches a
+// compiled resource's binary/metadata. Independent of compiling — never
+// blocked by or waiting on an in-flight compile ticket.
+export async function apiSaveTransform(
   transform_id: number,
-  params: AddPortParams
-): Promise<TransformPort> {
-  return http.post<TransformPort, AddPortParams>(
-    `/transforms/${transform_id}/ports`,
+  params: SaveTransformParams
+): Promise<TransformDefinition> {
+  return http.put<TransformDefinition, SaveTransformParams>(
+    `/transforms/${transform_id}/save`,
     params
   );
 }
 
-export async function apiDeletePort(port_id: number): Promise<void> {
-  await http.delete<void>(`/transforms/ports/${port_id}`);
+// Bucket 3 — publish. Bundles whatever's currently saved into the live
+// artifact. Does not compile — fails if nothing saved has a binary yet.
+export async function apiPublishTransform(transform_id: number): Promise<TransformDefinition> {
+  return http.post<TransformDefinition, undefined>(`/transforms/${transform_id}/publish`, undefined);
 }
 
 // Fetches the pre-compiled .wasm binary for a transform from the backend.

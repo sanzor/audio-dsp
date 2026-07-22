@@ -6,6 +6,7 @@ use crate::{
     tickets::tickets_app_data::TicketsAppData,
 };
 use actix_web::{get, post, web, HttpResponse};
+use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine};
 use domain::{db::{
     db_transform::TransformId,
     ticket::{
@@ -13,6 +14,7 @@ use domain::{db::{
         db_ticket::{DbTicket, TicketId},
         ticket_status::TicketStatus,
     },
+    transform_snapshot::ParamSnapshot,
 }, domain_user::UserId};
 use serde::{Deserialize, Serialize};
 use tracing::error;
@@ -27,10 +29,45 @@ pub struct CreateCompileTicketRequest {
 }
 
 #[derive(Debug, Serialize, ToSchema)]
+pub struct CompileParamDto {
+    pub name: String,
+    pub param_order: i32,
+    pub default_value: f32,
+    pub min_value: Option<f32>,
+    pub max_value: Option<f32>,
+    pub description: Option<String>,
+}
+
+impl From<ParamSnapshot> for CompileParamDto {
+    fn from(value: ParamSnapshot) -> Self {
+        Self {
+            name: value.name,
+            param_order: value.param_order,
+            default_value: value.default_value,
+            min_value: value.min_value,
+            max_value: value.max_value,
+            description: value.description,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, ToSchema)]
 pub struct CompileTicketStatusDto {
     pub state: String,
     pub resource_id: Option<ResourceId>,
     pub message: Option<String>,
+    /// Present only once state == "successful" — the compiled binary,
+    /// base64-encoded (same encoding `TransformBinaryDto` uses for published
+    /// binaries), so the creator surface can run a "Try it" preview of this
+    /// exact build before deciding to save. Never sent back to the backend —
+    /// see agents/decisions/0003-transform-preview-flow.md.
+    pub wasm_base64: Option<String>,
+    /// Present alongside wasm_base64 — the introspected params (with
+    /// default_value), so "Try it" can seed the preview graph with this
+    /// build's real declared defaults instead of zeros. Ports aren't needed
+    /// here: preview always wires exactly one raw input to one sink output,
+    /// so port identity/order doesn't affect execution the way param values do.
+    pub params: Option<Vec<CompileParamDto>>,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -45,6 +82,10 @@ pub struct CompileTicketDto {
 pub struct CompileResourceDto {
     pub resource_id: ResourceId,
     pub ticket_id: TicketId,
+    /// The compiled binary, base64-encoded — see the note on
+    /// `CompileTicketStatusDto::wasm_base64`.
+    pub wasm_base64: String,
+    pub params: Vec<CompileParamDto>,
 }
 
 #[derive(Deserialize, IntoParams)]
@@ -64,16 +105,25 @@ impl From<TicketStatus> for CompileTicketStatusDto {
                 state: "processing".to_string(),
                 resource_id: None,
                 message: None,
+                wasm_base64: None,
+                params: None,
             },
             TicketStatus::Failed { message } => Self {
                 state: "failed".to_string(),
                 resource_id: None,
                 message: Some(message),
+                wasm_base64: None,
+                params: None,
             },
             TicketStatus::Successful { resource_id } => Self {
                 state: "successful".to_string(),
                 resource_id: Some(resource_id),
                 message: None,
+                // Filled in by the handler (needs a second fetch to get the
+                // resource's bytecode/params) — TicketStatus alone doesn't
+                // carry them.
+                wasm_base64: None,
+                params: None,
             },
         }
     }
@@ -95,6 +145,8 @@ impl From<CompileResult> for CompileResourceDto {
         Self {
             resource_id: value.resource_id,
             ticket_id: value.ticket_id,
+            wasm_base64: BASE64_STANDARD.encode(&value.wasm_bytecode),
+            params: value.params.into_iter().map(CompileParamDto::from).collect(),
         }
     }
 }
@@ -164,7 +216,35 @@ pub async fn get_compile_ticket_status(
         .get_compile_ticket_status(path.into_inner().ticket_id)
         .await
     {
-        Ok(ticket) => HttpResponse::Ok().json(CompileTicketDto::from(ticket)),
+        Ok(ticket) => {
+            // TicketStatus::Successful only carries a resource_id, not the
+            // bytecode itself — fetch the resource so the "Try it" preview
+            // flow can decode-and-run this exact build client-side. See
+            // agents/decisions/0003-transform-preview-flow.md.
+            let successful_resource_id = match &ticket.status {
+                TicketStatus::Successful { resource_id } => Some(*resource_id),
+                _ => None,
+            };
+
+            let mut dto = CompileTicketDto::from(ticket);
+
+            if let Some(resource_id) = successful_resource_id {
+                match app.tickets_service.get_ticket_result(resource_id).await {
+                    Ok(result) => {
+                        dto.status.wasm_base64 = Some(BASE64_STANDARD.encode(&result.wasm_bytecode));
+                        dto.status.params = Some(result.params.into_iter().map(CompileParamDto::from).collect());
+                    }
+                    Err(e) => {
+                        // Don't fail the whole status response over this —
+                        // the ticket status itself is still valid, preview
+                        // just won't be available this poll.
+                        error!(error = %e, resource_id, "failed to fetch compile resource for preview binary");
+                    }
+                }
+            }
+
+            HttpResponse::Ok().json(dto)
+        }
         Err(e) => map_service_error(e),
     }
 }

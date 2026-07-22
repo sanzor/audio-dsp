@@ -19,6 +19,7 @@ pub struct DbTransformDefinition {
     pub name: String,
     pub description: Option<String>,
     pub icon: Option<String>,
+    pub source_code: Option<String>,
     pub ports: Vec<DbTransformPort>,
     pub params: Vec<DbTransformParam>,
 }

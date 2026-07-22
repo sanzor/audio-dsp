@@ -26,6 +26,7 @@ impl From<DataError> for ServiceError {
         match err {
             DataError::NotFound => ServiceError::NotFound,
             DataError::Conflict(msg) => ServiceError::Conflict(msg),
+            DataError::Validation(msg) => ServiceError::Validation(msg),
             DataError::Internal(msg) => ServiceError::Internal(msg),
         }
     }

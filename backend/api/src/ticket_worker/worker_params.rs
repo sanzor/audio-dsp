@@ -1,4 +1,4 @@
-use crate::worker::{
+use crate::ticket_worker::{
     consumer::consumer::Consumer, events::ticket_created_event::TicketCreatedEvent,
     processor::processor::Processor,
 };

@@ -4,6 +4,7 @@ use std::fmt;
 pub enum DataError {
     NotFound,
     Conflict(String),
+    Validation(String),
     Internal(String),
 }
 
@@ -12,6 +13,7 @@ impl fmt::Display for DataError {
         match self {
             DataError::NotFound => write!(f, "record not found"),
             DataError::Conflict(msg) => write!(f, "conflict: {msg}"),
+            DataError::Validation(msg) => write!(f, "validation: {msg}"),
             DataError::Internal(msg) => write!(f, "internal error: {msg}"),
         }
     }

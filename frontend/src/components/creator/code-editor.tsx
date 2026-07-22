@@ -1,10 +1,17 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Editor from "@monaco-editor/react";
 import { useCreatorStore } from "@/Stores/CreatorStore";
 import { useGetTransformDefinition } from "@/hooks/transforms/queries";
 import { useCompileTicketStatus } from "@/hooks/tickets/queries";
 import { useRequestCompileTransform } from "@/hooks/tickets/mutations";
+import { useSaveTransform, usePublishTransform } from "@/hooks/transforms/mutations";
 import { validateTransformSource } from "./validateTransformSource";
+
+// The "Try it" client-side preview (creatorTransformPreview.ts) and the
+// wasm_base64/params fields it consumes from the compile ticket/resource
+// DTOs are intentionally left in place, unused, for when real audio-source
+// upload exists to make a preview meaningful — see
+// agents/decisions/0003-transform-preview-flow.md.
 
 const DEFAULT_CODE = `use transform_sdk::{Transform, TransformMetadata, PortMetadata, ParamMetadata, Direction};
 
@@ -44,44 +51,85 @@ interface FileTab {
   language: string;
 }
 
-const CONFIG_TAB: FileTab = { id: "config", name: "config.json", language: "json" };
 const OUTPUT_TAB: FileTab = { id: "output", name: "output", language: "text" };
 
 export function CreatorCodeEditor() {
   const selectedId = useCreatorStore((s) => s.selectedTransformId);
   const activeTicketByTransform = useCreatorStore((s) => s.activeTicketByTransform);
   const setActiveTicket = useCreatorStore((s) => s.setActiveTicket);
+  const lastCompiledResourceByTransform = useCreatorStore((s) => s.lastCompiledResourceByTransform);
+  const setLastCompiledResource = useCreatorStore((s) => s.setLastCompiledResource);
+  const editing = useCreatorStore((s) => s.editingTransformSource);
+  const beginEditingTransformSource = useCreatorStore((s) => s.beginEditingTransformSource);
+  const updateEditingTransformSource = useCreatorStore((s) => s.updateEditingTransformSource);
+  const markTransformSourceSaved = useCreatorStore((s) => s.markTransformSourceSaved);
   const { data: definition } = useGetTransformDefinition(selectedId);
   const [activeTab, setActiveTab] = useState("impl");
-  const [code, setCode] = useState(DEFAULT_CODE);
 
-  const ticketId = selectedId != null ? activeTicketByTransform[selectedId] ?? null : null;
+  // Load the editor buffer from the fetched definition once per selected
+  // transform — not on every render, and not before the right definition
+  // has actually arrived (avoids briefly showing the previous transform's code).
+  const editingForSelected = editing?.transformId === selectedId ? editing : null;
+  useEffect(() => {
+    if (selectedId == null || editingForSelected != null) return;
+    if (definition == null || definition.transform_id !== selectedId) return;
+    beginEditingTransformSource(selectedId, definition.source_code || DEFAULT_CODE);
+  }, [selectedId, definition, editingForSelected, beginEditingTransformSource]);
+
+  const code = editingForSelected?.source ?? "";
+  const isDirty = editingForSelected != null && editingForSelected.source !== editingForSelected.originalSource;
+
+  const activeTicket = selectedId != null ? activeTicketByTransform[selectedId] ?? null : null;
   const compileMutation = useRequestCompileTransform();
-  const ticketStatus = useCompileTicketStatus(ticketId, selectedId);
+  const saveMutation = useSaveTransform(selectedId ?? -1);
+  const publishMutation = usePublishTransform(selectedId ?? -1);
+  const ticketStatus = useCompileTicketStatus(activeTicket?.ticketId ?? null, selectedId);
 
   const buildState = ticketStatus.data?.status.state ?? null;
   const buildMessage = ticketStatus.data?.status.message ?? null;
   const isCompiling = compileMutation.isPending || buildState === "processing";
+  const resourceId = ticketStatus.data?.status.resource_id ?? null;
+
+  // Once a compile ticket succeeds, record its resource against the exact
+  // source that produced it — Save can only safely attach it while the
+  // buffer still matches that text.
+  useEffect(() => {
+    if (selectedId == null || resourceId == null || activeTicket == null) return;
+    if (lastCompiledResourceByTransform[selectedId]?.resourceId === resourceId) return;
+    setLastCompiledResource(selectedId, resourceId, activeTicket.sourceCode);
+  }, [selectedId, resourceId, activeTicket, lastCompiledResourceByTransform, setLastCompiledResource]);
+
+  const attachableResourceId =
+    selectedId != null && lastCompiledResourceByTransform[selectedId]?.sourceCode === code
+      ? lastCompiledResourceByTransform[selectedId].resourceId
+      : undefined;
 
   const validation = useMemo(() => validateTransformSource(code), [code]);
-  const [validatedFor, setValidatedFor] = useState<{ code: string; result: ReturnType<typeof validateTransformSource> } | null>(null);
-  const manualValidation = validatedFor?.code === code ? validatedFor.result : null;
 
-  function handleValidate() {
-    setValidatedFor({ code, result: validateTransformSource(code) });
+  function handleSave() {
+    if (selectedId == null || !isDirty) return;
+    const source = code;
+    saveMutation.mutate(
+      { source_code: source, resource_id: attachableResourceId },
+      { onSuccess: () => markTransformSourceSaved(selectedId, source) }
+    );
   }
 
   function handleCompile() {
     if (selectedId == null || !validation.ok || isCompiling) return;
     compileMutation.mutate(
       { transform_id: selectedId, source_code: code },
-      { onSuccess: (ticket) => setActiveTicket(selectedId, ticket.ticket_id) }
+      { onSuccess: (ticket) => setActiveTicket(selectedId, ticket.ticket_id, code) }
     );
+  }
+
+  function handlePublish() {
+    if (selectedId == null) return;
+    publishMutation.mutate();
   }
 
   const tabs: FileTab[] = [
     { id: "impl", name: definition ? `${definition.name}.rs` : "untitled.rs", language: "rust" },
-    CONFIG_TAB,
     ...(buildState === "failed" ? [OUTPUT_TAB] : []),
   ];
 
@@ -116,21 +164,7 @@ export function CreatorCodeEditor() {
           ))}
         </div>
         <div className="flex items-center gap-2">
-          {manualValidation && manualValidation.ok && (
-            <span className="font-mono text-[10px]" style={{ color: "#4ae176" }}>
-              Valid ✓
-            </span>
-          )}
-          {manualValidation && !manualValidation.ok && (
-            <span
-              className="font-mono text-[10px] max-w-[320px] truncate"
-              title={manualValidation.issues.join(" ")}
-              style={{ color: "#ffd166" }}
-            >
-              {manualValidation.issues.join(" ")}
-            </span>
-          )}
-          {!manualValidation && !validation.ok && !isCompiling && buildState !== "failed" && (
+          {!validation.ok && !isCompiling && buildState !== "failed" && (
             <span
               className="font-mono text-[10px] max-w-[280px] truncate"
               title={validation.issues.join(" ")}
@@ -160,16 +194,16 @@ export function CreatorCodeEditor() {
             </button>
           )}
           <button
-            onClick={handleValidate}
+            onClick={handleSave}
+            disabled={selectedId == null || !isDirty || saveMutation.isPending}
             className="font-mono font-bold px-2.5 py-0.5 rounded text-[10px] transition-colors"
-            disabled={selectedId == null || !code.trim()}
             style={{
-              color: "#f4d35e",
-              border: "1px solid rgba(244,211,94,0.4)",
-              opacity: selectedId == null || !code.trim() ? 0.5 : 1,
+              color: "#4ae176",
+              border: "1px solid rgba(74,225,118,0.4)",
+              opacity: selectedId == null || !isDirty || saveMutation.isPending ? 0.5 : 1,
             }}
           >
-            Validate
+            {saveMutation.isPending ? "Saving…" : "Save"}
           </button>
           <button
             onClick={handleCompile}
@@ -184,6 +218,28 @@ export function CreatorCodeEditor() {
           >
             Compile
           </button>
+          <button
+            onClick={handlePublish}
+            disabled={selectedId == null || publishMutation.isPending}
+            title={publishMutation.error?.message}
+            className="font-mono font-bold px-2.5 py-0.5 rounded text-[10px] transition-colors"
+            style={{
+              color: "#f472b6",
+              border: "1px solid rgba(244,114,182,0.4)",
+              opacity: selectedId == null || publishMutation.isPending ? 0.5 : 1,
+            }}
+          >
+            {publishMutation.isPending ? "Publishing…" : "Publish"}
+          </button>
+          {publishMutation.isError && (
+            <span
+              className="font-mono text-[10px] max-w-[240px] truncate"
+              title={publishMutation.error.message}
+              style={{ color: "#ff6b6b" }}
+            >
+              {publishMutation.error.message}
+            </span>
+          )}
           <span
             className="font-mono font-bold px-2 py-0.5 rounded text-[10px]"
             style={{ color: "#ffb786", border: "1px solid rgba(255,183,134,0.3)" }}
@@ -207,7 +263,7 @@ export function CreatorCodeEditor() {
             height="100%"
             language={tabs.find((t) => t.id === activeTab)?.language ?? "rust"}
             value={code}
-            onChange={(value) => setCode(value ?? "")}
+            onChange={(value) => updateEditingTransformSource(value ?? "")}
             theme="vs-dark"
             options={{
               fontSize: 13,
