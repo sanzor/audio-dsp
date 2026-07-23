@@ -309,6 +309,22 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
         .map_err(|e| e.to_string())
     }
 
+    async fn get_current_ports(&self, transform_id: TransformId) -> Result<Vec<DbTransformPort>, DataError> {
+        let rows = sqlx::query_as::<_, DbTransformPort>(
+            r#"
+            SELECT port_id, transform_id, name, direction, port_order, description, kind, cardinality
+            FROM transform_ports
+            WHERE transform_id = $1
+            ORDER BY CASE WHEN direction = 'input' THEN 0 ELSE 1 END, port_order, port_id
+            "#,
+        )
+        .bind(transform_id)
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(rows)
+    }
+
     async fn get_transform_definition(&self, id: TransformId) -> Result<DbTransformDefinition, String> {
         let row = sqlx::query_as::<_, DbTransformDefinitionRow>(
             r#"SELECT * FROM get_transform_definition($1)"#,
@@ -586,14 +602,16 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
 
         for port in &ports {
             sqlx::query(
-                r#"INSERT INTO transform_ports (transform_id, name, direction, port_order, description)
-                   VALUES ($1, $2, $3, $4, $5)"#,
+                r#"INSERT INTO transform_ports (transform_id, name, direction, port_order, description, kind, cardinality)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7)"#,
             )
             .bind(transform_id)
             .bind(&port.name)
             .bind(&port.direction)
             .bind(port.order)
             .bind(&port.description)
+            .bind(&port.kind)
+            .bind(&port.cardinality)
             .execute(&mut *tx)
             .await
             .map_err(|e| e.to_string())?;

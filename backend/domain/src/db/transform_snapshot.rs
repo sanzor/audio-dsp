@@ -11,6 +11,10 @@ pub struct PortSnapshot {
     pub direction: String,
     pub port_order: i32,
     pub description: Option<String>,
+    /// "program" | "sidechain". See `transform_sdk::PortKind`.
+    pub kind: String,
+    /// "single" | "many". See `transform_sdk::PortCardinality`.
+    pub cardinality: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

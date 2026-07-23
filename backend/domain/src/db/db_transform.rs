@@ -38,6 +38,8 @@ pub struct DbTransformPort {
     pub direction: String, // "input" | "output"
     pub port_order: i32,
     pub description: Option<String>,
+    pub kind: String,        // "program" | "sidechain"
+    pub cardinality: String, // "single" | "many"
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]

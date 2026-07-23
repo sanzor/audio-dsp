@@ -10,16 +10,14 @@ use api::ticket_worker::processor::build_job::{compile_transform_source, BuildJo
 use api::ticket_worker::processor::metadata_introspector::introspect_metadata;
 
 const KNOWN_GOOD_SOURCE: &str = r#"
-use transform_sdk::{Transform, TransformMetadata, PortMetadata, ParamMetadata, Direction};
+use transform_sdk::{Transform, TransformMetadata, PortMetadata, ParamMetadata, Direction, PortKind, PortCardinality, Params};
 
 #[derive(Default)]
 pub struct RmsDetector;
 
 impl Transform for RmsDetector {
-    fn process(&mut self, samples: &mut [f32], _params: &[f32]) {
-        for s in samples.iter_mut() {
-            *s *= 0.5;
-        }
+    fn process(&mut self, samples: &[&[f32]], _params: &Params<'_>) -> Vec<f32> {
+        samples[0].iter().map(|s| s * 0.5).collect()
     }
 
     fn metadata() -> TransformMetadata {
@@ -27,8 +25,8 @@ impl Transform for RmsDetector {
             name: "RMS Detector".to_string(),
             description: None,
             ports: vec![
-                PortMetadata { name: "in".to_string(), direction: Direction::Input, order: 0, description: None },
-                PortMetadata { name: "out".to_string(), direction: Direction::Output, order: 0, description: None },
+                PortMetadata { name: "in".to_string(), direction: Direction::Input, order: 0, description: None, kind: PortKind::Program, cardinality: PortCardinality::Single },
+                PortMetadata { name: "out".to_string(), direction: Direction::Output, order: 0, description: None, kind: PortKind::Program, cardinality: PortCardinality::Single },
             ],
             params: vec![ParamMetadata {
                 name: "window".to_string(),
@@ -52,13 +50,13 @@ pub struct Broken {
 "#;
 
 const MISSING_EXPORT_MACRO_SOURCE: &str = r#"
-use transform_sdk::{Transform, TransformMetadata};
+use transform_sdk::{Transform, TransformMetadata, Params};
 
 #[derive(Default)]
 pub struct Silent;
 
 impl Transform for Silent {
-    fn process(&mut self, _samples: &mut [f32], _params: &[f32]) {}
+    fn process(&mut self, _samples: &[&[f32]], _params: &Params<'_>) -> Vec<f32> { vec![] }
     fn metadata() -> TransformMetadata {
         TransformMetadata { name: "Silent".to_string(), description: None, ports: vec![], params: vec![] }
     }

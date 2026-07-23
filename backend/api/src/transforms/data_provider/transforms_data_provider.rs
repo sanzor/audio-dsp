@@ -1,5 +1,5 @@
 use domain::db::{
-    db_transform::{DbTransform, DbTransformDefinition, TransformId},
+    db_transform::{DbTransform, DbTransformDefinition, DbTransformPort, TransformId},
     ticket::{create_ticket_params::CreateTicketParams, db_resource::{DbResource, ResourceId}, db_ticket::{DbTicket, TicketId}, update_ticket_params::UpdateTicketParams},
     transform_saved_state::DbTransformSavedState,
     transform_snapshot::{ParamSnapshot, PortSnapshot},
@@ -8,13 +8,16 @@ use domain::db::{
 use crate::{domain::data_error::DataError};
 
 /// A port as introspected from a compiled transform's metadata, not yet
-/// persisted. `direction` is already validated to be "input"/"output" by
-/// the caller (see worker::processor::metadata_introspector).
+/// persisted. `direction`/`kind`/`cardinality` are already validated/mapped
+/// to their DB string forms by the caller (see
+/// worker::processor::metadata_introspector).
 pub struct NewTransformPort {
     pub name: String,
     pub direction: String,
     pub order: i32,
     pub description: Option<String>,
+    pub kind: String,
+    pub cardinality: String,
 }
 
 /// A param as introspected from a compiled transform's metadata, not yet
@@ -30,13 +33,27 @@ pub struct NewTransformParam {
 
 impl From<NewTransformPort> for PortSnapshot {
     fn from(p: NewTransformPort) -> Self {
-        Self { name: p.name, direction: p.direction, port_order: p.order, description: p.description }
+        Self {
+            name: p.name,
+            direction: p.direction,
+            port_order: p.order,
+            description: p.description,
+            kind: p.kind,
+            cardinality: p.cardinality,
+        }
     }
 }
 
 impl From<PortSnapshot> for NewTransformPort {
     fn from(p: PortSnapshot) -> Self {
-        Self { name: p.name, direction: p.direction, order: p.port_order, description: p.description }
+        Self {
+            name: p.name,
+            direction: p.direction,
+            order: p.port_order,
+            description: p.description,
+            kind: p.kind,
+            cardinality: p.cardinality,
+        }
     }
 }
 
@@ -78,6 +95,12 @@ pub trait TransformsDataProvider: Send + Sync {
     
     async fn get_transform(&self, id: TransformId) -> Result<DbTransform, String>;
     async fn get_transform_definition(&self, id: TransformId) -> Result<DbTransformDefinition, String>;
+    /// Currently-published (bucket 3) ports only — no join through saved
+    /// state. Empty for a transform that's never been published. Used by
+    /// the pre-publish port-shape diff (see
+    /// `TransformsProvider::diff_publish_port_shape`) to compare against
+    /// what's about to be published.
+    async fn get_current_ports(&self, transform_id: TransformId) -> Result<Vec<DbTransformPort>, DataError>;
     async fn get_transform_definitions(&self, ids: &[TransformId]) -> Result<Vec<DbTransformDefinition>, String>;
     async fn list_transform_summaries(&self, offset: i64, limit: i64) -> Result<(Vec<DbTransform>, i64), String>;
     /// Also creates the transform's (bucket 2) saved-state row, so it's

@@ -77,6 +77,8 @@ impl Processor {
                 direction: p.direction.as_db_str().to_string(),
                 order: p.order,
                 description: p.description,
+                kind: p.kind.as_db_str().to_string(),
+                cardinality: p.cardinality.as_db_str().to_string(),
             })
             .collect();
         let new_params = metadata

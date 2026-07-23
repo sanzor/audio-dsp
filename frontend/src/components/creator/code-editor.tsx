@@ -5,6 +5,7 @@ import { useGetTransformDefinition } from "@/hooks/transforms/queries";
 import { useCompileTicketStatus } from "@/hooks/tickets/queries";
 import { useRequestCompileTransform } from "@/hooks/tickets/mutations";
 import { useSaveTransform, usePublishTransform } from "@/hooks/transforms/mutations";
+import { apiGetPublishPortShapeDiff, type PortShapeSummary } from "@/Services/TransformService";
 import { validateTransformSource } from "./validateTransformSource";
 
 // The "Try it" client-side preview (creatorTransformPreview.ts) and the
@@ -13,7 +14,7 @@ import { validateTransformSource } from "./validateTransformSource";
 // upload exists to make a preview meaningful — see
 // agents/decisions/0003-transform-preview-flow.md.
 
-const DEFAULT_CODE = `use transform_sdk::{Transform, TransformMetadata, PortMetadata, ParamMetadata, Direction};
+const DEFAULT_CODE = `use transform_sdk::{Transform, TransformMetadata, PortMetadata, ParamMetadata, Direction, PortKind, PortCardinality, Params};
 
 #[derive(Default)]
 pub struct RmsDetector {
@@ -21,12 +22,13 @@ pub struct RmsDetector {
 }
 
 impl Transform for RmsDetector {
-    fn process(&mut self, samples: &mut [f32], _params: &[f32]) {
-        let sum_sq: f32 = samples.iter().map(|&x| x * x).sum();
-        let rms = (sum_sq / samples.len() as f32).sqrt();
-        for s in samples.iter_mut() {
-            *s = rms;
-        }
+    // \`samples\` has one entry per declared input port, in order — a
+    // single-input transform like this one reads samples[0], same as always.
+    fn process(&mut self, samples: &[&[f32]], _params: &Params<'_>) -> Vec<f32> {
+        let input = samples[0];
+        let sum_sq: f32 = input.iter().map(|&x| x * x).sum();
+        let rms = (sum_sq / input.len() as f32).sqrt();
+        vec![rms; input.len()]
     }
 
     fn metadata() -> TransformMetadata {
@@ -34,8 +36,8 @@ impl Transform for RmsDetector {
             name: "RMS Detector".to_string(),
             description: Some("Replaces each sample with the block's RMS level.".to_string()),
             ports: vec![
-                PortMetadata { name: "in".to_string(), direction: Direction::Input, order: 0, description: None },
-                PortMetadata { name: "out".to_string(), direction: Direction::Output, order: 0, description: None },
+                PortMetadata { name: "in".to_string(), direction: Direction::Input, order: 0, description: None, kind: PortKind::Program, cardinality: PortCardinality::Single },
+                PortMetadata { name: "out".to_string(), direction: Direction::Output, order: 0, description: None, kind: PortKind::Program, cardinality: PortCardinality::Single },
             ],
             params: vec![],
         }
@@ -123,8 +125,32 @@ export function CreatorCodeEditor() {
     );
   }
 
-  function handlePublish() {
+  // Republish port-shape warning: an advisory, non-blocking pre-check.
+  // Never blocks Publish itself — if the check request fails, we proceed as
+  // if nothing changed rather than leaving the creator stuck. See
+  // agents/decisions/0004-multi-input-named-ports.md.
+  async function handlePublish() {
     if (selectedId == null) return;
+
+    try {
+      const diff = await apiGetPublishPortShapeDiff(selectedId);
+      if (diff.changed) {
+        const describe = (ports: PortShapeSummary[]) =>
+          ports.length === 0
+            ? "(none)"
+            : ports.map((p) => `${p.name} [${p.direction}, ${p.kind}/${p.cardinality}]`).join(", ");
+        const proceed = window.confirm(
+          "This transform's port shape has changed since it was last published.\n\n" +
+            `Currently published: ${describe(diff.current)}\n` +
+            `About to publish: ${describe(diff.incoming)}\n\n` +
+            "Editor graphs already wired to the old shape will fail closed with a visible error rather than silently misrouting audio, but they will need to be re-wired. Publish anyway?"
+        );
+        if (!proceed) return;
+      }
+    } catch {
+      // Advisory only — never block the actual publish on this check failing.
+    }
+
     publishMutation.mutate();
   }
 

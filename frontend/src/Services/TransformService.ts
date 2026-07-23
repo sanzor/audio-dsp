@@ -107,6 +107,31 @@ export async function apiPublishTransform(transform_id: number): Promise<Transfo
   return http.post<TransformDefinition, undefined>(`/transforms/${transform_id}/publish`, undefined);
 }
 
+// Advisory pre-publish check (multi-input named ports republish warning).
+// Diffs the port shape about to be published (bucket 2, saved state)
+// against what's currently live (bucket 3, transform_ports) — count/kind/
+// cardinality per port, not name. Never mutates anything and is never
+// called implicitly by apiPublishTransform; the creator's Publish flow
+// polls it first and shows a non-blocking confirm dialog when `changed` is
+// true. `changed` is always false for a transform that's never been
+// published (nothing to compare against yet).
+export interface PortShapeSummary {
+  name: string;
+  direction: "input" | "output";
+  kind: "program" | "sidechain";
+  cardinality: "single" | "many";
+}
+
+export interface PublishPortShapeDiff {
+  changed: boolean;
+  current: PortShapeSummary[];
+  incoming: PortShapeSummary[];
+}
+
+export async function apiGetPublishPortShapeDiff(transform_id: number): Promise<PublishPortShapeDiff> {
+  return http.get<PublishPortShapeDiff>(`/transforms/${transform_id}/publish/port-diff`);
+}
+
 // Fetches the pre-compiled .wasm binary for a transform from the backend.
 // The backend reads the committed binary bytes from persisted storage; the frontend never compiles.
 export async function apiGetTransformBinary(transform_id: number): Promise<Uint8Array> {

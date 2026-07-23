@@ -39,6 +39,24 @@ function PortsList({ direction, ports }: PortsListProps) {
             <span className="flex-1 text-xs" style={{ color: "var(--text-main)", minWidth: 0 }}>
               {port.name}
             </span>
+            {port.kind === "sidechain" && (
+              <span
+                className="text-[8px] font-mono px-1 rounded"
+                style={{ color: "#ffb786", border: "1px solid rgba(255,183,134,0.4)" }}
+                title="Sidechain — control/detector signal, silent when unwired"
+              >
+                sidechain
+              </span>
+            )}
+            {port.cardinality === "many" && (
+              <span
+                className="text-[8px] font-mono px-1 rounded"
+                style={{ color: "#adc6ff", border: "1px solid rgba(173,198,255,0.4)" }}
+                title="Many — multiple edges sum into this port"
+              >
+                many
+              </span>
+            )}
             <span className="text-[9px] font-mono" style={{ color: "var(--text-muted)" }}>
               {port.direction}
             </span>

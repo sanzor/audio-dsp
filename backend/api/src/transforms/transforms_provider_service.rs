@@ -10,7 +10,7 @@ use crate::domain::service_error::ServiceError;
 use super::{
     data_provider::transforms_data_provider::{NewTransformParam, NewTransformPort, TransformsDataProvider},
     storage_provider::transform_storage_provider::TransformStorageProvider,
-    transforms_provider::TransformsProvider,
+    transforms_provider::{PortShapeSummary, PublishPortShapeDiff, TransformsProvider},
 };
 
 pub struct TransformsProviderService {
@@ -125,6 +125,45 @@ impl TransformsProvider for TransformsProviderService {
         self.data.get_transform_definition(id).await.map_err(ServiceError::from)
     }
 
+    async fn diff_publish_port_shape(&self, id: TransformId) -> Result<PublishPortShapeDiff, ServiceError> {
+        let current_ports = self.data.get_current_ports(id).await?;
+
+        // Never been published — nothing to diff against, so nothing to
+        // warn about. Every published transform has at least one output
+        // port (introspection enforces exactly one), so an empty current
+        // set unambiguously means "no prior publish".
+        if current_ports.is_empty() {
+            return Ok(PublishPortShapeDiff { changed: false, current: vec![], incoming: vec![] });
+        }
+
+        let saved = self.data.get_saved_state(id).await?;
+
+        let current: Vec<PortShapeSummary> = current_ports
+            .into_iter()
+            .map(|p| PortShapeSummary { name: p.name, direction: p.direction, kind: p.kind, cardinality: p.cardinality })
+            .collect();
+        let incoming: Vec<PortShapeSummary> = saved
+            .ports
+            .into_iter()
+            .map(|p| PortShapeSummary { name: p.name, direction: p.direction, kind: p.kind, cardinality: p.cardinality })
+            .collect();
+
+        // Shape means count/kind/cardinality per port, not identity — a pure
+        // rename with everything else unchanged shouldn't trip the warning,
+        // matching the feature brief's "count/kind/cardinality per port".
+        let shape_of = |ports: &[PortShapeSummary]| -> Vec<(String, String, String)> {
+            let mut shape: Vec<(String, String, String)> = ports
+                .iter()
+                .map(|p| (p.direction.clone(), p.kind.clone(), p.cardinality.clone()))
+                .collect();
+            shape.sort();
+            shape
+        };
+        let changed = shape_of(&current) != shape_of(&incoming);
+
+        Ok(PublishPortShapeDiff { changed, current, incoming })
+    }
+
     async fn delete_transform(&self, id: TransformId) -> Result<(), ServiceError> {
         self.data.delete_transform(id).await.map_err(ServiceError::from)
     }
@@ -156,6 +195,7 @@ mod tests {
 
     struct FakeDataProvider {
         saved_state: DbTransformSavedState,
+        current_ports: Vec<domain::db::db_transform::DbTransformPort>,
     }
 
     #[async_trait::async_trait]
@@ -169,6 +209,7 @@ mod tests {
         async fn remove_ticket(&self, _: TicketId) -> Result<(), crate::domain::data_error::DataError> { unimplemented!() }
         async fn update_ticket(&self, _: UpdateTicketParams) -> Result<DbTicket, crate::domain::data_error::DataError> { unimplemented!() }
         async fn get_transform(&self, _: TransformId) -> Result<DbTransform, String> { unimplemented!() }
+        async fn get_current_ports(&self, _: TransformId) -> Result<Vec<domain::db::db_transform::DbTransformPort>, crate::domain::data_error::DataError> { Ok(self.current_ports.clone()) }
 
         async fn get_transform_definition(&self, id: TransformId) -> Result<DbTransformDefinition, String> {
             Ok(DbTransformDefinition {
@@ -221,10 +262,41 @@ mod tests {
     }
 
     fn service_with(saved_state: DbTransformSavedState) -> TransformsProviderService {
+        service_with_ports(saved_state, vec![])
+    }
+
+    fn service_with_ports(
+        saved_state: DbTransformSavedState,
+        current_ports: Vec<domain::db::db_transform::DbTransformPort>,
+    ) -> TransformsProviderService {
         TransformsProviderService::new(
-            Arc::new(FakeDataProvider { saved_state }),
+            Arc::new(FakeDataProvider { saved_state, current_ports }),
             Arc::new(FakeStorageProvider),
         )
+    }
+
+    fn db_port(name: &str, direction: &str, kind: &str, cardinality: &str) -> domain::db::db_transform::DbTransformPort {
+        domain::db::db_transform::DbTransformPort {
+            port_id: 1,
+            transform_id: 1,
+            name: name.to_string(),
+            direction: direction.to_string(),
+            port_order: 0,
+            description: None,
+            kind: kind.to_string(),
+            cardinality: cardinality.to_string(),
+        }
+    }
+
+    fn port_snapshot(name: &str, direction: &str, kind: &str, cardinality: &str) -> domain::db::transform_snapshot::PortSnapshot {
+        domain::db::transform_snapshot::PortSnapshot {
+            name: name.to_string(),
+            direction: direction.to_string(),
+            port_order: 0,
+            description: None,
+            kind: kind.to_string(),
+            cardinality: cardinality.to_string(),
+        }
     }
 
     #[tokio::test]
@@ -260,5 +332,52 @@ mod tests {
         let result = service.publish_transform(1).await;
 
         assert!(matches!(result, Err(ServiceError::Validation(_))));
+    }
+
+    #[tokio::test]
+    async fn port_shape_diff_reports_no_change_when_never_published() {
+        // No current_ports rows at all — first-ever publish, nothing to
+        // warn about regardless of what's saved.
+        let mut saved = make_saved_state("v1", Some("v1"), true);
+        saved.ports = vec![port_snapshot("a", "input", "program", "single"), port_snapshot("out", "output", "program", "single")];
+        let service = service_with_ports(saved, vec![]);
+
+        let diff = service.diff_publish_port_shape(1).await.expect("diff should succeed");
+
+        assert!(!diff.changed);
+    }
+
+    #[tokio::test]
+    async fn port_shape_diff_flags_a_1_to_2_input_republish() {
+        let current = vec![db_port("in", "input", "program", "single"), db_port("out", "output", "program", "single")];
+        let mut saved = make_saved_state("v1", Some("v1"), true);
+        saved.ports = vec![
+            port_snapshot("a", "input", "program", "single"),
+            port_snapshot("b", "input", "sidechain", "single"),
+            port_snapshot("out", "output", "program", "single"),
+        ];
+        let service = service_with_ports(saved, current);
+
+        let diff = service.diff_publish_port_shape(1).await.expect("diff should succeed");
+
+        assert!(diff.changed, "expected a 1-input -> 2-input republish to be flagged");
+        assert_eq!(diff.current.len(), 2);
+        assert_eq!(diff.incoming.len(), 3);
+    }
+
+    #[tokio::test]
+    async fn port_shape_diff_ignores_a_pure_rename() {
+        let current = vec![db_port("in", "input", "program", "single"), db_port("out", "output", "program", "single")];
+        let mut saved = make_saved_state("v1", Some("v1"), true);
+        // Same shape (direction/kind/cardinality), different name only.
+        saved.ports = vec![
+            port_snapshot("input_signal", "input", "program", "single"),
+            port_snapshot("out", "output", "program", "single"),
+        ];
+        let service = service_with_ports(saved, current);
+
+        let diff = service.diff_publish_port_shape(1).await.expect("diff should succeed");
+
+        assert!(!diff.changed, "a pure rename with unchanged shape should not be flagged");
     }
 }

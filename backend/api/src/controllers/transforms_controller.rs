@@ -55,6 +55,10 @@ pub struct TransformPortDto {
     pub direction: String,
     pub port_order: i32,
     pub description: Option<String>,
+    /// "program" | "sidechain".
+    pub kind: String,
+    /// "single" | "many".
+    pub cardinality: String,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -105,6 +109,41 @@ pub struct TransformIdPath {
     pub transform_id: TransformId,
 }
 
+#[derive(Debug, Serialize, ToSchema)]
+pub struct PortShapeSummaryDto {
+    pub name: String,
+    pub direction: String,
+    pub kind: String,
+    pub cardinality: String,
+}
+
+/// Advisory pre-publish check — see `TransformsProvider::diff_publish_port_shape`.
+/// The creator's Publish flow polls this immediately before calling
+/// `POST /transforms/{id}/publish` and shows a non-blocking confirm dialog
+/// when `changed` is true. The backend never blocks on this itself.
+#[derive(Debug, Serialize, ToSchema)]
+pub struct PublishPortShapeDiffDto {
+    pub changed: bool,
+    pub current: Vec<PortShapeSummaryDto>,
+    pub incoming: Vec<PortShapeSummaryDto>,
+}
+
+impl From<crate::transforms::transforms_provider::PortShapeSummary> for PortShapeSummaryDto {
+    fn from(value: crate::transforms::transforms_provider::PortShapeSummary) -> Self {
+        Self { name: value.name, direction: value.direction, kind: value.kind, cardinality: value.cardinality }
+    }
+}
+
+impl From<crate::transforms::transforms_provider::PublishPortShapeDiff> for PublishPortShapeDiffDto {
+    fn from(value: crate::transforms::transforms_provider::PublishPortShapeDiff) -> Self {
+        Self {
+            changed: value.changed,
+            current: value.current.into_iter().map(PortShapeSummaryDto::from).collect(),
+            incoming: value.incoming.into_iter().map(PortShapeSummaryDto::from).collect(),
+        }
+    }
+}
+
 impl From<DbTransform> for TransformSummaryDto {
     fn from(value: DbTransform) -> Self {
         Self {
@@ -124,6 +163,8 @@ impl From<DbTransformPort> for TransformPortDto {
             direction: value.direction,
             port_order: value.port_order,
             description: value.description,
+            kind: value.kind,
+            cardinality: value.cardinality,
         }
     }
 }
@@ -329,6 +370,21 @@ pub async fn publish_transform(
     }
 }
 
+#[utoipa::path(get, path = "/transforms/{transform_id}/publish/port-diff", tag = "transforms",
+    params(TransformIdPath),
+    responses((status = 200, description = "Whether the about-to-be-published port shape differs from what's currently live", body = serde_json::Value)))]
+#[get("/{transform_id}/publish/port-diff")]
+pub async fn get_publish_port_shape_diff(
+    _role: RoleContext,
+    path: web::Path<TransformIdPath>,
+    app: web::Data<TransformsAppData>,
+) -> HttpResponse {
+    match app.transforms_service.diff_publish_port_shape(path.into_inner().transform_id).await {
+        Ok(diff) => HttpResponse::Ok().json(PublishPortShapeDiffDto::from(diff)),
+        Err(e) => map_service_error(e),
+    }
+}
+
 #[utoipa::path(delete, path = "/transforms/{transform_id}", tag = "transforms",
     params(TransformIdPath),
     responses((status = 200, description = "Deleted")))]
@@ -358,5 +414,6 @@ pub fn init(cfg: &mut web::ServiceConfig) {
         .service(create_transform)
         .service(save_transform)
         .service(publish_transform)
+        .service(get_publish_port_shape_diff)
         .service(delete_transform);
 }
