@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use actix_web::{delete, patch, post, web, HttpResponse};
 use chrono::{DateTime, Utc};
 use domain::db::{DbRegion, RegionId, RegionSetId, TrackId};
@@ -129,7 +131,6 @@ impl From<DbRegion> for EditRegionResult {
         }
     }
 }
-
 #[utoipa::path(
     patch,
     path = "/regions/edit",
