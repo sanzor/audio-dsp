@@ -1,7 +1,7 @@
 use domain::db::{
     db_transform::{DbTransform, DbTransformDefinition, DbTransformParam, DbTransformPort, TransformId},
     ticket::{create_ticket_params::CreateTicketParams, db_resource::{DbResource, ResourceId}, db_ticket::{DbTicket, TicketId}, ticket_status::TicketStatus, update_ticket_params::UpdateTicketParams},
-    transform_saved_state::DbTransformSavedState,
+    transform_draft::DbTransformDraft,
     transform_snapshot::{ParamSnapshot, PortSnapshot},
 };
 use sqlx::PgPool;
@@ -98,7 +98,7 @@ impl From<DbResourceRow> for DbResource {
 }
 
 #[derive(sqlx::FromRow)]
-struct DbTransformSavedStateRow {
+struct DbTransformDraftRow {
     transform_id: TransformId,
     source_code: String,
     wasm_bytecode: Option<Vec<u8>>,
@@ -109,8 +109,8 @@ struct DbTransformSavedStateRow {
     params: Option<sqlx::types::Json<Vec<ParamSnapshot>>>,
 }
 
-impl From<DbTransformSavedStateRow> for DbTransformSavedState {
-    fn from(row: DbTransformSavedStateRow) -> Self {
+impl From<DbTransformDraftRow> for DbTransformDraft {
+    fn from(row: DbTransformDraftRow) -> Self {
         Self {
             transform_id: row.transform_id,
             source_code: row.source_code,
@@ -129,7 +129,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
     async fn create_ticket(&self, ticket: CreateTicketParams) -> Result<DbTicket, DataError> {
         let row = sqlx::query_as::<_, DbTicketRow>(
             r#"
-            INSERT INTO transform_tickets (transform_id, issued_by, source_code, status)
+            INSERT INTO transform_ticket (transform_id, issued_by, source_code, status)
             VALUES ($1, $2, $3, 'processing')
             RETURNING
                 ticket_id AS id,
@@ -159,8 +159,8 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
                 tr.resource_id,
                 tt.error_message,
                 EXTRACT(EPOCH FROM tt.created_at)::BIGINT AS timestamp
-            FROM transform_tickets tt
-            LEFT JOIN transform_resources tr ON tr.ticket_id = tt.ticket_id
+            FROM transform_ticket tt
+            LEFT JOIN transform_resource tr ON tr.ticket_id = tt.ticket_id
             WHERE tt.ticket_id = $1
             "#,
         )
@@ -172,7 +172,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
     }
 
     async fn remove_ticket(&self, ticket_id: TicketId) -> Result<(), DataError> {
-        let result = sqlx::query(r#"DELETE FROM transform_tickets WHERE ticket_id = $1"#)
+        let result = sqlx::query(r#"DELETE FROM transform_ticket WHERE ticket_id = $1"#)
             .bind(ticket_id)
             .execute(&self.pool)
             .await?;
@@ -198,7 +198,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
         let row = sqlx::query_as::<_, DbTicketRow>(
             r#"
             WITH updated AS (
-                UPDATE transform_tickets
+                UPDATE transform_ticket
                 SET status = $2, error_message = $3
                 WHERE ticket_id = $1
                 RETURNING ticket_id, issued_by, status, error_message, created_at
@@ -211,7 +211,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
                 u.error_message,
                 EXTRACT(EPOCH FROM u.created_at)::BIGINT AS timestamp
             FROM updated u
-            LEFT JOIN transform_resources tr ON tr.ticket_id = u.ticket_id
+            LEFT JOIN transform_resource tr ON tr.ticket_id = u.ticket_id
             "#,
         )
         .bind(params.ticket_id)
@@ -237,7 +237,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
 
         let row = sqlx::query_as::<_, DbResourceRow>(
             r#"
-            INSERT INTO transform_resources (ticket_id, wasm_bytecode, name, description, ports, params)
+            INSERT INTO transform_resource (ticket_id, wasm_bytecode, name, description, ports, params)
             VALUES ($1, $2, $3, $4, $5, $6)
             RETURNING resource_id AS id, ticket_id, wasm_bytecode, name, description, ports, params
             "#,
@@ -258,7 +258,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
         let row = sqlx::query_as::<_, DbResourceRow>(
             r#"
             SELECT resource_id AS id, ticket_id, wasm_bytecode, name, description, ports, params
-            FROM transform_resources
+            FROM transform_resource
             WHERE resource_id = $1
             "#,
         )
@@ -272,7 +272,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
     async fn update_resource(&self, resource_id: ResourceId, ticket_id: TicketId) -> Result<DbResource, DataError> {
         let row = sqlx::query_as::<_, DbResourceRow>(
             r#"
-            UPDATE transform_resources
+            UPDATE transform_resource
             SET ticket_id = $2
             WHERE resource_id = $1
             RETURNING resource_id AS id, ticket_id, wasm_bytecode, name, description, ports, params
@@ -287,7 +287,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
     }
 
     async fn remove_resource(&self, resource_id: ResourceId) -> Result<(), DataError> {
-        let result = sqlx::query(r#"DELETE FROM transform_resources WHERE resource_id = $1"#)
+        let result = sqlx::query(r#"DELETE FROM transform_resource WHERE resource_id = $1"#)
             .bind(resource_id)
             .execute(&self.pool)
             .await?;
@@ -301,7 +301,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
 
     async fn get_transform(&self, id: TransformId) -> Result<DbTransform, String> {
         sqlx::query_as::<_, DbTransform>(
-            r#"SELECT transform_id, name, description, icon, created_at FROM transforms WHERE transform_id = $1"#,
+            r#"SELECT transform_id, name, description, icon, created_at FROM transform WHERE transform_id = $1"#,
         )
         .bind(id)
         .fetch_one(&self.pool)
@@ -313,7 +313,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
         let rows = sqlx::query_as::<_, DbTransformPort>(
             r#"
             SELECT port_id, transform_id, name, direction, port_order, description, kind, cardinality
-            FROM transform_ports
+            FROM transform_port
             WHERE transform_id = $1
             ORDER BY CASE WHEN direction = 'input' THEN 0 ELSE 1 END, port_order, port_id
             "#,
@@ -390,7 +390,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
 
         let rows = sqlx::query_as::<_, Row>(
             r#"SELECT transform_id, name, description, icon, created_at, COUNT(*) OVER () AS total
-               FROM transforms ORDER BY created_at DESC LIMIT $1 OFFSET $2"#,
+               FROM transform ORDER BY created_at DESC LIMIT $1 OFFSET $2"#,
         )
         .bind(limit)
         .bind(offset)
@@ -419,7 +419,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
         let mut tx = self.pool.begin().await.map_err(|e| e.to_string())?;
 
         let transform = sqlx::query_as::<_, DbTransform>(
-            r#"INSERT INTO transforms (name, description, icon) VALUES ($1, $2, $3)
+            r#"INSERT INTO transform (name, description, icon) VALUES ($1, $2, $3)
                RETURNING transform_id, name, description, icon, created_at"#,
         )
         .bind(name)
@@ -429,7 +429,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
         .await
         .map_err(|e| e.to_string())?;
 
-        sqlx::query(r#"INSERT INTO transform_saved_state (transform_id) VALUES ($1)"#)
+        sqlx::query(r#"INSERT INTO transform_draft (transform_id) VALUES ($1)"#)
             .bind(transform.transform_id)
             .execute(&mut *tx)
             .await
@@ -440,11 +440,11 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
         Ok(transform)
     }
 
-    async fn get_saved_state(&self, transform_id: TransformId) -> Result<DbTransformSavedState, DataError> {
-        let row = sqlx::query_as::<_, DbTransformSavedStateRow>(
+    async fn get_draft(&self, transform_id: TransformId) -> Result<DbTransformDraft, DataError> {
+        let row = sqlx::query_as::<_, DbTransformDraftRow>(
             r#"
             SELECT transform_id, source_code, wasm_bytecode, wasm_source_code, name, description, ports, params
-            FROM transform_saved_state
+            FROM transform_draft
             WHERE transform_id = $1
             "#,
         )
@@ -455,15 +455,15 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
         Ok(row.into())
     }
 
-    async fn save_transform_state(
+    async fn save_transform_draft(
         &self,
         transform_id: TransformId,
         source_code: String,
         resource_id: Option<ResourceId>,
-    ) -> Result<DbTransformSavedState, DataError> {
+    ) -> Result<DbTransformDraft, DataError> {
         let mut tx = self.pool.begin().await?;
 
-        sqlx::query(r#"UPDATE transform_saved_state SET source_code = $2, updated_at = now() WHERE transform_id = $1"#)
+        sqlx::query(r#"UPDATE transform_draft SET source_code = $2, updated_at = now() WHERE transform_id = $1"#)
             .bind(transform_id)
             .bind(&source_code)
             .execute(&mut *tx)
@@ -474,7 +474,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
             // transform" check: the resource's own compile ticket's
             // source_code must equal the source_code being saved right now
             // (t.source_code = $3). This is what actually guarantees
-            // transform_saved_state never ends up with a binary that doesn't
+            // transform_draft never ends up with a binary that doesn't
             // correspond to its own saved source — the frontend's
             // `attachableResourceId` guard (code-editor.tsx) already only
             // ever sends a resource_id while the editor buffer still matches
@@ -488,7 +488,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
             // t.source_code equals, so it never has to be read back out.
             let result = sqlx::query(
                 r#"
-                UPDATE transform_saved_state ss
+                UPDATE transform_draft ss
                 SET wasm_bytecode = r.wasm_bytecode,
                     wasm_source_code = $3,
                     name = r.name,
@@ -496,8 +496,8 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
                     ports = r.ports,
                     params = r.params,
                     updated_at = now()
-                FROM transform_resources r
-                JOIN transform_tickets t ON t.ticket_id = r.ticket_id
+                FROM transform_resource r
+                JOIN transform_ticket t ON t.ticket_id = r.ticket_id
                 WHERE ss.transform_id = $1
                   AND r.resource_id = $2
                   AND t.transform_id = $1
@@ -517,10 +517,10 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
             }
         }
 
-        let row = sqlx::query_as::<_, DbTransformSavedStateRow>(
+        let row = sqlx::query_as::<_, DbTransformDraftRow>(
             r#"
             SELECT transform_id, source_code, wasm_bytecode, wasm_source_code, name, description, ports, params
-            FROM transform_saved_state
+            FROM transform_draft
             WHERE transform_id = $1
             "#,
         )
@@ -540,7 +540,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
         // version pin), so deleting it out from under them is not safe.
         // See agents/decisions/0002-transform-draft-lifecycle-decisions.md.
         let published_count: i64 = sqlx::query_scalar(
-            r#"SELECT COUNT(*) FROM transform_binaries WHERE transform_id = $1"#,
+            r#"SELECT COUNT(*) FROM transform_binary WHERE transform_id = $1"#,
         )
         .bind(id)
         .fetch_one(&self.pool)
@@ -552,11 +552,11 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
             ));
         }
 
-        // transform_saved_state, transform_tickets (-> transform_resources),
-        // transform_ports, and transform_params all have ON DELETE CASCADE
+        // transform_draft, transform_ticket (-> transform_resource),
+        // transform_port, and transform_param all have ON DELETE CASCADE
         // from transforms already (migrations 0004/0009/0011/0014) — no
         // schema change needed for the cascade itself.
-        let result = sqlx::query(r#"DELETE FROM transforms WHERE transform_id = $1"#)
+        let result = sqlx::query(r#"DELETE FROM transform WHERE transform_id = $1"#)
             .bind(id)
             .execute(&self.pool)
             .await?;
@@ -580,7 +580,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
     ) -> Result<(), String> {
         let mut tx = self.pool.begin().await.map_err(|e| e.to_string())?;
 
-        sqlx::query(r#"UPDATE transforms SET name = $2, description = $3 WHERE transform_id = $1"#)
+        sqlx::query(r#"UPDATE transform SET name = $2, description = $3 WHERE transform_id = $1"#)
             .bind(transform_id)
             .bind(&name)
             .bind(&description)
@@ -588,13 +588,13 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
             .await
             .map_err(|e| e.to_string())?;
 
-        sqlx::query(r#"DELETE FROM transform_ports WHERE transform_id = $1"#)
+        sqlx::query(r#"DELETE FROM transform_port WHERE transform_id = $1"#)
             .bind(transform_id)
             .execute(&mut *tx)
             .await
             .map_err(|e| e.to_string())?;
 
-        sqlx::query(r#"DELETE FROM transform_params WHERE transform_id = $1"#)
+        sqlx::query(r#"DELETE FROM transform_param WHERE transform_id = $1"#)
             .bind(transform_id)
             .execute(&mut *tx)
             .await
@@ -602,7 +602,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
 
         for port in &ports {
             sqlx::query(
-                r#"INSERT INTO transform_ports (transform_id, name, direction, port_order, description, kind, cardinality)
+                r#"INSERT INTO transform_port (transform_id, name, direction, port_order, description, kind, cardinality)
                    VALUES ($1, $2, $3, $4, $5, $6, $7)"#,
             )
             .bind(transform_id)
@@ -619,7 +619,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
 
         for param in &params {
             sqlx::query(
-                r#"INSERT INTO transform_params (transform_id, name, param_order, default_value, min_value, max_value, description)
+                r#"INSERT INTO transform_param (transform_id, name, param_order, default_value, min_value, max_value, description)
                    VALUES ($1, $2, $3, $4, $5, $6, $7)"#,
             )
             .bind(transform_id)
@@ -635,7 +635,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
         }
 
         sqlx::query(
-            r#"INSERT INTO transform_binaries (transform_id, wasm_bytecode, source)
+            r#"INSERT INTO transform_binary (transform_id, wasm_bytecode, source)
                VALUES ($1, $2, $3)
                ON CONFLICT (transform_id)
                DO UPDATE SET wasm_bytecode = EXCLUDED.wasm_bytecode, source = EXCLUDED.source, updated_at = now()"#,

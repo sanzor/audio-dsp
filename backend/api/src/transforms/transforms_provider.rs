@@ -17,8 +17,8 @@ pub struct PortShapeSummary {
 }
 
 /// Result of comparing a transform's about-to-be-published port shape
-/// (bucket 2 — `transform_saved_state`) against what's currently live
-/// (bucket 3 — `transform_ports`). Purely advisory: nothing in the backend
+/// (bucket 2 — `transform_draft`) against what's currently live
+/// (bucket 3 — `transform_port`). Purely advisory: nothing in the backend
 /// blocks on `changed` — it exists so the creator's Publish flow can show a
 /// non-blocking confirm dialog before proceeding. `changed` is always
 /// `false` when the transform has never been published before (nothing to
@@ -40,7 +40,7 @@ pub trait TransformsProvider: Send + Sync {
     async fn create_transform(&self, name: String, description: Option<String>, icon: Option<String>) -> Result<DbTransformDefinition, ServiceError>;
     /// Bucket 2 — save. Always overwrites source_code; if `resource_id` is
     /// given, also attaches that compile resource's binary/metadata.
-    async fn save_transform_state(&self, id: TransformId, source_code: String, resource_id: Option<ResourceId>) -> Result<DbTransformDefinition, ServiceError>;
+    async fn save_transform_draft(&self, id: TransformId, source_code: String, resource_id: Option<ResourceId>) -> Result<DbTransformDefinition, ServiceError>;
     /// Bucket 3 — publish. Bundles whatever's currently saved (bucket 2) into
     /// the live artifact. Fails if nothing has been saved with a binary yet.
     async fn publish_transform(&self, id: TransformId) -> Result<DbTransformDefinition, ServiceError>;

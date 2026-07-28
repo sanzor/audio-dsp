@@ -84,27 +84,27 @@ impl TransformsProvider for TransformsProviderService {
         self.data.get_transform_definition(db.transform_id).await.map_err(ServiceError::from)
     }
 
-    async fn save_transform_state(&self, id: TransformId, source_code: String, resource_id: Option<ResourceId>) -> Result<DbTransformDefinition, ServiceError> {
-        self.data.save_transform_state(id, source_code, resource_id).await?;
+    async fn save_transform_draft(&self, id: TransformId, source_code: String, resource_id: Option<ResourceId>) -> Result<DbTransformDefinition, ServiceError> {
+        self.data.save_transform_draft(id, source_code, resource_id).await?;
         self.data.get_transform_definition(id).await.map_err(ServiceError::from)
     }
 
     async fn publish_transform(&self, id: TransformId) -> Result<DbTransformDefinition, ServiceError> {
-        let saved = self.data.get_saved_state(id).await?;
-        let Some(wasm_bytecode) = saved.wasm_bytecode else {
+        let draft = self.data.get_draft(id).await?;
+        let Some(wasm_bytecode) = draft.wasm_bytecode else {
             return Err(ServiceError::Validation(
                 "nothing has been saved with a successful build yet".to_string(),
             ));
         };
 
-        // Defense-in-depth: save_transform_state's attach branch now checks
+        // Defense-in-depth: save_transform_draft's attach branch now checks
         // provenance at write time, so a save can no longer *create* a
         // mismatched pair. But a source-only save after an earlier attach
         // moves source_code forward while leaving wasm_bytecode (and this
         // wasm_source_code snapshot) pointing at the older text — that's the
         // real, still-reachable drift this guards against. See
         // agents/decisions/0002-transform-draft-lifecycle-decisions.md.
-        if saved.wasm_source_code.as_deref() != Some(saved.source_code.as_str()) {
+        if draft.wasm_source_code.as_deref() != Some(draft.source_code.as_str()) {
             return Err(ServiceError::Validation(
                 "saved binary no longer corresponds to the saved source; recompile and re-attach before publishing".to_string(),
             ));
@@ -114,11 +114,11 @@ impl TransformsProvider for TransformsProviderService {
             .publish_compiled_transform(
                 id,
                 wasm_bytecode,
-                saved.source_code,
-                saved.name.unwrap_or_default(),
-                saved.description,
-                saved.ports.into_iter().map(NewTransformPort::from).collect(),
-                saved.params.into_iter().map(NewTransformParam::from).collect(),
+                draft.source_code,
+                draft.name.unwrap_or_default(),
+                draft.description,
+                draft.ports.into_iter().map(NewTransformPort::from).collect(),
+                draft.params.into_iter().map(NewTransformParam::from).collect(),
             )
             .await?;
 
@@ -136,13 +136,13 @@ impl TransformsProvider for TransformsProviderService {
             return Ok(PublishPortShapeDiff { changed: false, current: vec![], incoming: vec![] });
         }
 
-        let saved = self.data.get_saved_state(id).await?;
+        let draft = self.data.get_draft(id).await?;
 
         let current: Vec<PortShapeSummary> = current_ports
             .into_iter()
             .map(|p| PortShapeSummary { name: p.name, direction: p.direction, kind: p.kind, cardinality: p.cardinality })
             .collect();
-        let incoming: Vec<PortShapeSummary> = saved
+        let incoming: Vec<PortShapeSummary> = draft
             .ports
             .into_iter()
             .map(|p| PortShapeSummary { name: p.name, direction: p.direction, kind: p.kind, cardinality: p.cardinality })
@@ -174,7 +174,7 @@ mod tests {
     //! `publish_transform`'s source/binary consistency gate (item 2 of the
     //! transform-draft-lifecycle follow-ups, see
     //! agents/decisions/0002-transform-draft-lifecycle-decisions.md) is pure
-    //! Rust logic over whatever `get_saved_state` returns — no DB needed to
+    //! Rust logic over whatever `get_draft` returns — no DB needed to
     //! exercise it. There's no DB-backed test harness in this repo yet (the
     //! only other transform test, transform_compile_pipeline.rs, drives the
     //! real compiler/wasmtime and is `#[ignore]`d), so this uses a minimal
@@ -190,11 +190,11 @@ mod tests {
             db_ticket::{DbTicket, TicketId},
             update_ticket_params::UpdateTicketParams,
         },
-        transform_saved_state::DbTransformSavedState,
+        transform_draft::DbTransformDraft,
     };
 
     struct FakeDataProvider {
-        saved_state: DbTransformSavedState,
+        draft: DbTransformDraft,
         current_ports: Vec<domain::db::db_transform::DbTransformPort>,
     }
 
@@ -214,10 +214,10 @@ mod tests {
         async fn get_transform_definition(&self, id: TransformId) -> Result<DbTransformDefinition, String> {
             Ok(DbTransformDefinition {
                 transform_id: id,
-                name: self.saved_state.name.clone().unwrap_or_default(),
-                description: self.saved_state.description.clone(),
+                name: self.draft.name.clone().unwrap_or_default(),
+                description: self.draft.description.clone(),
                 icon: None,
-                source_code: Some(self.saved_state.source_code.clone()),
+                source_code: Some(self.draft.source_code.clone()),
                 ports: vec![],
                 params: vec![],
             })
@@ -228,11 +228,11 @@ mod tests {
         async fn insert_transform(&self, _: String, _: Option<String>, _: Option<String>) -> Result<DbTransform, String> { unimplemented!() }
         async fn delete_transform(&self, _: TransformId) -> Result<(), crate::domain::data_error::DataError> { unimplemented!() }
 
-        async fn get_saved_state(&self, _: TransformId) -> Result<DbTransformSavedState, crate::domain::data_error::DataError> {
-            Ok(self.saved_state.clone())
+        async fn get_draft(&self, _: TransformId) -> Result<DbTransformDraft, crate::domain::data_error::DataError> {
+            Ok(self.draft.clone())
         }
 
-        async fn save_transform_state(&self, _: TransformId, _: String, _: Option<ResourceId>) -> Result<DbTransformSavedState, crate::domain::data_error::DataError> { unimplemented!() }
+        async fn save_transform_draft(&self, _: TransformId, _: String, _: Option<ResourceId>) -> Result<DbTransformDraft, crate::domain::data_error::DataError> { unimplemented!() }
 
         async fn publish_compiled_transform(&self, _: TransformId, _: Vec<u8>, _: String, _: String, _: Option<String>, _: Vec<NewTransformPort>, _: Vec<NewTransformParam>) -> Result<(), String> {
             Ok(())
@@ -248,8 +248,8 @@ mod tests {
         async fn write_transform_binary(&self, _: TransformId, _: &[u8]) -> Result<(), String> { unimplemented!() }
     }
 
-    fn make_saved_state(source_code: &str, wasm_source_code: Option<&str>, has_binary: bool) -> DbTransformSavedState {
-        DbTransformSavedState {
+    fn make_draft(source_code: &str, wasm_source_code: Option<&str>, has_binary: bool) -> DbTransformDraft {
+        DbTransformDraft {
             transform_id: 1,
             source_code: source_code.to_string(),
             wasm_bytecode: if has_binary { Some(vec![0, 1, 2]) } else { None },
@@ -261,16 +261,16 @@ mod tests {
         }
     }
 
-    fn service_with(saved_state: DbTransformSavedState) -> TransformsProviderService {
-        service_with_ports(saved_state, vec![])
+    fn service_with(draft: DbTransformDraft) -> TransformsProviderService {
+        service_with_ports(draft, vec![])
     }
 
     fn service_with_ports(
-        saved_state: DbTransformSavedState,
+        draft: DbTransformDraft,
         current_ports: Vec<domain::db::db_transform::DbTransformPort>,
     ) -> TransformsProviderService {
         TransformsProviderService::new(
-            Arc::new(FakeDataProvider { saved_state, current_ports }),
+            Arc::new(FakeDataProvider { draft, current_ports }),
             Arc::new(FakeStorageProvider),
         )
     }
@@ -305,7 +305,7 @@ mod tests {
         // wasm_source_code = "v1" at that moment), then a later source-only
         // save moves source_code to "v2" without touching the binary. This
         // is the drift item 2's gate exists to catch.
-        let service = service_with(make_saved_state("v2", Some("v1"), true));
+        let service = service_with(make_draft("v2", Some("v1"), true));
 
         let result = service.publish_transform(1).await;
 
@@ -318,7 +318,7 @@ mod tests {
 
     #[tokio::test]
     async fn publish_succeeds_when_saved_binary_matches_saved_source() {
-        let service = service_with(make_saved_state("v1", Some("v1"), true));
+        let service = service_with(make_draft("v1", Some("v1"), true));
 
         let result = service.publish_transform(1).await;
 
@@ -327,7 +327,7 @@ mod tests {
 
     #[tokio::test]
     async fn publish_fails_when_nothing_saved_with_a_binary_yet() {
-        let service = service_with(make_saved_state("v1", None, false));
+        let service = service_with(make_draft("v1", None, false));
 
         let result = service.publish_transform(1).await;
 
@@ -338,9 +338,9 @@ mod tests {
     async fn port_shape_diff_reports_no_change_when_never_published() {
         // No current_ports rows at all — first-ever publish, nothing to
         // warn about regardless of what's saved.
-        let mut saved = make_saved_state("v1", Some("v1"), true);
-        saved.ports = vec![port_snapshot("a", "input", "program", "single"), port_snapshot("out", "output", "program", "single")];
-        let service = service_with_ports(saved, vec![]);
+        let mut draft = make_draft("v1", Some("v1"), true);
+        draft.ports = vec![port_snapshot("a", "input", "program", "single"), port_snapshot("out", "output", "program", "single")];
+        let service = service_with_ports(draft, vec![]);
 
         let diff = service.diff_publish_port_shape(1).await.expect("diff should succeed");
 
@@ -350,13 +350,13 @@ mod tests {
     #[tokio::test]
     async fn port_shape_diff_flags_a_1_to_2_input_republish() {
         let current = vec![db_port("in", "input", "program", "single"), db_port("out", "output", "program", "single")];
-        let mut saved = make_saved_state("v1", Some("v1"), true);
-        saved.ports = vec![
+        let mut draft = make_draft("v1", Some("v1"), true);
+        draft.ports = vec![
             port_snapshot("a", "input", "program", "single"),
             port_snapshot("b", "input", "sidechain", "single"),
             port_snapshot("out", "output", "program", "single"),
         ];
-        let service = service_with_ports(saved, current);
+        let service = service_with_ports(draft, current);
 
         let diff = service.diff_publish_port_shape(1).await.expect("diff should succeed");
 
@@ -368,13 +368,13 @@ mod tests {
     #[tokio::test]
     async fn port_shape_diff_ignores_a_pure_rename() {
         let current = vec![db_port("in", "input", "program", "single"), db_port("out", "output", "program", "single")];
-        let mut saved = make_saved_state("v1", Some("v1"), true);
+        let mut draft = make_draft("v1", Some("v1"), true);
         // Same shape (direction/kind/cardinality), different name only.
-        saved.ports = vec![
+        draft.ports = vec![
             port_snapshot("input_signal", "input", "program", "single"),
             port_snapshot("out", "output", "program", "single"),
         ];
-        let service = service_with_ports(saved, current);
+        let service = service_with_ports(draft, current);
 
         let diff = service.diff_publish_port_shape(1).await.expect("diff should succeed");
 

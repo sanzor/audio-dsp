@@ -343,7 +343,7 @@ pub async fn save_transform(
         return HttpResponse::Forbidden().body("Forbidden");
     }
     let p = body.into_inner();
-    match app.transforms_service.save_transform_state(path.into_inner().transform_id, p.source_code, p.resource_id).await {
+    match app.transforms_service.save_transform_draft(path.into_inner().transform_id, p.source_code, p.resource_id).await {
         Ok(t) => HttpResponse::Ok().json(TransformDefinitionDto::from(t)),
         Err(e) => map_service_error(e),
     }

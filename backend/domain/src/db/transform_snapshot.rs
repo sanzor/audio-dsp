@@ -1,10 +1,10 @@
 use serde::{Deserialize, Serialize};
 
 /// A port/param shape shared by the two places a compiled-but-not-yet-live
-/// artifact snapshot is stored: a ticket's `transform_resources` row (bucket 1,
-/// compile check) and `transform_saved_state` (bucket 2, save). Neither has a
+/// artifact snapshot is stored: a ticket's `transform_resource` row (bucket 1,
+/// compile check) and `transform_draft` (bucket 2, save). Neither has a
 /// persisted port_id/param_id — those only exist once published into
-/// `transform_ports`/`transform_params` (bucket 3).
+/// `transform_port`/`transform_param` (bucket 3).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PortSnapshot {
     pub name: String,

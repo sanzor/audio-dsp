@@ -1,9 +1,11 @@
-use std::path::PathBuf;
+
 use std::process::Stdio;
-use std::time::Duration;
+
 
 use domain::db::ticket::db_ticket::TicketId;
 use tokio::process::Command;
+
+use crate::ticket_worker::processor::build_job_config::BuildJobConfig;
 
 /// Compiler output (stdout+stderr combined) is capped before being stored as
 /// a ticket's failure message — rustc diagnostics can be enormous, and this
@@ -12,22 +14,7 @@ const MAX_ERROR_MESSAGE_BYTES: usize = 64 * 1024;
 
 /// Config for the subprocess Rust->wasm32 build. All paths/limits are backend
 /// operator settings, never user-controlled.
-#[derive(Clone)]
-pub struct BuildJobConfig {
-    /// Path to the transform-sdk crate the generated Cargo.toml depends on.
-    pub sdk_path: PathBuf,
-    /// Per-job scratch directories are created under here and removed after
-    /// each build.
-    pub build_workdir: PathBuf,
-    /// Shared, persistent CARGO_TARGET_DIR so transform-sdk and its deps
-    /// compile once and are reused across jobs; only the tiny per-job crate
-    /// rebuilds each time.
-    pub cargo_target_dir: PathBuf,
-    /// Shared, pre-warmed CARGO_HOME so `--offline` never needs network.
-    pub cargo_home: PathBuf,
-    pub compile_timeout: Duration,
-    pub max_wasm_bytes: u64,
-}
+
 
 /// Compiles `source_code` as a creator transform's `src/lib.rs` against the
 /// pinned transform-sdk contract, targeting wasm32-unknown-unknown.

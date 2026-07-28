@@ -1,7 +1,6 @@
 use std::collections::HashSet;
 
 use serde::Deserialize;
-use tokio::sync::Mutex;
 use wasmtime::{Config, Engine, Linker, Module, Store};
 
 /// Backend-side mirror of `transform_sdk::TransformMetadata`. Kept separate
@@ -151,8 +150,8 @@ pub fn introspect_metadata(wasm_bytes: &[u8], fuel_limit: u64) -> Result<Transfo
 /// Catches shape problems that would otherwise surface as an opaque Postgres
 /// constraint violation later, plus ABI-load-bearing shape rules that only
 /// make sense to enforce here (once introspected, before anything is ever
-/// persisted). `transform_params` has UNIQUE(transform_id, name) and
-/// UNIQUE(transform_id, param_order); `transform_ports` has no such DB-level
+/// persisted). `transform_param` has UNIQUE(transform_id, name) and
+/// UNIQUE(transform_id, param_order); `transform_port` has no such DB-level
 /// constraint across directions (a transform legitimately has an input and
 /// an output both named the same or both at order 0), but names must now be
 /// unique *within* a direction, since `.port("name")`-style lookups exist.

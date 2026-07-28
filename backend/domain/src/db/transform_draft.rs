@@ -10,7 +10,7 @@ use crate::db::{
 /// compiled resource has been attached via a save call; a source-only save
 /// leaves them as whatever they already were.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DbTransformSavedState {
+pub struct DbTransformDraft {
     pub transform_id: TransformId,
     pub source_code: String,
     pub wasm_bytecode: Option<Vec<u8>>,

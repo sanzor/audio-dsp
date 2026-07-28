@@ -18,7 +18,7 @@ impl TransformStorageProvider for DbTransformStorageProvider {
     async fn write_transform_binary(&self, transform_id: TransformId, binary: &[u8]) -> Result<(), String> {
         sqlx::query(
             r#"
-            INSERT INTO transform_binaries (transform_id, wasm_bytecode)
+            INSERT INTO transform_binary (transform_id, wasm_bytecode)
             VALUES ($1, $2)
             ON CONFLICT (transform_id)
             DO UPDATE SET wasm_bytecode = EXCLUDED.wasm_bytecode
@@ -33,7 +33,7 @@ impl TransformStorageProvider for DbTransformStorageProvider {
     }
     async fn get_transform_binary(&self, transform_id: TransformId) -> Result<Vec<u8>, String> {
         let record = sqlx::query_scalar::<_, Vec<u8>>(
-            r#"SELECT wasm_bytecode FROM transform_binaries WHERE transform_id = $1"#,
+            r#"SELECT wasm_bytecode FROM transform_binary WHERE transform_id = $1"#,
         )
         .bind(transform_id)
         .fetch_optional(&self.pool)
@@ -52,7 +52,7 @@ impl TransformStorageProvider for DbTransformStorageProvider {
             r#"
             SELECT tb.transform_id, tb.wasm_bytecode
             FROM unnest($1::bigint[]) WITH ORDINALITY AS requested(transform_id, ord)
-            JOIN transform_binaries tb ON tb.transform_id = requested.transform_id
+            JOIN transform_binary tb ON tb.transform_id = requested.transform_id
             ORDER BY requested.ord
             "#,
         )

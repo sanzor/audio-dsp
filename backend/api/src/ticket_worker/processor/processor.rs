@@ -2,12 +2,12 @@ use std::sync::Arc;
 
 use domain::db::ticket::{ticket_status::TicketStatus, update_ticket_params::UpdateTicketParams};
 
-use crate::transforms::data_provider::transforms_data_provider::{
+use crate::{ticket_worker::processor::build_job_config::BuildJobConfig, transforms::data_provider::transforms_data_provider::{
     NewTransformParam, NewTransformPort, TransformsDataProvider,
-};
+}};
 
 use super::{
-    build_job::{self, BuildJobConfig},
+    build_job::{self},
     metadata_introspector,
     process_params::ProcessParams,
     process_result::ProcessResult,

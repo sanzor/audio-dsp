@@ -1,7 +1,7 @@
 use domain::db::{
     db_transform::{DbTransform, DbTransformDefinition, DbTransformPort, TransformId},
     ticket::{create_ticket_params::CreateTicketParams, db_resource::{DbResource, ResourceId}, db_ticket::{DbTicket, TicketId}, update_ticket_params::UpdateTicketParams},
-    transform_saved_state::DbTransformSavedState,
+    transform_draft::DbTransformDraft,
     transform_snapshot::{ParamSnapshot, PortSnapshot},
 };
 
@@ -103,27 +103,27 @@ pub trait TransformsDataProvider: Send + Sync {
     async fn get_current_ports(&self, transform_id: TransformId) -> Result<Vec<DbTransformPort>, DataError>;
     async fn get_transform_definitions(&self, ids: &[TransformId]) -> Result<Vec<DbTransformDefinition>, String>;
     async fn list_transform_summaries(&self, offset: i64, limit: i64) -> Result<(Vec<DbTransform>, i64), String>;
-    /// Also creates the transform's (bucket 2) saved-state row, so it's
+    /// Also creates the transform's (bucket 2) draft row, so it's
     /// always present — save/publish never have to special-case "no row yet".
     async fn insert_transform(&self, name: String, description: Option<String>, icon: Option<String>) -> Result<DbTransform, String>;
     /// Only allowed when the transform has never been published (no row in
-    /// `transform_binaries`) — see `agents/decisions/0002-transform-draft-lifecycle-decisions.md`.
-    /// Cascades to `transform_saved_state`/`transform_tickets`/`transform_resources`
+    /// `transform_binary`) — see `agents/decisions/0002-transform-draft-lifecycle-decisions.md`.
+    /// Cascades to `transform_draft`/`transform_ticket`/`transform_resource`
     /// via existing FK `ON DELETE CASCADE`.
     async fn delete_transform(&self, id: TransformId) -> Result<(), DataError>;
 
-    async fn get_saved_state(&self, transform_id: TransformId) -> Result<DbTransformSavedState, DataError>;
+    async fn get_draft(&self, transform_id: TransformId) -> Result<DbTransformDraft, DataError>;
     /// Bucket 2 — "save". Always overwrites source_code. If `resource_id` is
     /// given, also copies that resource's (bucket 1) binary/metadata into the
-    /// saved state; the resource must belong to this transform. If omitted,
+    /// draft; the resource must belong to this transform. If omitted,
     /// any previously saved binary/metadata is left untouched — a source-only
     /// save never wipes out the last good build.
-    async fn save_transform_state(
+    async fn save_transform_draft(
         &self,
         transform_id: TransformId,
         source_code: String,
         resource_id: Option<ResourceId>,
-    ) -> Result<DbTransformSavedState, DataError>;
+    ) -> Result<DbTransformDraft, DataError>;
 
     /// Atomically replaces a transform's name/description/ports/params with
     /// the set derived from a successful compile, and publishes the compiled

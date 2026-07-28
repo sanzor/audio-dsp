@@ -1,4 +1,5 @@
 pub mod build_job;
+pub mod build_job_config;
 pub mod metadata_introspector;
 pub mod process_params;
 pub mod process_result;
