@@ -1,6 +1,6 @@
 # Skill: Scenario / Publish Transform And Use In Editor
 
-Use this workflow for the highest-value cross-surface path: creator produces a transform, editor consumes it, and runtime executes it.
+Use this workflow for the highest-value cross-surface path: creator produces a transform, editor consumes it, and runtime executes it. Automated coverage for this flow is a Playwright spec under `frontend/e2e/`, owned by `qa-agent` — see `agents/roster/qa-agent.md`.
 
 ## Trigger
 

@@ -9,7 +9,8 @@ export type WorkletInboundMessage =
 
 export type WorkletOutboundMessage =
   | { type: 'GRAPH_READY' }
-  | { type: 'MODULE_ERROR'; transformId: number; error: string };
+  | { type: 'MODULE_ERROR'; transformId: number; error: string }
+  | { type: 'CPU_LOAD'; value: number };
 
 // ─── Sender ───────────────────────────────────────────────────────────────────
 
@@ -64,6 +65,12 @@ export class WorkletMessageSender {
   onModuleError(cb: (transformId: number, error: string) => void): UnsubscribeFn {
     return this.subscribe('MODULE_ERROR', (data) => {
       if (data.type === 'MODULE_ERROR') cb(data.transformId, data.error);
+    });
+  }
+
+  onCpuLoad(cb: (value: number) => void): UnsubscribeFn {
+    return this.subscribe('CPU_LOAD', (data) => {
+      if (data.type === 'CPU_LOAD') cb(data.value);
     });
   }
 

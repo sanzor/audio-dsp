@@ -31,6 +31,10 @@ Surface builders:
 
 `editor-agent`/`creator-agent` must consult `product-owner` before cross-surface work, and update the relevant doc in `agents/` in the same change if they make a destructive change to data the other surface depends on — see `agents/ownership.md`'s escalation rule.
 
+Quality (cross-surface, doesn't own application code):
+
+- `qa-agent`: owns Playwright E2E testing (`frontend/e2e/`) and automated UI screenshot capture across both surfaces — cross-surface scenario coverage, per-surface smoke tests, and screenshots for design review. Doesn't fix bugs it finds; hands them back to `editor-agent`/`creator-agent`. Doesn't replace single-surface unit tests, which stay with the owning surface agent.
+
 ## Expert consultants (advisory personas, not invocable agents)
 
 Read the relevant file in `agents/consultants/` and adopt that framing when a decision needs domain judgment rather than more code:
@@ -102,8 +106,14 @@ Prefer product workflows over file-level instructions. Ask for creator work, edi
 ### Scenario
 
 - `scenario/publish-transform-and-use-in-editor`
-  - Use for end-to-end creator-to-editor validation.
+  - Use for end-to-end creator-to-editor validation. Implemented with Playwright by `qa-agent` (`frontend/e2e/`).
   - Example prompt: "Create this transform, publish it, attach it to a region graph, and verify it runs."
+
+### Design
+
+- `design/capture-ui-screenshots`
+  - Use for automated Playwright screenshot capture of the app, reviewed through the `dag-ui-expert`/`marketing-ui-expert` consultant lens. Owned by `qa-agent`. No manual screenshotting.
+  - Example prompt: "Grab screenshots of the dashboard and creator so we can review the layout."
 
 ### Platform
 

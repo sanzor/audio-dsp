@@ -1,21 +1,43 @@
-mod common;
+use transform_sdk::{Direction, ParamMetadata, Params, PortCardinality, PortKind, PortMetadata, Transform, TransformMetadata};
 
-static mut PREV_X: f32 = 0.0;
-static mut PREV_Y: f32 = 0.0;
+#[derive(Default)]
+pub struct HighPassFilter {
+    prev_x: f32,
+    prev_y: f32,
+}
 
-#[no_mangle]
-pub extern "C" fn process(input_ptr: *mut f32, len: i32, params_ptr: *const f32, params_len: i32) {
-    let input = unsafe { common::input_buffer(input_ptr, len) };
-    let params = unsafe { common::params(params_ptr, params_len) };
-    let alpha = common::param(params, 0, 0.82).clamp(0.01, 0.99);
+impl Transform for HighPassFilter {
+    fn process(&mut self, samples: &[&[f32]], params: &Params<'_>) -> Vec<f32> {
+        let alpha = params[0].clamp(0.01, 0.99);
+        samples[0]
+            .iter()
+            .map(|&x| {
+                let y = alpha * (self.prev_y + x - self.prev_x);
+                self.prev_x = x;
+                self.prev_y = y;
+                y
+            })
+            .collect()
+    }
 
-    for sample in input.iter_mut() {
-        let x = *sample;
-        let next = unsafe { alpha * (PREV_Y + x - PREV_X) };
-        *sample = next;
-        unsafe {
-            PREV_X = x;
-            PREV_Y = next;
+    fn metadata() -> TransformMetadata {
+        TransformMetadata {
+            name: "High-Pass Filter".to_string(),
+            description: Some("One-pole high-pass filter built from the previous input and output sample.".to_string()),
+            ports: vec![
+                PortMetadata { name: "In".to_string(), direction: Direction::Input, order: 0, description: None, kind: PortKind::Program, cardinality: PortCardinality::Single },
+                PortMetadata { name: "Out".to_string(), direction: Direction::Output, order: 0, description: None, kind: PortKind::Program, cardinality: PortCardinality::Single },
+            ],
+            params: vec![ParamMetadata {
+                name: "alpha".to_string(),
+                order: 0,
+                default: 0.82,
+                min: Some(0.01),
+                max: Some(0.99),
+                description: Some("Filter coefficient. Higher values preserve more transients.".to_string()),
+            }],
         }
     }
 }
+
+transform_sdk::export_transform!(HighPassFilter);

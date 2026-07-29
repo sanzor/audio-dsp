@@ -6,7 +6,8 @@
 use std::path::PathBuf;
 use std::time::Duration;
 
-use api::ticket_worker::processor::build_job::{compile_transform_source, BuildJobConfig};
+use api::ticket_worker::processor::build_job::{compile_transform_source};
+use api::ticket_worker::processor::build_job_config::BuildJobConfig;
 use api::ticket_worker::processor::metadata_introspector::introspect_metadata;
 
 const KNOWN_GOOD_SOURCE: &str = r#"

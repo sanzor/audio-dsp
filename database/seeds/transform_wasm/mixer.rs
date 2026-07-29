@@ -1,12 +1,39 @@
-mod common;
+use transform_sdk::{Direction, ParamMetadata, Params, PortCardinality, PortKind, PortMetadata, Transform, TransformMetadata};
 
-#[no_mangle]
-pub extern "C" fn process(input_ptr: *mut f32, len: i32, params_ptr: *const f32, params_len: i32) {
-    let input = unsafe { common::input_buffer(input_ptr, len) };
-    let params = unsafe { common::params(params_ptr, params_len) };
-    let output_gain = common::param(params, 0, 1.0).clamp(0.0, 2.0);
+#[derive(Default)]
+pub struct Mixer;
 
-    for sample in input.iter_mut() {
-        *sample *= output_gain;
+impl Transform for Mixer {
+    fn process(&mut self, samples: &[&[f32]], params: &Params<'_>) -> Vec<f32> {
+        let output_gain = params[0].clamp(0.0, 2.0);
+        let a = samples[0];
+        let b = samples[1];
+
+        a.iter()
+            .zip(b.iter())
+            .map(|(&x, &y)| (x + y) * output_gain)
+            .collect()
+    }
+
+    fn metadata() -> TransformMetadata {
+        TransformMetadata {
+            name: "Mixer".to_string(),
+            description: Some("Applies output trim after the graph sums upstream inputs.".to_string()),
+            ports: vec![
+                PortMetadata { name: "In A".to_string(), direction: Direction::Input, order: 0, description: None, kind: PortKind::Program, cardinality: PortCardinality::Single },
+                PortMetadata { name: "In B".to_string(), direction: Direction::Input, order: 1, description: None, kind: PortKind::Program, cardinality: PortCardinality::Single },
+                PortMetadata { name: "Out".to_string(), direction: Direction::Output, order: 0, description: None, kind: PortKind::Program, cardinality: PortCardinality::Single },
+            ],
+            params: vec![ParamMetadata {
+                name: "output_gain".to_string(),
+                order: 0,
+                default: 1.0,
+                min: Some(0.0),
+                max: Some(2.0),
+                description: Some("Output trim applied after the graph sum.".to_string()),
+            }],
+        }
     }
 }
+
+transform_sdk::export_transform!(Mixer);

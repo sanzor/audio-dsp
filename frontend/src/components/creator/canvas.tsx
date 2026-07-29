@@ -7,13 +7,53 @@ import ReactFlow, {
 import { Handle, Position } from "reactflow";
 import "reactflow/dist/style.css";
 import { useCreatorStore } from "@/Stores/CreatorStore";
+import { useCreatorPreviewStore } from "@/Stores/CreatorPreviewStore";
 import { useGetTransformDefinition } from "@/hooks/transforms/queries";
 import type { TransformPort } from "@/domain/Transform/TransformPort";
 
 
+// ─── Live meter bar ───────────────────────────────────────────────────────────
+// Subscribes directly to the preview store rather than receiving levels as
+// props from CreatorCanvasInner — isolates the ~20Hz re-render to this leaf
+// element instead of the whole ReactFlow tree. Renders nothing unless this
+// exact transform is the one currently previewing, so there's no regression
+// to the static port list the rest of the time.
+
+interface LiveMeterBarProps {
+  direction: "input" | "output";
+  transformId: number;
+}
+
+function LiveMeterBar({ direction, transformId }: LiveMeterBarProps) {
+  const previewStatus = useCreatorPreviewStore((s) => s.status);
+  const previewTransformId = useCreatorPreviewStore((s) => s.previewTransformId);
+  const level = useCreatorPreviewStore((s) => (direction === "input" ? s.inputLevel : s.outputLevel));
+
+  if (previewStatus !== "playing" || previewTransformId !== transformId) return null;
+
+  const color = direction === "input" ? "#adc6ff" : "#4ae176";
+  const widthPct = Math.min(100, level.peak * 100);
+
+  return (
+    <div
+      style={{
+        height: 3,
+        margin: "4px 12px",
+        borderRadius: 2,
+        backgroundColor: "rgba(255,255,255,0.08)",
+        overflow: "hidden",
+        flexShrink: 0,
+      }}
+    >
+      <div style={{ height: "100%", width: `${widthPct}%`, backgroundColor: color }} />
+    </div>
+  );
+}
+
 // ─── Custom single-transform node ────────────────────────────────────────────
 
 interface TransformNodeData {
+  transformId: number;
   name: string;
   inputs: TransformPort[];
   outputs: TransformPort[];
@@ -59,7 +99,8 @@ function TransformPreviewNode({ data }: NodeProps<TransformNodeData>) {
       <div style={{ flex: 1, display: "flex", position: "relative" }}>
         {/* Inputs column */}
         <div style={{ flex: 1, display: "flex", flexDirection: "column", paddingTop: 4 }}>
-          {data.inputs.map((port, i) => (
+          <LiveMeterBar direction="input" transformId={data.transformId} />
+          {data.inputs.map((port) => (
             <div
               key={port.port_id}
               style={{
@@ -100,7 +141,8 @@ function TransformPreviewNode({ data }: NodeProps<TransformNodeData>) {
 
         {/* Outputs column */}
         <div style={{ flex: 1, display: "flex", flexDirection: "column", paddingTop: 4 }}>
-          {data.outputs.map((port, i) => (
+          <LiveMeterBar direction="output" transformId={data.transformId} />
+          {data.outputs.map((port) => (
             <div
               key={port.port_id}
               style={{
@@ -179,7 +221,7 @@ function CreatorCanvasInner() {
     id: String(definition.transform_id),
     type: "transformPreview" as const,
     position: { x: 0, y: 0 },
-    data: { name: definition.name, inputs, outputs },
+    data: { transformId: definition.transform_id, name: definition.name, inputs, outputs },
     draggable: false,
   };
 

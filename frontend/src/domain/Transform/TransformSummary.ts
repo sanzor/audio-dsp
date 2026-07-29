@@ -3,4 +3,5 @@ export interface TransformSummary {
   name: string;
   description?: string;
   icon?: string;
+  kind: "primitive" | "composite";
 }

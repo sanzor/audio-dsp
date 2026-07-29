@@ -26,6 +26,7 @@ struct DbTransformDefinitionRow {
     name: String,
     description: Option<String>,
     icon: Option<String>,
+    kind: String,
     source_code: Option<String>,
     ports: sqlx::types::Json<Vec<DbTransformPort>>,
     params: sqlx::types::Json<Vec<DbTransformParam>>,
@@ -301,7 +302,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
 
     async fn get_transform(&self, id: TransformId) -> Result<DbTransform, String> {
         sqlx::query_as::<_, DbTransform>(
-            r#"SELECT transform_id, name, description, icon, created_at FROM transform WHERE transform_id = $1"#,
+            r#"SELECT transform_id, name, description, icon, kind, created_at FROM transform WHERE transform_id = $1"#,
         )
         .bind(id)
         .fetch_one(&self.pool)
@@ -339,6 +340,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
             name: row.name,
             description: row.description,
             icon: row.icon,
+            kind: row.kind,
             source_code: row.source_code,
             ports: row.ports.0,
             params: row.params.0,
@@ -370,6 +372,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
                 name: row.name,
                 description: row.description,
                 icon: row.icon,
+                kind: row.kind,
                 source_code: row.source_code,
                 ports: row.ports.0,
                 params: row.params.0,
@@ -384,12 +387,13 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
             name: String,
             description: Option<String>,
             icon: Option<String>,
+            kind: String,
             created_at: chrono::DateTime<chrono::Utc>,
             total: i64,
         }
 
         let rows = sqlx::query_as::<_, Row>(
-            r#"SELECT transform_id, name, description, icon, created_at, COUNT(*) OVER () AS total
+            r#"SELECT transform_id, name, description, icon, kind, created_at, COUNT(*) OVER () AS total
                FROM transform ORDER BY created_at DESC LIMIT $1 OFFSET $2"#,
         )
         .bind(limit)
@@ -404,6 +408,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
             name: r.name,
             description: r.description,
             icon: r.icon,
+            kind: r.kind,
             created_at: r.created_at,
         }).collect();
 
@@ -419,8 +424,8 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
         let mut tx = self.pool.begin().await.map_err(|e| e.to_string())?;
 
         let transform = sqlx::query_as::<_, DbTransform>(
-            r#"INSERT INTO transform (name, description, icon) VALUES ($1, $2, $3)
-               RETURNING transform_id, name, description, icon, created_at"#,
+            r#"INSERT INTO transform (name, description, icon, kind) VALUES ($1, $2, $3, 'primitive')
+               RETURNING transform_id, name, description, icon, kind, created_at"#,
         )
         .bind(name)
         .bind(description)

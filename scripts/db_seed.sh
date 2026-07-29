@@ -66,7 +66,7 @@ for spec in "${optional_seeds[@]}"; do
   apply_seed "${file_name}" "${table_name}" optional
 done
 
-if table_exists "transforms" && table_exists "transform_binaries" && table_exists "transform_params"; then
+if table_exists "transform" && table_exists "transform_binary" && table_exists "transform_param"; then
   echo "Applying generated transform seeds..."
   python3 "${ROOT_DIR}/scripts/db_seed_transforms.py"
   applied+=("generated transforms")

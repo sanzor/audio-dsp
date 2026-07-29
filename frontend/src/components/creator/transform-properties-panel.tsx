@@ -1,6 +1,54 @@
 import { useCreatorStore } from "@/Stores/CreatorStore";
+import { useCreatorPreviewStore } from "@/Stores/CreatorPreviewStore";
 import type { TransformPort } from "@/domain/Transform/TransformPort";
+import type { TransformParam } from "@/domain/Transform/TransformParam";
 import { useGetTransformDefinition } from "@/hooks/transforms/queries";
+
+interface ParamRowProps {
+  param: TransformParam;
+  index: number;
+  liveEnabled: boolean;
+}
+
+// Live only while previewing this exact transform — otherwise falls back to
+// the existing static value. Uses only min_value/max_value/default_value,
+// which already exist on TransformParam; a future unit/step/curve
+// enrichment would slot into this same row (e.g. step={param.step ?? 1}, a
+// unit-suffix label) without restructuring anything else here.
+function ParamRow({ param, index, liveEnabled }: ParamRowProps) {
+  const liveValue = useCreatorPreviewStore((s) => s.paramValues[index]);
+  const updateParam = useCreatorPreviewStore((s) => s.updateParam);
+
+  const min = param.min_value ?? 0;
+  const max = param.max_value ?? Math.max(param.default_value * 2, 1);
+  const value = liveEnabled && liveValue != null ? liveValue : param.default_value;
+
+  return (
+    <div
+      className="flex flex-col gap-1 px-2 py-1.5 rounded text-xs"
+      style={{ backgroundColor: "var(--bg-dark)", border: "1px solid rgba(255,255,255,0.05)" }}
+    >
+      <div className="flex items-center justify-between">
+        <span style={{ color: "var(--text-muted)" }}>{param.name}</span>
+        <span className="font-mono" style={{ color: "var(--text-main)" }}>
+          {value.toFixed(3)}
+        </span>
+      </div>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={(max - min) / 200 || 0.01}
+        value={value}
+        disabled={!liveEnabled}
+        onChange={(e) => updateParam(index, Number(e.target.value))}
+        title={liveEnabled ? undefined : "Press Play to enable live parameter control"}
+        className="w-full"
+        style={{ opacity: liveEnabled ? 1 : 0.5 }}
+      />
+    </div>
+  );
+}
 
 
 interface PortsListProps {
@@ -70,6 +118,8 @@ function PortsList({ direction, ports }: PortsListProps) {
 export function TransformPropertiesPanel() {
   const selectedId = useCreatorStore((s) => s.selectedTransformId);
   const { data: definition } = useGetTransformDefinition(selectedId);
+  const previewStatus = useCreatorPreviewStore((s) => s.status);
+  const previewTransformId = useCreatorPreviewStore((s) => s.previewTransformId);
 
   if (selectedId == null) {
     return (
@@ -87,6 +137,12 @@ export function TransformPropertiesPanel() {
   const inputs = definition?.ports.filter((port) => port.direction === "input") ?? [];
   const outputs = definition?.ports.filter((port) => port.direction === "output") ?? [];
 
+  // Sorted by param_order — this index must match the wasm side's
+  // positional param index (see CreatorPreviewStore.paramValues), which is
+  // keyed by declaration order, not param_id.
+  const sortedParams = [...(definition?.params ?? [])].sort((a, b) => a.param_order - b.param_order);
+  const liveEnabled = previewStatus === "playing" && previewTransformId === selectedId;
+
   return (
     <aside
       className="flex flex-col w-80 flex-shrink-0 overflow-hidden"
@@ -103,7 +159,7 @@ export function TransformPropertiesPanel() {
           PROPERTIES
         </span>
         <p className="mt-1 text-[10px]" style={{ color: "var(--text-muted)", opacity: 0.7 }}>
-          Read-only. Generated from transform source.
+          Name, ports & metadata are generated from transform source. Params are live-editable while previewing.
         </p>
       </div>
 
@@ -147,23 +203,21 @@ export function TransformPropertiesPanel() {
         <PortsList direction="input" ports={inputs} />
         <PortsList direction="output" ports={outputs} />
 
-        {definition?.params && definition.params.length > 0 && (
+        {sortedParams.length > 0 && (
           <section>
-            <h3 className="text-[9px] font-mono mb-2 pb-1" style={{ color: "var(--text-muted)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-              PARAMS
-            </h3>
+            <div className="flex items-center justify-between mb-2 pb-1" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+              <h3 className="text-[9px] font-mono" style={{ color: "var(--text-muted)" }}>
+                PARAMS
+              </h3>
+              {!liveEnabled && (
+                <span className="text-[9px] font-mono" style={{ color: "var(--text-muted)", opacity: 0.6 }}>
+                  press Play to edit live
+                </span>
+              )}
+            </div>
             <div className="flex flex-col gap-1">
-              {definition.params.map((param) => (
-                <div
-                  key={param.param_id}
-                  className="flex items-center justify-between px-2 py-1 rounded text-xs"
-                  style={{ backgroundColor: "var(--bg-dark)", border: "1px solid rgba(255,255,255,0.05)" }}
-                >
-                  <span style={{ color: "var(--text-muted)" }}>{param.name}</span>
-                  <span className="font-mono" style={{ color: "var(--text-main)" }}>
-                    {param.default_value}
-                  </span>
-                </div>
+              {sortedParams.map((param, index) => (
+                <ParamRow key={param.param_id} param={param} index={index} liveEnabled={liveEnabled} />
               ))}
             </div>
           </section>

@@ -14,6 +14,7 @@
  * Messages out (worklet → main):
  *   GRAPH_READY   — new graph is instantiated and active
  *   MODULE_ERROR  — one WASM module failed to instantiate
+ *   CPU_LOAD      — throttled processing-time-vs-quantum-budget ratio
  *
  * On SET_GRAPH the worklet:
  *   1. Instantiates WASM modules for each node
@@ -102,6 +103,9 @@ function generateTransformFunction(compiledGraph) {
 // ─── Runtime helpers (passed into the generated function) ─────────────────────
 
 const BLOCK_SIZE = 128;
+// Report CPU load every N quanta rather than every quantum (~370/sec at 48kHz)
+// to avoid flooding the message port.
+const CPU_REPORT_INTERVAL_QUANTA = 20;
 
 const SIL    = () => new Float32Array(BLOCK_SIZE);
 
@@ -113,12 +117,19 @@ function addAll(...buffers) {
 
 function callWasm(instance, params, input) {
   const exp = instance.exports;
-  const ptr       = exp.alloc(input.length);
+  const blockLen  = input.length;
+  const inputPtr  = exp.alloc(blockLen);
   const paramsPtr = exp.alloc(Math.max(params.length, 1));
-  new Float32Array(exp.memory.buffer, ptr,       input.length ).set(input);
-  new Float32Array(exp.memory.buffer, paramsPtr, params.length).set(params);
-  exp.process(ptr, input.length, paramsPtr, params.length);
-  return Float32Array.from(new Float32Array(exp.memory.buffer, ptr, input.length));
+  new Float32Array(exp.memory.buffer, inputPtr,  blockLen      ).set(input);
+  new Float32Array(exp.memory.buffer, paramsPtr, params.length ).set(params);
+  // ABI v2: process(samples_ptr, num_inputs, block_len, params_ptr, params_len) -> *const f32.
+  // num_inputs is always 1 today — generateTransformFunction already sums every
+  // node's upstream sources into one buffer before calling this.
+  const outPtr = exp.process(inputPtr, 1, blockLen, paramsPtr, params.length);
+  // Arena is a fixed-size bump-and-wrap buffer that's never freed (see
+  // transform-sdk export.rs alloc()), so the next alloc() call can overwrite
+  // outPtr's bytes — materialize the output now, synchronously.
+  return Float32Array.from(new Float32Array(exp.memory.buffer, outPtr, blockLen));
 }
 
 // ─── GraphWorklet ─────────────────────────────────────────────────────────────
@@ -130,6 +141,8 @@ class GraphWorklet extends AudioWorkletProcessor {
     this._loading     = false;
     this._runtimeGraph = null; // { instances, params, buffers, transformFn, loopEdgeIndices }
     this._previousFrame = new Map();
+    this._quantumCount = 0;
+    this._hasPerf = typeof performance !== 'undefined';
 
     new WorkletMessageDispatcher(this.port, this);
   }
@@ -200,10 +213,20 @@ class GraphWorklet extends AudioWorkletProcessor {
 
     const { instances, params, buffers, transformFn } = this._runtimeGraph;
 
+    const shouldReportCpu = this._hasPerf && (this._quantumCount % CPU_REPORT_INTERVAL_QUANTA === 0);
+    const startTime = shouldReportCpu ? performance.now() : 0;
+
     const { output, nextPrev } = transformFn(
       rawAudio, instances, params, buffers, this._previousFrame,
       SIL, addAll, callWasm,
     );
+
+    if (shouldReportCpu) {
+      const elapsedMs = performance.now() - startTime;
+      const quantumBudgetMs = (BLOCK_SIZE / sampleRate) * 1000;
+      this.port.postMessage({ type: 'CPU_LOAD', value: elapsedMs / quantumBudgetMs });
+    }
+    this._quantumCount++;
 
     this._previousFrame = nextPrev; // impure assignment — lives here, not inside the generated fn
     rawOutput.set(output);

@@ -1,26 +1,49 @@
-mod common;
+use transform_sdk::{Direction, ParamMetadata, Params, PortCardinality, PortKind, PortMetadata, Transform, TransformMetadata};
 
 const DELAY_LEN: usize = 2048;
-static mut DELAY_LINE: [f32; DELAY_LEN] = [0.0; DELAY_LEN];
-static mut DELAY_INDEX: usize = 0;
 
-#[no_mangle]
-pub extern "C" fn process(input_ptr: *mut f32, len: i32, params_ptr: *const f32, params_len: i32) {
-    let input = unsafe { common::input_buffer(input_ptr, len) };
-    let params = unsafe { common::params(params_ptr, params_len) };
-    let mix = common::param(params, 0, 0.25).clamp(0.0, 1.0);
-    let feedback = common::param(params, 1, 0.45).clamp(0.0, 0.95);
+pub struct Reverb {
+    delay_line: [f32; DELAY_LEN],
+    delay_index: usize,
+}
 
-    for sample in input.iter_mut() {
-        let (delayed, index) = unsafe { (DELAY_LINE[DELAY_INDEX], DELAY_INDEX) };
-        let dry = *sample;
-        let wet = dry + delayed * feedback;
-
-        unsafe {
-            DELAY_LINE[index] = wet;
-            DELAY_INDEX = (index + 1) % DELAY_LEN;
-        }
-
-        *sample = dry * (1.0 - mix) + delayed * mix;
+impl Default for Reverb {
+    fn default() -> Self {
+        Self { delay_line: [0.0; DELAY_LEN], delay_index: 0 }
     }
 }
+
+impl Transform for Reverb {
+    fn process(&mut self, samples: &[&[f32]], params: &Params<'_>) -> Vec<f32> {
+        let mix = params[0].clamp(0.0, 1.0);
+        let feedback = params[1].clamp(0.0, 0.95);
+
+        samples[0]
+            .iter()
+            .map(|&dry| {
+                let delayed = self.delay_line[self.delay_index];
+                let wet = dry + delayed * feedback;
+                self.delay_line[self.delay_index] = wet;
+                self.delay_index = (self.delay_index + 1) % DELAY_LEN;
+                dry * (1.0 - mix) + delayed * mix
+            })
+            .collect()
+    }
+
+    fn metadata() -> TransformMetadata {
+        TransformMetadata {
+            name: "Reverb".to_string(),
+            description: Some("Simple feedback delay reverb for atmospheric tails.".to_string()),
+            ports: vec![
+                PortMetadata { name: "In".to_string(), direction: Direction::Input, order: 0, description: None, kind: PortKind::Program, cardinality: PortCardinality::Single },
+                PortMetadata { name: "Out".to_string(), direction: Direction::Output, order: 0, description: None, kind: PortKind::Program, cardinality: PortCardinality::Single },
+            ],
+            params: vec![
+                ParamMetadata { name: "mix".to_string(), order: 0, default: 0.25, min: Some(0.0), max: Some(1.0), description: Some("Dry/wet balance.".to_string()) },
+                ParamMetadata { name: "feedback".to_string(), order: 1, default: 0.45, min: Some(0.0), max: Some(0.95), description: Some("Feedback amount in the delay line.".to_string()) },
+            ],
+        }
+    }
+}
+
+transform_sdk::export_transform!(Reverb);

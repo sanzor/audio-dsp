@@ -1,4 +1,14 @@
+import { useCreatorPreviewStore } from "@/Stores/CreatorPreviewStore";
+
 export function CreatorStatusBar() {
+  const status = useCreatorPreviewStore((s) => s.status);
+  const cpuLoadPct = useCreatorPreviewStore((s) => s.cpuLoadPct);
+  const latencyMs = useCreatorPreviewStore((s) => s.latencyMs);
+
+  const isPlaying = status === "playing";
+  const engineColor = isPlaying ? "#4ae176" : status === "error" ? "#ff6b6b" : "var(--text-muted)";
+  const engineLabel = isPlaying ? "PREVIEWING" : status === "loading" ? "LOADING…" : status === "error" ? "ERROR" : "IDLE";
+
   return (
     <footer
       className="h-6 flex items-center justify-between px-4 text-[10px] font-mono select-none flex-shrink-0"
@@ -10,11 +20,11 @@ export function CreatorStatusBar() {
     >
       <div className="flex items-center gap-6">
         <div className="flex items-center gap-1.5">
-          <span style={{ color: "#4ae176" }}>●</span>
-          <span>ENGINE: CONNECTED (LOCAL)</span>
+          <span style={{ color: engineColor }}>●</span>
+          <span>ENGINE: {engineLabel}</span>
         </div>
-        <span>LATENCY: 4.2ms</span>
-        <span>CPU: 12%</span>
+        <span>LATENCY: {isPlaying && latencyMs != null ? `${latencyMs.toFixed(1)}ms` : "—"}</span>
+        <span>CPU: {isPlaying && cpuLoadPct != null ? `${cpuLoadPct.toFixed(0)}%` : "—"}</span>
       </div>
       <div className="flex items-center gap-4">
         <span>UTF-8</span>

@@ -10,6 +10,8 @@ pub struct DbTransform {
     pub name: String,
     pub description: Option<String>,
     pub icon: Option<String>,
+    /// "primitive" | "composite".
+    pub kind: String,
     pub created_at: DateTime<Utc>,
 }
 
@@ -19,6 +21,8 @@ pub struct DbTransformDefinition {
     pub name: String,
     pub description: Option<String>,
     pub icon: Option<String>,
+    /// "primitive" | "composite".
+    pub kind: String,
     pub source_code: Option<String>,
     pub ports: Vec<DbTransformPort>,
     pub params: Vec<DbTransformParam>,

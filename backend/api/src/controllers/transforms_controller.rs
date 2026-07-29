@@ -46,6 +46,8 @@ pub struct TransformSummaryDto {
     pub name: String,
     pub description: Option<String>,
     pub icon: Option<String>,
+    /// "primitive" | "composite".
+    pub kind: String,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -78,6 +80,8 @@ pub struct TransformDefinitionDto {
     pub name: String,
     pub description: Option<String>,
     pub icon: Option<String>,
+    /// "primitive" | "composite".
+    pub kind: String,
     pub source_code: Option<String>,
     pub ports: Vec<TransformPortDto>,
     pub params: Vec<TransformParamDto>,
@@ -151,6 +155,7 @@ impl From<DbTransform> for TransformSummaryDto {
             name: value.name,
             description: value.description,
             icon: value.icon,
+            kind: value.kind,
         }
     }
 }
@@ -190,6 +195,7 @@ impl From<DbTransformDefinition> for TransformDefinitionDto {
             name: value.name,
             description: value.description,
             icon: value.icon,
+            kind: value.kind,
             source_code: value.source_code,
             ports: value.ports.into_iter().map(TransformPortDto::from).collect(),
             params: value.params.into_iter().map(TransformParamDto::from).collect(),

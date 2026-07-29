@@ -1,17 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import Editor from "@monaco-editor/react";
 import { useCreatorStore } from "@/Stores/CreatorStore";
+import { useCreatorPreviewStore } from "@/Stores/CreatorPreviewStore";
 import { useGetTransformDefinition } from "@/hooks/transforms/queries";
 import { useCompileTicketStatus } from "@/hooks/tickets/queries";
 import { useRequestCompileTransform } from "@/hooks/tickets/mutations";
 import { useSaveTransform, usePublishTransform } from "@/hooks/transforms/mutations";
-import { apiGetPublishPortShapeDiff, type PortShapeSummary } from "@/Services/TransformService";
+import { apiGetPublishPortShapeDiff, decodeBase64Binary, type PortShapeSummary } from "@/Services/TransformService";
 import { validateTransformSource } from "./validateTransformSource";
 
-// The "Try it" client-side preview (creatorTransformPreview.ts) and the
-// wasm_base64/params fields it consumes from the compile ticket/resource
-// DTOs are intentionally left in place, unused, for when real audio-source
-// upload exists to make a preview meaningful — see
+// The "Try it" client-side preview (creatorTransformPreview.ts) runs a
+// just-compiled binary through CreatorPreviewStore, fed by the wasm_base64/
+// params fields on the compile ticket status DTO — see
 // agents/decisions/0003-transform-preview-flow.md.
 
 const DEFAULT_CODE = `use transform_sdk::{Transform, TransformMetadata, PortMetadata, ParamMetadata, Direction, PortKind, PortCardinality, Params};
@@ -68,6 +68,13 @@ export function CreatorCodeEditor() {
   const { data: definition } = useGetTransformDefinition(selectedId);
   const [activeTab, setActiveTab] = useState("impl");
 
+  const previewStatus = useCreatorPreviewStore((s) => s.status);
+  const previewTransformId = useCreatorPreviewStore((s) => s.previewTransformId);
+  const previewBypassed = useCreatorPreviewStore((s) => s.bypassed);
+  const playPreview = useCreatorPreviewStore((s) => s.play);
+  const stopPreview = useCreatorPreviewStore((s) => s.stop);
+  const setPreviewBypass = useCreatorPreviewStore((s) => s.setBypass);
+
   // Load the editor buffer from the fetched definition once per selected
   // transform — not on every render, and not before the right definition
   // has actually arrived (avoids briefly showing the previous transform's code).
@@ -107,6 +114,53 @@ export function CreatorCodeEditor() {
       : undefined;
 
   const validation = useMemo(() => validateTransformSource(code), [code]);
+
+  // Tear down any live preview session whenever the selected transform
+  // changes (or this editor unmounts) — switching transforms must never
+  // leave the previous one's audio session running.
+  useEffect(() => {
+    return () => {
+      useCreatorPreviewStore.getState().stop();
+    };
+  }, [selectedId]);
+
+  const isPreviewingThis =
+    selectedId != null && previewTransformId === selectedId && previewStatus !== "idle" && previewStatus !== "error";
+  const previewLoadingThis =
+    selectedId != null && previewTransformId === selectedId && previewStatus === "loading";
+  const canStartPreview = attachableResourceId != null && ticketStatus.data?.status.wasm_base64 != null;
+
+  // Composite transforms have no source code — the Monaco/Save/Compile/
+  // Publish/Preview cluster below is entirely primitive-only. Nothing can
+  // create a composite yet, but the "kind" column now makes it
+  // representable, so guard rather than silently misrender one.
+  if (definition?.kind === "composite") {
+    return (
+      <div
+        className="flex flex-col h-full items-center justify-center"
+        style={{ backgroundColor: "#1a1a1a", borderTop: "1px solid rgba(255,255,255,0.06)" }}
+      >
+        <span className="text-xs font-mono" style={{ color: "var(--text-muted)" }}>
+          Composite transform editing isn't built yet.
+        </span>
+      </div>
+    );
+  }
+
+  function handleTogglePreview() {
+    if (selectedId == null) return;
+    if (isPreviewingThis) {
+      stopPreview();
+      return;
+    }
+    const wasmBase64 = ticketStatus.data?.status.wasm_base64;
+    if (wasmBase64 == null || attachableResourceId == null) return;
+    const wasmBytes = decodeBase64Binary(wasmBase64);
+    const params = [...(ticketStatus.data?.status.params ?? [])]
+      .sort((a, b) => a.param_order - b.param_order)
+      .map((p) => p.default_value);
+    void playPreview(selectedId, attachableResourceId, code, wasmBytes, params);
+  }
 
   function handleSave() {
     if (selectedId == null || !isDirty) return;
@@ -208,6 +262,35 @@ export function CreatorCodeEditor() {
             <span className="font-mono text-[10px]" style={{ color: "#4ae176" }}>
               Compiled ✓{ticketStatus.data?.status.resource_id != null ? ` (resource #${ticketStatus.data.status.resource_id})` : ""}
             </span>
+          )}
+          {buildState === "successful" && (
+            <>
+              <button
+                onClick={handleTogglePreview}
+                disabled={selectedId == null || (!isPreviewingThis && !canStartPreview)}
+                title={!canStartPreview && !isPreviewingThis ? "Recompile the current source to preview it" : undefined}
+                className="font-mono font-bold px-2.5 py-0.5 rounded text-[10px] transition-colors"
+                style={{
+                  color: isPreviewingThis ? "#ff6b6b" : "#4ae176",
+                  border: `1px solid ${isPreviewingThis ? "rgba(255,107,107,0.4)" : "rgba(74,225,118,0.4)"}`,
+                  opacity: selectedId == null || (!isPreviewingThis && !canStartPreview) ? 0.5 : 1,
+                }}
+              >
+                {previewLoadingThis ? "Loading…" : isPreviewingThis ? "Stop" : "Play"}
+              </button>
+              {isPreviewingThis && (
+                <button
+                  onClick={() => setPreviewBypass(!previewBypassed)}
+                  className="font-mono font-bold px-2.5 py-0.5 rounded text-[10px] transition-colors"
+                  style={{
+                    color: previewBypassed ? "var(--text-muted)" : "#adc6ff",
+                    border: "1px solid rgba(173,198,255,0.4)",
+                  }}
+                >
+                  {previewBypassed ? "Bypassed" : "Bypass"}
+                </button>
+              )}
+            </>
           )}
           {buildState === "failed" && (
             <button

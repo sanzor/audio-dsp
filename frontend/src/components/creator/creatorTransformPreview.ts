@@ -110,8 +110,25 @@ export class CreatorTransformPreview {
     return this.node;
   }
 
+  // Exposes the underlying AudioContext so the caller can build supporting
+  // nodes (a test-tone oscillator, level-metering analysers) that must live
+  // in the same context as inputNode.
+  get audioContext(): AudioContext | null {
+    return this.audioCtx;
+  }
+
   setBypass(bypass: boolean): void {
     this.sender?.sendBypass(bypass);
+  }
+
+  // The degenerate preview graph (buildSingleNodeGraph) always has exactly
+  // one node at execution-order index 0 — hence the fixed nodeIndex.
+  updateParams(params: number[]): void {
+    this.sender?.sendUpdateParams(0, params);
+  }
+
+  onCpuLoad(cb: (value: number) => void): () => void {
+    return this.sender?.onCpuLoad(cb) ?? (() => {});
   }
 
   // Tears down cleanly — safe to call multiple times, and required on

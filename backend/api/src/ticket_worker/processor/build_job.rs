@@ -110,27 +110,10 @@ async fn run_build(config: &BuildJobConfig, job_dir: &std::path::Path, source_co
     Ok(bytes)
 }
 
+const CARGO_TOML_TEMPLATE: &str = include_str!("templates/transform_build_cargo.toml.tpl");
+
 fn generate_cargo_toml(sdk_path: &std::path::Path) -> String {
-    format!(
-        r#"[package]
-name = "transform_build"
-version = "0.0.0"
-edition = "2021"
-
-[lib]
-crate-type = ["cdylib"]
-
-[dependencies]
-transform-sdk = {{ path = {sdk_path:?} }}
-
-[profile.release]
-opt-level = "s"
-lto = true
-panic = "abort"
-
-[workspace]
-"#
-    )
+    CARGO_TOML_TEMPLATE.replace("__SDK_PATH__", &format!("{sdk_path:?}"))
 }
 
 fn truncate_output(bytes: &[u8]) -> String {

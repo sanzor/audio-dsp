@@ -4,9 +4,10 @@
 
 There are now two layers to the roster, and they answer different questions:
 
-- **Agents** — real, invocable Claude Code subagents. Invoked via `.claude/agents/*.md`, but those are thin shims; canonical instructions live in `agents/roster/*.md` — edit there. Split into two kinds:
+- **Agents** — real, invocable Claude Code subagents. Invoked via `.claude/agents/*.md`, but those are thin shims; canonical instructions live in `agents/roster/*.md` — edit there. Split into three kinds:
   - *Product shape* — `product-owner` scopes and prioritizes already-agreed work; `business-analyst` questions whether it's the right work at all (unknown-unknowns, who the product really serves, market/competitive context). Neither implements.
-  - *Surface builders* — `editor-agent`/`creator-agent` own a surface end-to-end (full stack: frontend + the backend that serves it).
+  - *Surface builders* — `editor-agent`/`creator-agent` own a surface end-to-end (full stack: frontend + the backend that serves it), including that surface's own unit/backend tests.
+  - *Quality* — `qa-agent` owns Playwright E2E testing (`frontend/e2e/`) and screenshot capture for design review, cross-surface by nature but without ownership of application code in either surface — it reports defects to the owning surface builder rather than fixing them.
 - **Technical-layer agents** (below, `audio-runtime-agent` through `observability-debug-agent`) — documentation-only ownership boundaries, not separately invocable. They describe who's responsible for a directory/subsystem when work is narrower than a full surface, or crosses surfaces (e.g. a migration, a shared audiolib fix). A surface do-er should still respect these boundaries and delegate narrow cross-cutting work rather than reaching into, say, `backend/audiolib` unsupervised.
 - **Expert consultants** (`agents/consultants/*.md`) — documentation personas, not agents with ownership at all. Either layer above consults them for domain judgment (DSP correctness, graph-UI ergonomics, ideation, marketing) without handing them any file scope.
 
@@ -53,6 +54,7 @@ Important: `creator-ai-agent`/`editor-ai-agent` below are **planned in-product f
 
 ## Shared zones
 
+- `frontend/e2e/` (Playwright specs, config, screenshot output) is `qa-agent`'s — `editor-agent`/`creator-agent` should not add E2E specs there directly; ask `qa-agent` to add scenario/smoke coverage instead, same as any other cross-cutting narrow work per the technical-layer boundary above.
 - `database/` is shared between `backend-data-agent` and `audio-runtime-agent` when schema changes affect runtime or transform metadata.
 - AI-assisted creator/editor flows usually cross `frontend-graph-agent`, `backend-data-agent`, and either `creator-ai-agent` or `editor-ai-agent`.
 - The published-transform contract (`transform_binaries`, `transform_ports`, `transform_params`) is `creator-agent`'s write side and `editor-agent`'s read side — see the escalation rule below for what a destructive change there requires.
