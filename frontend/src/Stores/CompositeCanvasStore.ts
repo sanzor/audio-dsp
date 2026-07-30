@@ -31,6 +31,15 @@ export interface EditingCompositeGraph {
   nodes: Map<number, CanvasNode>;
   edges: Map<string, CompositeEdge>;
   exposedPorts: Map<string, CompositeExposedPort>;
+  // Session-only "temporarily excluded from the compiled graph" flag — no
+  // backend concept, no field on CompositeNode/CompositeGraphDefinition (see
+  // agents/decisions/0005-composite-node-inspector.md). Reset whenever a
+  // composite is (re)opened via beginEditingCompositeGraph. A disabled node
+  // and its incident edges are stripped out of toGraphDefinition()'s output
+  // (so Save persists the graph as if the node were removed) and out of the
+  // Preview/Play compile input (composite-canvas.tsx) — never out of `nodes`/
+  // `edges` themselves, so the node stays visible (grayed out) on the canvas.
+  disabledNodes: Set<number>;
   nextNodeId: number;
   revision: number;
   savedRevision: number;
@@ -38,6 +47,11 @@ export interface EditingCompositeGraph {
 
 interface CompositeCanvasState {
   editingGraph: EditingCompositeGraph | null;
+  // Per-node inspector selection driving the bottom panel in
+  // composite-canvas.tsx — net-new, replaces the old openModal({type:
+  // "transformDetails"}) call on node click. Lives outside EditingCompositeGraph
+  // since it's a pure view concern, not part of the graph being edited.
+  selectedNodeId: number | null;
 
   beginEditingCompositeGraph: (
     transformId: number,
@@ -51,6 +65,8 @@ interface CompositeCanvasState {
   removeEdge: (edge: Pick<CompositeEdge, "from_node_id" | "from_port" | "to_node_id" | "to_port">) => void;
   setExposedPort: (nodeId: number, portName: string, exposedName: string) => void;
   clearExposedPort: (nodeId: number, portName: string) => void;
+  selectNode: (nodeId: number | null) => void;
+  toggleNodeDisabled: (nodeId: number) => void;
   markSaved: () => void;
   isDirty: () => boolean;
   toGraphDefinition: () => CompositeGraphDefinition;
@@ -63,6 +79,7 @@ function bump(state: EditingCompositeGraph): Pick<EditingCompositeGraph, "revisi
 
 export const useCompositeCanvasStore = create<CompositeCanvasState>()((set, get) => ({
   editingGraph: null,
+  selectedNodeId: null,
 
   beginEditingCompositeGraph: (transformId, initial, positions) => {
     const nodes = new Map<number, CanvasNode>();
@@ -89,10 +106,12 @@ export const useCompositeCanvasStore = create<CompositeCanvasState>()((set, get)
         nodes,
         edges,
         exposedPorts,
+        disabledNodes: new Set(),
         nextNodeId: maxNodeId + 1,
         revision: 0,
         savedRevision: 0,
       },
+      selectedNodeId: null,
     });
   },
 
@@ -115,7 +134,12 @@ export const useCompositeCanvasStore = create<CompositeCanvasState>()((set, get)
       [...graph.edges].filter(([, e]) => e.from_node_id !== nodeId && e.to_node_id !== nodeId)
     );
     const exposedPorts = new Map([...graph.exposedPorts].filter(([, p]) => p.node_id !== nodeId));
-    set({ editingGraph: { ...graph, nodes, edges, exposedPorts, ...bump(graph) } });
+    const disabledNodes = new Set(graph.disabledNodes);
+    disabledNodes.delete(nodeId);
+    set((state) => ({
+      editingGraph: { ...graph, nodes, edges, exposedPorts, disabledNodes, ...bump(graph) },
+      selectedNodeId: state.selectedNodeId === nodeId ? null : state.selectedNodeId,
+    }));
   },
 
   moveNode: (nodeId, position) => {
@@ -169,6 +193,21 @@ export const useCompositeCanvasStore = create<CompositeCanvasState>()((set, get)
     set({ editingGraph: { ...graph, exposedPorts, ...bump(graph) } });
   },
 
+  selectNode: (nodeId) => set({ selectedNodeId: nodeId }),
+
+  // Toggling bumps revision (marks the graph dirty) even though the
+  // flag itself is never persisted — Save's payload genuinely changes shape
+  // (the node and its incident edges drop out, see toGraphDefinition below),
+  // so the dirty indicator must reflect that real consequence.
+  toggleNodeDisabled: (nodeId) => {
+    const graph = get().editingGraph;
+    if (!graph) return;
+    const disabledNodes = new Set(graph.disabledNodes);
+    if (disabledNodes.has(nodeId)) disabledNodes.delete(nodeId);
+    else disabledNodes.add(nodeId);
+    set({ editingGraph: { ...graph, disabledNodes, ...bump(graph) } });
+  },
+
   markSaved: () => {
     const graph = get().editingGraph;
     if (!graph) return;
@@ -180,15 +219,21 @@ export const useCompositeCanvasStore = create<CompositeCanvasState>()((set, get)
     return graph != null && graph.revision !== graph.savedRevision;
   },
 
+  // Disabled nodes are filtered out here (and their incident edges/exposed
+  // ports with them) — Save persists the graph as though they'd been
+  // removed. There's no persisted "disabled" state to round-trip; re-opening
+  // this composite later starts every node enabled again.
   toGraphDefinition: () => {
     const graph = get().editingGraph;
     if (!graph) return { nodes: [], edges: [], exposed_ports: [] };
+    const enabledNodes = [...graph.nodes.values()].filter((n) => !graph.disabledNodes.has(n.node_id));
+    const enabledIds = new Set(enabledNodes.map((n) => n.node_id));
     return {
-      nodes: [...graph.nodes.values()].map((n) => ({ node_id: n.node_id, transform_id: n.transform_id })),
-      edges: [...graph.edges.values()],
-      exposed_ports: [...graph.exposedPorts.values()],
+      nodes: enabledNodes.map((n) => ({ node_id: n.node_id, transform_id: n.transform_id })),
+      edges: [...graph.edges.values()].filter((e) => enabledIds.has(e.from_node_id) && enabledIds.has(e.to_node_id)),
+      exposed_ports: [...graph.exposedPorts.values()].filter((p) => enabledIds.has(p.node_id)),
     };
   },
 
-  reset: () => set({ editingGraph: null }),
+  reset: () => set({ editingGraph: null, selectedNodeId: null }),
 }));

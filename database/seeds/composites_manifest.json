@@ -1,0 +1,20 @@
+[
+  {
+    "name": "Vocal Chain",
+    "description": "High-pass filter into compressor into reverb — a composite built from existing primitive transforms.",
+    "icon": "Layers",
+    "nodes": [
+      { "node_id": 1, "transform_name": "High-Pass Filter" },
+      { "node_id": 2, "transform_name": "Compressor" },
+      { "node_id": 3, "transform_name": "Reverb" }
+    ],
+    "edges": [
+      { "from_node_id": 1, "from_port": "Out", "to_node_id": 2, "to_port": "In" },
+      { "from_node_id": 2, "from_port": "Out", "to_node_id": 3, "to_port": "In" }
+    ],
+    "exposed_ports": [
+      { "node_id": 1, "port_name": "In", "exposed_name": "In" },
+      { "node_id": 3, "port_name": "Out", "exposed_name": "Out" }
+    ]
+  }
+]

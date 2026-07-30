@@ -1,4 +1,6 @@
+import { useTransformStore } from '@/Stores/TransformStore';
 import type { ActiveGraph } from '@/Stores/ActiveGraphState';
+import type { TransformPort } from '@/domain/Transform/TransformPort';
 import type { CompiledGraph } from './compile-graph/compiledGraph';
 
 // ─── Input types ─────────────────────────────────────────────────────────────
@@ -7,17 +9,57 @@ export interface GraphInputNode {
   id: number;
   transformId: number;
   params: Record<string, number>;
+  // Count of this transform's declared input ports — determines how many
+  // separate buffers its process() call receives (see transform-sdk's
+  // `Transform::process(samples: &[&[f32]], ...)` contract: one slice per
+  // declared input port, in port_order).
+  inputPortCount: number;
 }
 
 export interface GraphInputEdge {
   id: number;
   fromNodeId: number;
   toNodeId: number;
+  // 0-based ordinal among the target node's declared input ports, ordered by
+  // port_order — says which of the node's process() input slices this edge
+  // feeds. Multi-input-port transforms (e.g. a sidechain) need this to keep
+  // separate signals separate instead of everything summed into one buffer.
+  toPortIndex: number;
 }
 
 export interface GraphInput {
   nodes: Map<number, GraphInputNode>;
   edges: Map<number, GraphInputEdge>;
+}
+
+// ─── Port lookup helpers ──────────────────────────────────────────────────────
+// Shared by both GraphInput producers below (compileGraph for Editor graphs,
+// composite-canvas.tsx for composite preview) — resolves each caller's own
+// port identifier scheme (numeric port_id for Editor edges, port name for
+// composite edges) against the node's own port list from useTransformStore.
+
+function inputPortsOf(transformId: number): TransformPort[] {
+  return (useTransformStore.getState().definitions.get(transformId)?.ports ?? [])
+    .filter((p) => p.direction === 'input')
+    .sort((a, b) => a.port_order - b.port_order);
+}
+
+// Falls back to 1 (today's single-input-port assumption) when the
+// transform's definition hasn't been fetched into the store yet, so a node
+// whose ports simply haven't loaded doesn't get starved of input.
+export function inputPortCountOf(transformId: number, fallback = 1): number {
+  const def = useTransformStore.getState().definitions.get(transformId);
+  return def ? inputPortsOf(transformId).length : fallback;
+}
+
+export function inputPortIndexById(transformId: number, portId: number): number {
+  const idx = inputPortsOf(transformId).findIndex((p) => p.port_id === portId);
+  return idx === -1 ? 0 : idx;
+}
+
+export function inputPortIndexByName(transformId: number, portName: string): number {
+  const idx = inputPortsOf(transformId).findIndex((p) => p.name === portName);
+  return idx === -1 ? 0 : idx;
 }
 
 // ─── Output types ─────────────────────────────────────────────────────────────
@@ -31,7 +73,9 @@ export interface CompiledNode {
   nodeId: number;
   transformId: number;
   params: number[];             // flattened from Record<string,number>, sent to WASM
-  inputs: NodeInputSource[];
+  // One bucket per declared input port (index = port ordinal); each bucket is
+  // the list of sources summed together to produce that port's buffer.
+  inputs: NodeInputSource[][];
   outputBufferIndex: number;    // -1 = sink node: writes additively to worklet output
 }
 
@@ -53,14 +97,22 @@ export function compileGraph(
     nodes: new Map(
       [...graph.nodes.entries()].map(([id, node]) => [
         id,
-        { id, transformId: node.transformId, params: node.params },
+        { id, transformId: node.transformId, params: node.params, inputPortCount: inputPortCountOf(node.transformId) },
       ]),
     ),
     edges: new Map(
-      [...graph.edges.entries()].map(([id, edge]) => [
-        id,
-        { id, fromNodeId: edge.fromNodeId, toNodeId: edge.toNodeId },
-      ]),
+      [...graph.edges.entries()].map(([id, edge]) => {
+        const toTransformId = graph.nodes.get(edge.toNodeId)?.transformId;
+        return [
+          id,
+          {
+            id,
+            fromNodeId: edge.fromNodeId,
+            toNodeId: edge.toNodeId,
+            toPortIndex: toTransformId != null ? inputPortIndexById(toTransformId, edge.toPortId) : 0,
+          },
+        ];
+      }),
     ),
   };
 
@@ -244,18 +296,24 @@ function buildNodes(
     const hasForwardIn  = incoming.some((e) => !backEdgeIds.has(e.id));
     const hasForwardOut = outgoing.some((e) => !backEdgeIds.has(e.id));
 
-    const rawSource: NodeInputSource = { kind: 'raw' };
-
-    const edgeSources: NodeInputSource[] = incoming.map((edge) =>
-      backEdgeIds.has(edge.id)
-        ? { kind: 'feedback', bufferIndex: nodeOutputBuf.get(edge.fromNodeId)! }
-        : { kind: 'buffer',   bufferIndex: nodeOutputBuf.get(edge.fromNodeId)! },
-    );
-
-    const inputs: NodeInputSource[] = [
-      ...(hasForwardIn ? [] : [rawSource]),
-      ...edgeSources,
-    ];
+    // One bucket per declared input port; each edge's toPortIndex says which
+    // bucket it feeds. A bucket with no edges resolves to silence in the
+    // worklet, except port 0 on a true source node (no forward incoming
+    // edges at all), which falls back to the raw pipeline input — same as
+    // every existing single-input-port transform already gets.
+    const inputs: NodeInputSource[][] = Array.from({ length: node.inputPortCount }, () => []);
+    for (const edge of incoming) {
+      const bucket = inputs[edge.toPortIndex];
+      if (!bucket) continue; // defensive: stale/out-of-range port index
+      bucket.push(
+        backEdgeIds.has(edge.id)
+          ? { kind: 'feedback', bufferIndex: nodeOutputBuf.get(edge.fromNodeId)! }
+          : { kind: 'buffer',   bufferIndex: nodeOutputBuf.get(edge.fromNodeId)! },
+      );
+    }
+    if (!hasForwardIn && inputs.length > 0) {
+      inputs[0] = [{ kind: 'raw' }, ...inputs[0]];
+    }
 
     return {
       nodeId,

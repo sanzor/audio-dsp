@@ -2,8 +2,6 @@ import { useEffect, useMemo } from "react";
 import ReactFlow, {
   Background,
   BackgroundVariant,
-  Handle,
-  Position,
   ReactFlowProvider,
   useReactFlow,
   type Connection,
@@ -11,116 +9,21 @@ import ReactFlow, {
   type Node as RFNode,
   type NodeChange,
   type EdgeChange,
-  type NodeProps,
 } from "reactflow";
 import "reactflow/dist/style.css";
 import { useCreatorStore } from "@/Stores/CreatorStore";
 import { useCompositeCanvasStore, type CanvasNode } from "@/Stores/CompositeCanvasStore";
-import { useCreatorPreviewStore } from "@/Stores/CreatorPreviewStore";
 import { useGetTransformDefinition, useResolveTransformDefinitions } from "@/hooks/transforms/queries";
 import { useSaveCompositeTransform, usePublishTransform } from "@/hooks/transforms/mutations";
 import { useTransformStore } from "@/Stores/TransformStore";
-import { apiGetPublishPortShapeDiff, apiGetTransformBinaries, type PortShapeSummary } from "@/Services/TransformService";
-import { process as compileGraphInput, type GraphInput } from "@/audio/pipeline/GraphCompiler";
+import { apiGetPublishPortShapeDiff, type PortShapeSummary } from "@/Services/TransformService";
 import { CompositePalette } from "./composite-palette";
+import { computeNodeDisableSafety, type NodeDisableSafety } from "./compositeReachability";
+import { NODE_TYPES, type CompositeNodeData } from "./composite-canvas-node";
+import { useCompositePreviewControls } from "./composite-preview-controls";
 import type { TransformPort } from "@/domain/Transform/TransformPort";
 import type { CompositeEdge } from "@/domain/Transform/CompositeGraphDefinition";
-
-const ROW_HEIGHT = 28;
-
-// ─── Node ─────────────────────────────────────────────────────────────────────
-// Generalizes canvas.tsx's TransformPreviewNode: multiple instances, real
-// per-port Handles keyed by port NAME (not port_id, since composite wiring
-// references ports by name — port_id is reassigned on every leaf republish).
-
-interface CompositeNodeData {
-  nodeId: number;
-  transformId: number;
-}
-
-function CompositeTransformNode({ data }: NodeProps<CompositeNodeData>) {
-  // Reads from the cache useResolveTransformDefinitions (in the parent
-  // canvas) already populated for every node's transform — no per-node fetch.
-  const definition = useTransformStore((s) => s.definitions.get(data.transformId));
-  const removeNode = useCompositeCanvasStore((s) => s.removeNode);
-
-  const inputs = definition?.ports.filter((p) => p.direction === "input") ?? [];
-  const outputs = definition?.ports.filter((p) => p.direction === "output") ?? [];
-  const rows = Math.max(inputs.length, outputs.length, 1);
-  const height = rows * ROW_HEIGHT + 48;
-
-  return (
-    <div
-      style={{
-        width: 220,
-        height,
-        backgroundColor: "#1e1e1e",
-        border: "2px solid #adc6ff",
-        borderRadius: 8,
-        boxShadow: "0 0 24px rgba(173,198,255,0.12)",
-        display: "flex",
-        flexDirection: "column",
-        overflow: "hidden",
-        position: "relative",
-      }}
-    >
-      <div
-        style={{
-          padding: "6px 10px",
-          borderBottom: "1px solid rgba(255,255,255,0.08)",
-          fontSize: 11,
-          fontFamily: "JetBrains Mono, monospace",
-          color: "#adc6ff",
-          fontWeight: 700,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          flexShrink: 0,
-        }}
-      >
-        <span className="truncate">{definition?.name ?? `#${data.nodeId}`}</span>
-        <button
-          onClick={() => removeNode(data.nodeId)}
-          style={{ color: "#ff6b6b", background: "none", border: "none", cursor: "pointer", fontSize: 12 }}
-          title="Remove from composite"
-        >
-          ×
-        </button>
-      </div>
-
-      <div style={{ flex: 1, display: "flex", position: "relative" }}>
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", paddingTop: 4 }}>
-          {inputs.map((port) => (
-            <div key={port.name} style={{ height: ROW_HEIGHT, display: "flex", alignItems: "center", paddingLeft: 14, position: "relative" }}>
-              <Handle
-                type="target"
-                position={Position.Left}
-                id={`in-${port.name}`}
-                style={{ left: -1, top: "50%", transform: "translateY(-50%)", width: 8, height: 8, backgroundColor: "#adc6ff", border: "none" }}
-              />
-              <span style={{ fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "#adc6ff", opacity: 0.8 }}>{port.name}</span>
-            </div>
-          ))}
-        </div>
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", paddingTop: 4 }}>
-          {outputs.map((port) => (
-            <div key={port.name} style={{ height: ROW_HEIGHT, display: "flex", alignItems: "center", justifyContent: "flex-end", paddingRight: 14, position: "relative" }}>
-              <span style={{ fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "#4ae176", opacity: 0.8 }}>{port.name}</span>
-              <Handle
-                type="source"
-                position={Position.Right}
-                id={`out-${port.name}`}
-                style={{ right: -1, top: "50%", transform: "translateY(-50%)", width: 8, height: 8, backgroundColor: "#4ae176", border: "none" }}
-              />
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-const NODE_TYPES = { composite: CompositeTransformNode };
+import { NodeInspectorPanel } from "./composite-node-inspector";
 
 function portsFor(transformId: number): TransformPort[] {
   return useTransformStore.getState().definitions.get(transformId)?.ports ?? [];
@@ -128,66 +31,6 @@ function portsFor(transformId: number): TransformPort[] {
 
 function portKey(nodeId: number, portName: string) {
   return `${nodeId}:${portName}`;
-}
-
-// ─── Preview: compiles the in-progress graph and runs it through the same
-// preview session single-transform preview uses (CreatorPreviewStore).
-
-function useCompositePreviewControls(transformId: number) {
-  const editingGraph = useCompositeCanvasStore((s) => s.editingGraph);
-  const previewStatus = useCreatorPreviewStore((s) => s.status);
-  const previewTransformId = useCreatorPreviewStore((s) => s.previewTransformId);
-  const playPreview = useCreatorPreviewStore((s) => s.play);
-  const stopPreview = useCreatorPreviewStore((s) => s.stop);
-
-  const isPreviewingThis = previewTransformId === transformId && previewStatus !== "idle" && previewStatus !== "error";
-  const isLoading = previewTransformId === transformId && previewStatus === "loading";
-
-  async function togglePreview() {
-    if (isPreviewingThis) {
-      stopPreview();
-      return;
-    }
-    if (!editingGraph || editingGraph.nodes.size === 0) return;
-
-    const nodes = [...editingGraph.nodes.values()];
-    const graphInput: GraphInput = {
-      nodes: new Map(
-        nodes.map((n) => {
-          const params = [...(useTransformStore.getState().definitions.get(n.transform_id)?.params ?? [])]
-            .sort((a, b) => a.param_order - b.param_order)
-            .reduce<Record<string, number>>((acc, p) => {
-              acc[p.name] = p.default_value;
-              return acc;
-            }, {});
-          return [n.node_id, { id: n.node_id, transformId: n.transform_id, params }];
-        })
-      ),
-      edges: new Map(
-        [...editingGraph.edges.values()].map((e, i) => [
-          i,
-          { id: i, fromNodeId: e.from_node_id, toNodeId: e.to_node_id },
-        ])
-      ),
-    };
-
-    const result = compileGraphInput(graphInput);
-    if (!result.ok) return;
-
-    const distinctTransformIds = [...new Set(nodes.map((n) => n.transform_id))];
-    const binariesMap = await apiGetTransformBinaries(distinctTransformIds);
-    const binaries: Record<number, Uint8Array> = {};
-    for (const [id, bytes] of binariesMap) binaries[id] = bytes;
-
-    const resourceKey = JSON.stringify({
-      nodes: nodes.map((n) => [n.node_id, n.transform_id]),
-      edges: [...editingGraph.edges.values()],
-    });
-
-    void playPreview(transformId, resourceKey, result.graph, binaries, []);
-  }
-
-  return { isPreviewingThis, isLoading, togglePreview };
 }
 
 // ─── Inner canvas ─────────────────────────────────────────────────────────────
@@ -209,6 +52,8 @@ function CompositeCanvasInner() {
   const markSaved = useCompositeCanvasStore((s) => s.markSaved);
   const isDirty = useCompositeCanvasStore((s) => s.isDirty());
   const toGraphDefinition = useCompositeCanvasStore((s) => s.toGraphDefinition);
+  const selectedNodeId = useCompositeCanvasStore((s) => s.selectedNodeId);
+  const selectNode = useCompositeCanvasStore((s) => s.selectNode);
 
   const saveMutation = useSaveCompositeTransform(selectedId ?? -1);
   const publishMutation = usePublishTransform(selectedId ?? -1);
@@ -234,6 +79,32 @@ function CompositeCanvasInner() {
   );
   useResolveTransformDefinitions(distinctTransformIds);
 
+  // Phase 3 reachability coloring — recomputed on every graph edit (node/
+  // edge add/remove, disable toggle all produce a new `editingGraph`
+  // reference, since every store mutation replaces it). Purely client-side;
+  // no equivalent traversal exists in composite_validator.rs. See
+  // compositeReachability.ts and agents/decisions/0005-composite-node-inspector.md.
+  const nodeSafety = useMemo(() => {
+    if (!editingGraph) return new Map<number, NodeDisableSafety>();
+    const exposedInputNodeIds = new Set<number>();
+    const exposedOutputNodeIds = new Set<number>();
+    for (const p of editingGraph.exposedPorts.values()) {
+      const node = editingGraph.nodes.get(p.node_id);
+      if (!node) continue;
+      const port = portsFor(node.transform_id).find((pt) => pt.name === p.port_name);
+      if (!port) continue;
+      if (port.direction === "input") exposedInputNodeIds.add(p.node_id);
+      else exposedOutputNodeIds.add(p.node_id);
+    }
+    return computeNodeDisableSafety({
+      nodeIds: [...editingGraph.nodes.keys()],
+      edges: [...editingGraph.edges.values()],
+      exposedInputNodeIds,
+      exposedOutputNodeIds,
+      disabledNodes: editingGraph.disabledNodes,
+    });
+  }, [editingGraph]);
+
   const rfNodes: RFNode<CompositeNodeData>[] = useMemo(
     () =>
       editingGraph
@@ -241,10 +112,15 @@ function CompositeCanvasInner() {
             id: String(n.node_id),
             type: "composite",
             position: n.position,
-            data: { nodeId: n.node_id, transformId: n.transform_id },
+            data: {
+              nodeId: n.node_id,
+              transformId: n.transform_id,
+              disabled: editingGraph.disabledNodes.has(n.node_id),
+              safety: nodeSafety.get(n.node_id) ?? "safe",
+            },
           }))
         : [],
-    [editingGraph]
+    [editingGraph, nodeSafety]
   );
 
   const rfEdges: RFEdge[] = useMemo(
@@ -297,6 +173,8 @@ function CompositeCanvasInner() {
       </div>
     );
   }
+
+  const selectedNode = selectedNodeId != null ? editingGraph.nodes.get(selectedNodeId) ?? null : null;
 
   function onNodesChange(changes: NodeChange[]) {
     for (const change of changes) {
@@ -426,22 +304,32 @@ function CompositeCanvasInner() {
           )}
         </div>
 
-        <div className="flex-1 min-h-0" onDragOver={onDragOver} onDrop={onDrop}>
-          <ReactFlow
-            nodes={rfNodes}
-            edges={rfEdges}
-            nodeTypes={NODE_TYPES}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            fitView
-            fitViewOptions={{ padding: 0.4 }}
-            deleteKeyCode={["Backspace", "Delete"]}
-            zoomOnScroll
-            panOnDrag
-          >
-            <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="rgba(255,255,255,0.04)" />
-          </ReactFlow>
+        <div className="flex-1 min-h-0 flex flex-col" onDragOver={onDragOver} onDrop={onDrop}>
+          <div className="flex-1 min-h-0">
+            <ReactFlow
+              nodes={rfNodes}
+              edges={rfEdges}
+              nodeTypes={NODE_TYPES}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onConnect={onConnect}
+              fitView
+              fitViewOptions={{ padding: 0.4 }}
+              deleteKeyCode={["Backspace", "Delete"]}
+              zoomOnScroll
+              panOnDrag
+            >
+              <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="rgba(255,255,255,0.04)" />
+            </ReactFlow>
+          </div>
+          {selectedNode != null && (
+            <NodeInspectorPanel
+              nodeId={selectedNode.node_id}
+              transformId={selectedNode.transform_id}
+              compositeTransformId={selectedId}
+              onClose={() => selectNode(null)}
+            />
+          )}
         </div>
       </div>
 

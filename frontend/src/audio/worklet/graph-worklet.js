@@ -58,24 +58,35 @@ function generateTransformFunction(compiledGraph) {
   for (let i = 0; i < executionOrder.length; i++) {
     const node = executionOrder[i];
 
-    // Gather all input sources for this node into named variables, then sum them.
-    const inputVars = node.inputs.map((src, j) => {
-      const varName = `in_${i}_${j}`;
-      if (src.kind === 'raw') {
-        lines.push(`const ${varName} = rawAudio;`);
-      } else if (src.kind === 'feedback') {
-        lines.push(`const ${varName} = prev.get(${src.bufferIndex}) ?? SIL();`);
+    // One buffer per declared input port: each port's own sources (if any)
+    // are summed together, independently of every other port's buffer — a
+    // node with a Program input and a Sidechain input must not have those
+    // two signals mixed into one before reaching its own process() call.
+    const portVars = node.inputs.map((bucket, j) => {
+      const sourceVars = bucket.map((src, k) => {
+        const varName = `in_${i}_${j}_${k}`;
+        if (src.kind === 'raw') {
+          lines.push(`const ${varName} = rawAudio;`);
+        } else if (src.kind === 'feedback') {
+          lines.push(`const ${varName} = prev.get(${src.bufferIndex}) ?? SIL();`);
+        } else {
+          lines.push(`const ${varName} = buffers[${src.bufferIndex}];`);
+        }
+        return varName;
+      });
+
+      const portVar = `port_${i}_${j}`;
+      if (sourceVars.length === 0) {
+        lines.push(`const ${portVar} = SIL();`);
+      } else if (sourceVars.length === 1) {
+        lines.push(`const ${portVar} = ${sourceVars[0]};`);
       } else {
-        lines.push(`const ${varName} = buffers[${src.bufferIndex}];`);
+        lines.push(`const ${portVar} = addAll(${sourceVars.join(', ')});`);
       }
-      return varName;
+      return portVar;
     });
 
-    const summedInput = inputVars.length === 1
-      ? inputVars[0]
-      : `addAll(${inputVars.join(', ')})`;
-
-    lines.push(`const out_${i} = callWasm(instances[${i}], params[${i}], ${summedInput});`);
+    lines.push(`const out_${i} = callWasm(instances[${i}], params[${i}], [${portVars.join(', ')}]);`);
 
     if (node.outputBufferIndex === -1) {
       lines.push(`output = addAll(output, out_${i});`);
@@ -115,17 +126,22 @@ function addAll(...buffers) {
   return result;
 }
 
-function callWasm(instance, params, input) {
+function callWasm(instance, params, inputBuffers) {
   const exp = instance.exports;
-  const blockLen  = input.length;
-  const inputPtr  = exp.alloc(blockLen);
+  const numInputs = inputBuffers.length;
+  const blockLen  = BLOCK_SIZE;
+  const inputPtr  = exp.alloc(Math.max(numInputs * blockLen, 1));
   const paramsPtr = exp.alloc(Math.max(params.length, 1));
-  new Float32Array(exp.memory.buffer, inputPtr,  blockLen      ).set(input);
-  new Float32Array(exp.memory.buffer, paramsPtr, params.length ).set(params);
+  const inputView = new Float32Array(exp.memory.buffer, inputPtr, numInputs * blockLen);
+  for (let i = 0; i < numInputs; i++) {
+    inputView.set(inputBuffers[i], i * blockLen);
+  }
+  new Float32Array(exp.memory.buffer, paramsPtr, params.length).set(params);
   // ABI v2: process(samples_ptr, num_inputs, block_len, params_ptr, params_len) -> *const f32.
-  // num_inputs is always 1 today — generateTransformFunction already sums every
-  // node's upstream sources into one buffer before calling this.
-  const outPtr = exp.process(inputPtr, 1, blockLen, paramsPtr, params.length);
+  // samples_ptr points at `num_inputs` contiguous blockLen-sample buffers, one
+  // per declared input port in port_order — matches transform-sdk's
+  // `Transform::process(samples: &[&[f32]], ...)` contract.
+  const outPtr = exp.process(inputPtr, numInputs, blockLen, paramsPtr, params.length);
   // Arena is a fixed-size bump-and-wrap buffer that's never freed (see
   // transform-sdk export.rs alloc()), so the next alloc() call can overwrite
   // outPtr's bytes — materialize the output now, synchronously.

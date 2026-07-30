@@ -51,6 +51,17 @@ interface CreatorPreviewState {
   error: string | null;
   bypassed: boolean;
   paramValues: number[];
+  // The exact CompiledGraph currently loaded into the worklet — kept around
+  // (not just consumed and discarded at play() time) so composite-canvas.tsx
+  // can look up a node's live executionOrder index by node_id on demand, at
+  // the moment of each param edit. Null whenever nothing is previewing.
+  previewGraph: CompiledGraph | null;
+  // Per-node live param values for the currently loaded preview graph, keyed
+  // by node_id (== CompiledNode.nodeId — for the single-node primitive
+  // preview graph that's PRIMITIVE_PREVIEW_NODE_ID). Separate from the flat
+  // `paramValues` above, which is the primitive "Try it" path's own
+  // single-transform param state and is left untouched by this addition.
+  nodeParamValues: Map<number, number[]>;
   inputLevel: LevelReading;
   outputLevel: LevelReading;
   cpuLoadPct: number | null;
@@ -65,6 +76,15 @@ interface CreatorPreviewState {
   stop: () => void;
   setBypass: (bypass: boolean) => void;
   updateParam: (index: number, value: number) => void;
+  // Ephemeral per-node param edit for the composite canvas's Details tab
+  // (agents/decisions/0005-composite-node-inspector.md, Phase 2). Resolves
+  // `nodeId` to its current executionOrder index against `previewGraph`
+  // fresh on every call — deliberately not cached/memoized, since Phase 3's
+  // disabled-node filtering changes which nodes are even present in the
+  // compiled graph between compiles. No-ops if the node isn't in the
+  // currently loaded preview graph (not previewing, or filtered out as
+  // disabled). Never written into editingGraph, never part of Save/Publish.
+  updateNodeParam: (nodeId: number, paramIndex: number, value: number) => void;
 }
 
 function readLevel(analyser: AnalyserNode, buffer: Float32Array): LevelReading {
@@ -114,6 +134,8 @@ export const useCreatorPreviewStore = create<CreatorPreviewState>()((set, get) =
   error: null,
   bypassed: false,
   paramValues: [],
+  previewGraph: null,
+  nodeParamValues: new Map(),
   inputLevel: SILENT_LEVEL,
   outputLevel: SILENT_LEVEL,
   cpuLoadPct: null,
@@ -127,6 +149,8 @@ export const useCreatorPreviewStore = create<CreatorPreviewState>()((set, get) =
       previewTransformId: transformId,
       previewResourceKey: resourceKey,
       paramValues: params,
+      previewGraph: graph,
+      nodeParamValues: new Map(graph.executionOrder.map((n) => [n.nodeId, [...n.params]])),
       bypassed: false,
       inputLevel: SILENT_LEVEL,
       outputLevel: SILENT_LEVEL,
@@ -203,6 +227,8 @@ export const useCreatorPreviewStore = create<CreatorPreviewState>()((set, get) =
       previewTransformId: null,
       previewResourceKey: null,
       bypassed: false,
+      previewGraph: null,
+      nodeParamValues: new Map(),
       inputLevel: SILENT_LEVEL,
       outputLevel: SILENT_LEVEL,
       cpuLoadPct: null,
@@ -218,7 +244,27 @@ export const useCreatorPreviewStore = create<CreatorPreviewState>()((set, get) =
   updateParam: (index, value) => {
     const next = get().paramValues.slice();
     next[index] = value;
-    preview.updateParams(next);
+    // The primitive "Try it" preview graph is always the single-node
+    // buildPrimitivePreviewGraph, always at executionOrder index 0.
+    preview.updateParams(0, next);
     set({ paramValues: next });
+  },
+
+  updateNodeParam: (nodeId, paramIndex, value) => {
+    const state = get();
+    const graph = state.previewGraph;
+    if (!graph) return;
+    // Looked up fresh against the live graph every call — see the
+    // updateNodeParam doc comment on why this can't be cached.
+    const nodeIndex = graph.executionOrder.findIndex((n) => n.nodeId === nodeId);
+    if (nodeIndex === -1) return;
+    const current = state.nodeParamValues.get(nodeId);
+    if (!current) return;
+    const next = current.slice();
+    next[paramIndex] = value;
+    preview.updateParams(nodeIndex, next);
+    const nodeParamValues = new Map(state.nodeParamValues);
+    nodeParamValues.set(nodeId, next);
+    set({ nodeParamValues });
   },
 }));

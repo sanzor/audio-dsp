@@ -4,24 +4,27 @@ import type { TransformPort } from "@/domain/Transform/TransformPort";
 import type { TransformParam } from "@/domain/Transform/TransformParam";
 import { useGetTransformDefinition } from "@/hooks/transforms/queries";
 
-interface ParamRowProps {
+// Prop-driven (no store reads of its own) so it can be reused by any
+// consumer with its own notion of "current value" / "is this live" / "what
+// happens on edit" — the right-sidebar TransformPropertiesPanel below (bound
+// to useCreatorStore.selectedTransformId's single-transform preview) and the
+// composite canvas's per-node bottom-panel Details tab (bound to a specific
+// node_id within a composite preview graph — see composite-canvas.tsx and
+// agents/decisions/0005-composite-node-inspector.md) both wrap it.
+export interface ParamRowProps {
   param: TransformParam;
-  index: number;
+  value: number;
   liveEnabled: boolean;
+  onChange: (value: number) => void;
 }
 
-// Live only while previewing this exact transform — otherwise falls back to
-// the existing static value. Uses only min_value/max_value/default_value,
-// which already exist on TransformParam; a future unit/step/curve
-// enrichment would slot into this same row (e.g. step={param.step ?? 1}, a
-// unit-suffix label) without restructuring anything else here.
-function ParamRow({ param, index, liveEnabled }: ParamRowProps) {
-  const liveValue = useCreatorPreviewStore((s) => s.paramValues[index]);
-  const updateParam = useCreatorPreviewStore((s) => s.updateParam);
-
+// Uses only min_value/max_value/default_value, which already exist on
+// TransformParam; a future unit/step/curve enrichment would slot into this
+// same row (e.g. step={param.step ?? 1}, a unit-suffix label) without
+// restructuring anything else here.
+export function ParamRow({ param, value, liveEnabled, onChange }: ParamRowProps) {
   const min = param.min_value ?? 0;
   const max = param.max_value ?? Math.max(param.default_value * 2, 1);
-  const value = liveEnabled && liveValue != null ? liveValue : param.default_value;
 
   return (
     <div
@@ -41,7 +44,7 @@ function ParamRow({ param, index, liveEnabled }: ParamRowProps) {
         step={(max - min) / 200 || 0.01}
         value={value}
         disabled={!liveEnabled}
-        onChange={(e) => updateParam(index, Number(e.target.value))}
+        onChange={(e) => onChange(Number(e.target.value))}
         title={liveEnabled ? undefined : "Press Play to enable live parameter control"}
         className="w-full"
         style={{ opacity: liveEnabled ? 1 : 0.5 }}
@@ -51,12 +54,12 @@ function ParamRow({ param, index, liveEnabled }: ParamRowProps) {
 }
 
 
-interface PortsListProps {
+export interface PortsListProps {
   direction: "input" | "output";
   ports: TransformPort[];
 }
 
-function PortsList({ direction, ports }: PortsListProps) {
+export function PortsList({ direction, ports }: PortsListProps) {
   const label = direction === "input" ? "INPUTS" : "OUTPUTS";
   const color = direction === "input" ? "#adc6ff" : "#4ae176";
 
@@ -120,6 +123,8 @@ export function TransformPropertiesPanel() {
   const { data: definition } = useGetTransformDefinition(selectedId);
   const previewStatus = useCreatorPreviewStore((s) => s.status);
   const previewTransformId = useCreatorPreviewStore((s) => s.previewTransformId);
+  const paramValues = useCreatorPreviewStore((s) => s.paramValues);
+  const updateParam = useCreatorPreviewStore((s) => s.updateParam);
 
   if (selectedId == null) {
     return (
@@ -217,7 +222,13 @@ export function TransformPropertiesPanel() {
             </div>
             <div className="flex flex-col gap-1">
               {sortedParams.map((param, index) => (
-                <ParamRow key={param.param_id} param={param} index={index} liveEnabled={liveEnabled} />
+                <ParamRow
+                  key={param.param_id}
+                  param={param}
+                  liveEnabled={liveEnabled}
+                  value={liveEnabled && paramValues[index] != null ? paramValues[index] : param.default_value}
+                  onChange={(value) => updateParam(index, value)}
+                />
               ))}
             </div>
           </section>

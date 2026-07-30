@@ -9,6 +9,7 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).resolve().parent.parent
 DB_PSQL = ROOT_DIR / "scripts" / "db_psql.sh"
 MANIFEST_PATH = ROOT_DIR / "database" / "seeds" / "transforms_manifest.json"
+COMPOSITES_MANIFEST_PATH = ROOT_DIR / "database" / "seeds" / "composites_manifest.json"
 SOURCE_DIR = ROOT_DIR / "database" / "seeds" / "transform_wasm"
 
 # All seed transforms are simple main-signal in/out effects — no sidechain
@@ -92,8 +93,8 @@ DO $seed$
 DECLARE
     t_id BIGINT;
 BEGIN
-    INSERT INTO transform (name, description, icon)
-    VALUES ({sql_text(transform['name'])}, {sql_text(transform.get('description'))}, {sql_text(transform.get('icon'))})
+    INSERT INTO transform (name, description, icon, kind)
+    VALUES ({sql_text(transform['name'])}, {sql_text(transform.get('description'))}, {sql_text(transform.get('icon'))}, 'primitive')
     ON CONFLICT (name) DO UPDATE
     SET description = EXCLUDED.description,
         icon = EXCLUDED.icon
@@ -148,9 +149,155 @@ def seed_transforms() -> None:
     run_checked(["bash", str(DB_PSQL), "-v", "ON_ERROR_STOP=1", "-f", "-"], stdin=sql)
 
 
+# ─── Composite transforms ──────────────────────────────────────────────────
+# A composite has no wasm binary of its own — it's a graph of already-seeded
+# primitive transforms (see CompositeGraphDefinition in
+# domain/db/transform_snapshot.rs and composite_validator.rs). Seeding one
+# means writing the same rows the real save-draft/publish flow would:
+# transform (kind='composite'), transform_draft.graph_definition (what the
+# Creator's composite canvas loads), transform_port (the exposed ports other
+# graphs wire against), and transform_composite (the published graph the
+# Editor/runtime resolves). Node transform_ids aren't known until the leaf
+# primitives above are actually seeded, so they're resolved by name here
+# rather than hardcoded.
+
+
+def table_exists(table_name: str) -> bool:
+    out = run_checked(
+        ["bash", str(DB_PSQL), "-tAc", f"SELECT to_regclass('public.{table_name}') IS NOT NULL"]
+    )
+    return out.strip() == "t"
+
+
+def resolve_transform_ids(names: set[str]) -> dict[str, int]:
+    if not names:
+        return {}
+    name_list = ", ".join(sql_text(n) for n in sorted(names))
+    out = run_checked(
+        [
+            "bash",
+            str(DB_PSQL),
+            "-tAc",
+            f"SELECT COALESCE(jsonb_object_agg(name, transform_id), '{{}}'::jsonb) FROM transform WHERE name IN ({name_list})",
+        ]
+    )
+    return json.loads(out.strip())
+
+
+def leaf_port(primitives_by_name: dict[str, dict], transform_name: str, port_name: str) -> dict:
+    transform = primitives_by_name.get(transform_name)
+    if transform is None:
+        raise KeyError(f"composite seed references unknown primitive '{transform_name}'")
+    for port in transform["ports"]:
+        if port["name"] == port_name:
+            return port
+    raise KeyError(f"primitive '{transform_name}' has no port named '{port_name}'")
+
+
+def build_composite_sql(composite: dict, primitives_by_name: dict[str, dict], leaf_ids: dict[str, int]) -> str:
+    node_transform_name = {n["node_id"]: n["transform_name"] for n in composite["nodes"]}
+
+    graph_definition = {
+        "nodes": [
+            {"node_id": n["node_id"], "transform_id": leaf_ids[n["transform_name"]]}
+            for n in composite["nodes"]
+        ],
+        "edges": composite["edges"],
+        "exposed_ports": composite["exposed_ports"],
+    }
+
+    exposed_ports = []
+    for order, exposed in enumerate(composite["exposed_ports"]):
+        leaf_name = node_transform_name[exposed["node_id"]]
+        source_port = leaf_port(primitives_by_name, leaf_name, exposed["port_name"])
+        exposed_ports.append(
+            {
+                "name": exposed["exposed_name"],
+                "direction": source_port["direction"],
+                "port_order": order,
+                "description": None,
+                "kind": source_port.get("kind", DEFAULT_PORT_KIND),
+                "cardinality": source_port.get("cardinality", DEFAULT_PORT_CARDINALITY),
+            }
+        )
+
+    port_rows = []
+    for port in exposed_ports:
+        port_rows.append(
+            f"(t_id, {sql_text(port['name'])}, {sql_text(port['direction'])}, "
+            f"{sql_number(port['port_order'])}, {sql_text(port['description'])}, "
+            f"{sql_text(port['kind'])}, {sql_text(port['cardinality'])})"
+        )
+
+    graph_jsonb = sql_jsonb(graph_definition)
+    ports_jsonb = sql_jsonb(exposed_ports)
+
+    return f"""
+DO $seed$
+DECLARE
+    t_id BIGINT;
+BEGIN
+    INSERT INTO transform (name, description, icon, kind)
+    VALUES ({sql_text(composite['name'])}, {sql_text(composite.get('description'))}, {sql_text(composite.get('icon'))}, 'composite')
+    ON CONFLICT (name) DO UPDATE
+    SET description = EXCLUDED.description,
+        icon = EXCLUDED.icon
+    RETURNING transform_id INTO t_id;
+
+    INSERT INTO transform_draft (transform_id) VALUES (t_id) ON CONFLICT (transform_id) DO NOTHING;
+
+    UPDATE transform_draft
+    SET graph_definition = {graph_jsonb},
+        ports = {ports_jsonb},
+        name = {sql_text(composite['name'])},
+        description = {sql_text(composite.get('description'))},
+        updated_at = now()
+    WHERE transform_id = t_id;
+
+    DELETE FROM transform_port WHERE transform_id = t_id;
+    INSERT INTO transform_port (transform_id, name, direction, port_order, description, kind, cardinality)
+    VALUES {", ".join(port_rows)};
+
+    INSERT INTO transform_composite (transform_id, graph_definition)
+    VALUES (t_id, {graph_jsonb})
+    ON CONFLICT (transform_id) DO UPDATE
+    SET graph_definition = EXCLUDED.graph_definition,
+        updated_at = now();
+END
+$seed$;
+"""
+
+
+def seed_composites() -> None:
+    if not COMPOSITES_MANIFEST_PATH.exists():
+        return
+    if not table_exists("transform_composite"):
+        print("Skipping composite transform seeds: table 'transform_composite' is not present.")
+        return
+
+    primitives_by_name = {t["name"]: t for t in json.loads(MANIFEST_PATH.read_text())}
+    composites = json.loads(COMPOSITES_MANIFEST_PATH.read_text())
+    if not composites:
+        return
+
+    leaf_names: set[str] = set()
+    for composite in composites:
+        leaf_names.update(n["transform_name"] for n in composite["nodes"])
+    leaf_ids = resolve_transform_ids(leaf_names)
+
+    missing = leaf_names - leaf_ids.keys()
+    if missing:
+        raise RuntimeError(f"composite seed references leaf transform(s) not found in the database: {sorted(missing)}")
+
+    statements = [build_composite_sql(c, primitives_by_name, leaf_ids) for c in composites]
+    sql = "BEGIN;\n" + "\n".join(statements) + "\nCOMMIT;\n"
+    run_checked(["bash", str(DB_PSQL), "-v", "ON_ERROR_STOP=1", "-f", "-"], stdin=sql)
+
+
 def main() -> int:
     try:
         seed_transforms()
+        seed_composites()
     except Exception as exc:  # noqa: BLE001
         print(f"Failed to seed transforms: {exc}", file=sys.stderr)
         return 1

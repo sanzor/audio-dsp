@@ -1,6 +1,6 @@
 import { CreatorCanvas } from "./canvas";
 import { CreatorCodeEditor } from "./code-editor";
-import { CompositeCanvas } from "./composite-canvas";
+import { CompositeCanvas } from "./composite/composite-canvas";
 import { useCreatorStore } from "@/Stores/CreatorStore";
 import { useGetTransformDefinition } from "@/hooks/transforms/queries";
 

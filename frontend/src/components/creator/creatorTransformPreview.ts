@@ -45,7 +45,7 @@ export function buildPrimitivePreviewGraph(params: number[]): CompiledGraph {
     nodeId: PRIMITIVE_PREVIEW_NODE_ID,
     transformId: PRIMITIVE_PREVIEW_NODE_ID,
     params,
-    inputs: [{ kind: "raw" }],
+    inputs: [[{ kind: "raw" }]],
     outputBufferIndex: -1, // sink — writes straight to worklet output
   };
   return {
@@ -129,10 +129,17 @@ export class CreatorTransformPreview {
     this.sender?.sendBypass(bypass);
   }
 
-  // The degenerate preview graph (buildSingleNodeGraph) always has exactly
-  // one node at execution-order index 0 — hence the fixed nodeIndex.
-  updateParams(params: number[]): void {
-    this.sender?.sendUpdateParams(0, params);
+  // `nodeIndex` is the target node's position in the *currently loaded*
+  // CompiledGraph.executionOrder — not its node_id. The primitive preview
+  // graph (buildPrimitivePreviewGraph) always has exactly one node at index
+  // 0, so CreatorPreviewStore.updateParam (the primitive "Try it" path)
+  // passes 0 explicitly. The composite canvas's per-node param editing
+  // (CreatorPreviewStore.updateNodeParam) looks its node's index up fresh
+  // against the live preview graph on every call instead — see
+  // agents/decisions/0005-composite-node-inspector.md — since which nodes
+  // even have an index at all changes as disabled nodes are compiled out.
+  updateParams(nodeIndex: number, params: number[]): void {
+    this.sender?.sendUpdateParams(nodeIndex, params);
   }
 
   onCpuLoad(cb: (value: number) => void): () => void {

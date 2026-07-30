@@ -1,6 +1,6 @@
 import { Activity } from "lucide-react";
-import type { TransformSummary } from "@/domain/Transform/TransformDefinition";
 import { useUIStore } from "@/Stores/UIStore";
+import type { TransformSummary } from "@/domain/Transform/TransformSummary";
 
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   Activity,
