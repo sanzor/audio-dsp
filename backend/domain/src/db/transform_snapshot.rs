@@ -26,3 +26,38 @@ pub struct ParamSnapshot {
     pub max_value: Option<f32>,
     pub description: Option<String>,
 }
+
+/// A composite transform's wiring — stored as the draft/live payload instead
+/// of source code. References other transforms by transform_id and their
+/// ports by name (never port_id, which is reassigned on every republish —
+/// see composite_validator.rs). v1 has no per-node param overrides and no
+/// exposed params; only ports are exposed outward.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CompositeGraphDefinition {
+    pub nodes: Vec<CompositeNode>,
+    pub edges: Vec<CompositeEdge>,
+    pub exposed_ports: Vec<CompositeExposedPort>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CompositeNode {
+    /// Canvas-local instance id — distinct from transform_id since one leaf
+    /// transform can be placed as multiple instances in the same composite.
+    pub node_id: i64,
+    pub transform_id: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CompositeEdge {
+    pub from_node_id: i64,
+    pub from_port: String,
+    pub to_node_id: i64,
+    pub to_port: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CompositeExposedPort {
+    pub node_id: i64,
+    pub port_name: String,
+    pub exposed_name: String,
+}

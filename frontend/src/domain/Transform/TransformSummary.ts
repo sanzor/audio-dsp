@@ -4,4 +4,6 @@ export interface TransformSummary {
   description?: string;
   icon?: string;
   kind: "primitive" | "composite";
+  // Live in transform_binary (primitive) or transform_composite (composite).
+  published: boolean;
 }

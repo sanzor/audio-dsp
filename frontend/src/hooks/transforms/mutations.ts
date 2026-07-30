@@ -2,11 +2,13 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   apiCreateTransform,
   apiSaveTransform,
+  apiSaveCompositeTransform,
   apiPublishTransform,
   apiDeleteTransform,
   type CreateTransformParams,
   type SaveTransformParams,
 } from "@/Services/TransformService";
+import type { CompositeGraphDefinition } from "@/domain/Transform/CompositeGraphDefinition";
 import { QUERY_KEYS } from "@/constants/queryKeys";
 
 export function useCreateTransform() {
@@ -25,6 +27,18 @@ export function useSaveTransform(transformId: number) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (params: SaveTransformParams) => apiSaveTransform(transformId, params),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QUERY_KEYS.transforms.byId(transformId) });
+    },
+  });
+}
+
+// Composite counterpart to useSaveTransform — writes the working wiring
+// graph instead of source_code.
+export function useSaveCompositeTransform(transformId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (graph: CompositeGraphDefinition) => apiSaveCompositeTransform(transformId, graph),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: QUERY_KEYS.transforms.byId(transformId) });
     },

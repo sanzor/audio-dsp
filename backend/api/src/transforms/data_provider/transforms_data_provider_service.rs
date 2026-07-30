@@ -1,8 +1,8 @@
 use domain::db::{
     db_transform::{DbTransform, DbTransformDefinition, DbTransformParam, DbTransformPort, TransformId},
     ticket::{create_ticket_params::CreateTicketParams, db_resource::{DbResource, ResourceId}, db_ticket::{DbTicket, TicketId}, ticket_status::TicketStatus, update_ticket_params::UpdateTicketParams},
-    transform_draft::DbTransformDraft,
-    transform_snapshot::{ParamSnapshot, PortSnapshot},
+    db_transform_draft::DbTransformDraft,
+    transform_snapshot::{CompositeGraphDefinition, ParamSnapshot, PortSnapshot},
 };
 use sqlx::PgPool;
 
@@ -20,6 +20,17 @@ impl PostgresTransformsDataProvider {
     }
 }
 
+/// A transform is "published" once it has a compiled binary (primitive) or a
+/// published graph (composite). `id_expr` is the SQL expression identifying
+/// the transform to check — a correlated column (`t.transform_id`) or a bound
+/// parameter (`$1`).
+fn published_predicate(id_expr: &str) -> String {
+    format!(
+        "(EXISTS(SELECT 1 FROM transform_binary WHERE transform_id = {id_expr}) \
+          OR EXISTS(SELECT 1 FROM transform_composite WHERE transform_id = {id_expr}))"
+    )
+}
+
 #[derive(sqlx::FromRow)]
 struct DbTransformDefinitionRow {
     transform_id: TransformId,
@@ -28,6 +39,7 @@ struct DbTransformDefinitionRow {
     icon: Option<String>,
     kind: String,
     source_code: Option<String>,
+    graph_definition: Option<sqlx::types::Json<CompositeGraphDefinition>>,
     ports: sqlx::types::Json<Vec<DbTransformPort>>,
     params: sqlx::types::Json<Vec<DbTransformParam>>,
 }
@@ -106,6 +118,7 @@ struct DbTransformDraftRow {
     wasm_source_code: Option<String>,
     name: Option<String>,
     description: Option<String>,
+    graph_definition: Option<sqlx::types::Json<CompositeGraphDefinition>>,
     ports: Option<sqlx::types::Json<Vec<PortSnapshot>>>,
     params: Option<sqlx::types::Json<Vec<ParamSnapshot>>>,
 }
@@ -119,6 +132,7 @@ impl From<DbTransformDraftRow> for DbTransformDraft {
             wasm_source_code: row.wasm_source_code,
             name: row.name,
             description: row.description,
+            graph_definition: row.graph_definition.map(|j| j.0),
             ports: row.ports.map(|j| j.0).unwrap_or_default(),
             params: row.params.map(|j| j.0).unwrap_or_default(),
         }
@@ -301,9 +315,15 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
     }
 
     async fn get_transform(&self, id: TransformId) -> Result<DbTransform, String> {
-        sqlx::query_as::<_, DbTransform>(
-            r#"SELECT transform_id, name, description, icon, kind, created_at FROM transform WHERE transform_id = $1"#,
-        )
+        sqlx::query_as::<_, DbTransform>(&format!(
+            r#"
+            SELECT
+                t.transform_id, t.name, t.description, t.icon, t.kind, t.created_at,
+                {} AS published
+            FROM transform t WHERE t.transform_id = $1
+            "#,
+            published_predicate("t.transform_id"),
+        ))
         .bind(id)
         .fetch_one(&self.pool)
         .await
@@ -342,6 +362,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
             icon: row.icon,
             kind: row.kind,
             source_code: row.source_code,
+            graph_definition: row.graph_definition.map(|j| j.0),
             ports: row.ports.0,
             params: row.params.0,
         })
@@ -374,6 +395,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
                 icon: row.icon,
                 kind: row.kind,
                 source_code: row.source_code,
+                graph_definition: row.graph_definition.map(|j| j.0),
                 ports: row.ports.0,
                 params: row.params.0,
             })
@@ -388,14 +410,22 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
             description: Option<String>,
             icon: Option<String>,
             kind: String,
+            published: bool,
             created_at: chrono::DateTime<chrono::Utc>,
             total: i64,
         }
 
-        let rows = sqlx::query_as::<_, Row>(
-            r#"SELECT transform_id, name, description, icon, kind, created_at, COUNT(*) OVER () AS total
-               FROM transform ORDER BY created_at DESC LIMIT $1 OFFSET $2"#,
-        )
+        let rows = sqlx::query_as::<_, Row>(&format!(
+            r#"
+            SELECT
+                t.transform_id, t.name, t.description, t.icon, t.kind,
+                {} AS published,
+                t.created_at,
+                COUNT(*) OVER () AS total
+            FROM transform t ORDER BY t.created_at DESC LIMIT $1 OFFSET $2
+            "#,
+            published_predicate("t.transform_id"),
+        ))
         .bind(limit)
         .bind(offset)
         .fetch_all(&self.pool)
@@ -409,6 +439,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
             description: r.description,
             icon: r.icon,
             kind: r.kind,
+            published: r.published,
             created_at: r.created_at,
         }).collect();
 
@@ -420,16 +451,18 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
         name: String,
         description: Option<String>,
         icon: Option<String>,
+        kind: String,
     ) -> Result<DbTransform, String> {
         let mut tx = self.pool.begin().await.map_err(|e| e.to_string())?;
 
         let transform = sqlx::query_as::<_, DbTransform>(
-            r#"INSERT INTO transform (name, description, icon, kind) VALUES ($1, $2, $3, 'primitive')
-               RETURNING transform_id, name, description, icon, kind, created_at"#,
+            r#"INSERT INTO transform (name, description, icon, kind) VALUES ($1, $2, $3, $4)
+               RETURNING transform_id, name, description, icon, kind, FALSE AS published, created_at"#,
         )
         .bind(name)
         .bind(description)
         .bind(icon)
+        .bind(kind)
         .fetch_one(&mut *tx)
         .await
         .map_err(|e| e.to_string())?;
@@ -448,7 +481,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
     async fn get_draft(&self, transform_id: TransformId) -> Result<DbTransformDraft, DataError> {
         let row = sqlx::query_as::<_, DbTransformDraftRow>(
             r#"
-            SELECT transform_id, source_code, wasm_bytecode, wasm_source_code, name, description, ports, params
+            SELECT transform_id, source_code, wasm_bytecode, wasm_source_code, name, description, graph_definition, ports, params
             FROM transform_draft
             WHERE transform_id = $1
             "#,
@@ -524,7 +557,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
 
         let row = sqlx::query_as::<_, DbTransformDraftRow>(
             r#"
-            SELECT transform_id, source_code, wasm_bytecode, wasm_source_code, name, description, ports, params
+            SELECT transform_id, source_code, wasm_bytecode, wasm_source_code, name, description, graph_definition, ports, params
             FROM transform_draft
             WHERE transform_id = $1
             "#,
@@ -544,14 +577,15 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
         // editor graphs (graph_state stores a bare transform_id with no
         // version pin), so deleting it out from under them is not safe.
         // See agents/decisions/0002-transform-draft-lifecycle-decisions.md.
-        let published_count: i64 = sqlx::query_scalar(
-            r#"SELECT COUNT(*) FROM transform_binary WHERE transform_id = $1"#,
-        )
+        let is_published: bool = sqlx::query_scalar(&format!(
+            "SELECT {}",
+            published_predicate("$1"),
+        ))
         .bind(id)
         .fetch_one(&self.pool)
         .await?;
 
-        if published_count > 0 {
+        if is_published {
             return Err(DataError::Conflict(
                 "transform has been published at least once and cannot be deleted".to_string(),
             ));
@@ -648,6 +682,148 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
         .bind(transform_id)
         .bind(&wasm_bytecode)
         .bind(&source_code)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| e.to_string())?;
+
+        tx.commit().await.map_err(|e| e.to_string())?;
+
+        Ok(())
+    }
+
+    async fn get_leaf_transform_infos(
+        &self,
+        transform_ids: &[TransformId],
+    ) -> Result<std::collections::HashMap<TransformId, crate::transforms::composite_validator::LeafTransformInfo>, DataError> {
+        use crate::transforms::composite_validator::LeafTransformInfo;
+        use std::collections::HashMap;
+
+        if transform_ids.is_empty() {
+            return Ok(HashMap::new());
+        }
+
+        #[derive(sqlx::FromRow)]
+        struct KindRow {
+            transform_id: TransformId,
+            kind: String,
+            published: bool,
+        }
+
+        let kind_sql = format!(
+            r#"
+            SELECT
+                t.transform_id,
+                t.kind,
+                {} AS published
+            FROM transform t
+            WHERE t.transform_id = ANY($1)
+            "#,
+            published_predicate("t.transform_id"),
+        );
+        let kind_query = sqlx::query_as::<_, KindRow>(&kind_sql)
+            .bind(transform_ids)
+            .fetch_all(&self.pool);
+
+        let port_query = sqlx::query_as::<_, DbTransformPort>(
+            r#"
+            SELECT port_id, transform_id, name, direction, port_order, description, kind, cardinality
+            FROM transform_port
+            WHERE transform_id = ANY($1)
+            "#,
+        )
+        .bind(transform_ids)
+        .fetch_all(&self.pool);
+
+        let (kind_rows, port_rows) = tokio::try_join!(kind_query, port_query)?;
+
+        let mut ports_by_transform: HashMap<TransformId, Vec<DbTransformPort>> = HashMap::new();
+        for port in port_rows {
+            ports_by_transform.entry(port.transform_id).or_default().push(port);
+        }
+
+        Ok(kind_rows
+            .into_iter()
+            .map(|row| {
+                let ports = ports_by_transform.remove(&row.transform_id).unwrap_or_default();
+                (row.transform_id, LeafTransformInfo { kind: row.kind, published: row.published, ports })
+            })
+            .collect())
+    }
+
+    async fn save_composite_draft(
+        &self,
+        transform_id: TransformId,
+        graph: CompositeGraphDefinition,
+        ports: Vec<NewTransformPort>,
+    ) -> Result<DbTransformDraft, DataError> {
+        let ports: Vec<PortSnapshot> = ports.into_iter().map(PortSnapshot::from).collect();
+
+        let row = sqlx::query_as::<_, DbTransformDraftRow>(
+            r#"
+            UPDATE transform_draft
+            SET graph_definition = $2, ports = $3, updated_at = now()
+            WHERE transform_id = $1
+            RETURNING transform_id, source_code, wasm_bytecode, wasm_source_code, name, description, graph_definition, ports, params
+            "#,
+        )
+        .bind(transform_id)
+        .bind(sqlx::types::Json(graph))
+        .bind(sqlx::types::Json(ports))
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(row.into())
+    }
+
+    async fn publish_composite_transform(
+        &self,
+        transform_id: TransformId,
+        name: String,
+        description: Option<String>,
+        ports: Vec<NewTransformPort>,
+        graph_definition: CompositeGraphDefinition,
+    ) -> Result<(), String> {
+        let mut tx = self.pool.begin().await.map_err(|e| e.to_string())?;
+
+        sqlx::query(r#"UPDATE transform SET name = $2, description = $3 WHERE transform_id = $1"#)
+            .bind(transform_id)
+            .bind(&name)
+            .bind(&description)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| e.to_string())?;
+
+        sqlx::query(r#"DELETE FROM transform_port WHERE transform_id = $1"#)
+            .bind(transform_id)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| e.to_string())?;
+
+        for port in &ports {
+            sqlx::query(
+                r#"INSERT INTO transform_port (transform_id, name, direction, port_order, description, kind, cardinality)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7)"#,
+            )
+            .bind(transform_id)
+            .bind(&port.name)
+            .bind(&port.direction)
+            .bind(port.order)
+            .bind(&port.description)
+            .bind(&port.kind)
+            .bind(&port.cardinality)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| e.to_string())?;
+        }
+
+        sqlx::query(
+            r#"INSERT INTO transform_composite (transform_id, graph_definition)
+               VALUES ($1, $2)
+               ON CONFLICT (transform_id)
+               DO UPDATE SET graph_definition = EXCLUDED.graph_definition, updated_at = now()"#,
+        )
+        .bind(transform_id)
+        .bind(sqlx::types::Json(graph_definition))
         .execute(&mut *tx)
         .await
         .map_err(|e| e.to_string())?;

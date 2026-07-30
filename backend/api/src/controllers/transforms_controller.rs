@@ -17,6 +17,8 @@ pub struct CreateTransformParams {
     pub name: String,
     pub description: Option<String>,
     pub icon: Option<String>,
+    /// "primitive" | "composite".
+    pub kind: String,
 }
 
 #[derive(Deserialize, Serialize, ToSchema)]
@@ -26,6 +28,97 @@ pub struct SaveTransformParams {
     /// to attach that build's binary/metadata to this save. Omit to save
     /// source only, leaving any previously saved binary untouched.
     pub resource_id: Option<ResourceId>,
+}
+
+#[derive(Debug, Deserialize, Serialize, ToSchema, Clone)]
+pub struct CompositeNodeDto {
+    pub node_id: i64,
+    pub transform_id: TransformId,
+}
+
+#[derive(Debug, Deserialize, Serialize, ToSchema, Clone)]
+pub struct CompositeEdgeDto {
+    pub from_node_id: i64,
+    pub from_port: String,
+    pub to_node_id: i64,
+    pub to_port: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, ToSchema, Clone)]
+pub struct CompositeExposedPortDto {
+    pub node_id: i64,
+    pub port_name: String,
+    pub exposed_name: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, ToSchema, Clone)]
+pub struct CompositeGraphDefinitionDto {
+    pub nodes: Vec<CompositeNodeDto>,
+    pub edges: Vec<CompositeEdgeDto>,
+    pub exposed_ports: Vec<CompositeExposedPortDto>,
+}
+
+#[derive(Deserialize, Serialize, ToSchema)]
+pub struct SaveCompositeGraphParams {
+    pub graph_definition: CompositeGraphDefinitionDto,
+}
+
+impl From<CompositeGraphDefinitionDto> for domain::db::transform_snapshot::CompositeGraphDefinition {
+    fn from(value: CompositeGraphDefinitionDto) -> Self {
+        Self {
+            nodes: value
+                .nodes
+                .into_iter()
+                .map(|n| domain::db::transform_snapshot::CompositeNode { node_id: n.node_id, transform_id: n.transform_id })
+                .collect(),
+            edges: value
+                .edges
+                .into_iter()
+                .map(|e| domain::db::transform_snapshot::CompositeEdge {
+                    from_node_id: e.from_node_id,
+                    from_port: e.from_port,
+                    to_node_id: e.to_node_id,
+                    to_port: e.to_port,
+                })
+                .collect(),
+            exposed_ports: value
+                .exposed_ports
+                .into_iter()
+                .map(|p| domain::db::transform_snapshot::CompositeExposedPort {
+                    node_id: p.node_id,
+                    port_name: p.port_name,
+                    exposed_name: p.exposed_name,
+                })
+                .collect(),
+        }
+    }
+}
+
+impl From<domain::db::transform_snapshot::CompositeGraphDefinition> for CompositeGraphDefinitionDto {
+    fn from(value: domain::db::transform_snapshot::CompositeGraphDefinition) -> Self {
+        Self {
+            nodes: value
+                .nodes
+                .into_iter()
+                .map(|n| CompositeNodeDto { node_id: n.node_id, transform_id: n.transform_id })
+                .collect(),
+            edges: value
+                .edges
+                .into_iter()
+                .map(|e| CompositeEdgeDto {
+                    from_node_id: e.from_node_id,
+                    from_port: e.from_port,
+                    to_node_id: e.to_node_id,
+                    to_port: e.to_port,
+                })
+                .collect(),
+            exposed_ports: value
+                .exposed_ports
+                .into_iter()
+                .map(|p| CompositeExposedPortDto { node_id: p.node_id, port_name: p.port_name, exposed_name: p.exposed_name })
+                .collect(),
+        }
+    }
 }
 
 #[derive(Deserialize, IntoParams)]
@@ -48,6 +141,8 @@ pub struct TransformSummaryDto {
     pub icon: Option<String>,
     /// "primitive" | "composite".
     pub kind: String,
+    /// Live in transform_binary (primitive) or transform_composite (composite).
+    pub published: bool,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -83,6 +178,8 @@ pub struct TransformDefinitionDto {
     /// "primitive" | "composite".
     pub kind: String,
     pub source_code: Option<String>,
+    /// Present only for kind = "composite".
+    pub graph_definition: Option<CompositeGraphDefinitionDto>,
     pub ports: Vec<TransformPortDto>,
     pub params: Vec<TransformParamDto>,
 }
@@ -156,6 +253,7 @@ impl From<DbTransform> for TransformSummaryDto {
             description: value.description,
             icon: value.icon,
             kind: value.kind,
+            published: value.published,
         }
     }
 }
@@ -197,6 +295,7 @@ impl From<DbTransformDefinition> for TransformDefinitionDto {
             icon: value.icon,
             kind: value.kind,
             source_code: value.source_code,
+            graph_definition: value.graph_definition.map(CompositeGraphDefinitionDto::from),
             ports: value.ports.into_iter().map(TransformPortDto::from).collect(),
             params: value.params.into_iter().map(TransformParamDto::from).collect(),
         }
@@ -328,7 +427,10 @@ pub async fn create_transform(
         return HttpResponse::Forbidden().body("Forbidden");
     }
     let p = body.into_inner();
-    match app.transforms_service.create_transform(p.name, p.description, p.icon).await {
+    if p.kind != "primitive" && p.kind != "composite" {
+        return HttpResponse::BadRequest().body("kind must be 'primitive' or 'composite'");
+    }
+    match app.transforms_service.create_transform(p.name, p.description, p.icon, p.kind).await {
         Ok(t) => HttpResponse::Ok().json(TransformDefinitionDto::from(t)),
         Err(e) => map_service_error(e),
     }
@@ -350,6 +452,28 @@ pub async fn save_transform(
     }
     let p = body.into_inner();
     match app.transforms_service.save_transform_draft(path.into_inner().transform_id, p.source_code, p.resource_id).await {
+        Ok(t) => HttpResponse::Ok().json(TransformDefinitionDto::from(t)),
+        Err(e) => map_service_error(e),
+    }
+}
+
+#[utoipa::path(put, path = "/transforms/{transform_id}/save-composite", tag = "transforms",
+    params(TransformIdPath),
+    request_body = SaveCompositeGraphParams,
+    responses((status = 200, description = "Saved composite transform graph", body = serde_json::Value)))]
+#[put("/{transform_id}/save-composite")]
+pub async fn save_composite_transform(
+    role: RoleContext,
+    path: web::Path<TransformIdPath>,
+    body: web::Json<SaveCompositeGraphParams>,
+    app: web::Data<TransformsAppData>,
+) -> HttpResponse {
+    if !role.can_edit() {
+        return HttpResponse::Forbidden().body("Forbidden");
+    }
+    let p = body.into_inner();
+    let graph = domain::db::transform_snapshot::CompositeGraphDefinition::from(p.graph_definition);
+    match app.transforms_service.save_composite_draft(path.into_inner().transform_id, graph).await {
         Ok(t) => HttpResponse::Ok().json(TransformDefinitionDto::from(t)),
         Err(e) => map_service_error(e),
     }
@@ -419,6 +543,7 @@ pub fn init(cfg: &mut web::ServiceConfig) {
         .service(get_transform_binaries)
         .service(create_transform)
         .service(save_transform)
+        .service(save_composite_transform)
         .service(publish_transform)
         .service(get_publish_port_shape_diff)
         .service(delete_transform);

@@ -12,6 +12,8 @@ pub struct DbTransform {
     pub icon: Option<String>,
     /// "primitive" | "composite".
     pub kind: String,
+    /// Live in transform_binary (primitive) or transform_composite (composite).
+    pub published: bool,
     pub created_at: DateTime<Utc>,
 }
 
@@ -24,6 +26,8 @@ pub struct DbTransformDefinition {
     /// "primitive" | "composite".
     pub kind: String,
     pub source_code: Option<String>,
+    /// Present only for kind = "composite".
+    pub graph_definition: Option<crate::db::transform_snapshot::CompositeGraphDefinition>,
     pub ports: Vec<DbTransformPort>,
     pub params: Vec<DbTransformParam>,
 }

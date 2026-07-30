@@ -1,7 +1,9 @@
-import type { TransformDefinition, TransformSummary } from "@/domain/Transform/TransformDefinition";
+import type { TransformDefinition } from "@/domain/Transform/TransformDefinition";
+import type { CompositeGraphDefinition } from "@/domain/Transform/CompositeGraphDefinition";
 import { http, API_BASE_URL } from "@/Services/http";
 import { useAuthStore } from "@/Stores/authStore";
 import { useProjectStore } from "@/Stores/projectStore";
+import type { TransformSummary } from "@/domain/Transform/TransformSummary";
 
 // ─── Params ──────────────────────────────────────────────────────────────────
 
@@ -9,6 +11,7 @@ export interface CreateTransformParams {
   name: string;
   description?: string;
   icon?: string;
+  kind: "primitive" | "composite";
 }
 
 export interface SaveTransformParams {
@@ -105,6 +108,23 @@ export async function apiSaveTransform(
 // artifact. Does not compile — fails if nothing saved has a binary yet.
 export async function apiPublishTransform(transform_id: number): Promise<TransformDefinition> {
   return http.post<TransformDefinition, undefined>(`/transforms/${transform_id}/publish`, undefined);
+}
+
+// Composite counterpart to apiSaveTransform — writes the working wiring
+// graph instead of source_code; validates and derives the composite's own
+// exposed ports server-side (see composite_validator::validate_composite_graph).
+export interface SaveCompositeGraphParams {
+  graph_definition: CompositeGraphDefinition;
+}
+
+export async function apiSaveCompositeTransform(
+  transform_id: number,
+  graph_definition: CompositeGraphDefinition
+): Promise<TransformDefinition> {
+  return http.put<TransformDefinition, SaveCompositeGraphParams>(
+    `/transforms/${transform_id}/save-composite`,
+    { graph_definition }
+  );
 }
 
 // Advisory pre-publish check (multi-input named ports republish warning).

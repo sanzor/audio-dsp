@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { CreatorTransformPreview } from "@/components/creator/creatorTransformPreview";
+import type { CompiledGraph } from "@/audio/pipeline/compile-graph/compiledGraph";
 
 // Shared "Try it" live-audition session for the creator surface. Unpersisted
 // — mirrors WorkletStore.ts's shape (a module-scope class instance held
@@ -41,8 +42,11 @@ let unsubscribeCpuLoad: (() => void) | null = null;
 
 interface CreatorPreviewState {
   previewTransformId: number | null;
-  previewResourceId: number | null;
-  previewSourceCode: string | null;
+  // Opaque staleness key each caller builds itself — primitives use
+  // `${resourceId}:${sourceCode}`, composites a stringified hash of the
+  // current graph state. Keeps this store agnostic to which kind of
+  // transform it's previewing.
+  previewResourceKey: string | null;
   status: PreviewStatus;
   error: string | null;
   bypassed: boolean;
@@ -53,9 +57,9 @@ interface CreatorPreviewState {
   latencyMs: number | null;
   play: (
     transformId: number,
-    resourceId: number,
-    sourceCode: string,
-    wasmBytes: Uint8Array,
+    resourceKey: string,
+    graph: CompiledGraph,
+    binaries: Record<number, Uint8Array>,
     params: number[]
   ) => Promise<void>;
   stop: () => void;
@@ -105,8 +109,7 @@ function teardownSession(): void {
 
 export const useCreatorPreviewStore = create<CreatorPreviewState>()((set, get) => ({
   previewTransformId: null,
-  previewResourceId: null,
-  previewSourceCode: null,
+  previewResourceKey: null,
   status: "idle",
   error: null,
   bypassed: false,
@@ -116,14 +119,13 @@ export const useCreatorPreviewStore = create<CreatorPreviewState>()((set, get) =
   cpuLoadPct: null,
   latencyMs: null,
 
-  play: async (transformId, resourceId, sourceCode, wasmBytes, params) => {
+  play: async (transformId, resourceKey, graph, binaries, params) => {
     teardownSession();
     set({
       status: "loading",
       error: null,
       previewTransformId: transformId,
-      previewResourceId: resourceId,
-      previewSourceCode: sourceCode,
+      previewResourceKey: resourceKey,
       paramValues: params,
       bypassed: false,
       inputLevel: SILENT_LEVEL,
@@ -133,7 +135,7 @@ export const useCreatorPreviewStore = create<CreatorPreviewState>()((set, get) =
     });
 
     try {
-      await preview.load(wasmBytes, params);
+      await preview.load(graph, binaries);
     } catch (err) {
       set({ status: "error", error: err instanceof Error ? err.message : String(err) });
       return;
@@ -199,8 +201,7 @@ export const useCreatorPreviewStore = create<CreatorPreviewState>()((set, get) =
     set({
       status: "idle",
       previewTransformId: null,
-      previewResourceId: null,
-      previewSourceCode: null,
+      previewResourceKey: null,
       bypassed: false,
       inputLevel: SILENT_LEVEL,
       outputLevel: SILENT_LEVEL,

@@ -4,6 +4,7 @@ import {
   apiGetTransformBinaries,
   apiGetTransformDefinition,
   apiGetTransformSummaries,
+  apiResolveTransformDefinitions,
 } from "@/Services/TransformService";
 import { useTransformStore } from "@/Stores/TransformStore";
 import { useWasmBinaryStore } from "@/Stores/WasmBinaryStore";
@@ -73,6 +74,30 @@ export const useListTransforms = () => {
     if (query.data) {
       const all = query.data.pages.flatMap((p) => p.transforms);
       useTransformStore.getState().setSummaries(all);
+    }
+  }, [query.data]);
+
+  return query;
+};
+
+// Batched definition fetch for the composite canvas — resolves every
+// distinct leaf transform_id referenced by the in-progress graph in one
+// call, so per-node port/name lookups (rendering, connection validation,
+// exposed-port derivation) can all read from useTransformStore's cache
+// instead of each node re-fetching individually.
+export const useResolveTransformDefinitions = (transformIds: number[]) => {
+  const user = useAuthStore((state) => state.user);
+  const activeProjectId = useProjectStore((state) => state.activeProject?.project_id);
+  const sortedIds = [...new Set(transformIds)].sort((a, b) => a - b);
+  const query = useQuery<TransformDefinition[]>({
+    queryKey: [...QUERY_KEYS.transforms.resolve(sortedIds), activeProjectId ?? 0],
+    queryFn: () => apiResolveTransformDefinitions(sortedIds),
+    enabled: sortedIds.length > 0 && Boolean(user && activeProjectId),
+  });
+
+  useEffect(() => {
+    if (query.data) {
+      useTransformStore.getState().upsertDefinitions(query.data);
     }
   }, [query.data]);
 

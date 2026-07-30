@@ -1,7 +1,21 @@
 import { CreatorCanvas } from "./canvas";
 import { CreatorCodeEditor } from "./code-editor";
+import { CompositeCanvas } from "./composite-canvas";
+import { useCreatorStore } from "@/Stores/CreatorStore";
+import { useGetTransformDefinition } from "@/hooks/transforms/queries";
 
 export function CreatorWorkspace() {
+  const selectedId = useCreatorStore((s) => s.selectedTransformId);
+  const { data: definition } = useGetTransformDefinition(selectedId);
+
+  if (definition?.kind === "composite") {
+    return (
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <CompositeCanvas />
+      </div>
+    );
+  }
+
   return (
     <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
       {/* Canvas — top 60% */}

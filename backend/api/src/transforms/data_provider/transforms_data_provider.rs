@@ -1,9 +1,13 @@
+use std::collections::HashMap;
+
 use domain::db::{
     db_transform::{DbTransform, DbTransformDefinition, DbTransformPort, TransformId},
     ticket::{create_ticket_params::CreateTicketParams, db_resource::{DbResource, ResourceId}, db_ticket::{DbTicket, TicketId}, update_ticket_params::UpdateTicketParams},
-    transform_draft::DbTransformDraft,
-    transform_snapshot::{ParamSnapshot, PortSnapshot},
+    db_transform_draft::DbTransformDraft,
+    transform_snapshot::{CompositeGraphDefinition, ParamSnapshot, PortSnapshot},
 };
+
+use crate::transforms::composite_validator::LeafTransformInfo;
 
 use crate::{domain::data_error::DataError};
 
@@ -105,7 +109,38 @@ pub trait TransformsDataProvider: Send + Sync {
     async fn list_transform_summaries(&self, offset: i64, limit: i64) -> Result<(Vec<DbTransform>, i64), String>;
     /// Also creates the transform's (bucket 2) draft row, so it's
     /// always present — save/publish never have to special-case "no row yet".
-    async fn insert_transform(&self, name: String, description: Option<String>, icon: Option<String>) -> Result<DbTransform, String>;
+    /// `kind` is "primitive" | "composite", validated by the caller.
+    async fn insert_transform(&self, name: String, description: Option<String>, icon: Option<String>, kind: String) -> Result<DbTransform, String>;
+
+    /// Batched lookup of everything `composite_validator::validate_composite_graph`
+    /// needs about each transform referenced as a node in a composite's graph:
+    /// its kind, whether it's published (live in transform_binary OR
+    /// transform_composite), and its currently-published ports (by name).
+    async fn get_leaf_transform_infos(&self, transform_ids: &[TransformId]) -> Result<HashMap<TransformId, LeafTransformInfo>, DataError>;
+
+    /// Bucket 2 — "save" for a composite. Writes the working graph_definition
+    /// plus its already-validated derived ports (mirrors save_transform_draft's
+    /// role for primitives, but there's no source_code/wasm to preserve).
+    async fn save_composite_draft(
+        &self,
+        transform_id: TransformId,
+        graph: CompositeGraphDefinition,
+        ports: Vec<NewTransformPort>,
+    ) -> Result<DbTransformDraft, DataError>;
+
+    /// Composite counterpart to `publish_compiled_transform` — same
+    /// transaction shape (name/description update, delete+reinsert
+    /// transform_port), but promotes graph_definition into transform_composite
+    /// instead of a compiled binary into transform_binary. No params rows
+    /// (v1 composites always have params: []).
+    async fn publish_composite_transform(
+        &self,
+        transform_id: TransformId,
+        name: String,
+        description: Option<String>,
+        ports: Vec<NewTransformPort>,
+        graph_definition: CompositeGraphDefinition,
+    ) -> Result<(), String>;
     /// Only allowed when the transform has never been published (no row in
     /// `transform_binary`) — see `agents/decisions/0002-transform-draft-lifecycle-decisions.md`.
     /// Cascades to `transform_draft`/`transform_ticket`/`transform_resource`

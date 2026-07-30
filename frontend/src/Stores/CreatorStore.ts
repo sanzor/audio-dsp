@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { useUIStore } from "@/Stores/UIStore";
+import { useCompositeCanvasStore } from "@/Stores/CompositeCanvasStore";
 
 export interface EditingTransformSource {
   transformId: number;
@@ -58,6 +59,7 @@ export const useCreatorStore = create<CreatorState>()(
   persist(
     (set, get) => {
       const applyTransformAction = (action: PendingTransformAction) => {
+        useCompositeCanvasStore.getState().reset();
         if (action.kind === "select") {
           set({
             selectedTransformId: action.transformId,
@@ -109,7 +111,14 @@ export const useCreatorStore = create<CreatorState>()(
 
           const editing = state.editingTransformSource;
           const leavingEditedTransform = editing != null && editing.transformId !== transformId;
-          if (leavingEditedTransform && isSourceDirty(editing)) {
+
+          const compositeGraph = useCompositeCanvasStore.getState().editingGraph;
+          const leavingEditedComposite = compositeGraph != null && compositeGraph.transformId !== transformId;
+
+          if (
+            (leavingEditedTransform && isSourceDirty(editing)) ||
+            (leavingEditedComposite && useCompositeCanvasStore.getState().isDirty())
+          ) {
             set({ pendingTransformAction: { kind: "select", transformId } });
             return;
           }
@@ -118,7 +127,7 @@ export const useCreatorStore = create<CreatorState>()(
 
         requestCreateTransform: () => {
           const editing = get().editingTransformSource;
-          if (isSourceDirty(editing)) {
+          if (isSourceDirty(editing) || useCompositeCanvasStore.getState().isDirty()) {
             set({ pendingTransformAction: { kind: "create" } });
             return;
           }

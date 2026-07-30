@@ -7,6 +7,7 @@ import { useCompileTicketStatus } from "@/hooks/tickets/queries";
 import { useRequestCompileTransform } from "@/hooks/tickets/mutations";
 import { useSaveTransform, usePublishTransform } from "@/hooks/transforms/mutations";
 import { apiGetPublishPortShapeDiff, decodeBase64Binary, type PortShapeSummary } from "@/Services/TransformService";
+import { buildPrimitivePreviewGraph, PRIMITIVE_PREVIEW_NODE_ID } from "./creatorTransformPreview";
 import { validateTransformSource } from "./validateTransformSource";
 
 // The "Try it" client-side preview (creatorTransformPreview.ts) runs a
@@ -130,22 +131,9 @@ export function CreatorCodeEditor() {
     selectedId != null && previewTransformId === selectedId && previewStatus === "loading";
   const canStartPreview = attachableResourceId != null && ticketStatus.data?.status.wasm_base64 != null;
 
-  // Composite transforms have no source code — the Monaco/Save/Compile/
-  // Publish/Preview cluster below is entirely primitive-only. Nothing can
-  // create a composite yet, but the "kind" column now makes it
-  // representable, so guard rather than silently misrender one.
-  if (definition?.kind === "composite") {
-    return (
-      <div
-        className="flex flex-col h-full items-center justify-center"
-        style={{ backgroundColor: "#1a1a1a", borderTop: "1px solid rgba(255,255,255,0.06)" }}
-      >
-        <span className="text-xs font-mono" style={{ color: "var(--text-muted)" }}>
-          Composite transform editing isn't built yet.
-        </span>
-      </div>
-    );
-  }
+  // Composite transforms never reach this component — creator-workspace.tsx
+  // routes kind === "composite" to CompositeCanvas instead, which has its
+  // own graph-based Monaco-free authoring flow.
 
   function handleTogglePreview() {
     if (selectedId == null) return;
@@ -159,7 +147,9 @@ export function CreatorCodeEditor() {
     const params = [...(ticketStatus.data?.status.params ?? [])]
       .sort((a, b) => a.param_order - b.param_order)
       .map((p) => p.default_value);
-    void playPreview(selectedId, attachableResourceId, code, wasmBytes, params);
+    const resourceKey = `${attachableResourceId}:${code}`;
+    const graph = buildPrimitivePreviewGraph(params);
+    void playPreview(selectedId, resourceKey, graph, { [PRIMITIVE_PREVIEW_NODE_ID]: wasmBytes }, params);
   }
 
   function handleSave() {

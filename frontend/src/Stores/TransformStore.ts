@@ -23,6 +23,8 @@ export const useTransformStore = create<TransformState>()((set) => ({
             name: transform.name,
             description: transform.description,
             icon: transform.icon,
+            kind: transform.kind,
+            published: transform.published,
           },
         ])
       );
@@ -44,6 +46,8 @@ export const useTransformStore = create<TransformState>()((set) => ({
         name: transform.name,
         description: transform.description,
         icon: transform.icon,
+        kind: transform.kind,
+        published: transform.published,
       });
 
       return { definitions, summaries };
@@ -60,6 +64,8 @@ export const useTransformStore = create<TransformState>()((set) => ({
           name: transform.name,
           description: transform.description,
           icon: transform.icon,
+          kind: transform.kind,
+          published: transform.published,
         });
       }
 

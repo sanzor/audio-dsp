@@ -1,3 +1,4 @@
+pub mod composite_validator;
 pub mod data_provider;
 pub mod storage_provider;
 pub mod transforms_app_data;

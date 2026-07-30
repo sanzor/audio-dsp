@@ -32,12 +32,18 @@ const GRAPH_WORKLET_URL = new URL("../../audio/worklet/graph-worklet.js", import
 // and graph-worklet.js's onSetGraph). A preview binary has no real
 // transform_id yet (it hasn't been saved/published), so any stable
 // placeholder works here — it never leaves this module.
-const PREVIEW_NODE_ID = -1;
+export const PRIMITIVE_PREVIEW_NODE_ID = -1;
 
-function buildSingleNodeGraph(params: number[]): CompiledGraph {
+// Builds the degenerate one-node graph used to preview a single
+// just-compiled primitive transform in isolation. Exported so the primitive
+// preview path (CreatorPreviewStore's `play` for code-editor.tsx) can build
+// its CompiledGraph the same way `load()` used to build it internally —
+// `load()` itself is now graph-shape-agnostic (see below) to also support
+// the composite canvas's multi-node preview.
+export function buildPrimitivePreviewGraph(params: number[]): CompiledGraph {
   const node: CompiledNode = {
-    nodeId: PREVIEW_NODE_ID,
-    transformId: PREVIEW_NODE_ID,
+    nodeId: PRIMITIVE_PREVIEW_NODE_ID,
+    transformId: PRIMITIVE_PREVIEW_NODE_ID,
     params,
     inputs: [{ kind: "raw" }],
     outputBufferIndex: -1, // sink — writes straight to worklet output
@@ -74,14 +80,16 @@ export class CreatorTransformPreview {
     return { audioCtx, node, sender };
   }
 
-  // Loads `wasmBytes` into a degenerate one-node graph and connects the
-  // worklet node to the audio destination so it's immediately audible once
-  // some source is routed into it by the caller (see `inputNode` below).
-  async load(wasmBytes: Uint8Array, params: number[] = []): Promise<void> {
+  // Loads an arbitrary CompiledGraph (a single primitive transform via
+  // buildPrimitivePreviewGraph, or a multi-node composite-in-progress graph
+  // compiled by GraphCompiler.process) and connects the worklet node to the
+  // audio destination so it's immediately audible once some source is
+  // routed into it by the caller (see `inputNode` below). `binaries` is
+  // keyed by transformId, matching graph-worklet.js's onSetGraph lookup —
+  // graph-worklet.js itself needs no changes to run either shape.
+  async load(graph: CompiledGraph, binaries: Record<number, Uint8Array>): Promise<void> {
     const { audioCtx, node, sender } = await this.ensureConnected();
     if (audioCtx.state === "suspended") await audioCtx.resume();
-
-    const graph = buildSingleNodeGraph(params);
 
     const ready = new Promise<void>((resolve, reject) => {
       const unsubReady = sender.onGraphReady(() => {
@@ -96,7 +104,7 @@ export class CreatorTransformPreview {
       });
     });
 
-    sender.sendGraph(graph, { [PREVIEW_NODE_ID]: wasmBytes });
+    sender.sendGraph(graph, binaries);
     await ready;
 
     node.connect(audioCtx.destination);

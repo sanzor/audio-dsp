@@ -20,10 +20,11 @@ interface CreateTransformModalProps {
 export function CreateTransformModal({ open, onClose, onSubmit }: CreateTransformModalProps) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [kind, setKind] = useState<"primitive" | "composite">("primitive");
 
   const handleSubmit = () => {
     if (!name.trim()) return;
-    onSubmit({ name: name.trim(), description: description.trim() || undefined });
+    onSubmit({ name: name.trim(), description: description.trim() || undefined, kind });
   };
 
   return (
@@ -56,6 +57,17 @@ export function CreateTransformModal({ open, onClose, onSubmit }: CreateTransfor
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <label className="text-right text-sm font-medium">Type</label>
+            <div className="col-span-3 flex gap-2">
+              <Button type="button" variant={kind === "primitive" ? "default" : "outline"} onClick={() => setKind("primitive")}>
+                Primitive (Rust)
+              </Button>
+              <Button type="button" variant={kind === "composite" ? "default" : "outline"} onClick={() => setKind("composite")}>
+                Composite
+              </Button>
+            </div>
           </div>
         </div>
 

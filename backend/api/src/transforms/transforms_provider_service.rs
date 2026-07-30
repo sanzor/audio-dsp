@@ -3,11 +3,13 @@ use std::{collections::HashSet, sync::Arc};
 use domain::db::{
     db_transform::{DbTransform, DbTransformBinary, DbTransformDefinition, TransformId},
     ticket::db_resource::ResourceId,
+    transform_snapshot::CompositeGraphDefinition,
 };
 use wasmtime::*;
 use crate::domain::service_error::ServiceError;
 
 use super::{
+    composite_validator,
     data_provider::transforms_data_provider::{NewTransformParam, NewTransformPort, TransformsDataProvider},
     storage_provider::transform_storage_provider::TransformStorageProvider,
     transforms_provider::{PortShapeSummary, PublishPortShapeDiff, TransformsProvider},
@@ -79,8 +81,9 @@ impl TransformsProvider for TransformsProviderService {
         name: String,
         description: Option<String>,
         icon: Option<String>,
+        kind: String,
     ) -> Result<DbTransformDefinition, ServiceError> {
-        let db = self.data.insert_transform(name, description, icon).await?;
+        let db = self.data.insert_transform(name, description, icon, kind).await?;
         self.data.get_transform_definition(db.transform_id).await.map_err(ServiceError::from)
     }
 
@@ -89,7 +92,42 @@ impl TransformsProvider for TransformsProviderService {
         self.data.get_transform_definition(id).await.map_err(ServiceError::from)
     }
 
+    async fn save_composite_draft(&self, id: TransformId, graph: CompositeGraphDefinition) -> Result<DbTransformDefinition, ServiceError> {
+        let transform_ids: Vec<TransformId> = graph.nodes.iter().map(|n| n.transform_id).collect();
+        let leaf_defs = self.data.get_leaf_transform_infos(&transform_ids).await?;
+        let ports = composite_validator::validate_composite_graph(&graph, &leaf_defs)
+            .map_err(ServiceError::Validation)?;
+
+        self.data.save_composite_draft(id, graph, ports).await?;
+        self.data.get_transform_definition(id).await.map_err(ServiceError::from)
+    }
+
     async fn publish_transform(&self, id: TransformId) -> Result<DbTransformDefinition, ServiceError> {
+        let transform = self.data.get_transform(id).await.map_err(ServiceError::Internal)?;
+
+        if transform.kind == "composite" {
+            let draft = self.data.get_draft(id).await?;
+            let Some(graph) = draft.graph_definition else {
+                return Err(ServiceError::Validation(
+                    "nothing has been saved for this composite yet".to_string(),
+                ));
+            };
+
+            // Re-validate at publish time, not just at save time — a leaf
+            // transform referenced by this graph may have been unpublished
+            // or deleted since the last save.
+            let transform_ids: Vec<TransformId> = graph.nodes.iter().map(|n| n.transform_id).collect();
+            let leaf_defs = self.data.get_leaf_transform_infos(&transform_ids).await?;
+            let ports = composite_validator::validate_composite_graph(&graph, &leaf_defs)
+                .map_err(ServiceError::Validation)?;
+
+            self.data
+                .publish_composite_transform(id, draft.name.unwrap_or_default(), draft.description, ports, graph)
+                .await?;
+
+            return self.data.get_transform_definition(id).await.map_err(ServiceError::from);
+        }
+
         let draft = self.data.get_draft(id).await?;
         let Some(wasm_bytecode) = draft.wasm_bytecode else {
             return Err(ServiceError::Validation(
@@ -190,7 +228,7 @@ mod tests {
             db_ticket::{DbTicket, TicketId},
             update_ticket_params::UpdateTicketParams,
         },
-        transform_draft::DbTransformDraft,
+        db_transform_draft::DbTransformDraft,
     };
 
     struct FakeDataProvider {
@@ -217,7 +255,9 @@ mod tests {
                 name: self.draft.name.clone().unwrap_or_default(),
                 description: self.draft.description.clone(),
                 icon: None,
+                kind: "primitive".to_string(),
                 source_code: Some(self.draft.source_code.clone()),
+                graph_definition: None,
                 ports: vec![],
                 params: vec![],
             })
@@ -225,18 +265,23 @@ mod tests {
 
         async fn get_transform_definitions(&self, _: &[TransformId]) -> Result<Vec<DbTransformDefinition>, String> { unimplemented!() }
         async fn list_transform_summaries(&self, _: i64, _: i64) -> Result<(Vec<DbTransform>, i64), String> { unimplemented!() }
-        async fn insert_transform(&self, _: String, _: Option<String>, _: Option<String>) -> Result<DbTransform, String> { unimplemented!() }
+        async fn insert_transform(&self, _: String, _: Option<String>, _: Option<String>, _: String) -> Result<DbTransform, String> { unimplemented!() }
         async fn delete_transform(&self, _: TransformId) -> Result<(), crate::domain::data_error::DataError> { unimplemented!() }
+
+        async fn get_leaf_transform_infos(&self, _: &[TransformId]) -> Result<std::collections::HashMap<TransformId, crate::transforms::composite_validator::LeafTransformInfo>, crate::domain::data_error::DataError> { unimplemented!() }
 
         async fn get_draft(&self, _: TransformId) -> Result<DbTransformDraft, crate::domain::data_error::DataError> {
             Ok(self.draft.clone())
         }
 
         async fn save_transform_draft(&self, _: TransformId, _: String, _: Option<ResourceId>) -> Result<DbTransformDraft, crate::domain::data_error::DataError> { unimplemented!() }
+        async fn save_composite_draft(&self, _: TransformId, _: domain::db::transform_snapshot::CompositeGraphDefinition, _: Vec<NewTransformPort>) -> Result<DbTransformDraft, crate::domain::data_error::DataError> { unimplemented!() }
 
         async fn publish_compiled_transform(&self, _: TransformId, _: Vec<u8>, _: String, _: String, _: Option<String>, _: Vec<NewTransformPort>, _: Vec<NewTransformParam>) -> Result<(), String> {
             Ok(())
         }
+
+        async fn publish_composite_transform(&self, _: TransformId, _: String, _: Option<String>, _: Vec<NewTransformPort>, _: domain::db::transform_snapshot::CompositeGraphDefinition) -> Result<(), String> { unimplemented!() }
     }
 
     struct FakeStorageProvider;
@@ -254,6 +299,7 @@ mod tests {
             source_code: source_code.to_string(),
             wasm_bytecode: if has_binary { Some(vec![0, 1, 2]) } else { None },
             wasm_source_code: wasm_source_code.map(|s| s.to_string()),
+            graph_definition: None,
             name: Some("Test".to_string()),
             description: None,
             ports: vec![],

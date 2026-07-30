@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::db::{
     db_transform::TransformId,
-    transform_snapshot::{ParamSnapshot, PortSnapshot},
+    transform_snapshot::{CompositeGraphDefinition, ParamSnapshot, PortSnapshot},
 };
 
 /// Bucket 2 — "save". Always has source_code (a plain draft, possibly
@@ -22,6 +22,9 @@ pub struct DbTransformDraft {
     pub wasm_source_code: Option<String>,
     pub name: Option<String>,
     pub description: Option<String>,
+    /// Present only for kind = "composite" drafts — the working copy of the
+    /// wiring graph, mirroring how source_code is the primitive working copy.
+    pub graph_definition: Option<CompositeGraphDefinition>,
     pub ports: Vec<PortSnapshot>,
     pub params: Vec<ParamSnapshot>,
 }
