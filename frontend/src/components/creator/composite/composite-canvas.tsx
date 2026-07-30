@@ -21,9 +21,9 @@ import { CompositePalette } from "./composite-palette";
 import { computeNodeDisableSafety, type NodeDisableSafety } from "./compositeReachability";
 import { NODE_TYPES, type CompositeNodeData } from "./composite-canvas-node";
 import { useCompositePreviewControls } from "./composite-preview-controls";
+import { NodeInspectorPanel } from "./composite-node-inspector";
 import type { TransformPort } from "@/domain/Transform/TransformPort";
 import type { CompositeEdge } from "@/domain/Transform/CompositeGraphDefinition";
-import { NodeInspectorPanel } from "./composite-node-inspector";
 
 function portsFor(transformId: number): TransformPort[] {
   return useTransformStore.getState().definitions.get(transformId)?.ports ?? [];

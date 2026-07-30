@@ -2,7 +2,7 @@ import { useState } from "react";
 import Editor from "@monaco-editor/react";
 import { useTransformStore } from "@/Stores/TransformStore";
 import { useCreatorPreviewStore } from "@/Stores/CreatorPreviewStore";
-import { PortsList, ParamRow } from "./transform-properties-panel";
+import { ParamRow, PortsList } from "../transform-properties-panel";
 
 // ─── Node inspector (bottom panel) ─────────────────────────────────────────────
 // Phase 1 + 2 of agents/decisions/0005-composite-node-inspector.md. Replaces
