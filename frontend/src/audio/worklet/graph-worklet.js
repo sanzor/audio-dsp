@@ -49,7 +49,7 @@ class WorkletMessageDispatcher {
 // Generates a dedicated transform function from a CompiledGraph.
 // Called once per SET_GRAPH — not at runtime per quantum.
 
-function generateTransformFunction(compiledGraph) {
+export function generateTransformFunction(compiledGraph) {
   const { executionOrder } = compiledGraph;
   const lines = [];
 
@@ -88,10 +88,16 @@ function generateTransformFunction(compiledGraph) {
 
     lines.push(`const out_${i} = callWasm(instances[${i}], params[${i}], [${portVars.join(', ')}]);`);
 
-    if (node.outputBufferIndex === -1) {
-      lines.push(`output = addAll(output, out_${i});`);
-    } else {
+    // These two writes are independent, not mutually exclusive: a node can
+    // hold a real buffer slot (outputBufferIndex !== -1, e.g. it has a
+    // back-edge out) AND also have no forward consumer, in which case its
+    // output must be written into the buffer for feedback AND summed into
+    // the worklet's audible output.
+    if (node.outputBufferIndex !== -1) {
       lines.push(`buffers[${node.outputBufferIndex}].set(out_${i});`);
+    }
+    if (node.writesToOutput) {
+      lines.push(`output = addAll(output, out_${i});`);
     }
   }
 
@@ -149,6 +155,15 @@ function callWasm(instance, params, inputBuffers) {
 }
 
 // ─── GraphWorklet ─────────────────────────────────────────────────────────────
+//
+// Guarded on AudioWorkletProcessor's presence so this module can be imported
+// under Vitest (plain Node, no AudioWorkletGlobalScope) to unit-test
+// generateTransformFunction's generated code directly — see
+// GraphCompiler.test.ts. Real worklet loading (via audioWorklet.addModule)
+// always runs inside AudioWorkletGlobalScope, where AudioWorkletProcessor is
+// defined, so this is a no-op there.
+
+if (typeof AudioWorkletProcessor !== 'undefined') {
 
 class GraphWorklet extends AudioWorkletProcessor {
   constructor() {
@@ -252,3 +267,5 @@ class GraphWorklet extends AudioWorkletProcessor {
 }
 
 registerProcessor('graph-worklet', GraphWorklet);
+
+}

@@ -76,7 +76,20 @@ export interface CompiledNode {
   // One bucket per declared input port (index = port ordinal); each bucket is
   // the list of sources summed together to produce that port's buffer.
   inputs: NodeInputSource[][];
-  outputBufferIndex: number;    // -1 = sink node: writes additively to worklet output
+  // -1 when the node has neither a forward consumer nor a back-edge out (no
+  // buffer needed); otherwise a real slot index that gets written each
+  // quantum. NOTE: this is no longer "is this the terminal/audible node" —
+  // a node can hold a real buffer index AND also need to reach the worklet
+  // output, when it has a back-edge but no forward consumer (see
+  // writesToOutput below). Kept in sync with feedbackBufferIndices by
+  // assignOutputBuffers().
+  outputBufferIndex: number;
+  // True iff this node has no forward (non-back-edge) outgoing edge, i.e.
+  // nothing downstream consumes it within the graph, so its output must
+  // also be summed into the worklet's audible output — independent of
+  // whether it separately has hasBackOut and therefore a real
+  // outputBufferIndex too. Computed as `!hasForwardOut` in buildNodes().
+  writesToOutput: boolean;
 }
 
 
@@ -295,6 +308,7 @@ function buildNodes(
 
     const hasForwardIn  = incoming.some((e) => !backEdgeIds.has(e.id));
     const hasForwardOut = outgoing.some((e) => !backEdgeIds.has(e.id));
+    const hasBackOut    = outgoing.some((e) =>  backEdgeIds.has(e.id));
 
     // One bucket per declared input port; each edge's toPortIndex says which
     // bucket it feeds. A bucket with no edges resolves to silence in the
@@ -320,7 +334,8 @@ function buildNodes(
       transformId:       node.transformId,
       params:            Object.values(node.params),
       inputs,
-      outputBufferIndex: hasForwardOut ? nodeOutputBuf.get(nodeId)! : -1,
+      outputBufferIndex: (hasForwardOut || hasBackOut) ? nodeOutputBuf.get(nodeId)! : -1,
+      writesToOutput: !hasForwardOut,
     };
   });
 }

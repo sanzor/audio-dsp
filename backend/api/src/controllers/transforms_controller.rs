@@ -30,10 +30,17 @@ pub struct SaveTransformParams {
     pub resource_id: Option<ResourceId>,
 }
 
+/// Mirrors `domain::db::transform_snapshot::CompositeNode` exactly (same
+/// `node_kind` tag field, same variant tag values, same per-variant field
+/// names) — see that type's doc comment for why. An Input/Output node has
+/// no `transform_id` (nothing left over from `CompositeExposedPort`, which
+/// this replaces); a Leaf node has no `name`.
 #[derive(Debug, Deserialize, Serialize, ToSchema, Clone)]
-pub struct CompositeNodeDto {
-    pub node_id: i64,
-    pub transform_id: TransformId,
+#[serde(tag = "node_kind", rename_all = "lowercase")]
+pub enum CompositeNodeDto {
+    Leaf { node_id: i64, transform_id: TransformId },
+    Input { node_id: i64, name: String },
+    Output { node_id: i64, name: String },
 }
 
 #[derive(Debug, Deserialize, Serialize, ToSchema, Clone)]
@@ -45,17 +52,9 @@ pub struct CompositeEdgeDto {
 }
 
 #[derive(Debug, Deserialize, Serialize, ToSchema, Clone)]
-pub struct CompositeExposedPortDto {
-    pub node_id: i64,
-    pub port_name: String,
-    pub exposed_name: String,
-}
-
-#[derive(Debug, Deserialize, Serialize, ToSchema, Clone)]
 pub struct CompositeGraphDefinitionDto {
     pub nodes: Vec<CompositeNodeDto>,
     pub edges: Vec<CompositeEdgeDto>,
-    pub exposed_ports: Vec<CompositeExposedPortDto>,
 }
 
 #[derive(Deserialize, Serialize, ToSchema)]
@@ -63,14 +62,31 @@ pub struct SaveCompositeGraphParams {
     pub graph_definition: CompositeGraphDefinitionDto,
 }
 
+impl From<CompositeNodeDto> for domain::db::transform_snapshot::CompositeNode {
+    fn from(value: CompositeNodeDto) -> Self {
+        match value {
+            CompositeNodeDto::Leaf { node_id, transform_id } => Self::Leaf { node_id, transform_id },
+            CompositeNodeDto::Input { node_id, name } => Self::Input { node_id, name },
+            CompositeNodeDto::Output { node_id, name } => Self::Output { node_id, name },
+        }
+    }
+}
+
+impl From<domain::db::transform_snapshot::CompositeNode> for CompositeNodeDto {
+    fn from(value: domain::db::transform_snapshot::CompositeNode) -> Self {
+        use domain::db::transform_snapshot::CompositeNode as DomainNode;
+        match value {
+            DomainNode::Leaf { node_id, transform_id } => Self::Leaf { node_id, transform_id },
+            DomainNode::Input { node_id, name } => Self::Input { node_id, name },
+            DomainNode::Output { node_id, name } => Self::Output { node_id, name },
+        }
+    }
+}
+
 impl From<CompositeGraphDefinitionDto> for domain::db::transform_snapshot::CompositeGraphDefinition {
     fn from(value: CompositeGraphDefinitionDto) -> Self {
         Self {
-            nodes: value
-                .nodes
-                .into_iter()
-                .map(|n| domain::db::transform_snapshot::CompositeNode { node_id: n.node_id, transform_id: n.transform_id })
-                .collect(),
+            nodes: value.nodes.into_iter().map(domain::db::transform_snapshot::CompositeNode::from).collect(),
             edges: value
                 .edges
                 .into_iter()
@@ -81,15 +97,6 @@ impl From<CompositeGraphDefinitionDto> for domain::db::transform_snapshot::Compo
                     to_port: e.to_port,
                 })
                 .collect(),
-            exposed_ports: value
-                .exposed_ports
-                .into_iter()
-                .map(|p| domain::db::transform_snapshot::CompositeExposedPort {
-                    node_id: p.node_id,
-                    port_name: p.port_name,
-                    exposed_name: p.exposed_name,
-                })
-                .collect(),
         }
     }
 }
@@ -97,11 +104,7 @@ impl From<CompositeGraphDefinitionDto> for domain::db::transform_snapshot::Compo
 impl From<domain::db::transform_snapshot::CompositeGraphDefinition> for CompositeGraphDefinitionDto {
     fn from(value: domain::db::transform_snapshot::CompositeGraphDefinition) -> Self {
         Self {
-            nodes: value
-                .nodes
-                .into_iter()
-                .map(|n| CompositeNodeDto { node_id: n.node_id, transform_id: n.transform_id })
-                .collect(),
+            nodes: value.nodes.into_iter().map(CompositeNodeDto::from).collect(),
             edges: value
                 .edges
                 .into_iter()
@@ -111,11 +114,6 @@ impl From<domain::db::transform_snapshot::CompositeGraphDefinition> for Composit
                     to_node_id: e.to_node_id,
                     to_port: e.to_port,
                 })
-                .collect(),
-            exposed_ports: value
-                .exposed_ports
-                .into_iter()
-                .map(|p| CompositeExposedPortDto { node_id: p.node_id, port_name: p.port_name, exposed_name: p.exposed_name })
                 .collect(),
         }
     }

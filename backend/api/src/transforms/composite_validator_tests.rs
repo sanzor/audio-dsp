@@ -1,5 +1,5 @@
 use super::*;
-use domain::db::transform_snapshot::{CompositeEdge, CompositeExposedPort, CompositeNode};
+use domain::db::transform_snapshot::{CompositeEdge, CompositeNode};
 
 fn port(name: &str, direction: &str, kind: &str, cardinality: &str) -> DbTransformPort {
     DbTransformPort {
@@ -25,61 +25,63 @@ fn gain_leaf() -> LeafTransformInfo {
     }
 }
 
+fn leaf(node_id: i64, transform_id: i64) -> CompositeNode {
+    CompositeNode::Leaf { node_id, transform_id }
+}
+
+fn input(node_id: i64, name: &str) -> CompositeNode {
+    CompositeNode::Input { node_id, name: name.to_string() }
+}
+
+fn output(node_id: i64, name: &str) -> CompositeNode {
+    CompositeNode::Output { node_id, name: name.to_string() }
+}
+
+fn edge(from_node_id: i64, from_port: &str, to_node_id: i64, to_port: &str) -> CompositeEdge {
+    CompositeEdge {
+        from_node_id,
+        from_port: from_port.to_string(),
+        to_node_id,
+        to_port: to_port.to_string(),
+    }
+}
+
 #[test]
 fn rejects_empty_graph() {
-    let graph = CompositeGraphDefinition { nodes: vec![], edges: vec![], exposed_ports: vec![] };
+    let graph = CompositeGraphDefinition { nodes: vec![], edges: vec![] };
     let result = validate_composite_graph(&graph, &HashMap::new());
     assert!(result.is_err());
 }
 
 #[test]
 fn rejects_unpublished_leaf() {
-    let mut leaf = gain_leaf();
-    leaf.published = false;
-    let leaves = HashMap::from([(1, leaf)]);
-    let graph = CompositeGraphDefinition {
-        nodes: vec![CompositeNode { node_id: 1, transform_id: 1 }],
-        edges: vec![],
-        exposed_ports: vec![
-            CompositeExposedPort { node_id: 1, port_name: "in".to_string(), exposed_name: "in".to_string() },
-            CompositeExposedPort { node_id: 1, port_name: "out".to_string(), exposed_name: "out".to_string() },
-        ],
-    };
+    let mut gain = gain_leaf();
+    gain.published = false;
+    let leaves = HashMap::from([(1, gain)]);
+    let graph = CompositeGraphDefinition { nodes: vec![leaf(1, 1)], edges: vec![] };
     let result = validate_composite_graph(&graph, &leaves);
     assert!(result.is_err());
 }
 
 #[test]
 fn rejects_composite_leaf() {
-    let mut leaf = gain_leaf();
-    leaf.kind = "composite".to_string();
-    let leaves = HashMap::from([(1, leaf)]);
-    let graph = CompositeGraphDefinition {
-        nodes: vec![CompositeNode { node_id: 1, transform_id: 1 }],
-        edges: vec![],
-        exposed_ports: vec![],
-    };
+    let mut gain = gain_leaf();
+    gain.kind = "composite".to_string();
+    let leaves = HashMap::from([(1, gain)]);
+    let graph = CompositeGraphDefinition { nodes: vec![leaf(1, 1)], edges: vec![] };
     let result = validate_composite_graph(&graph, &leaves);
     assert!(result.is_err());
 }
 
 #[test]
-fn accepts_a_simple_chain_and_derives_exposed_ports() {
+fn accepts_a_simple_chain_and_derives_io_ports() {
     let leaves = HashMap::from([(1, gain_leaf())]);
     let graph = CompositeGraphDefinition {
-        nodes: vec![
-            CompositeNode { node_id: 1, transform_id: 1 },
-            CompositeNode { node_id: 2, transform_id: 1 },
-        ],
-        edges: vec![CompositeEdge {
-            from_node_id: 1,
-            from_port: "out".to_string(),
-            to_node_id: 2,
-            to_port: "in".to_string(),
-        }],
-        exposed_ports: vec![
-            CompositeExposedPort { node_id: 1, port_name: "in".to_string(), exposed_name: "in".to_string() },
-            CompositeExposedPort { node_id: 2, port_name: "out".to_string(), exposed_name: "out".to_string() },
+        nodes: vec![leaf(1, 1), leaf(2, 1), input(3, "in"), output(4, "out")],
+        edges: vec![
+            edge(1, "out", 2, "in"),
+            edge(3, "signal", 1, "in"),
+            edge(2, "out", 4, "signal"),
         ],
     };
     let result = validate_composite_graph(&graph, &leaves);
@@ -90,38 +92,80 @@ fn accepts_a_simple_chain_and_derives_exposed_ports() {
 }
 
 #[test]
-fn rejects_unconnected_unexposed_program_input() {
+fn rejects_unconnected_program_input() {
+    // "in" is a Program-kind input left completely unwired — no Input node,
+    // no edge at all. Isolates the dangling-input check from every
+    // Input/Output-node check below (none are exercised by this graph).
+    let leaves = HashMap::from([(1, gain_leaf())]);
+    let graph = CompositeGraphDefinition { nodes: vec![leaf(1, 1)], edges: vec![] };
+    let result = validate_composite_graph(&graph, &leaves);
+    assert!(result.is_err());
+}
+
+#[test]
+fn rejects_a_second_edge_into_a_single_cardinality_leaf_input() {
     let leaves = HashMap::from([(1, gain_leaf())]);
     let graph = CompositeGraphDefinition {
-        nodes: vec![CompositeNode { node_id: 1, transform_id: 1 }],
-        edges: vec![],
-        exposed_ports: vec![CompositeExposedPort {
-            node_id: 1,
-            port_name: "out".to_string(),
-            exposed_name: "out".to_string(),
-        }],
+        nodes: vec![leaf(1, 1), leaf(2, 1), leaf(3, 1)],
+        edges: vec![edge(1, "out", 3, "in"), edge(2, "out", 3, "in")],
     };
     let result = validate_composite_graph(&graph, &leaves);
     assert!(result.is_err());
 }
 
 #[test]
-fn rejects_a_second_edge_into_a_single_cardinality_input() {
+fn requires_at_least_one_output_node() {
+    // "in" is wired via a valid Input node (so the dangling-input check
+    // passes), but no Output node exists anywhere in the graph — isolates
+    // the "must have at least one Output node" rule from the "Output node
+    // present but disconnected" case covered separately below.
     let leaves = HashMap::from([(1, gain_leaf())]);
     let graph = CompositeGraphDefinition {
-        nodes: vec![
-            CompositeNode { node_id: 1, transform_id: 1 },
-            CompositeNode { node_id: 2, transform_id: 1 },
-            CompositeNode { node_id: 3, transform_id: 1 },
-        ],
+        nodes: vec![leaf(1, 1), input(2, "in")],
+        edges: vec![edge(2, "signal", 1, "in")],
+    };
+    let result = validate_composite_graph(&graph, &leaves);
+    assert!(result.is_err());
+}
+
+#[test]
+fn rejects_input_node_with_no_outgoing_edge() {
+    let leaves = HashMap::from([(1, gain_leaf())]);
+    let graph = CompositeGraphDefinition {
+        nodes: vec![leaf(1, 1), input(2, "in"), output(3, "out")],
+        // Input node 2 has no outgoing edge at all — node 1's "in" is left
+        // dangling too, but the Input-node check should surface first
+        // since it's the more specific error.
+        edges: vec![edge(1, "out", 3, "signal")],
+    };
+    let result = validate_composite_graph(&graph, &leaves);
+    assert!(result.is_err());
+}
+
+#[test]
+fn rejects_output_node_with_no_incoming_edge() {
+    let leaves = HashMap::from([(1, gain_leaf())]);
+    let graph = CompositeGraphDefinition {
+        nodes: vec![leaf(1, 1), input(2, "in"), output(3, "out")],
+        // Output node 3 has no incoming edge — node 1's "out" is left
+        // unconnected (fine, "out" isn't Program-input-checked) but the
+        // Output node itself is unusable.
+        edges: vec![edge(2, "signal", 1, "in")],
+    };
+    let result = validate_composite_graph(&graph, &leaves);
+    assert!(result.is_err());
+}
+
+#[test]
+fn rejects_output_node_with_two_incoming_edges() {
+    let leaves = HashMap::from([(1, gain_leaf())]);
+    let graph = CompositeGraphDefinition {
+        nodes: vec![leaf(1, 1), leaf(2, 1), input(3, "in1"), input(4, "in2"), output(5, "out")],
         edges: vec![
-            CompositeEdge { from_node_id: 1, from_port: "out".to_string(), to_node_id: 3, to_port: "in".to_string() },
-            CompositeEdge { from_node_id: 2, from_port: "out".to_string(), to_node_id: 3, to_port: "in".to_string() },
-        ],
-        exposed_ports: vec![
-            CompositeExposedPort { node_id: 1, port_name: "in".to_string(), exposed_name: "in1".to_string() },
-            CompositeExposedPort { node_id: 2, port_name: "in".to_string(), exposed_name: "in2".to_string() },
-            CompositeExposedPort { node_id: 3, port_name: "out".to_string(), exposed_name: "out".to_string() },
+            edge(3, "signal", 1, "in"),
+            edge(4, "signal", 2, "in"),
+            edge(1, "out", 5, "signal"),
+            edge(2, "out", 5, "signal"),
         ],
     };
     let result = validate_composite_graph(&graph, &leaves);
@@ -129,23 +173,40 @@ fn rejects_a_second_edge_into_a_single_cardinality_input() {
 }
 
 #[test]
-fn requires_at_least_one_exposed_output() {
+fn rejects_empty_io_node_name() {
     let leaves = HashMap::from([(1, gain_leaf())]);
     let graph = CompositeGraphDefinition {
-        nodes: vec![CompositeNode { node_id: 1, transform_id: 1 }],
-        edges: vec![],
-        exposed_ports: vec![CompositeExposedPort {
-            node_id: 1,
-            port_name: "in".to_string(),
-            exposed_name: "in".to_string(),
-        }],
+        nodes: vec![leaf(1, 1), input(2, ""), output(3, "out")],
+        edges: vec![edge(2, "signal", 1, "in"), edge(1, "out", 3, "signal")],
     };
-    // "out" is left unconnected+unexposed here on purpose to isolate the
-    // "no exposed output" failure — but that itself would already fail
-    // first as an unconnected Program input on a *different* port only if
-    // there were one; here there's exactly one input (exposed) and one
-    // output (neither exposed nor connected), so the Program-input check
-    // doesn't trip and this isolates the "at least one exposed output" rule.
     let result = validate_composite_graph(&graph, &leaves);
     assert!(result.is_err());
+}
+
+#[test]
+fn rejects_duplicate_io_node_names() {
+    let leaves = HashMap::from([(1, gain_leaf())]);
+    let graph = CompositeGraphDefinition {
+        nodes: vec![leaf(1, 1), input(2, "shared"), output(3, "shared")],
+        edges: vec![edge(2, "signal", 1, "in"), edge(1, "out", 3, "signal")],
+    };
+    let result = validate_composite_graph(&graph, &leaves);
+    assert!(result.is_err());
+}
+
+#[test]
+fn input_node_may_fan_out_to_multiple_leaf_inputs() {
+    let leaves = HashMap::from([(1, gain_leaf())]);
+    let graph = CompositeGraphDefinition {
+        nodes: vec![leaf(1, 1), leaf(2, 1), input(3, "in"), output(4, "out1"), output(5, "out2")],
+        edges: vec![
+            edge(3, "signal", 1, "in"),
+            edge(3, "signal", 2, "in"),
+            edge(1, "out", 4, "signal"),
+            edge(2, "out", 5, "signal"),
+        ],
+    };
+    let result = validate_composite_graph(&graph, &leaves);
+    let ports = result.expect("an Input node fanning out to two leaf inputs should be valid");
+    assert_eq!(ports.len(), 3);
 }

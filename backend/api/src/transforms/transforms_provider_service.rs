@@ -15,6 +15,22 @@ use super::{
     transforms_provider::{PortShapeSummary, PublishPortShapeDiff, TransformsProvider},
 };
 
+/// Every leaf node's `transform_id`, deduplication left to the caller (the
+/// data provider's `get_leaf_transform_infos` is keyed lookup, duplicates
+/// are harmless). Input/Output nodes have no `transform_id` to collect —
+/// `CompositeNode` is a tagged enum as of the Input/Output node model, not a
+/// flat struct, so this can no longer be a bare `.map(|n| n.transform_id)`.
+fn leaf_transform_ids(graph: &CompositeGraphDefinition) -> Vec<TransformId> {
+    graph
+        .nodes
+        .iter()
+        .filter_map(|n| match n {
+            domain::db::transform_snapshot::CompositeNode::Leaf { transform_id, .. } => Some(*transform_id),
+            _ => None,
+        })
+        .collect()
+}
+
 pub struct TransformsProviderService {
     data: Arc<dyn TransformsDataProvider>,
     storage: Arc<dyn TransformStorageProvider>,
@@ -93,7 +109,7 @@ impl TransformsProvider for TransformsProviderService {
     }
 
     async fn save_composite_draft(&self, id: TransformId, graph: CompositeGraphDefinition) -> Result<DbTransformDefinition, ServiceError> {
-        let transform_ids: Vec<TransformId> = graph.nodes.iter().map(|n| n.transform_id).collect();
+        let transform_ids: Vec<TransformId> = leaf_transform_ids(&graph);
         let leaf_defs = self.data.get_leaf_transform_infos(&transform_ids).await?;
         let ports = composite_validator::validate_composite_graph(&graph, &leaf_defs)
             .map_err(ServiceError::Validation)?;
@@ -116,7 +132,7 @@ impl TransformsProvider for TransformsProviderService {
             // Re-validate at publish time, not just at save time — a leaf
             // transform referenced by this graph may have been unpublished
             // or deleted since the last save.
-            let transform_ids: Vec<TransformId> = graph.nodes.iter().map(|n| n.transform_id).collect();
+            let transform_ids: Vec<TransformId> = leaf_transform_ids(&graph);
             let leaf_defs = self.data.get_leaf_transform_infos(&transform_ids).await?;
             let ports = composite_validator::validate_composite_graph(&graph, &leaf_defs)
                 .map_err(ServiceError::Validation)?;

@@ -23,8 +23,10 @@ import { computeNodeDisableSafety, type NodeDisableSafety } from "./compositeRea
 import { NODE_TYPES, type CompositeNodeData } from "./composite-canvas-node";
 import { useCompositePreviewControls } from "./composite-preview-controls";
 import { NodeInspectorPanel } from "./composite-node-inspector";
+import { CompositeIoGhostSlot } from "./composite-io-placeholder";
 import type { TransformPort } from "@/domain/Transform/TransformPort";
 import type { CompositeEdge } from "@/domain/Transform/CompositeGraphDefinition";
+import type { EditingCompositeGraph } from "@/Stores/CompositeCanvasStore";
 
 function portsFor(transformId: number): TransformPort[] {
   return useTransformStore.getState().definitions.get(transformId)?.ports ?? [];
@@ -32,6 +34,24 @@ function portsFor(transformId: number): TransformPort[] {
 
 function portKey(nodeId: number, portName: string) {
   return `${nodeId}:${portName}`;
+}
+
+// Which nodes currently carry an exposed port in each direction — shared by
+// the reachability-safety coloring below and the ghost-slot visibility
+// check (an exposed-port set of size 0 in a direction means that ghost
+// slot should still be showing).
+function exposedDirectionNodeIds(editingGraph: EditingCompositeGraph) {
+  const inputNodeIds = new Set<number>();
+  const outputNodeIds = new Set<number>();
+  for (const p of editingGraph.exposedPorts.values()) {
+    const node = editingGraph.nodes.get(p.node_id);
+    if (!node) continue;
+    const port = portsFor(node.transform_id).find((pt) => pt.name === p.port_name);
+    if (!port) continue;
+    if (port.direction === "input") inputNodeIds.add(p.node_id);
+    else outputNodeIds.add(p.node_id);
+  }
+  return { inputNodeIds, outputNodeIds };
 }
 
 // ─── Inner canvas ─────────────────────────────────────────────────────────────
@@ -88,16 +108,8 @@ function CompositeCanvasInner() {
   // compositeReachability.ts and agents/decisions/0005-composite-node-inspector.md.
   const nodeSafety = useMemo(() => {
     if (!editingGraph) return new Map<number, NodeDisableSafety>();
-    const exposedInputNodeIds = new Set<number>();
-    const exposedOutputNodeIds = new Set<number>();
-    for (const p of editingGraph.exposedPorts.values()) {
-      const node = editingGraph.nodes.get(p.node_id);
-      if (!node) continue;
-      const port = portsFor(node.transform_id).find((pt) => pt.name === p.port_name);
-      if (!port) continue;
-      if (port.direction === "input") exposedInputNodeIds.add(p.node_id);
-      else exposedOutputNodeIds.add(p.node_id);
-    }
+    const { inputNodeIds: exposedInputNodeIds, outputNodeIds: exposedOutputNodeIds } =
+      exposedDirectionNodeIds(editingGraph);
     return computeNodeDisableSafety({
       nodeIds: [...editingGraph.nodes.keys()],
       edges: [...editingGraph.edges.values()],
@@ -105,6 +117,16 @@ function CompositeCanvasInner() {
       exposedOutputNodeIds,
       disabledNodes: editingGraph.disabledNodes,
     });
+  }, [editingGraph]);
+
+  // Ghost-slot visibility (composite-io-placeholder.tsx): each direction's
+  // hint disappears independently the moment at least one port in that
+  // direction is exposed — deliberately NOT gated on nodes.size === 0, since
+  // a composite can have leaf nodes placed but nothing exposed yet.
+  const { hasExposedInput, hasExposedOutput } = useMemo(() => {
+    if (!editingGraph) return { hasExposedInput: false, hasExposedOutput: false };
+    const { inputNodeIds, outputNodeIds } = exposedDirectionNodeIds(editingGraph);
+    return { hasExposedInput: inputNodeIds.size > 0, hasExposedOutput: outputNodeIds.size > 0 };
   }, [editingGraph]);
 
   const rfNodes: RFNode<CompositeNodeData>[] = useMemo(
@@ -290,6 +312,8 @@ function CompositeCanvasInner() {
               panOnDrag
             >
               <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="rgba(255,255,255,0.04)" />
+              {!hasExposedInput && <CompositeIoGhostSlot direction="input" />}
+              {!hasExposedOutput && <CompositeIoGhostSlot direction="output" />}
             </ReactFlow>
           </div>
           {selectedNode != null && (

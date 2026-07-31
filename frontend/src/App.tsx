@@ -7,7 +7,7 @@ import {
   DEFAULT_SUPER_ADMIN_PATH,
   superAdminNavItems,
 } from "@/components/layout/app/routes";
-import { Dashboard } from "@/components/dashboard/dashboard";
+import { Dashboard } from "@/components/editor/dashboard";
 import { CreatorShell } from "@/components/creator";
 import AdminSectionPage from "@/pages/admin/AdminSectionPage";
 import AccountProfile from "@/pages/account/AccountProfile";

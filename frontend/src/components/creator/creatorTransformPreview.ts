@@ -46,7 +46,8 @@ export function buildPrimitivePreviewGraph(params: number[]): CompiledGraph {
     transformId: PRIMITIVE_PREVIEW_NODE_ID,
     params,
     inputs: [[{ kind: "raw" }]],
-    outputBufferIndex: -1, // sink — writes straight to worklet output
+    outputBufferIndex: -1, // no forward/back edges — no buffer needed
+    writesToOutput: true, // always-terminal preview node — writes straight to worklet output
   };
   return {
     executionOrder: [node],
