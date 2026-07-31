@@ -52,7 +52,9 @@ interface CreatorState {
   cancelPendingTransformAction: () => void;
 }
 
-const isSourceDirty = (editing: EditingTransformSource | null) =>
+// Exported so the unsaved-changes modal can derive the same "is the code
+// editor's buffer actually dirty" check without duplicating the comparison.
+export const isSourceDirty = (editing: EditingTransformSource | null) =>
   editing != null && editing.source !== editing.originalSource;
 
 export const useCreatorStore = create<CreatorState>()(

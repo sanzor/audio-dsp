@@ -16,7 +16,8 @@ import { useCompositeCanvasStore, type CanvasNode } from "@/Stores/CompositeCanv
 import { useGetTransformDefinition, useResolveTransformDefinitions } from "@/hooks/transforms/queries";
 import { useSaveCompositeTransform, usePublishTransform } from "@/hooks/transforms/mutations";
 import { useTransformStore } from "@/Stores/TransformStore";
-import { apiGetPublishPortShapeDiff, type PortShapeSummary } from "@/Services/TransformService";
+import { usePublishWithPortShapeDiff } from "../usePublishWithPortShapeDiff";
+import { ToolbarButton } from "../toolbar-button";
 import { CompositePalette } from "./composite-palette";
 import { computeNodeDisableSafety, type NodeDisableSafety } from "./compositeReachability";
 import { NODE_TYPES, type CompositeNodeData } from "./composite-canvas-node";
@@ -58,6 +59,7 @@ function CompositeCanvasInner() {
   const saveMutation = useSaveCompositeTransform(selectedId ?? -1);
   const publishMutation = usePublishTransform(selectedId ?? -1);
   const { togglePreview, isPreviewingThis, isLoading: previewLoading } = useCompositePreviewControls(selectedId ?? -1);
+  const { handlePublish } = usePublishWithPortShapeDiff(selectedId, publishMutation);
 
   // (Re)initialize the editing graph whenever a different composite is
   // selected — simple left-to-right auto-layout since node position isn't
@@ -239,27 +241,6 @@ function CompositeCanvasInner() {
     saveMutation.mutate(toGraphDefinition(), { onSuccess: () => markSaved() });
   }
 
-  async function handlePublish() {
-    if (selectedId == null) return;
-    try {
-      const diff = await apiGetPublishPortShapeDiff(selectedId);
-      if (diff.changed) {
-        const describe = (ports: PortShapeSummary[]) =>
-          ports.length === 0 ? "(none)" : ports.map((p) => `${p.name} [${p.direction}, ${p.kind}/${p.cardinality}]`).join(", ");
-        const proceed = window.confirm(
-          "This transform's port shape has changed since it was last published.\n\n" +
-            `Currently published: ${describe(diff.current)}\n` +
-            `About to publish: ${describe(diff.incoming)}\n\n` +
-            "Editor graphs already wired to the old shape will fail closed rather than silently misrouting audio, but they will need to be re-wired. Publish anyway?"
-        );
-        if (!proceed) return;
-      }
-    } catch {
-      // Advisory only.
-    }
-    publishMutation.mutate();
-  }
-
   return (
     <div className="flex h-full min-h-0">
       <CompositePalette />
@@ -268,35 +249,24 @@ function CompositeCanvasInner() {
           className="flex items-center justify-end gap-2 px-3 h-8 flex-shrink-0"
           style={{ borderBottom: "1px solid rgba(255,255,255,0.06)", backgroundColor: "var(--bg-darker)" }}
         >
-          <button
+          <ToolbarButton
+            variant={isPreviewingThis ? "stop" : "play"}
             onClick={togglePreview}
             disabled={editingGraph.nodes.size === 0}
-            className="font-mono font-bold px-2.5 py-0.5 rounded text-[10px]"
-            style={{
-              color: isPreviewingThis ? "#ff6b6b" : "#4ae176",
-              border: `1px solid ${isPreviewingThis ? "rgba(255,107,107,0.4)" : "rgba(74,225,118,0.4)"}`,
-              opacity: editingGraph.nodes.size === 0 ? 0.5 : 1,
-            }}
           >
             {previewLoading ? "Loading…" : isPreviewingThis ? "Stop" : "Play"}
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={!isDirty || saveMutation.isPending}
-            className="font-mono font-bold px-2.5 py-0.5 rounded text-[10px]"
-            style={{ color: "#4ae176", border: "1px solid rgba(74,225,118,0.4)", opacity: !isDirty || saveMutation.isPending ? 0.5 : 1 }}
-          >
+          </ToolbarButton>
+          <ToolbarButton variant="save" onClick={handleSave} disabled={!isDirty || saveMutation.isPending}>
             {saveMutation.isPending ? "Saving…" : "Save"}
-          </button>
-          <button
+          </ToolbarButton>
+          <ToolbarButton
+            variant="publish"
             onClick={handlePublish}
             disabled={publishMutation.isPending}
             title={publishMutation.error?.message ?? saveMutation.error?.message}
-            className="font-mono font-bold px-2.5 py-0.5 rounded text-[10px]"
-            style={{ color: "#f472b6", border: "1px solid rgba(244,114,182,0.4)", opacity: publishMutation.isPending ? 0.5 : 1 }}
           >
             {publishMutation.isPending ? "Publishing…" : "Publish"}
-          </button>
+          </ToolbarButton>
           {(saveMutation.isError || publishMutation.isError) && (
             <span className="font-mono text-[10px] max-w-[240px] truncate" style={{ color: "#ff6b6b" }}>
               {(saveMutation.error as Error | null)?.message ?? (publishMutation.error as Error | null)?.message}

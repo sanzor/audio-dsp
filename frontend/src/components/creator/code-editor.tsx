@@ -6,9 +6,11 @@ import { useGetTransformDefinition } from "@/hooks/transforms/queries";
 import { useCompileTicketStatus } from "@/hooks/tickets/queries";
 import { useRequestCompileTransform } from "@/hooks/tickets/mutations";
 import { useSaveTransform, usePublishTransform } from "@/hooks/transforms/mutations";
-import { apiGetPublishPortShapeDiff, decodeBase64Binary, type PortShapeSummary } from "@/Services/TransformService";
+import { decodeBase64Binary } from "@/Services/TransformService";
 import { buildPrimitivePreviewGraph, PRIMITIVE_PREVIEW_NODE_ID } from "./creatorTransformPreview";
 import { validateTransformSource } from "./validateTransformSource";
+import { usePublishWithPortShapeDiff } from "./usePublishWithPortShapeDiff";
+import { ToolbarButton } from "./toolbar-button";
 
 // The "Try it" client-side preview (creatorTransformPreview.ts) runs a
 // just-compiled binary through CreatorPreviewStore, fed by the wasm_base64/
@@ -169,34 +171,7 @@ export function CreatorCodeEditor() {
     );
   }
 
-  // Republish port-shape warning: an advisory, non-blocking pre-check.
-  // Never blocks Publish itself — if the check request fails, we proceed as
-  // if nothing changed rather than leaving the creator stuck. See
-  // agents/decisions/0004-multi-input-named-ports.md.
-  async function handlePublish() {
-    if (selectedId == null) return;
-
-    try {
-      const diff = await apiGetPublishPortShapeDiff(selectedId);
-      if (diff.changed) {
-        const describe = (ports: PortShapeSummary[]) =>
-          ports.length === 0
-            ? "(none)"
-            : ports.map((p) => `${p.name} [${p.direction}, ${p.kind}/${p.cardinality}]`).join(", ");
-        const proceed = window.confirm(
-          "This transform's port shape has changed since it was last published.\n\n" +
-            `Currently published: ${describe(diff.current)}\n` +
-            `About to publish: ${describe(diff.incoming)}\n\n` +
-            "Editor graphs already wired to the old shape will fail closed with a visible error rather than silently misrouting audio, but they will need to be re-wired. Publish anyway?"
-        );
-        if (!proceed) return;
-      }
-    } catch {
-      // Advisory only — never block the actual publish on this check failing.
-    }
-
-    publishMutation.mutate();
-  }
+  const { handlePublish } = usePublishWithPortShapeDiff(selectedId, publishMutation);
 
   const tabs: FileTab[] = [
     { id: "impl", name: definition ? `${definition.name}.rs` : "untitled.rs", language: "rust" },
@@ -255,30 +230,22 @@ export function CreatorCodeEditor() {
           )}
           {buildState === "successful" && (
             <>
-              <button
+              <ToolbarButton
+                variant={isPreviewingThis ? "stop" : "play"}
                 onClick={handleTogglePreview}
                 disabled={selectedId == null || (!isPreviewingThis && !canStartPreview)}
                 title={!canStartPreview && !isPreviewingThis ? "Recompile the current source to preview it" : undefined}
-                className="font-mono font-bold px-2.5 py-0.5 rounded text-[10px] transition-colors"
-                style={{
-                  color: isPreviewingThis ? "#ff6b6b" : "#4ae176",
-                  border: `1px solid ${isPreviewingThis ? "rgba(255,107,107,0.4)" : "rgba(74,225,118,0.4)"}`,
-                  opacity: selectedId == null || (!isPreviewingThis && !canStartPreview) ? 0.5 : 1,
-                }}
               >
                 {previewLoadingThis ? "Loading…" : isPreviewingThis ? "Stop" : "Play"}
-              </button>
+              </ToolbarButton>
               {isPreviewingThis && (
-                <button
+                <ToolbarButton
+                  variant="bypass"
                   onClick={() => setPreviewBypass(!previewBypassed)}
-                  className="font-mono font-bold px-2.5 py-0.5 rounded text-[10px] transition-colors"
-                  style={{
-                    color: previewBypassed ? "var(--text-muted)" : "#adc6ff",
-                    border: "1px solid rgba(173,198,255,0.4)",
-                  }}
+                  muted={previewBypassed}
                 >
                   {previewBypassed ? "Bypassed" : "Bypass"}
-                </button>
+                </ToolbarButton>
               )}
             </>
           )}
@@ -292,44 +259,29 @@ export function CreatorCodeEditor() {
               Failed{buildMessage ? `: ${buildMessage}` : ""}
             </button>
           )}
-          <button
+          <ToolbarButton
+            variant="save"
             onClick={handleSave}
             disabled={selectedId == null || !isDirty || saveMutation.isPending}
-            className="font-mono font-bold px-2.5 py-0.5 rounded text-[10px] transition-colors"
-            style={{
-              color: "#4ae176",
-              border: "1px solid rgba(74,225,118,0.4)",
-              opacity: selectedId == null || !isDirty || saveMutation.isPending ? 0.5 : 1,
-            }}
           >
             {saveMutation.isPending ? "Saving…" : "Save"}
-          </button>
-          <button
+          </ToolbarButton>
+          <ToolbarButton
+            variant="compile"
             onClick={handleCompile}
             disabled={selectedId == null || !validation.ok || isCompiling}
             title={!validation.ok ? validation.issues.join(" ") : undefined}
-            className="font-mono font-bold px-2.5 py-0.5 rounded text-[10px] transition-colors"
-            style={{
-              color: "#adc6ff",
-              border: "1px solid rgba(173,198,255,0.4)",
-              opacity: selectedId == null || !validation.ok || isCompiling ? 0.5 : 1,
-            }}
           >
             Compile
-          </button>
-          <button
+          </ToolbarButton>
+          <ToolbarButton
+            variant="publish"
             onClick={handlePublish}
             disabled={selectedId == null || publishMutation.isPending}
             title={publishMutation.error?.message}
-            className="font-mono font-bold px-2.5 py-0.5 rounded text-[10px] transition-colors"
-            style={{
-              color: "#f472b6",
-              border: "1px solid rgba(244,114,182,0.4)",
-              opacity: selectedId == null || publishMutation.isPending ? 0.5 : 1,
-            }}
           >
             {publishMutation.isPending ? "Publishing…" : "Publish"}
-          </button>
+          </ToolbarButton>
           {publishMutation.isError && (
             <span
               className="font-mono text-[10px] max-w-[240px] truncate"

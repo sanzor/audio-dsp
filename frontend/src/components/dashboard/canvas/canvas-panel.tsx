@@ -12,7 +12,7 @@ import ReactFlow, {
   type Connection,
   type NodeChange,
 } from "reactflow";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import "reactflow/dist/style.css";
 import { useUIStore } from "@/Stores/UIStore";
 import { useGraphStore } from "@/Stores/GraphStore";
@@ -31,14 +31,13 @@ import { apiGetTransformDefinition } from "@/Services/TransformService";
 import { useGraphCompiler } from "@/audio/hooks/useGraphCompiler";
 import { useWorklet as useWorklet } from "@/audio/hooks/useWorklet";
 import { CompileOutputModal } from "./compile-output-modal";
-import { SaveCompileStatusOverlay, type SaveCompileStatusState } from "./save-compile-status-overlay";
+import { SaveCompileStatusOverlay } from "./save-compile-status-overlay";
 import { useCanDropTransform } from "./useCanDropTransform";
 import { RuntimeStatusOverlay } from "./runtime-status-overlay";
-import { useAudioEffectsStore } from "@/Stores/AudioEffectsStore";
+import { useSaveCompileFlow } from "./useSaveCompileFlow";
 
 
 const NODE_TYPES = { source: SourceNode, sink: SinkNode };
-const COMPILE_AFTER_SAVE_TIMEOUT_MS = 8000;
 
 function defaultParamsForTransform(transform?: TransformDefinition) {
   if (!transform) return {};
@@ -64,14 +63,6 @@ function nextTempIdSeed(graph?: { nodes: Array<{ id: number }>; edges: Array<{ i
 function CanvasInner({ graphId, graph }: { graphId: number | undefined; graph: Graph | undefined }) {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-  const [saveProgress, setSaveProgress] = useState(0);
-  const [saveState, setSaveState] = useState<"hidden" | "saving" | "success" | "error">("hidden");
-  const [saveCompileState, setSaveCompileState] = useState<SaveCompileStatusState>("hidden");
-  const [saveCompileMessage, setSaveCompileMessage] = useState<string | null>(null);
-  const saveProgressTimerRef = useRef<number | null>(null);
-  const saveHideTimerRef = useRef<number | null>(null);
-  const compileWaitTimerRef = useRef<number | null>(null);
-  const awaitingCompileAfterSaveRef = useRef(false);
   const nextCanvasTempIdRef = useRef(-1);
 
   const onNodesChangeSafe = useCallback(
@@ -90,7 +81,6 @@ function CanvasInner({ graphId, graph }: { graphId: number | undefined; graph: G
 
   const {summaries,definitions,upsertDefinition}=useTransformStore();
   const  {effectsEnabled,setEffectsEnabled,graphPlaybackState }=useWorkletStore();
-  const {runtimeStatus,runtimeMessage}=useAudioEffectsStore();
 
   const graphController = useGraphController();
   const isGraphLive = graphId != null && effectsEnabled;
@@ -100,27 +90,6 @@ function CanvasInner({ graphId, graph }: { graphId: number | undefined; graph: G
     if (!nodeDetailsModalState?.nodeId) return null;
     return nodes.find((node) => (node.data.nodeId as number | undefined) === nodeDetailsModalState.nodeId) ?? null;
   }, [nodeDetailsModalState, nodes]);
-
-  const clearSaveTimers = useCallback(() => {
-    if (saveProgressTimerRef.current != null) {
-      window.clearInterval(saveProgressTimerRef.current);
-      saveProgressTimerRef.current = null;
-    }
-    if (saveHideTimerRef.current != null) {
-      window.clearTimeout(saveHideTimerRef.current);
-      saveHideTimerRef.current = null;
-    }
-  }, []);
-
-  const clearCompileWaitTimer = useCallback(() => {
-    if (compileWaitTimerRef.current != null) {
-      window.clearTimeout(compileWaitTimerRef.current);
-      compileWaitTimerRef.current = null;
-    }
-  }, []);
-
-  useEffect(() => clearSaveTimers, [clearSaveTimers]);
-  useEffect(() => clearCompileWaitTimer, [clearCompileWaitTimer]);
 
   const nextCanvasTempId = useCallback(() => {
     const id = nextCanvasTempIdRef.current;
@@ -294,98 +263,14 @@ function CanvasInner({ graphId, graph }: { graphId: number | undefined; graph: G
   const { compileNow } = useGraphCompiler(graphId, nodes, edges);
   const { uploadToWorklet, canUploadToWorklet} = useWorklet();
 
-  useEffect(() => {
-    if (!awaitingCompileAfterSaveRef.current) {
-      if (saveCompileState === "error" && graphPlaybackState.compiled) {
-        setSaveCompileState("hidden");
-        setSaveCompileMessage(null);
-      }
-      return;
-    }
-
-    if (graphPlaybackState.compiled) {
-      awaitingCompileAfterSaveRef.current = false;
-      clearCompileWaitTimer();
-      setSaveCompileState("hidden");
-      setSaveCompileMessage(null);
-      return;
-    }
-
-    if (runtimeStatus === "hydrating") {
-      setSaveCompileState("waiting");
-      setSaveCompileMessage(runtimeMessage ?? "Fetching transform binaries...");
-      return;
-    }
-
-    if (runtimeStatus === "error") {
-      awaitingCompileAfterSaveRef.current = false;
-      clearCompileWaitTimer();
-      setSaveCompileState("error");
-      setSaveCompileMessage(runtimeMessage ?? "Compile failed after save.");
-      return;
-    }
-
-    if (runtimeStatus === "idle") {
-      awaitingCompileAfterSaveRef.current = false;
-      clearCompileWaitTimer();
-      setSaveCompileState("error");
-      setSaveCompileMessage(runtimeMessage ?? "Compile did not produce a runnable graph.");
-    }
-  }, [
-    clearCompileWaitTimer,
-    graphPlaybackState.compiled,
-    runtimeMessage,
-    runtimeStatus,
-    saveCompileState,
-  ]);
-
-  const handleSave = useCallback(async (nodesOverride?: Node[]) => {
-    if (graphId == null || saveState === "saving") return;
-
-    clearSaveTimers();
-    setSaveState("saving");
-    setSaveProgress(8);
-    saveProgressTimerRef.current = window.setInterval(() => {
-      setSaveProgress((current) => {
-        const remaining = 94 - current;
-        if (remaining <= 0) return current;
-        return current + Math.max(1, remaining * 0.18);
-      });
-    }, 140);
-
-    try {
-      await graphController.handleSaveGraph(graphId, nodesOverride ?? nodes, edges);
-      awaitingCompileAfterSaveRef.current = true;
-      clearCompileWaitTimer();
-      setSaveCompileState("waiting");
-      setSaveCompileMessage("Checking saved graph...");
-      var compileResult=compileNow(nodesOverride);
-      compileWaitTimerRef.current = window.setTimeout(() => {
-        if (!awaitingCompileAfterSaveRef.current) return;
-        awaitingCompileAfterSaveRef.current = false;
-        setSaveCompileState("error");
-        setSaveCompileMessage("Compile timed out while waiting for transform binaries.");
-      }, COMPILE_AFTER_SAVE_TIMEOUT_MS);
-      clearSaveTimers();
-      setSaveState("success");
-      setSaveProgress(100);
-      saveHideTimerRef.current = window.setTimeout(() => {
-        setSaveState("hidden");
-        setSaveProgress(0);
-        saveHideTimerRef.current = null;
-      }, 550);
-    } catch (error) {
-      clearSaveTimers();
-      setSaveState("error");
-      setSaveProgress(100);
-      saveHideTimerRef.current = window.setTimeout(() => {
-        setSaveState("hidden");
-        setSaveProgress(0);
-        saveHideTimerRef.current = null;
-      }, 1800);
-      throw error;
-    }
-  }, [graphId, nodes, edges, graphController, saveState, clearCompileWaitTimer, clearSaveTimers, compileNow]);
+  const { saveState, saveProgress, saveCompileState, saveCompileMessage, handleSave } = useSaveCompileFlow({
+    graphId,
+    nodes,
+    edges,
+    handleSaveGraph: graphController.handleSaveGraph,
+    compileNow,
+    compiled: graphPlaybackState.compiled,
+  });
 
   const handleFitView = useCallback(() => {
     fitView({ padding: 0.2 });

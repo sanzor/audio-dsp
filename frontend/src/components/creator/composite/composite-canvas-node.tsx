@@ -2,12 +2,12 @@
 // component itself (react-flow's nodeTypes pattern) — not component-only,
 // so Fast Refresh can't isolate it.
 /* eslint-disable react-refresh/only-export-components */
-import { Handle, Position, type NodeProps } from "reactflow";
+import { type NodeProps } from "reactflow";
 import { useCompositeCanvasStore } from "@/Stores/CompositeCanvasStore";
 import { useTransformStore } from "@/Stores/TransformStore";
 import type { NodeDisableSafety } from "./compositeReachability";
-
-const ROW_HEIGHT = 28;
+import { NodeHeader, SAFETY_COLOR } from "./composite-node-header";
+import { PortColumn, ROW_HEIGHT } from "./composite-node-ports";
 
 // ─── Node ─────────────────────────────────────────────────────────────────────
 // Generalizes canvas.tsx's TransformPreviewNode: multiple instances, real
@@ -20,22 +20,6 @@ export interface CompositeNodeData {
   disabled: boolean;
   safety: NodeDisableSafety;
 }
-
-// Three-state border/dot color for the enable/disable control (Phase 3):
-// safe-to-disable (green) / load-bearing (amber — disabling breaks
-// connectivity from an exposed input to an exposed output) / currently
-// disabled (dim gray). Independent of node selection highlighting.
-const SAFETY_COLOR: Record<NodeDisableSafety, string> = {
-  safe: "#4ae176",
-  "load-bearing": "#ffd166",
-  disabled: "#6b7280",
-};
-
-const SAFETY_LABEL: Record<NodeDisableSafety, string> = {
-  safe: "Safe to disable — no exposed input/output path depends on this node",
-  "load-bearing": "Disabling this node would break connectivity from an exposed input to an exposed output",
-  disabled: "Currently disabled — excluded from Save/Publish and Preview/Play",
-};
 
 function CompositeTransformNode({ data }: NodeProps<CompositeNodeData>) {
   // Reads from the cache useResolveTransformDefinitions (in the parent
@@ -72,80 +56,16 @@ function CompositeTransformNode({ data }: NodeProps<CompositeNodeData>) {
         cursor: "pointer",
       }}
     >
-      <div
-        style={{
-          padding: "6px 10px",
-          borderBottom: "1px solid rgba(255,255,255,0.08)",
-          fontSize: 11,
-          fontFamily: "JetBrains Mono, monospace",
-          color: "#adc6ff",
-          fontWeight: 700,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          flexShrink: 0,
-          gap: 6,
-        }}
-      >
-        <span className="truncate" style={{ flex: 1, minWidth: 0 }}>
-          {definition?.name ?? `#${data.nodeId}`}
-        </span>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            toggleNodeDisabled(data.nodeId);
-          }}
-          title={SAFETY_LABEL[data.safety]}
-          style={{
-            width: 9,
-            height: 9,
-            borderRadius: "50%",
-            backgroundColor: SAFETY_COLOR[data.safety],
-            border: "none",
-            cursor: "pointer",
-            padding: 0,
-            flexShrink: 0,
-          }}
-        />
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            removeNode(data.nodeId);
-          }}
-          style={{ color: "#ff6b6b", background: "none", border: "none", cursor: "pointer", fontSize: 12, flexShrink: 0 }}
-          title="Remove from composite"
-        >
-          ×
-        </button>
-      </div>
+      <NodeHeader
+        title={definition?.name ?? `#${data.nodeId}`}
+        safety={data.safety}
+        onToggleDisabled={() => toggleNodeDisabled(data.nodeId)}
+        onRemove={() => removeNode(data.nodeId)}
+      />
 
       <div style={{ flex: 1, display: "flex", position: "relative" }}>
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", paddingTop: 4 }}>
-          {inputs.map((port) => (
-            <div key={port.name} style={{ height: ROW_HEIGHT, display: "flex", alignItems: "center", paddingLeft: 14, position: "relative" }}>
-              <Handle
-                type="target"
-                position={Position.Left}
-                id={`in-${port.name}`}
-                style={{ left: -1, top: "50%", transform: "translateY(-50%)", width: 8, height: 8, backgroundColor: "#adc6ff", border: "none" }}
-              />
-              <span style={{ fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "#adc6ff", opacity: 0.8 }}>{port.name}</span>
-            </div>
-          ))}
-        </div>
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", paddingTop: 4 }}>
-          {outputs.map((port) => (
-            <div key={port.name} style={{ height: ROW_HEIGHT, display: "flex", alignItems: "center", justifyContent: "flex-end", paddingRight: 14, position: "relative" }}>
-              <span style={{ fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "#4ae176", opacity: 0.8 }}>{port.name}</span>
-              <Handle
-                type="source"
-                position={Position.Right}
-                id={`out-${port.name}`}
-                style={{ right: -1, top: "50%", transform: "translateY(-50%)", width: 8, height: 8, backgroundColor: "#4ae176", border: "none" }}
-              />
-            </div>
-          ))}
-        </div>
+        <PortColumn direction="input" ports={inputs} />
+        <PortColumn direction="output" ports={outputs} />
       </div>
     </div>
   );
