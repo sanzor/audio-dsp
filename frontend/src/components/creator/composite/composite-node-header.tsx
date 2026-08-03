@@ -21,10 +21,9 @@ interface NodeHeaderProps {
   title: string;
   safety: NodeDisableSafety;
   onToggleDisabled: () => void;
-  onRemove: () => void;
 }
 
-export function NodeHeader({ title, safety, onToggleDisabled, onRemove }: NodeHeaderProps) {
+export function NodeHeader({ title, safety, onToggleDisabled }: NodeHeaderProps) {
   return (
     <div
       style={{
@@ -61,16 +60,6 @@ export function NodeHeader({ title, safety, onToggleDisabled, onRemove }: NodeHe
           flexShrink: 0,
         }}
       />
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onRemove();
-        }}
-        style={{ color: creatorToolbarColors.red.color, background: "none", border: "none", cursor: "pointer", fontSize: 12, flexShrink: 0 }}
-        title="Remove from composite"
-      >
-        ×
-      </button>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useCompositeCanvasStore } from "@/Stores/CompositeCanvasStore";
+import { useCompositeCanvasStore, type CanvasLeafNode } from "@/Stores/CompositeCanvasStore";
 import { useCreatorPreviewStore } from "@/Stores/CreatorPreviewStore";
 import { useTransformStore } from "@/Stores/TransformStore";
 import { apiGetTransformBinaries } from "@/Services/TransformService";
@@ -27,10 +27,17 @@ export function useCompositePreviewControls(transformId: number) {
     // Phase 3: disabled nodes and their incident edges are excluded from the
     // Preview/Play compile — same filtering toGraphDefinition() applies for
     // Save (see CompositeCanvasStore.ts) — so Play always reflects exactly
-    // what's currently enabled on the canvas.
-    const nodes = [...editingGraph.nodes.values()].filter((n) => !editingGraph.disabledNodes.has(n.node_id));
+    // what's currently enabled on the canvas. Input/Output boundary nodes are
+    // also excluded here — they're pure wiring placeholders with no
+    // transform_binary, so GraphCompiler (which only knows how to compile
+    // real transform nodes) never sees them; any edge touching one drops out
+    // along with it via the enabledIds filter below.
+    const nodes = [...editingGraph.nodes.values()].filter(
+      (n): n is CanvasLeafNode => n.node_kind === "leaf" && !editingGraph.disabledNodes.has(n.node_id)
+    );
     if (nodes.length === 0) return;
     const enabledIds = new Set(nodes.map((n) => n.node_id));
+    const enabledLeafById = new Map(nodes.map((n) => [n.node_id, n]));
     const edges = [...editingGraph.edges.values()].filter(
       (e) => enabledIds.has(e.from_node_id) && enabledIds.has(e.to_node_id)
     );
@@ -49,7 +56,7 @@ export function useCompositePreviewControls(transformId: number) {
       ),
       edges: new Map(
         edges.map((e, i) => {
-          const toTransformId = editingGraph.nodes.get(e.to_node_id)?.transform_id;
+          const toTransformId = enabledLeafById.get(e.to_node_id)?.transform_id;
           return [
             i,
             {

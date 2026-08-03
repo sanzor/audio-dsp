@@ -24,11 +24,11 @@ export type IoDirection = "input" | "output";
 const COPY: Record<IoDirection, { label: string; hint: string }> = {
   input: {
     label: "INPUT",
-    hint: "Drag a transform in, then expose one of its input ports here to create this composite's input.",
+    hint: "Drag an Input block from the palette onto the canvas to create this composite's input.",
   },
   output: {
     label: "OUTPUT",
-    hint: "Drag a transform in, then expose one of its output ports here to create this composite's output.",
+    hint: "Drag an Output block from the palette onto the canvas to create this composite's output.",
   },
 };
 

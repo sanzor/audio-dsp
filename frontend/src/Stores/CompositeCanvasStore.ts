@@ -1,36 +1,64 @@
 import { create } from "zustand";
 import type {
   CompositeEdge,
-  CompositeExposedPort,
   CompositeGraphDefinition,
+  CompositeNode,
 } from "@/domain/Transform/CompositeGraphDefinition";
 
 // The in-progress composite-transform wiring graph being authored on the
 // Creator's composite canvas. Kept as its own store rather than folded into
-// CreatorStore.ts — this shape (nodes/edges/exposed-ports maps) doesn't fit
-// anything already there, unlike editingTransformSource's single string.
+// CreatorStore.ts — this shape (nodes/edges maps) doesn't fit anything
+// already there, unlike editingTransformSource's single string.
 //
 // Node position is purely a canvas-local, client-side concern — the backend
 // (CompositeGraphSnapshot) has no position field, so it's never persisted.
 // Reopening a saved composite re-lays-out nodes deterministically (see
 // composite-canvas.tsx); dragging within a session is free-form.
 
-export interface CanvasNode {
+export interface CanvasLeafNode {
   node_id: number;
+  node_kind: "leaf";
   transform_id: number;
   position: { x: number; y: number };
 }
 
+export interface CanvasIoNode {
+  node_id: number;
+  node_kind: "input" | "output";
+  name: string;
+  position: { x: number; y: number };
+}
+
+// A composite's externally-visible ports are derived from Input/Output
+// nodes wired into the graph (see CompositeGraphDefinition.ts) — so
+// CanvasNode is a union just like the wire-format CompositeNode, both
+// leaf and IO nodes living in the same `nodes` map.
+export type CanvasNode = CanvasLeafNode | CanvasIoNode;
+
 const edgeKey = (e: Pick<CompositeEdge, "from_node_id" | "from_port" | "to_node_id" | "to_port">) =>
   `${e.from_node_id}:${e.from_port}->${e.to_node_id}:${e.to_port}`;
 
-const exposedKey = (nodeId: number, portName: string) => `${nodeId}:${portName}`;
+// Default names for freshly-dropped IO nodes are generated as
+// `${direction}_${n}`, unique across every Input/Output node's name in the
+// graph (both directions share one namespace — see CompositeIoNode.name's
+// doc comment in CompositeGraphDefinition.ts).
+function nextIoName(graph: EditingCompositeGraph, direction: "input" | "output"): string {
+  const existingNames = new Set(
+    [...graph.nodes.values()].filter((n): n is CanvasIoNode => n.node_kind !== "leaf").map((n) => n.name)
+  );
+  let i = 1;
+  let candidate = `${direction}_${i}`;
+  while (existingNames.has(candidate)) {
+    i += 1;
+    candidate = `${direction}_${i}`;
+  }
+  return candidate;
+}
 
 export interface EditingCompositeGraph {
   transformId: number;
   nodes: Map<number, CanvasNode>;
   edges: Map<string, CompositeEdge>;
-  exposedPorts: Map<string, CompositeExposedPort>;
   // Session-only "temporarily excluded from the compiled graph" flag — no
   // backend concept, no field on CompositeNode/CompositeGraphDefinition (see
   // agents/decisions/0005-composite-node-inspector.md). Reset whenever a
@@ -59,12 +87,12 @@ interface CompositeCanvasState {
     positions: Map<number, { x: number; y: number }>
   ) => void;
   addNode: (transformId: number, position: { x: number; y: number }) => number;
+  addIoNode: (direction: "input" | "output", position: { x: number; y: number }) => number;
+  renameIoNode: (nodeId: number, name: string) => void;
   removeNode: (nodeId: number) => void;
   moveNode: (nodeId: number, position: { x: number; y: number }) => void;
   addEdge: (edge: CompositeEdge) => void;
   removeEdge: (edge: Pick<CompositeEdge, "from_node_id" | "from_port" | "to_node_id" | "to_port">) => void;
-  setExposedPort: (nodeId: number, portName: string, exposedName: string) => void;
-  clearExposedPort: (nodeId: number, portName: string) => void;
   selectNode: (nodeId: number | null) => void;
   toggleNodeDisabled: (nodeId: number) => void;
   markSaved: () => void;
@@ -85,27 +113,23 @@ export const useCompositeCanvasStore = create<CompositeCanvasState>()((set, get)
     const nodes = new Map<number, CanvasNode>();
     let maxNodeId = 0;
     for (const n of initial?.nodes ?? []) {
-      nodes.set(n.node_id, {
-        node_id: n.node_id,
-        transform_id: n.transform_id,
-        position: positions.get(n.node_id) ?? { x: 0, y: 0 },
-      });
+      const position = positions.get(n.node_id) ?? { x: 0, y: 0 };
+      if (n.node_kind === "leaf") {
+        nodes.set(n.node_id, { node_id: n.node_id, node_kind: "leaf", transform_id: n.transform_id, position });
+      } else {
+        nodes.set(n.node_id, { node_id: n.node_id, node_kind: n.node_kind, name: n.name, position });
+      }
       maxNodeId = Math.max(maxNodeId, n.node_id);
     }
     const edges = new Map<string, CompositeEdge>();
     for (const e of initial?.edges ?? []) {
       edges.set(edgeKey(e), e);
     }
-    const exposedPorts = new Map<string, CompositeExposedPort>();
-    for (const p of initial?.exposed_ports ?? []) {
-      exposedPorts.set(exposedKey(p.node_id, p.port_name), p);
-    }
     set({
       editingGraph: {
         transformId,
         nodes,
         edges,
-        exposedPorts,
         disabledNodes: new Set(),
         nextNodeId: maxNodeId + 1,
         revision: 0,
@@ -120,9 +144,38 @@ export const useCompositeCanvasStore = create<CompositeCanvasState>()((set, get)
     if (!graph) return -1;
     const nodeId = graph.nextNodeId;
     const nodes = new Map(graph.nodes);
-    nodes.set(nodeId, { node_id: nodeId, transform_id: transformId, position });
+    nodes.set(nodeId, { node_id: nodeId, node_kind: "leaf", transform_id: transformId, position });
     set({ editingGraph: { ...graph, nodes, nextNodeId: nodeId + 1, ...bump(graph) } });
     return nodeId;
+  },
+
+  addIoNode: (direction, position) => {
+    const graph = get().editingGraph;
+    if (!graph) return -1;
+    const nodeId = graph.nextNodeId;
+    const name = nextIoName(graph, direction);
+    const nodes = new Map(graph.nodes);
+    nodes.set(nodeId, { node_id: nodeId, node_kind: direction, name, position });
+    set({ editingGraph: { ...graph, nodes, nextNodeId: nodeId + 1, ...bump(graph) } });
+    return nodeId;
+  },
+
+  renameIoNode: (nodeId, name) => {
+    const graph = get().editingGraph;
+    if (!graph) return;
+    const node = graph.nodes.get(nodeId);
+    if (!node || node.node_kind === "leaf") return;
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const existingNames = new Set(
+      [...graph.nodes.values()]
+        .filter((n): n is CanvasIoNode => n.node_kind !== "leaf" && n.node_id !== nodeId)
+        .map((n) => n.name)
+    );
+    if (existingNames.has(trimmed)) return;
+    const nodes = new Map(graph.nodes);
+    nodes.set(nodeId, { ...node, name: trimmed });
+    set({ editingGraph: { ...graph, nodes, ...bump(graph) } });
   },
 
   removeNode: (nodeId) => {
@@ -133,11 +186,10 @@ export const useCompositeCanvasStore = create<CompositeCanvasState>()((set, get)
     const edges = new Map(
       [...graph.edges].filter(([, e]) => e.from_node_id !== nodeId && e.to_node_id !== nodeId)
     );
-    const exposedPorts = new Map([...graph.exposedPorts].filter(([, p]) => p.node_id !== nodeId));
     const disabledNodes = new Set(graph.disabledNodes);
     disabledNodes.delete(nodeId);
     set((state) => ({
-      editingGraph: { ...graph, nodes, edges, exposedPorts, disabledNodes, ...bump(graph) },
+      editingGraph: { ...graph, nodes, edges, disabledNodes, ...bump(graph) },
       selectedNodeId: state.selectedNodeId === nodeId ? null : state.selectedNodeId,
     }));
   },
@@ -161,12 +213,7 @@ export const useCompositeCanvasStore = create<CompositeCanvasState>()((set, get)
     if (!graph) return;
     const edges = new Map(graph.edges);
     edges.set(edgeKey(edge), edge);
-    // An edge can't simultaneously be exposed — connecting a previously
-    // dangling/exposed port disconnects its exposure.
-    const exposedPorts = new Map(graph.exposedPorts);
-    exposedPorts.delete(exposedKey(edge.from_node_id, edge.from_port));
-    exposedPorts.delete(exposedKey(edge.to_node_id, edge.to_port));
-    set({ editingGraph: { ...graph, edges, exposedPorts, ...bump(graph) } });
+    set({ editingGraph: { ...graph, edges, ...bump(graph) } });
   },
 
   removeEdge: (edge) => {
@@ -175,22 +222,6 @@ export const useCompositeCanvasStore = create<CompositeCanvasState>()((set, get)
     const edges = new Map(graph.edges);
     edges.delete(edgeKey(edge));
     set({ editingGraph: { ...graph, edges, ...bump(graph) } });
-  },
-
-  setExposedPort: (nodeId, portName, exposedName) => {
-    const graph = get().editingGraph;
-    if (!graph) return;
-    const exposedPorts = new Map(graph.exposedPorts);
-    exposedPorts.set(exposedKey(nodeId, portName), { node_id: nodeId, port_name: portName, exposed_name: exposedName });
-    set({ editingGraph: { ...graph, exposedPorts, ...bump(graph) } });
-  },
-
-  clearExposedPort: (nodeId, portName) => {
-    const graph = get().editingGraph;
-    if (!graph) return;
-    const exposedPorts = new Map(graph.exposedPorts);
-    exposedPorts.delete(exposedKey(nodeId, portName));
-    set({ editingGraph: { ...graph, exposedPorts, ...bump(graph) } });
   },
 
   selectNode: (nodeId) => set({ selectedNodeId: nodeId }),
@@ -219,19 +250,23 @@ export const useCompositeCanvasStore = create<CompositeCanvasState>()((set, get)
     return graph != null && graph.revision !== graph.savedRevision;
   },
 
-  // Disabled nodes are filtered out here (and their incident edges/exposed
-  // ports with them) — Save persists the graph as though they'd been
-  // removed. There's no persisted "disabled" state to round-trip; re-opening
-  // this composite later starts every node enabled again.
+  // Disabled nodes are filtered out here (and their incident edges with
+  // them) — Save persists the graph as though they'd been removed. There's
+  // no persisted "disabled" state to round-trip; re-opening this composite
+  // later starts every node enabled again.
   toGraphDefinition: () => {
     const graph = get().editingGraph;
-    if (!graph) return { nodes: [], edges: [], exposed_ports: [] };
+    if (!graph) return { nodes: [], edges: [] };
     const enabledNodes = [...graph.nodes.values()].filter((n) => !graph.disabledNodes.has(n.node_id));
     const enabledIds = new Set(enabledNodes.map((n) => n.node_id));
+    const nodes: CompositeNode[] = enabledNodes.map((n) =>
+      n.node_kind === "leaf"
+        ? { node_id: n.node_id, node_kind: "leaf", transform_id: n.transform_id }
+        : { node_id: n.node_id, node_kind: n.node_kind, name: n.name }
+    );
     return {
-      nodes: enabledNodes.map((n) => ({ node_id: n.node_id, transform_id: n.transform_id })),
+      nodes,
       edges: [...graph.edges.values()].filter((e) => enabledIds.has(e.from_node_id) && enabledIds.has(e.to_node_id)),
-      exposed_ports: [...graph.exposedPorts.values()].filter((p) => enabledIds.has(p.node_id)),
     };
   },
 

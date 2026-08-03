@@ -19,11 +19,46 @@ export function CompositePalette() {
     e.dataTransfer.effectAllowed = "move";
   }
 
+  // The composite's own boundary nodes — static UI affordances (not fetched
+  // from the API, unlike the transform list below). Distinct dataTransfer
+  // key so composite-canvas.tsx's onDrop can tell an IO-node drop apart from
+  // a transform-leaf drop.
+  function onIoDragStart(e: React.DragEvent, direction: "input" | "output") {
+    e.dataTransfer.setData("application/composite-io", JSON.stringify({ direction }));
+    e.dataTransfer.effectAllowed = "move";
+  }
+
   return (
     <aside
       className="flex flex-col w-60 flex-shrink-0 overflow-hidden"
       style={{ backgroundColor: "var(--bg-darker)", borderRight: "1px solid rgba(255,255,255,0.06)" }}
     >
+      <div className="px-3 py-2" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+        <span className="text-[10px] font-mono font-bold" style={{ color: "var(--text-main)" }}>
+          COMPOSITE I/O
+        </span>
+        <p className="mt-1 text-[9px]" style={{ color: "var(--text-muted)", opacity: 0.7 }}>
+          Drag onto the canvas to create this composite's boundary.
+        </p>
+      </div>
+      <div className="p-2 flex flex-col gap-1" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+        <div
+          draggable
+          onDragStart={(e) => onIoDragStart(e, "input")}
+          className="px-2 py-1.5 rounded text-xs cursor-grab"
+          style={{ backgroundColor: "var(--bg-dark)", border: "1px solid rgba(173,198,255,0.25)", color: "#adc6ff" }}
+        >
+          Input
+        </div>
+        <div
+          draggable
+          onDragStart={(e) => onIoDragStart(e, "output")}
+          className="px-2 py-1.5 rounded text-xs cursor-grab"
+          style={{ backgroundColor: "var(--bg-dark)", border: "1px solid rgba(74,225,118,0.25)", color: "#4ae176" }}
+        >
+          Output
+        </div>
+      </div>
       <div className="px-3 py-2" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
         <span className="text-[10px] font-mono font-bold" style={{ color: "var(--text-main)" }}>
           PUBLISHED TRANSFORMS

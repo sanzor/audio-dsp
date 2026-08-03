@@ -58,6 +58,18 @@ function nextTempIdSeed(graph?: { nodes: Array<{ id: number }>; edges: Array<{ i
   return minId - 1;
 }
 
+// Minimal validity notion for this surface: no self-loops, no exact duplicate
+// (source, target) pairs. There's no named-port/cardinality concept here (unlike
+// Creator's composite canvas) — nodes have at most one unnamed handle per side,
+// so this is deliberately the whole rule set the current model supports.
+function isConnectionAllowed(edges: Edge[], connection: Connection | Edge): boolean {
+  if (connection.source == null || connection.target == null) return false;
+  if (connection.source === connection.target) return false;
+  return !edges.some(
+    (e) => e.source === connection.source && e.target === connection.target
+  );
+}
+
 // ─── Canvas ───────────────────────────────────────────────────────────────────
 
 function CanvasInner({ graphId, graph }: { graphId: number | undefined; graph: Graph | undefined }) {
@@ -167,16 +179,22 @@ function CanvasInner({ graphId, graph }: { graphId: number | undefined; graph: G
 
   const onConnect = useCallback(
     (connection: Connection) =>
-      setEdges((es) =>
-        addEdge(
+      setEdges((es) => {
+        if (!isConnectionAllowed(es, connection)) return es;
+        return addEdge(
           {
             ...connection,
             id: String(nextCanvasTempId()),
           },
           es
-        )
-      ),
+        );
+      }),
     [setEdges, nextCanvasTempId]
+  );
+
+  const isValidConnection = useCallback(
+    (connection: Connection) => isConnectionAllowed(edges, connection),
+    [edges]
   );
 
   const onReconnect = useCallback(
@@ -352,6 +370,7 @@ function CanvasInner({ graphId, graph }: { graphId: number | undefined; graph: G
         onMouseDownCapture={handleCanvasMouseDownCapture}
       >
         <ReactFlow
+          className="editor-flow-canvas"
           nodes={nodes}
           edges={edges}
           nodeTypes={nodeTypes}
@@ -359,6 +378,7 @@ function CanvasInner({ graphId, graph }: { graphId: number | undefined; graph: G
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           onReconnect={onReconnect}
+          isValidConnection={isValidConnection}
           onNodeDoubleClick={onNodeDoubleClick}
           onPaneClick={clearCanvasSelection}
           edgesUpdatable

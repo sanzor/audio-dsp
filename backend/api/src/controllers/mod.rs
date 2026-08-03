@@ -19,3 +19,4 @@ pub mod ticket_controller;
 pub mod track_payload_controller;
 pub mod workspace_controller;
 pub mod graph_controller;
+pub mod sources_controller;

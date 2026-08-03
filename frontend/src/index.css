@@ -425,3 +425,37 @@ button:focus-visible {
   font-size: 0.75rem;
   color: var(--text-muted);
 }
+
+/* ─── Creator composite canvas: drag-to-connect handle highlighting ──────
+   Scoped to .composite-flow-canvas (Creator only).
+   reactflow v11.11.4 (pinned in package.json) only adds "connecting" to the
+   handle currently under the cursor during a drag, plus "valid" when
+   isValidConnection passes — there is no "invalid"/"connectingto" class in
+   this version (that naming belongs to the v12/@xyflow/react successor), so
+   "invalid" here is simply .connecting without .valid. */
+.composite-flow-canvas .react-flow__handle.connecting.valid {
+  background-color: #4ae176 !important;
+  box-shadow: 0 0 0 5px rgba(74, 225, 118, 0.35);
+}
+
+.composite-flow-canvas .react-flow__handle.connecting:not(.valid) {
+  background-color: #ff6b6b !important;
+  box-shadow: 0 0 0 5px rgba(255, 107, 107, 0.25);
+}
+
+/* ─── Editor canvas: drag-to-connect handle highlighting ─────────────────
+   Scoped to .editor-flow-canvas (Editor only) — independent rules from
+   Creator's above; no selector is shared between the two surfaces.
+   Same reactflow v11.11.4 class behavior as noted above: "connecting" is
+   always present on the hovered handle during a drag, "valid" is added
+   additionally when isValidConnection passes, and "invalid" is simply
+   .connecting without .valid (no separate class for it in this version). */
+.editor-flow-canvas .react-flow__handle.connecting.valid {
+  background-color: #4ae176 !important;
+  box-shadow: 0 0 0 5px rgba(74, 225, 118, 0.35);
+}
+
+.editor-flow-canvas .react-flow__handle.connecting:not(.valid) {
+  background-color: #ff6b6b !important;
+  box-shadow: 0 0 0 5px rgba(255, 107, 107, 0.25);
+}

@@ -1,57 +1,77 @@
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import ReactFlow, {
   Background,
   BackgroundVariant,
   ReactFlowProvider,
   useReactFlow,
   type Connection,
-  type Edge as RFEdge,
-  type Node as RFNode,
+  type Edge,
   type NodeChange,
   type EdgeChange,
 } from "reactflow";
 import "reactflow/dist/style.css";
 import { useCreatorStore } from "@/Stores/CreatorStore";
-import { useCompositeCanvasStore, type CanvasNode } from "@/Stores/CompositeCanvasStore";
-import { useGetTransformDefinition, useResolveTransformDefinitions } from "@/hooks/transforms/queries";
+import { useCompositeCanvasStore, type CanvasNode, type EditingCompositeGraph } from "@/Stores/CompositeCanvasStore";
+import { useGetTransformDefinition } from "@/hooks/transforms/queries";
 import { useSaveCompositeTransform, usePublishTransform } from "@/hooks/transforms/mutations";
 import { useTransformStore } from "@/Stores/TransformStore";
 import { usePublishWithPortShapeDiff } from "../usePublishWithPortShapeDiff";
 import { ToolbarButton } from "../toolbar-button";
 import { CompositePalette } from "./composite-palette";
-import { computeNodeDisableSafety, type NodeDisableSafety } from "./compositeReachability";
-import { NODE_TYPES, type CompositeNodeData } from "./composite-canvas-node";
+import { NODE_TYPES } from "./composite-canvas-node";
 import { useCompositePreviewControls } from "./composite-preview-controls";
+import { useCompositeGraphView } from "./composite-graph-view";
 import { NodeInspectorPanel } from "./composite-node-inspector";
 import { CompositeIoGhostSlot } from "./composite-io-placeholder";
 import type { TransformPort } from "@/domain/Transform/TransformPort";
-import type { CompositeEdge } from "@/domain/Transform/CompositeGraphDefinition";
-import type { EditingCompositeGraph } from "@/Stores/CompositeCanvasStore";
+import { IO_NODE_PORT_NAME, type CompositeEdge } from "@/domain/Transform/CompositeGraphDefinition";
 
 function portsFor(transformId: number): TransformPort[] {
   return useTransformStore.getState().definitions.get(transformId)?.ports ?? [];
 }
 
-function portKey(nodeId: number, portName: string) {
-  return `${nodeId}:${portName}`;
+// Resolves the port a wiring endpoint presents in the given direction —
+// a real TransformPort for a leaf node (looked up by name), or the fixed
+// synthetic pseudo-port every Input/Output node exposes on its one implicit
+// handle. Unconstrained cardinality ("many") for the synthetic port since
+// no client-side rule about IO-node fan-in/fan-out exists beyond what
+// composite_validator.rs independently re-checks server-side.
+function resolvePort(node: CanvasNode, portName: string, direction: "input" | "output"): TransformPort | undefined {
+  if (node.node_kind === "leaf") {
+    return portsFor(node.transform_id).find((p) => p.name === portName && p.direction === direction);
+  }
+  if (portName !== IO_NODE_PORT_NAME) return undefined;
+  return { port_id: -1, name: IO_NODE_PORT_NAME, direction, port_order: 0, kind: "program", cardinality: "many" };
 }
 
-// Which nodes currently carry an exposed port in each direction — shared by
-// the reachability-safety coloring below and the ghost-slot visibility
-// check (an exposed-port set of size 0 in a direction means that ghost
-// slot should still be showing).
-function exposedDirectionNodeIds(editingGraph: EditingCompositeGraph) {
-  const inputNodeIds = new Set<number>();
-  const outputNodeIds = new Set<number>();
-  for (const p of editingGraph.exposedPorts.values()) {
-    const node = editingGraph.nodes.get(p.node_id);
-    if (!node) continue;
-    const port = portsFor(node.transform_id).find((pt) => pt.name === p.port_name);
-    if (!port) continue;
-    if (port.direction === "input") inputNodeIds.add(p.node_id);
-    else outputNodeIds.add(p.node_id);
+// Shared validity predicate for a prospective wiring endpoint pair — used
+// both to gate onConnect (post-drop) and to drive reactflow's built-in
+// connecting/valid handle classes during drag (isValidConnection). See the
+// .connecting/.valid rule in index.css for why those are the two classes to
+// target — not "connectingto"/"invalid", which is the v12 (@xyflow/react)
+// successor's naming, not this pinned v11.11.4's.
+function isConnectionAllowed(editingGraph: EditingCompositeGraph | null, connection: Connection | Edge): boolean {
+  if (!connection.source || !connection.target || !connection.sourceHandle || !connection.targetHandle) return false;
+  const fromNodeId = Number(connection.source);
+  const toNodeId = Number(connection.target);
+  const fromPort = connection.sourceHandle.replace(/^out-/, "");
+  const toPort = connection.targetHandle.replace(/^in-/, "");
+
+  const fromNode = editingGraph?.nodes.get(fromNodeId);
+  const toNode = editingGraph?.nodes.get(toNodeId);
+  if (!fromNode || !toNode) return false;
+
+  const outputPort = resolvePort(fromNode, fromPort, "output");
+  const inputPort = resolvePort(toNode, toPort, "input");
+  if (!outputPort || !inputPort) return false;
+
+  if (inputPort.cardinality === "single") {
+    const alreadyConnected = [...(editingGraph?.edges.values() ?? [])].some(
+      (e) => e.to_node_id === toNodeId && e.to_port === toPort
+    );
+    if (alreadyConnected) return false;
   }
-  return { inputNodeIds, outputNodeIds };
+  return true;
 }
 
 // ─── Inner canvas ─────────────────────────────────────────────────────────────
@@ -68,8 +88,7 @@ function CompositeCanvasInner() {
   const moveNode = useCompositeCanvasStore((s) => s.moveNode);
   const addEdge = useCompositeCanvasStore((s) => s.addEdge);
   const removeEdge = useCompositeCanvasStore((s) => s.removeEdge);
-  const setExposedPort = useCompositeCanvasStore((s) => s.setExposedPort);
-  const clearExposedPort = useCompositeCanvasStore((s) => s.clearExposedPort);
+  const addIoNode = useCompositeCanvasStore((s) => s.addIoNode);
   const markSaved = useCompositeCanvasStore((s) => s.markSaved);
   const isDirty = useCompositeCanvasStore((s) => s.isDirty());
   const toGraphDefinition = useCompositeCanvasStore((s) => s.toGraphDefinition);
@@ -95,93 +114,7 @@ function CompositeCanvasInner() {
     beginEditingCompositeGraph(selectedId, definition.graph_definition, positions);
   }, [selectedId, definition, editingGraph, beginEditingCompositeGraph]);
 
-  const distinctTransformIds = useMemo(
-    () => (editingGraph ? [...new Set([...editingGraph.nodes.values()].map((n) => n.transform_id))] : []),
-    [editingGraph]
-  );
-  useResolveTransformDefinitions(distinctTransformIds);
-
-  // Phase 3 reachability coloring — recomputed on every graph edit (node/
-  // edge add/remove, disable toggle all produce a new `editingGraph`
-  // reference, since every store mutation replaces it). Purely client-side;
-  // no equivalent traversal exists in composite_validator.rs. See
-  // compositeReachability.ts and agents/decisions/0005-composite-node-inspector.md.
-  const nodeSafety = useMemo(() => {
-    if (!editingGraph) return new Map<number, NodeDisableSafety>();
-    const { inputNodeIds: exposedInputNodeIds, outputNodeIds: exposedOutputNodeIds } =
-      exposedDirectionNodeIds(editingGraph);
-    return computeNodeDisableSafety({
-      nodeIds: [...editingGraph.nodes.keys()],
-      edges: [...editingGraph.edges.values()],
-      exposedInputNodeIds,
-      exposedOutputNodeIds,
-      disabledNodes: editingGraph.disabledNodes,
-    });
-  }, [editingGraph]);
-
-  // Ghost-slot visibility (composite-io-placeholder.tsx): each direction's
-  // hint disappears independently the moment at least one port in that
-  // direction is exposed — deliberately NOT gated on nodes.size === 0, since
-  // a composite can have leaf nodes placed but nothing exposed yet.
-  const { hasExposedInput, hasExposedOutput } = useMemo(() => {
-    if (!editingGraph) return { hasExposedInput: false, hasExposedOutput: false };
-    const { inputNodeIds, outputNodeIds } = exposedDirectionNodeIds(editingGraph);
-    return { hasExposedInput: inputNodeIds.size > 0, hasExposedOutput: outputNodeIds.size > 0 };
-  }, [editingGraph]);
-
-  const rfNodes: RFNode<CompositeNodeData>[] = useMemo(
-    () =>
-      editingGraph
-        ? [...editingGraph.nodes.values()].map((n: CanvasNode) => ({
-            id: String(n.node_id),
-            type: "composite",
-            position: n.position,
-            data: {
-              nodeId: n.node_id,
-              transformId: n.transform_id,
-              disabled: editingGraph.disabledNodes.has(n.node_id),
-              safety: nodeSafety.get(n.node_id) ?? "safe",
-            },
-          }))
-        : [],
-    [editingGraph, nodeSafety]
-  );
-
-  const rfEdges: RFEdge[] = useMemo(
-    () =>
-      editingGraph
-        ? [...editingGraph.edges.values()].map((e) => ({
-            id: `${e.from_node_id}:${e.from_port}->${e.to_node_id}:${e.to_port}`,
-            source: String(e.from_node_id),
-            target: String(e.to_node_id),
-            sourceHandle: `out-${e.from_port}`,
-            targetHandle: `in-${e.to_port}`,
-          }))
-        : [],
-    [editingGraph]
-  );
-
-  // Every port on every node not touched by any edge is a candidate for
-  // exposure — same "genuinely unconnected" derivation the backend
-  // validator independently re-checks server-side.
-  const candidatePorts: { nodeId: number; nodeName: string; port: TransformPort }[] = useMemo(() => {
-    if (!editingGraph) return [];
-    const touched = new Set<string>();
-    for (const e of editingGraph.edges.values()) {
-      touched.add(portKey(e.from_node_id, e.from_port));
-      touched.add(portKey(e.to_node_id, e.to_port));
-    }
-    const candidates: { nodeId: number; nodeName: string; port: TransformPort }[] = [];
-    for (const node of editingGraph.nodes.values()) {
-      const def = useTransformStore.getState().definitions.get(node.transform_id);
-      for (const port of portsFor(node.transform_id)) {
-        if (!touched.has(portKey(node.node_id, port.name))) {
-          candidates.push({ nodeId: node.node_id, nodeName: def?.name ?? `#${node.node_id}`, port });
-        }
-      }
-    }
-    return candidates;
-  }, [editingGraph]);
+  const { rfNodes, rfEdges, hasExposedInput, hasExposedOutput } = useCompositeGraphView(editingGraph);
 
   if (selectedId == null) {
     return (
@@ -220,26 +153,11 @@ function CompositeCanvasInner() {
   }
 
   function onConnect(connection: Connection) {
-    if (!connection.source || !connection.target || !connection.sourceHandle || !connection.targetHandle) return;
+    if (!isConnectionAllowed(editingGraph, connection)) return;
     const fromNodeId = Number(connection.source);
     const toNodeId = Number(connection.target);
-    const fromPort = connection.sourceHandle.replace(/^out-/, "");
-    const toPort = connection.targetHandle.replace(/^in-/, "");
-
-    const fromNode = editingGraph?.nodes.get(fromNodeId);
-    const toNode = editingGraph?.nodes.get(toNodeId);
-    if (!fromNode || !toNode) return;
-
-    const outputPort = portsFor(fromNode.transform_id).find((p) => p.name === fromPort && p.direction === "output");
-    const inputPort = portsFor(toNode.transform_id).find((p) => p.name === toPort && p.direction === "input");
-    if (!outputPort || !inputPort) return;
-
-    if (inputPort.cardinality === "single") {
-      const alreadyConnected = [...(editingGraph?.edges.values() ?? [])].some(
-        (e) => e.to_node_id === toNodeId && e.to_port === toPort
-      );
-      if (alreadyConnected) return;
-    }
+    const fromPort = connection.sourceHandle!.replace(/^out-/, "");
+    const toPort = connection.targetHandle!.replace(/^in-/, "");
 
     const edge: CompositeEdge = { from_node_id: fromNodeId, from_port: fromPort, to_node_id: toNodeId, to_port: toPort };
     addEdge(edge);
@@ -252,11 +170,20 @@ function CompositeCanvasInner() {
 
   function onDrop(e: React.DragEvent) {
     e.preventDefault();
-    const raw = e.dataTransfer.getData("application/transform");
-    if (!raw) return;
-    const { transformId } = JSON.parse(raw) as { transformId: number; name: string };
     const position = screenToFlowPosition({ x: e.clientX, y: e.clientY });
-    addNode(transformId, position);
+
+    const transformRaw = e.dataTransfer.getData("application/transform");
+    if (transformRaw) {
+      const { transformId } = JSON.parse(transformRaw) as { transformId: number; name: string };
+      addNode(transformId, position);
+      return;
+    }
+
+    const ioRaw = e.dataTransfer.getData("application/composite-io");
+    if (ioRaw) {
+      const { direction } = JSON.parse(ioRaw) as { direction: "input" | "output" };
+      addIoNode(direction, position);
+    }
   }
 
   function handleSave() {
@@ -299,24 +226,27 @@ function CompositeCanvasInner() {
         <div className="flex-1 min-h-0 flex flex-col" onDragOver={onDragOver} onDrop={onDrop}>
           <div className="flex-1 min-h-0">
             <ReactFlow
+              className="composite-flow-canvas"
               nodes={rfNodes}
               edges={rfEdges}
               nodeTypes={NODE_TYPES}
               onNodesChange={onNodesChange}
               onEdgesChange={onEdgesChange}
               onConnect={onConnect}
+              isValidConnection={(c) => isConnectionAllowed(editingGraph, c)}
               fitView
               fitViewOptions={{ padding: 0.4 }}
               deleteKeyCode={["Backspace", "Delete"]}
               zoomOnScroll
               panOnDrag
+              defaultEdgeOptions={{ style: { strokeWidth: 2.5 } }}
             >
               <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="rgba(255,255,255,0.04)" />
               {!hasExposedInput && <CompositeIoGhostSlot direction="input" />}
               {!hasExposedOutput && <CompositeIoGhostSlot direction="output" />}
             </ReactFlow>
           </div>
-          {selectedNode != null && (
+          {selectedNode != null && selectedNode.node_kind === "leaf" && (
             <NodeInspectorPanel
               nodeId={selectedNode.node_id}
               transformId={selectedNode.transform_id}
@@ -326,54 +256,6 @@ function CompositeCanvasInner() {
           )}
         </div>
       </div>
-
-      <aside
-        className="flex flex-col w-72 flex-shrink-0 overflow-hidden"
-        style={{ backgroundColor: "var(--bg-darker)", borderLeft: "1px solid rgba(255,255,255,0.06)" }}
-      >
-        <div className="px-3 py-2" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-          <span className="text-[10px] font-mono font-bold" style={{ color: "var(--text-main)" }}>EXPOSED PORTS</span>
-          <p className="mt-1 text-[9px]" style={{ color: "var(--text-muted)", opacity: 0.7 }}>
-            Every unconnected port on every node. Check to expose it as one of this composite's own ports.
-          </p>
-        </div>
-        <div className="flex-1 overflow-y-auto p-2 flex flex-col gap-1">
-          {candidatePorts.length === 0 && (
-            <span className="text-[10px] font-mono" style={{ color: "var(--text-muted)", opacity: 0.6 }}>
-              No unconnected ports — drag transforms onto the canvas first.
-            </span>
-          )}
-          {candidatePorts.map(({ nodeId, nodeName, port }) => {
-            const exposed = editingGraph.exposedPorts.get(portKey(nodeId, port.name));
-            return (
-              <div key={portKey(nodeId, port.name)} className="flex flex-col gap-1 px-2 py-1.5 rounded text-xs" style={{ backgroundColor: "var(--bg-dark)", border: "1px solid rgba(255,255,255,0.05)" }}>
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={exposed != null}
-                    onChange={(e) => {
-                      if (e.target.checked) setExposedPort(nodeId, port.name, port.name);
-                      else clearExposedPort(nodeId, port.name);
-                    }}
-                  />
-                  <span style={{ color: "var(--text-muted)" }}>
-                    {nodeName}.{port.name} ({port.direction})
-                  </span>
-                </label>
-                {exposed != null && (
-                  <input
-                    className="w-full rounded px-2 py-1 text-xs"
-                    style={{ backgroundColor: "var(--bg-darker)", border: "1px solid rgba(255,255,255,0.08)", color: "var(--text-main)" }}
-                    value={exposed.exposed_name}
-                    onChange={(e) => setExposedPort(nodeId, port.name, e.target.value)}
-                    placeholder="Exposed name"
-                  />
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </aside>
     </div>
   );
 }
