@@ -1,4 +1,4 @@
-// "Try it" preview runtime for the creator surface — runs a just-compiled
+// "Try it" playback runtime for the creator surface — runs a just-compiled
 // (not yet saved/published) transform binary client-side, before the
 // creator decides to save it. See agents/decisions/0003-transform-preview-flow.md
 // and the "Try it" section of agents/transforms.md.
@@ -12,9 +12,10 @@
 //   - Safe to reuse directly: `graph-worklet.js` (the AudioWorkletProcessor
 //     itself — no module-level shared state, each AudioWorkletNode instance
 //     is independent) and `WorkletMessageSender` (a plain port-message
-//     wrapper, no store coupling). Reusing these means preview executes
+//     wrapper, no store coupling). Reusing these means playback executes
 //     under the *identical* ABI/calling-convention the editor uses
-//     post-publish, so preview can't silently diverge from production.
+//     post-publish, so this "Try it" playback can't silently diverge from
+//     production.
 //   - Deliberately NOT reused: `WorkletController` (a hard singleton at
 //     module scope in Stores/WorkletStore.ts that writes into editor-only
 //     global Zustand state — useWorkletStore/useAudioEffectsStore — on every
@@ -29,25 +30,25 @@ import type { CompiledNode } from "@/audio/pipeline/GraphCompiler";
 const GRAPH_WORKLET_URL = new URL("../../audio/worklet/graph-worklet.js", import.meta.url).href;
 
 // The worklet keys binaries by transformId (see WorkletMessageSender.sendGraph
-// and graph-worklet.js's onSetGraph). A preview binary has no real
+// and graph-worklet.js's onSetGraph). A "Try it" playback binary has no real
 // transform_id yet (it hasn't been saved/published), so any stable
 // placeholder works here — it never leaves this module.
-export const PRIMITIVE_PREVIEW_NODE_ID = -1;
+export const PRIMITIVE_PLAYBACK_NODE_ID = -1;
 
-// Builds the degenerate one-node graph used to preview a single
+// Builds the degenerate one-node graph used to play back a single
 // just-compiled primitive transform in isolation. Exported so the primitive
-// preview path (CreatorPreviewStore's `play` for code-editor.tsx) can build
+// playback path (CreatorPlaybackStore's `play` for code-editor.tsx) can build
 // its CompiledGraph the same way `load()` used to build it internally —
 // `load()` itself is now graph-shape-agnostic (see below) to also support
-// the composite canvas's multi-node preview.
-export function buildPrimitivePreviewGraph(params: number[]): CompiledGraph {
+// the composite canvas's multi-node playback.
+export function buildPrimitivePlaybackGraph(params: number[]): CompiledGraph {
   const node: CompiledNode = {
-    nodeId: PRIMITIVE_PREVIEW_NODE_ID,
-    transformId: PRIMITIVE_PREVIEW_NODE_ID,
+    nodeId: PRIMITIVE_PLAYBACK_NODE_ID,
+    transformId: PRIMITIVE_PLAYBACK_NODE_ID,
     params,
     inputs: [[{ kind: "raw" }]],
     outputBufferIndex: -1, // no forward/back edges — no buffer needed
-    writesToOutput: true, // always-terminal preview node — writes straight to worklet output
+    writesToOutput: true, // always-terminal playback node — writes straight to worklet output
   };
   return {
     executionOrder: [node],
@@ -59,7 +60,7 @@ export function buildPrimitivePreviewGraph(params: number[]): CompiledGraph {
 // Creator-scoped connect/disconnect wrapper. One instance per "Try it"
 // session (e.g. per code-editor mount) — construct, call load(), tear down
 // with dispose() on unmount or when switching to a different transform.
-export class CreatorTransformPreview {
+export class CreatorTransformPlayback {
   private audioCtx: AudioContext | null = null;
   private node: AudioWorkletNode | null = null;
   private sender: WorkletMessageSender | null = null;
@@ -82,7 +83,7 @@ export class CreatorTransformPreview {
   }
 
   // Loads an arbitrary CompiledGraph (a single primitive transform via
-  // buildPrimitivePreviewGraph, or a multi-node composite-in-progress graph
+  // buildPrimitivePlaybackGraph, or a multi-node composite-in-progress graph
   // compiled by GraphCompiler.process) and connects the worklet node to the
   // audio destination so it's immediately audible once some source is
   // routed into it by the caller (see `inputNode` below). `binaries` is
@@ -114,7 +115,7 @@ export class CreatorTransformPreview {
 
   // Exposes the worklet node so the caller can route a test signal (an
   // oscillator, a decoded sample, a mic input — the creator surface's
-  // choice, not this wrapper's) into the preview graph's input.
+  // choice, not this wrapper's) into the playback graph's input.
   get inputNode(): AudioWorkletNode | null {
     return this.node;
   }
@@ -131,12 +132,12 @@ export class CreatorTransformPreview {
   }
 
   // `nodeIndex` is the target node's position in the *currently loaded*
-  // CompiledGraph.executionOrder — not its node_id. The primitive preview
-  // graph (buildPrimitivePreviewGraph) always has exactly one node at index
-  // 0, so CreatorPreviewStore.updateParam (the primitive "Try it" path)
+  // CompiledGraph.executionOrder — not its node_id. The primitive playback
+  // graph (buildPrimitivePlaybackGraph) always has exactly one node at index
+  // 0, so CreatorPlaybackStore.updateParam (the primitive "Try it" path)
   // passes 0 explicitly. The composite canvas's per-node param editing
-  // (CreatorPreviewStore.updateNodeParam) looks its node's index up fresh
-  // against the live preview graph on every call instead — see
+  // (CreatorPlaybackStore.updateNodeParam) looks its node's index up fresh
+  // against the live playback graph on every call instead — see
   // agents/decisions/0005-composite-node-inspector.md — since which nodes
   // even have an index at all changes as disabled nodes are compiled out.
   updateParams(nodeIndex: number, params: number[]): void {

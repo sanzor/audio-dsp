@@ -1,13 +1,14 @@
-import { useCreatorPreviewStore } from "@/Stores/CreatorPreviewStore";
+import { useCreatorPlaybackStore } from "@/Stores/CreatorPlaybackStore";
+import { PlaybackInputSelector } from "./playback-input-selector";
 
 export function CreatorStatusBar() {
-  const status = useCreatorPreviewStore((s) => s.status);
-  const cpuLoadPct = useCreatorPreviewStore((s) => s.cpuLoadPct);
-  const latencyMs = useCreatorPreviewStore((s) => s.latencyMs);
+  const status = useCreatorPlaybackStore((s) => s.status);
+  const cpuLoadPct = useCreatorPlaybackStore((s) => s.cpuLoadPct);
+  const latencyMs = useCreatorPlaybackStore((s) => s.latencyMs);
 
   const isPlaying = status === "playing";
   const engineColor = isPlaying ? "#4ae176" : status === "error" ? "#ff6b6b" : "var(--text-muted)";
-  const engineLabel = isPlaying ? "PREVIEWING" : status === "loading" ? "LOADING…" : status === "error" ? "ERROR" : "IDLE";
+  const engineLabel = isPlaying ? "PLAYING" : status === "loading" ? "LOADING…" : status === "error" ? "ERROR" : "IDLE";
 
   return (
     <footer
@@ -25,6 +26,7 @@ export function CreatorStatusBar() {
         </div>
         <span>LATENCY: {isPlaying && latencyMs != null ? `${latencyMs.toFixed(1)}ms` : "—"}</span>
         <span>CPU: {isPlaying && cpuLoadPct != null ? `${cpuLoadPct.toFixed(0)}%` : "—"}</span>
+        <PlaybackInputSelector />
       </div>
       <div className="flex items-center gap-4">
         <span>UTF-8</span>

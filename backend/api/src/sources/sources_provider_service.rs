@@ -2,142 +2,103 @@ use std::sync::Arc;
 
 use audiolib::utils::encode_audio_buffer_as_wav;
 use domain::{
-    db::db_track::{DbTrack, DbTrackMeta, TrackId},
-    raw_track::{RawTrack, TrackInfo},
-    tracks::track_bundle::{TrackBundle, TrackPayload},
-    track_meta::TrackMeta,
-    update_track_info_params::UpdateTrackInfoParams,
+    db::db_source::{DbSource, DbSourceMeta, SourceId},
+    sources::{
+        raw_source::{RawSource, SourceInfo},
+        source_bundle::{SourceBundle, SourcePayload},
+        source_meta::SourceMeta,
+    },
+    update_source_info_params::UpdateSourceInfoParams,
 };
 
 use super::{
-    data_provider::tracks_data_provider::TracksDataProvider,
-    storage_provider::track_storage_provider::TrackStorageProvider,
-    tracks_provider::TracksProvider,
+    data_provider::sources_data_provider::SourcesDataProvider,
+    sources_provider::SourcesProvider,
+    storage_provider::source_storage_provider::SourceStorageProvider,
 };
 
-pub struct TracksProviderService {
+pub struct SourcesProviderService {
     data: Arc<dyn SourcesDataProvider>,
-    storage: Arc<dyn TrackStorageProvider>,
+    storage: Arc<dyn SourceStorageProvider>,
 }
 
-impl TracksProviderService {
-    pub fn new(data: Arc<dyn TracksDataProvider>, storage: Arc<dyn TrackStorageProvider>) -> Self {
+impl SourcesProviderService {
+    pub fn new(data: Arc<dyn SourcesDataProvider>, storage: Arc<dyn SourceStorageProvider>) -> Self {
         Self { data, storage }
     }
 
-    fn to_meta(track: &DbTrack) -> TrackMeta {
-        TrackMeta {
-            track_info: TrackInfo {
-                name: track.name.clone(),
-                extension: track.extension.clone(),
-                length: track.length_seconds,
+    fn to_meta(source: &DbSource) -> SourceMeta {
+        SourceMeta {
+            source_info: SourceInfo {
+                name: source.name.clone(),
+                extension: source.extension.clone(),
+                length: source.length_seconds,
             },
-            track_id: track.track_id,
+            source_id: source.source_id,
         }
     }
 
-    fn meta_from_db(track: DbTrackMeta) -> TrackMeta {
-        TrackMeta {
-            track_info: TrackInfo {
-                name: track.name,
-                extension: track.extension,
-                length: track.length_seconds,
+    fn meta_from_db(source: DbSourceMeta) -> SourceMeta {
+        SourceMeta {
+            source_info: SourceInfo {
+                name: source.name,
+                extension: source.extension,
+                length: source.length_seconds,
             },
-            track_id: track.track_id,
+            source_id: source.source_id,
         }
     }
-
-
 }
-
 
 #[async_trait::async_trait]
-impl TracksProvider for TracksProviderService {
-    async fn get_track_meta(&self, track_id: &TrackId) -> Result<TrackMeta, String> {
-        let track = self.data.get_track(track_id).await?;
-        Ok(Self::to_meta(&track))
+impl SourcesProvider for SourcesProviderService {
+    async fn get_source_meta(&self, source_id: &SourceId) -> Result<SourceMeta, String> {
+        let source = self.data.get_source(source_id).await?;
+        Ok(Self::to_meta(&source))
     }
 
-    async fn get_track(&self, track_id: &TrackId) -> Result<TrackBundle, String> {
-        let payload=self.storage.get_track_payload(track_id).await?;
-        let meta=self.data.get_track(track_id).await?;
-        let meta=Self::to_meta(&meta);
-        Ok(TrackBundle{payload,meta})
+    async fn get_source(&self, source_id: &SourceId) -> Result<SourceBundle, String> {
+        let payload = self.storage.get_source_payload(source_id).await?;
+        let source = self.data.get_source(source_id).await?;
+        let meta = Self::to_meta(&source);
+        Ok(SourceBundle { payload, meta })
     }
 
-    async fn get_tracks(&self) -> Result<Vec<TrackBundle>, String> {
-        let metas = self.get_all_track_metas().await?;
-        let mut tracks = Vec::with_capacity(metas.len());
-
-        for meta in metas {
-            let payload = self.storage.get_track_payload(&meta.track_id).await?;
-            tracks.push(TrackBundle { meta, payload });
-        }
-
-        Ok(tracks)
+    async fn get_all_source_metas(&self) -> Result<Vec<SourceMeta>, String> {
+        let sources = self.data.get_all_source_metas().await?;
+        Ok(sources.into_iter().map(Self::meta_from_db).collect())
     }
 
-    async fn get_all_track_metas(&self) -> Result<Vec<TrackMeta>, String> {
-        let tracks = self.data.get_all_track_metas().await?;
-        Ok(tracks.into_iter().map(Self::meta_from_db).collect())
-    }
+    async fn insert_source(&self, source: RawSource, project_id: i32) -> Result<SourceBundle, String> {
+        let canonical_audio = encode_audio_buffer_as_wav(&source.data)
+            .map_err(|_| "Could not encode source as wav".to_string())?;
 
-    async fn insert_track(&self, track: RawTrack, project_id: i32) -> Result<TrackBundle, String> {
-        let canonical_audio = encode_audio_buffer_as_wav(&track.data)
-            .map_err(|_| "Could not encode track as wav".to_string())?;
-
-        let db_track = self.data.insert_track(track.info, project_id).await?;
-        let meta = Self::to_meta(&db_track);
-        let payload = TrackPayload { canonical_audio };
+        let db_source = self.data.insert_source(source.info, project_id).await?;
+        let meta = Self::to_meta(&db_source);
+        let payload = SourcePayload { canonical_audio };
 
         if let Err(err) = self
             .storage
-            .insert_track_payload(&meta.track_id, payload.clone())
+            .insert_source_payload(&meta.source_id, payload.clone())
             .await
         {
-            let _ = self.data.delete_track(&meta.track_id).await;
+            let _ = self.data.delete_source(&meta.source_id).await;
             return Err(err);
         }
 
-        Ok(TrackBundle { meta, payload })
+        Ok(SourceBundle { meta, payload })
     }
 
-    async fn delete_track(&self, track_id: &TrackId) -> Result<(), String> {
-        self.data.delete_track(track_id).await
+    async fn delete_source(&self, source_id: &SourceId) -> Result<(), String> {
+        self.data.delete_source(source_id).await
     }
 
-    async fn copy_track(&self, track_id: &TrackId, copy_name: String) -> Result<TrackMeta, String> {
-        let source_payload = self.storage.get_track_payload(track_id).await?;
-        let db_track = self.data.copy_track(track_id, &copy_name).await?;
-        let meta = Self::to_meta(&db_track);
-
-        if let Err(err) = self
-            .storage
-            .insert_track_payload(&meta.track_id, source_payload)
-            .await
-        {
-            let _ = self.data.delete_track(&meta.track_id).await;
-            return Err(err);
-        }
-
-        Ok(meta)
-    }
-
-    async fn update_track_info(
+    async fn update_source_info(
         &self,
-        track_id: &TrackId,
-        params: UpdateTrackInfoParams,
-    ) -> Result<TrackMeta, String> {
-        let db_track = self.data.update_track_info(track_id, params).await?;
-        Ok(Self::to_meta(&db_track))
+        source_id: &SourceId,
+        params: UpdateSourceInfoParams,
+    ) -> Result<SourceMeta, String> {
+        let db_source = self.data.update_source_info(source_id, params).await?;
+        Ok(Self::to_meta(&db_source))
     }
-}
-
-
-pub struct X{
-    pub a:String
-}
-
-impl<T> for X<T>{
-    
 }

@@ -14,7 +14,7 @@ export const SAFETY_COLOR: Record<NodeDisableSafety, string> = {
 const SAFETY_LABEL: Record<NodeDisableSafety, string> = {
   safe: "Safe to disable — no exposed input/output path depends on this node",
   "load-bearing": "Disabling this node would break connectivity from an exposed input to an exposed output",
-  disabled: "Currently disabled — excluded from Save/Publish and Preview/Play",
+  disabled: "Currently disabled — excluded from Save/Publish and Play (playback)",
 };
 
 interface NodeHeaderProps {

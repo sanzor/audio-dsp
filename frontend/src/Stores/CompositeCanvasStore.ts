@@ -10,10 +10,11 @@ import type {
 // CreatorStore.ts — this shape (nodes/edges maps) doesn't fit anything
 // already there, unlike editingTransformSource's single string.
 //
-// Node position is purely a canvas-local, client-side concern — the backend
-// (CompositeGraphSnapshot) has no position field, so it's never persisted.
-// Reopening a saved composite re-lays-out nodes deterministically (see
-// composite-canvas.tsx); dragging within a session is free-form.
+// Node position is persisted server-side (CompositeNode.position, see
+// CompositeGraphDefinition.ts) — toGraphDefinition() below includes it in
+// the save payload, and composite-canvas.tsx seeds each node's initial
+// position from the loaded definition, falling back to auto-layout only for
+// nodes that never had a saved position.
 
 export interface CanvasLeafNode {
   node_id: number;
@@ -261,8 +262,8 @@ export const useCompositeCanvasStore = create<CompositeCanvasState>()((set, get)
     const enabledIds = new Set(enabledNodes.map((n) => n.node_id));
     const nodes: CompositeNode[] = enabledNodes.map((n) =>
       n.node_kind === "leaf"
-        ? { node_id: n.node_id, node_kind: "leaf", transform_id: n.transform_id }
-        : { node_id: n.node_id, node_kind: n.node_kind, name: n.name }
+        ? { node_id: n.node_id, node_kind: "leaf", transform_id: n.transform_id, position: n.position }
+        : { node_id: n.node_id, node_kind: n.node_kind, name: n.name, position: n.position }
     );
     return {
       nodes,

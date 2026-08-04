@@ -1,5 +1,5 @@
 import { useCreatorStore } from "@/Stores/CreatorStore";
-import { useCreatorPreviewStore } from "@/Stores/CreatorPreviewStore";
+import { useCreatorPlaybackStore } from "@/Stores/CreatorPlaybackStore";
 import type { TransformPort } from "@/domain/Transform/TransformPort";
 import type { TransformParam } from "@/domain/Transform/TransformParam";
 import { useGetTransformDefinition } from "@/hooks/transforms/queries";
@@ -7,9 +7,9 @@ import { useGetTransformDefinition } from "@/hooks/transforms/queries";
 // Prop-driven (no store reads of its own) so it can be reused by any
 // consumer with its own notion of "current value" / "is this live" / "what
 // happens on edit" — the right-sidebar TransformPropertiesPanel below (bound
-// to useCreatorStore.selectedTransformId's single-transform preview) and the
+// to useCreatorStore.selectedTransformId's single-transform playback) and the
 // composite canvas's per-node bottom-panel Details tab (bound to a specific
-// node_id within a composite preview graph — see composite-canvas.tsx and
+// node_id within a composite playback graph — see composite-canvas.tsx and
 // agents/decisions/0005-composite-node-inspector.md) both wrap it.
 export interface ParamRowProps {
   param: TransformParam;
@@ -121,10 +121,10 @@ export function PortsList({ direction, ports }: PortsListProps) {
 export function TransformPropertiesPanel() {
   const selectedId = useCreatorStore((s) => s.selectedTransformId);
   const { data: definition } = useGetTransformDefinition(selectedId);
-  const previewStatus = useCreatorPreviewStore((s) => s.status);
-  const previewTransformId = useCreatorPreviewStore((s) => s.previewTransformId);
-  const paramValues = useCreatorPreviewStore((s) => s.paramValues);
-  const updateParam = useCreatorPreviewStore((s) => s.updateParam);
+  const playbackStatus = useCreatorPlaybackStore((s) => s.status);
+  const playbackTransformId = useCreatorPlaybackStore((s) => s.playbackTransformId);
+  const paramValues = useCreatorPlaybackStore((s) => s.paramValues);
+  const updateParam = useCreatorPlaybackStore((s) => s.updateParam);
 
   if (selectedId == null) {
     return (
@@ -143,10 +143,10 @@ export function TransformPropertiesPanel() {
   const outputs = definition?.ports.filter((port) => port.direction === "output") ?? [];
 
   // Sorted by param_order — this index must match the wasm side's
-  // positional param index (see CreatorPreviewStore.paramValues), which is
+  // positional param index (see CreatorPlaybackStore.paramValues), which is
   // keyed by declaration order, not param_id.
   const sortedParams = [...(definition?.params ?? [])].sort((a, b) => a.param_order - b.param_order);
-  const liveEnabled = previewStatus === "playing" && previewTransformId === selectedId;
+  const liveEnabled = playbackStatus === "playing" && playbackTransformId === selectedId;
 
   return (
     <aside
@@ -164,7 +164,7 @@ export function TransformPropertiesPanel() {
           PROPERTIES
         </span>
         <p className="mt-1 text-[10px]" style={{ color: "var(--text-muted)", opacity: 0.7 }}>
-          Name, ports & metadata are generated from transform source. Params are live-editable while previewing.
+          Name, ports & metadata are generated from transform source. Params are live-editable during playback.
         </p>
       </div>
 

@@ -51,4 +51,8 @@ export const QUERY_KEYS = {
   storedAudio: {
     byTrackId: (trackId: number) => ['stored-audio', trackId] as const,
   },
+  sources: {
+    all: () => ['sources'] as const,
+    audioBySourceId: (sourceId: number) => ['source-audio', sourceId] as const,
+  },
 };

@@ -49,13 +49,40 @@ pub struct CompositeGraphDefinition {
     pub edges: Vec<CompositeEdge>,
 }
 
+/// A composite node's canvas position on the Creator's composite-authoring
+/// canvas. Deliberately a local type here rather than a reuse of
+/// `graphs::node::NodePosition` (the Editor/DAW graph canvas's own,
+/// unrelated position concept) — the two shapes happen to match today, but
+/// Editor and Creator surfaces don't share types even when it looks
+/// duplicated, so a future divergence in one shouldn't force a change on
+/// the other.
+///
+/// `#[serde(default)]` on every field (and wherever this type is embedded)
+/// is load-bearing, not decorative: every `graph_definition` row saved
+/// before this field existed has no `"position"` key at all, and must keep
+/// deserializing rather than erroring — see
+/// `transform_snapshot_tests.rs::deserializes_the_migrated_vocal_chain_draft_row`.
+///
+/// `x`/`y` are floats, not `i32` — ReactFlow (`screenToFlowPosition`, drag
+/// deltas) produces continuous floating-point coordinates, never integers,
+/// so an `i32` field here made every drag-then-Save fail with a 400 the
+/// instant a node landed on a non-integer coordinate (essentially always).
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default, PartialEq)]
+pub struct CompositeNodePosition {
+    #[serde(default)]
+    pub x: f32,
+    #[serde(default)]
+    pub y: f32,
+}
+
 /// A node in a composite's wiring graph: either a leaf (wired to a real
 /// published primitive transform) or an Input/Output boundary node (a
 /// literal node type marking where one of the composite's own external
 /// ports lives). Internally tagged on `node_kind`, so the JSON shape is a
-/// flat `{"node_kind": "leaf", "node_id": 1, "transform_id": 3}` /
-/// `{"node_kind": "input", "node_id": 5, "name": "In"}` object — kept in
-/// exact lockstep with the TS mirror `CompositeNode` in
+/// flat `{"node_kind": "leaf", "node_id": 1, "transform_id": 3, "position":
+/// {"x": 0, "y": 0}}` / `{"node_kind": "input", "node_id": 5, "name": "In",
+/// "position": {"x": 0, "y": 0}}` object — kept in exact lockstep with the
+/// TS mirror `CompositeNode` in
 /// `frontend/src/domain/Transform/CompositeGraphDefinition.ts` (same tag
 /// field name, same variant tag values, same field names per variant),
 /// since `save_composite_draft`/`publish_composite_transform` deserialize
@@ -73,6 +100,8 @@ pub enum CompositeNode {
         /// composite.
         node_id: i64,
         transform_id: i64,
+        #[serde(default)]
+        position: CompositeNodePosition,
     },
     Input {
         node_id: i64,
@@ -82,10 +111,14 @@ pub enum CompositeNode {
         /// unique across all Input/Output nodes in the graph (see
         /// composite_validator.rs).
         name: String,
+        #[serde(default)]
+        position: CompositeNodePosition,
     },
     Output {
         node_id: i64,
         name: String,
+        #[serde(default)]
+        position: CompositeNodePosition,
     },
 }
 
@@ -95,6 +128,14 @@ impl CompositeNode {
             CompositeNode::Leaf { node_id, .. } => *node_id,
             CompositeNode::Input { node_id, .. } => *node_id,
             CompositeNode::Output { node_id, .. } => *node_id,
+        }
+    }
+
+    pub fn position(&self) -> CompositeNodePosition {
+        match self {
+            CompositeNode::Leaf { position, .. } => *position,
+            CompositeNode::Input { position, .. } => *position,
+            CompositeNode::Output { position, .. } => *position,
         }
     }
 }
@@ -108,36 +149,5 @@ pub struct CompositeEdge {
 }
 
 #[cfg(test)]
-mod tests {
-    //! Deserializes the exact JSON produced by
-    //! `database/audio_db/migrations/0020_composite_io_nodes.up.sql` against
-    //! the real "Vocal Chain" (transform_id = 32) rows in local dev
-    //! Postgres, verbatim, as a lockstep check between this struct's serde
-    //! shape and what's actually stored in `graph_definition` JSONB.
-    use super::*;
-
-    #[test]
-    fn deserializes_the_migrated_vocal_chain_draft_row() {
-        let json = r#"{"edges": [{"to_port": "In", "from_port": "Out", "to_node_id": 4, "from_node_id": 1}, {"to_port": "In", "from_port": "Out", "to_node_id": 3, "from_node_id": 4}, {"to_port": "In", "from_port": "signal", "to_node_id": 1, "from_node_id": 5}, {"to_port": "signal", "from_port": "Out", "to_node_id": 6, "from_node_id": 3}], "nodes": [{"node_id": 1, "node_kind": "leaf", "transform_id": 3}, {"node_id": 3, "node_kind": "leaf", "transform_id": 5}, {"node_id": 4, "node_kind": "leaf", "transform_id": 1}, {"name": "In", "node_id": 5, "node_kind": "input"}, {"name": "Out", "node_id": 6, "node_kind": "output"}]}"#;
-        let parsed: CompositeGraphDefinition = serde_json::from_str(json).expect("should deserialize");
-        assert_eq!(parsed.nodes.len(), 5);
-        assert_eq!(parsed.edges.len(), 4);
-        assert!(matches!(parsed.nodes[3], CompositeNode::Input { node_id: 5, .. }));
-        assert!(matches!(parsed.nodes[4], CompositeNode::Output { node_id: 6, .. }));
-
-        // Round-trips back through our own Serialize impl too.
-        let reserialized = serde_json::to_string(&parsed).expect("should reserialize");
-        let reparsed: CompositeGraphDefinition = serde_json::from_str(&reserialized).expect("should reparse");
-        assert_eq!(reparsed.nodes.len(), 5);
-    }
-
-    #[test]
-    fn deserializes_the_migrated_vocal_chain_published_row() {
-        let json = r#"{"edges": [{"to_port": "In", "from_port": "Out", "to_node_id": 2, "from_node_id": 1}, {"to_port": "In", "from_port": "Out", "to_node_id": 3, "from_node_id": 2}, {"to_port": "In", "from_port": "signal", "to_node_id": 1, "from_node_id": 4}, {"to_port": "signal", "from_port": "Out", "to_node_id": 5, "from_node_id": 3}], "nodes": [{"node_id": 1, "node_kind": "leaf", "transform_id": 3}, {"node_id": 2, "node_kind": "leaf", "transform_id": 4}, {"node_id": 3, "node_kind": "leaf", "transform_id": 5}, {"name": "In", "node_id": 4, "node_kind": "input"}, {"name": "Out", "node_id": 5, "node_kind": "output"}]}"#;
-        let parsed: CompositeGraphDefinition = serde_json::from_str(json).expect("should deserialize");
-        assert_eq!(parsed.nodes.len(), 5);
-        assert_eq!(parsed.edges.len(), 4);
-        assert!(matches!(parsed.nodes[3], CompositeNode::Input { node_id: 4, .. }));
-        assert!(matches!(parsed.nodes[4], CompositeNode::Output { node_id: 5, .. }));
-    }
-}
+#[path = "transform_snapshot_tests.rs"]
+mod tests;

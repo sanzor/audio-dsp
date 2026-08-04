@@ -84,6 +84,15 @@ else
   skipped+=("generated tracks (missing table tracks)")
 fi
 
+if table_exists "sources"; then
+  echo "Applying generated source seeds..."
+  python3 "${ROOT_DIR}/scripts/db_seed_sources.py"
+  applied+=("generated sources")
+else
+  echo "Skipping generated source seeds: table 'sources' is not present in the current schema."
+  skipped+=("generated sources (missing table sources)")
+fi
+
 if ((${#applied[@]} == 0)); then
   echo "No seed files were applied."
 else

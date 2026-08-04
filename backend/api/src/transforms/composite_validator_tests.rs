@@ -1,5 +1,5 @@
 use super::*;
-use domain::db::transform_snapshot::{CompositeEdge, CompositeNode};
+use domain::db::transform_snapshot::{CompositeEdge, CompositeNode, CompositeNodePosition};
 
 fn port(name: &str, direction: &str, kind: &str, cardinality: &str) -> DbTransformPort {
     DbTransformPort {
@@ -26,15 +26,15 @@ fn gain_leaf() -> LeafTransformInfo {
 }
 
 fn leaf(node_id: i64, transform_id: i64) -> CompositeNode {
-    CompositeNode::Leaf { node_id, transform_id }
+    CompositeNode::Leaf { node_id, transform_id, position: CompositeNodePosition::default() }
 }
 
 fn input(node_id: i64, name: &str) -> CompositeNode {
-    CompositeNode::Input { node_id, name: name.to_string() }
+    CompositeNode::Input { node_id, name: name.to_string(), position: CompositeNodePosition::default() }
 }
 
 fn output(node_id: i64, name: &str) -> CompositeNode {
-    CompositeNode::Output { node_id, name: name.to_string() }
+    CompositeNode::Output { node_id, name: name.to_string(), position: CompositeNodePosition::default() }
 }
 
 fn edge(from_node_id: i64, from_port: &str, to_node_id: i64, to_port: &str) -> CompositeEdge {

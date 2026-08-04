@@ -197,29 +197,70 @@ def leaf_port(primitives_by_name: dict[str, dict], transform_name: str, port_nam
 def build_composite_sql(composite: dict, primitives_by_name: dict[str, dict], leaf_ids: dict[str, int]) -> str:
     node_transform_name = {n["node_id"]: n["transform_name"] for n in composite["nodes"]}
 
-    graph_definition = {
-        "nodes": [
-            {"node_id": n["node_id"], "transform_id": leaf_ids[n["transform_name"]]}
-            for n in composite["nodes"]
-        ],
-        "edges": composite["edges"],
-        "exposed_ports": composite["exposed_ports"],
-    }
+    # graph_definition.nodes uses the node_kind-tagged Input/Output-node model
+    # (migration 0020_composite_io_nodes), not the older separate
+    # `exposed_ports` list — see CompositeNode in
+    # backend/domain/src/db/transform_snapshot.rs (internally tagged on
+    # `node_kind`, no `exposed_ports` key at all). The manifest's own
+    # `exposed_ports` list stays a convenient authoring shape here; it's
+    # compiled below into literal Input/Output nodes plus the edges wiring
+    # them to their leaf, exactly like migration 0020's one-time backfill did
+    # by hand for "Vocal Chain" — this makes that translation generic for any
+    # composite in the manifest instead of relying on a one-off migration.
+    leaf_nodes = [
+        {"node_kind": "leaf", "node_id": n["node_id"], "transform_id": leaf_ids[n["transform_name"]]}
+        for n in composite["nodes"]
+    ]
+    next_io_node_id = max((n["node_id"] for n in composite["nodes"]), default=0) + 1
 
+    io_nodes = []
+    io_edges = []
     exposed_ports = []
     for order, exposed in enumerate(composite["exposed_ports"]):
         leaf_name = node_transform_name[exposed["node_id"]]
         source_port = leaf_port(primitives_by_name, leaf_name, exposed["port_name"])
+        direction = source_port["direction"]
+        io_node_id = next_io_node_id
+        next_io_node_id += 1
+
+        io_node_kind = "input" if direction == "input" else "output"
+        io_nodes.append({"node_kind": io_node_kind, "node_id": io_node_id, "name": exposed["exposed_name"]})
+        if direction == "input":
+            # External signal flows into the leaf's input port.
+            io_edges.append(
+                {
+                    "from_node_id": io_node_id,
+                    "from_port": "signal",
+                    "to_node_id": exposed["node_id"],
+                    "to_port": exposed["port_name"],
+                }
+            )
+        else:
+            # The leaf's output port flows out to the composite boundary.
+            io_edges.append(
+                {
+                    "from_node_id": exposed["node_id"],
+                    "from_port": exposed["port_name"],
+                    "to_node_id": io_node_id,
+                    "to_port": "signal",
+                }
+            )
+
         exposed_ports.append(
             {
                 "name": exposed["exposed_name"],
-                "direction": source_port["direction"],
+                "direction": direction,
                 "port_order": order,
                 "description": None,
                 "kind": source_port.get("kind", DEFAULT_PORT_KIND),
                 "cardinality": source_port.get("cardinality", DEFAULT_PORT_CARDINALITY),
             }
         )
+
+    graph_definition = {
+        "nodes": leaf_nodes + io_nodes,
+        "edges": composite["edges"] + io_edges,
+    }
 
     port_rows = []
     for port in exposed_ports:

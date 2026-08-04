@@ -13,7 +13,7 @@ import { PortColumn, ROW_HEIGHT } from "./composite-node-ports";
 import { RemoveNodeButton } from "./composite-node-remove-button";
 
 // ─── Node ─────────────────────────────────────────────────────────────────────
-// Generalizes canvas.tsx's TransformPreviewNode: multiple instances, real
+// Generalizes canvas.tsx's TransformCanvasNode: multiple instances, real
 // per-port Handles keyed by port NAME (not port_id, since composite wiring
 // references ports by name — port_id is reassigned on every leaf republish).
 

@@ -5,7 +5,9 @@
 // layer, unlike the Editor's Graph/Node/Edge types). Leaf nodes reference
 // other transforms by transform_id and their ports by name (never port_id,
 // which is reassigned on every republish). v1 has no per-node param
-// overrides.
+// overrides. Every node also carries its canvas `position`, persisted
+// server-side (CompositeNodePositionDto) — old rows saved before this field
+// existed deserialize it as `{x:0, y:0}` via the backend's `serde(default)`.
 
 // A composite's own externally-visible ports are not a separate list —
 // they're derived from the graph's Input/Output nodes below: an Input
@@ -15,14 +17,15 @@
 // marking a leaf's own (name, exposed_name) pair in a separate
 // CompositeExposedPort[] list with no participation in `edges` at all.
 
-// Mirrors backend/domain/src/db/transform_snapshot.rs's `CompositeNode`
-// exactly (same `node_kind` tag field, same tag values, same per-variant
-// field names) — save/publish deserialize this directly from what this
-// client sends, with no translation layer, so the two must stay in
-// lockstep. Named `node_kind` (not `kind`) to avoid colliding with the
-// unrelated "primitive" | "composite" `kind` field that already means
-// something else at the transform-definition level elsewhere in this
-// domain folder (see TransformDefinition.ts).
+// Mirrors backend/api/src/controllers/transforms_controller.rs's
+// `CompositeNodeDto` exactly (same `node_kind` tag field, same tag values,
+// same per-variant field names, including `position`) — save/publish
+// deserialize this directly from what this client sends, with no
+// translation layer, so the two must stay in lockstep. Named `node_kind`
+// (not `kind`) to avoid colliding with the unrelated "primitive" |
+// "composite" `kind` field that already means something else at the
+// transform-definition level elsewhere in this domain folder (see
+// TransformDefinition.ts).
 export type CompositeNode = CompositeLeafNode | CompositeIoNode;
 
 export interface CompositeLeafNode {
@@ -31,6 +34,9 @@ export interface CompositeLeafNode {
   node_id: number;
   node_kind: "leaf";
   transform_id: number;
+  // Canvas position, persisted server-side. Old saved composites predating
+  // this field deserialize it as `{x:0, y:0}` (backend `serde(default)`).
+  position: { x: number; y: number };
 }
 
 export interface CompositeIoNode {
@@ -41,6 +47,9 @@ export interface CompositeIoNode {
   // Must be non-empty and unique across all Input/Output nodes in the
   // graph (enforced server-side by composite_validator.rs).
   name: string;
+  // Canvas position, persisted server-side. Old saved composites predating
+  // this field deserialize it as `{x:0, y:0}` (backend `serde(default)`).
+  position: { x: number; y: number };
 }
 
 export interface CompositeEdge {

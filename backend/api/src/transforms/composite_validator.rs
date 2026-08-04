@@ -95,7 +95,7 @@ fn build_node_ports<'a>(
 
     for node in nodes {
         match node {
-            CompositeNode::Leaf { node_id, transform_id } => {
+            CompositeNode::Leaf { node_id, transform_id, .. } => {
                 let Some(leaf) = leaf_defs.get(transform_id) else {
                     return Err(format!(
                         "node {node_id} references transform {transform_id} which does not exist"
@@ -276,7 +276,7 @@ fn derive_io_ports(nodes: &[CompositeNode], edges: &[CompositeEdge], node_ports:
     for node in nodes {
         match node {
             CompositeNode::Leaf { .. } => continue,
-            CompositeNode::Input { node_id, name } => {
+            CompositeNode::Input { node_id, name, .. } => {
                 if name.trim().is_empty() {
                     return Err(format!("Input node {node_id} cannot have an empty name"));
                 }
@@ -295,7 +295,7 @@ fn derive_io_ports(nodes: &[CompositeNode], edges: &[CompositeEdge], node_ports:
                 });
                 order += 1;
             }
-            CompositeNode::Output { node_id, name } => {
+            CompositeNode::Output { node_id, name, .. } => {
                 if name.trim().is_empty() {
                     return Err(format!("Output node {node_id} cannot have an empty name"));
                 }

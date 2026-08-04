@@ -1,0 +1,6 @@
+BEGIN;
+
+DROP TABLE IF EXISTS source_storage;
+DROP TABLE IF EXISTS sources;
+
+COMMIT;

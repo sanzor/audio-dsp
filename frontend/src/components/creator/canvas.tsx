@@ -7,16 +7,16 @@ import ReactFlow, {
 import { Handle, Position } from "reactflow";
 import "reactflow/dist/style.css";
 import { useCreatorStore } from "@/Stores/CreatorStore";
-import { useCreatorPreviewStore } from "@/Stores/CreatorPreviewStore";
+import { useCreatorPlaybackStore } from "@/Stores/CreatorPlaybackStore";
 import { useGetTransformDefinition } from "@/hooks/transforms/queries";
 import type { TransformPort } from "@/domain/Transform/TransformPort";
 
 
 // ─── Live meter bar ───────────────────────────────────────────────────────────
-// Subscribes directly to the preview store rather than receiving levels as
+// Subscribes directly to the playback store rather than receiving levels as
 // props from CreatorCanvasInner — isolates the ~20Hz re-render to this leaf
 // element instead of the whole ReactFlow tree. Renders nothing unless this
-// exact transform is the one currently previewing, so there's no regression
+// exact transform is the one currently playing back, so there's no regression
 // to the static port list the rest of the time.
 
 interface LiveMeterBarProps {
@@ -25,11 +25,11 @@ interface LiveMeterBarProps {
 }
 
 function LiveMeterBar({ direction, transformId }: LiveMeterBarProps) {
-  const previewStatus = useCreatorPreviewStore((s) => s.status);
-  const previewTransformId = useCreatorPreviewStore((s) => s.previewTransformId);
-  const level = useCreatorPreviewStore((s) => (direction === "input" ? s.inputLevel : s.outputLevel));
+  const playbackStatus = useCreatorPlaybackStore((s) => s.status);
+  const playbackTransformId = useCreatorPlaybackStore((s) => s.playbackTransformId);
+  const level = useCreatorPlaybackStore((s) => (direction === "input" ? s.inputLevel : s.outputLevel));
 
-  if (previewStatus !== "playing" || previewTransformId !== transformId) return null;
+  if (playbackStatus !== "playing" || playbackTransformId !== transformId) return null;
 
   const color = direction === "input" ? "#adc6ff" : "#4ae176";
   const widthPct = Math.min(100, level.peak * 100);
@@ -59,7 +59,7 @@ interface TransformNodeData {
   outputs: TransformPort[];
 }
 
-function TransformPreviewNode({ data }: NodeProps<TransformNodeData>) {
+function TransformCanvasNode({ data }: NodeProps<TransformNodeData>) {
   const rowHeight = 28;
   const rows = Math.max(data.inputs.length, data.outputs.length, 1);
   const height = rows * rowHeight + 48;
@@ -186,7 +186,7 @@ function TransformPreviewNode({ data }: NodeProps<TransformNodeData>) {
   );
 }
 
-const NODE_TYPES = { transformPreview: TransformPreviewNode };
+const NODE_TYPES = { transform: TransformCanvasNode };
 
 // ─── Inner canvas that reads selected transform ───────────────────────────────
 
@@ -219,7 +219,7 @@ function CreatorCanvasInner() {
 
   const node = {
     id: String(definition.transform_id),
-    type: "transformPreview" as const,
+    type: "transform" as const,
     position: { x: 0, y: 0 },
     data: { transformId: definition.transform_id, name: definition.name, inputs, outputs },
     draggable: false,

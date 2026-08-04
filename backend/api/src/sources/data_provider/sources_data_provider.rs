@@ -1,19 +1,18 @@
 use domain::{
-    db::db_track::{DbTrack, DbTrackMeta, TrackId},
-    raw_track::TrackInfo,
-    update_track_info_params::UpdateTrackInfoParams,
+    db::db_source::{DbSource, DbSourceMeta, SourceId},
+    sources::source_info::SourceInfo,
+    update_source_info_params::UpdateSourceInfoParams,
 };
 
 #[async_trait::async_trait]
-pub trait TracksDataProvider: Send + Sync {
-    async fn get_track(&self, track_id: &TrackId) -> Result<DbTrack, String>;
-    async fn get_all_track_metas(&self) -> Result<Vec<DbTrackMeta>, String>;
-    async fn delete_track(&self, track_id: &TrackId) -> Result<(), String>;
-    async fn insert_track(&self, track_info: TrackInfo, project_id: i32) -> Result<DbTrack, String>;
-    async fn copy_track(&self, source_track_id: &TrackId, new_name: &str) -> Result<DbTrack, String>;
-    async fn update_track_info(
+pub trait SourcesDataProvider: Send + Sync {
+    async fn get_source(&self, source_id: &SourceId) -> Result<DbSource, String>;
+    async fn get_all_source_metas(&self) -> Result<Vec<DbSourceMeta>, String>;
+    async fn delete_source(&self, source_id: &SourceId) -> Result<(), String>;
+    async fn insert_source(&self, source_info: SourceInfo, project_id: i32) -> Result<DbSource, String>;
+    async fn update_source_info(
         &self,
-        track_id: &TrackId,
-        params: UpdateTrackInfoParams,
-    ) -> Result<DbTrack, String>;
+        source_id: &SourceId,
+        params: UpdateSourceInfoParams,
+    ) -> Result<DbSource, String>;
 }

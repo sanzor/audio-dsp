@@ -1,87 +1,78 @@
 use domain::{
-    db::db_track::{DbTrack, DbTrackMeta, TrackId},
-    raw_track::TrackInfo,
-    update_track_info_params::UpdateTrackInfoParams,
+    db::db_source::{DbSource, DbSourceMeta, SourceId},
+    sources::source_info::SourceInfo,
+    update_source_info_params::UpdateSourceInfoParams,
 };
 use sqlx::PgPool;
 
-use super::tracks_data_provider::TracksDataProvider;
+use super::sources_data_provider::SourcesDataProvider;
 
-pub struct PostgresTracksDataProvider {
+pub struct PostgresSourcesDataProvider {
     pool: PgPool,
 }
 
-impl PostgresTracksDataProvider {
+impl PostgresSourcesDataProvider {
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
 }
 
 #[async_trait::async_trait]
-impl TracksDataProvider for PostgresTracksDataProvider {
-    async fn get_track(&self, track_id: &TrackId) -> Result<DbTrack, String> {
-        sqlx::query_as::<_, DbTrack>(
-            "SELECT track_id, name, extension, length_seconds, created_at FROM tracks WHERE track_id = $1"
+impl SourcesDataProvider for PostgresSourcesDataProvider {
+    async fn get_source(&self, source_id: &SourceId) -> Result<DbSource, String> {
+        sqlx::query_as::<_, DbSource>(
+            "SELECT source_id, name, extension, length_seconds, created_at FROM sources WHERE source_id = $1"
         )
-        .bind(track_id)
+        .bind(source_id)
         .fetch_one(&self.pool)
         .await
         .map_err(|e| e.to_string())
     }
 
-    async fn get_all_track_metas(&self) -> Result<Vec<DbTrackMeta>, String> {
-        sqlx::query_as::<_, DbTrackMeta>(
-            "SELECT track_id, name, extension, length_seconds, created_at FROM tracks ORDER BY created_at DESC"
+    async fn get_all_source_metas(&self) -> Result<Vec<DbSourceMeta>, String> {
+        sqlx::query_as::<_, DbSourceMeta>(
+            "SELECT source_id, name, extension, length_seconds, created_at FROM sources ORDER BY created_at DESC"
         )
         .fetch_all(&self.pool)
         .await
         .map_err(|e| e.to_string())
     }
 
-    async fn delete_track(&self, track_id: &TrackId) -> Result<(), String> {
-        sqlx::query("DELETE FROM tracks WHERE track_id = $1")
-            .bind(track_id)
+    async fn delete_source(&self, source_id: &SourceId) -> Result<(), String> {
+        sqlx::query("DELETE FROM sources WHERE source_id = $1")
+            .bind(source_id)
             .execute(&self.pool)
             .await
             .map(|_| ())
             .map_err(|e| e.to_string())
     }
 
-    async fn insert_track(&self, track_info: TrackInfo, project_id: i32) -> Result<DbTrack, String> {
-        sqlx::query_as::<_, DbTrack>(
-            "INSERT INTO tracks (name, extension, length_seconds, project_id)
+    async fn insert_source(&self, source_info: SourceInfo, project_id: i32) -> Result<DbSource, String> {
+        sqlx::query_as::<_, DbSource>(
+            "INSERT INTO sources (name, extension, length_seconds, project_id)
              VALUES ($1, $2, $3, $4)
-             RETURNING track_id, name, extension, length_seconds, created_at",
+             RETURNING source_id, name, extension, length_seconds, created_at",
         )
-        .bind(&track_info.name)
-        .bind(&track_info.extension)
-        .bind(track_info.length)
+        .bind(&source_info.name)
+        .bind(&source_info.extension)
+        .bind(source_info.length)
         .bind(project_id)
         .fetch_one(&self.pool)
         .await
         .map_err(|e| e.to_string())
     }
 
-    async fn copy_track(&self, source_track_id: &TrackId, new_name: &str) -> Result<DbTrack, String> {
-        sqlx::query_as::<_, DbTrack>(
-            "INSERT INTO tracks (name, extension, length_seconds)
-             SELECT $1, extension, length_seconds FROM tracks WHERE track_id = $2
-             RETURNING track_id, name, extension, length_seconds, created_at",
+    async fn update_source_info(
+        &self,
+        source_id: &SourceId,
+        params: UpdateSourceInfoParams,
+    ) -> Result<DbSource, String> {
+        sqlx::query_as::<_, DbSource>(
+            "UPDATE sources SET name = $2 WHERE source_id = $1
+             RETURNING source_id, name, extension, length_seconds, created_at",
         )
-        .bind(new_name)
-        .bind(source_track_id)
-        .fetch_one(&self.pool)
-        .await
-        .map_err(|e| e.to_string())
-    }
-
-    async fn update_track_info(&self, track_id: &TrackId, params: UpdateTrackInfoParams) -> Result<DbTrack, String> {
-        sqlx::query_as::<_, DbTrack>(
-            "UPDATE tracks SET name = $2 WHERE track_id = $1
-             RETURNING track_id, name, extension, length_seconds, created_at",
-        )
-        .bind(track_id)
-        .bind(params.track_name)
+        .bind(source_id)
+        .bind(params.source_name)
         .fetch_one(&self.pool)
         .await
         .map_err(|e| e.to_string())

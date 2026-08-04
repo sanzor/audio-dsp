@@ -1,19 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import Editor from "@monaco-editor/react";
 import { useCreatorStore } from "@/Stores/CreatorStore";
-import { useCreatorPreviewStore } from "@/Stores/CreatorPreviewStore";
+import { useCreatorPlaybackStore } from "@/Stores/CreatorPlaybackStore";
 import { useGetTransformDefinition } from "@/hooks/transforms/queries";
 import { useCompileTicketStatus } from "@/hooks/tickets/queries";
 import { useRequestCompileTransform } from "@/hooks/tickets/mutations";
 import { useSaveTransform, usePublishTransform } from "@/hooks/transforms/mutations";
-import { decodeBase64Binary } from "@/Services/TransformService";
-import { buildPrimitivePreviewGraph, PRIMITIVE_PREVIEW_NODE_ID } from "./creatorTransformPreview";
 import { validateTransformSource } from "./validateTransformSource";
 import { usePublishWithPortShapeDiff } from "./usePublishWithPortShapeDiff";
 import { ToolbarButton } from "./toolbar-button";
 
-// The "Try it" client-side preview (creatorTransformPreview.ts) runs a
-// just-compiled binary through CreatorPreviewStore, fed by the wasm_base64/
+// The "Try it" client-side playback (creatorTransformPlayback.ts) runs a
+// just-compiled binary through CreatorPlaybackStore, fed by the wasm_base64/
 // params fields on the compile ticket status DTO — see
 // agents/decisions/0003-transform-preview-flow.md.
 
@@ -71,12 +69,10 @@ export function CreatorCodeEditor() {
   const { data: definition } = useGetTransformDefinition(selectedId);
   const [activeTab, setActiveTab] = useState("impl");
 
-  const previewStatus = useCreatorPreviewStore((s) => s.status);
-  const previewTransformId = useCreatorPreviewStore((s) => s.previewTransformId);
-  const previewBypassed = useCreatorPreviewStore((s) => s.bypassed);
-  const playPreview = useCreatorPreviewStore((s) => s.play);
-  const stopPreview = useCreatorPreviewStore((s) => s.stop);
-  const setPreviewBypass = useCreatorPreviewStore((s) => s.setBypass);
+  const playbackStatus = useCreatorPlaybackStore((s) => s.status);
+  const playbackTransformId = useCreatorPlaybackStore((s) => s.playbackTransformId);
+  const playbackBypassed = useCreatorPlaybackStore((s) => s.bypassed);
+  const setPlaybackBypass = useCreatorPlaybackStore((s) => s.setBypass);
 
   // Load the editor buffer from the fetched definition once per selected
   // transform — not on every render, and not before the right definition
@@ -118,41 +114,29 @@ export function CreatorCodeEditor() {
 
   const validation = useMemo(() => validateTransformSource(code), [code]);
 
-  // Tear down any live preview session whenever the selected transform
+  // Tear down any live playback session whenever the selected transform
   // changes (or this editor unmounts) — switching transforms must never
   // leave the previous one's audio session running.
   useEffect(() => {
     return () => {
-      useCreatorPreviewStore.getState().stop();
+      useCreatorPlaybackStore.getState().stop();
     };
   }, [selectedId]);
 
-  const isPreviewingThis =
-    selectedId != null && previewTransformId === selectedId && previewStatus !== "idle" && previewStatus !== "error";
-  const previewLoadingThis =
-    selectedId != null && previewTransformId === selectedId && previewStatus === "loading";
-  const canStartPreview = attachableResourceId != null && ticketStatus.data?.status.wasm_base64 != null;
+  const isPlayingThis =
+    selectedId != null && playbackTransformId === selectedId && playbackStatus !== "idle" && playbackStatus !== "error";
 
   // Composite transforms never reach this component — creator-workspace.tsx
   // routes kind === "composite" to CompositeCanvas instead, which has its
   // own graph-based Monaco-free authoring flow.
-
-  function handleTogglePreview() {
-    if (selectedId == null) return;
-    if (isPreviewingThis) {
-      stopPreview();
-      return;
-    }
-    const wasmBase64 = ticketStatus.data?.status.wasm_base64;
-    if (wasmBase64 == null || attachableResourceId == null) return;
-    const wasmBytes = decodeBase64Binary(wasmBase64);
-    const params = [...(ticketStatus.data?.status.params ?? [])]
-      .sort((a, b) => a.param_order - b.param_order)
-      .map((p) => p.default_value);
-    const resourceKey = `${attachableResourceId}:${code}`;
-    const graph = buildPrimitivePreviewGraph(params);
-    void playPreview(selectedId, resourceKey, graph, { [PRIMITIVE_PREVIEW_NODE_ID]: wasmBytes }, params);
-  }
+  //
+  // This component's own inline Play/Stop button was removed in favor of the
+  // always-visible bottom playback stripe (playback-stripe.tsx), which drives
+  // the same playback session via primitive-playback-controls.ts's
+  // usePrimitivePlaybackControls -- the extracted equivalent of what used to
+  // be this component's local play/stop toggle closure. isPlayingThis
+  // above is still computed locally since the Bypass toggle below still
+  // needs it, and that's a trivial store-only read.
 
   function handleSave() {
     if (selectedId == null || !isDirty) return;
@@ -228,26 +212,14 @@ export function CreatorCodeEditor() {
               Compiled ✓{ticketStatus.data?.status.resource_id != null ? ` (resource #${ticketStatus.data.status.resource_id})` : ""}
             </span>
           )}
-          {buildState === "successful" && (
-            <>
-              <ToolbarButton
-                variant={isPreviewingThis ? "stop" : "play"}
-                onClick={handleTogglePreview}
-                disabled={selectedId == null || (!isPreviewingThis && !canStartPreview)}
-                title={!canStartPreview && !isPreviewingThis ? "Recompile the current source to preview it" : undefined}
-              >
-                {previewLoadingThis ? "Loading…" : isPreviewingThis ? "Stop" : "Play"}
-              </ToolbarButton>
-              {isPreviewingThis && (
-                <ToolbarButton
-                  variant="bypass"
-                  onClick={() => setPreviewBypass(!previewBypassed)}
-                  muted={previewBypassed}
-                >
-                  {previewBypassed ? "Bypassed" : "Bypass"}
-                </ToolbarButton>
-              )}
-            </>
+          {buildState === "successful" && isPlayingThis && (
+            <ToolbarButton
+              variant="bypass"
+              onClick={() => setPlaybackBypass(!playbackBypassed)}
+              muted={playbackBypassed}
+            >
+              {playbackBypassed ? "Bypassed" : "Bypass"}
+            </ToolbarButton>
           )}
           {buildState === "failed" && (
             <button
@@ -264,7 +236,7 @@ export function CreatorCodeEditor() {
             onClick={handleSave}
             disabled={selectedId == null || !isDirty || saveMutation.isPending}
           >
-            {saveMutation.isPending ? "Saving…" : "Save"}
+            {saveMutation.isPending ? "Saving…" : "Save Draft"}
           </ToolbarButton>
           <ToolbarButton
             variant="compile"

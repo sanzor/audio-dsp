@@ -1,6 +1,6 @@
 use crate::{
     middlewares::role_context::role_context::{ProjectContext, RoleContext},
-    tracks::tracks_app_data::TracksAppData,
+    sources::sources_app_data::SourcesAppData,
 };
 use actix_multipart::Multipart;
 use actix_web::{
@@ -9,30 +9,30 @@ use actix_web::{
     HttpResponse,
 };
 use domain::{
-    raw_track::{RawTrack},
-    update_track_info_params::UpdateTrackInfoParams,
+    db::db_source::SourceId,
+    sources::{raw_source::RawSource, source_info::SourceInfo as DomainSourceInfo},
+    update_source_info_params::UpdateSourceInfoParams,
 };
+use mime_guess::from_ext;
 
 use serde::{Deserialize, Serialize};
 use tracing::{error, info};
 use utoipa::{IntoParams, ToSchema};
 
-use domain::{db::TrackId, tracks::track_info::TrackInfo as DomainTrackInfo};
-
 #[derive(Deserialize, Serialize)]
 pub struct AddSourceParams {
-    pub track: RawTrack,
+    pub source: RawSource,
 }
 
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct AddSourceResult {
-    pub track_id: TrackId,
+    pub source_id: SourceId,
     #[schema(value_type = Object)]
-    pub track_info: DomainTrackInfo,
+    pub source_info: DomainSourceInfo,
 }
 
 #[derive(ToSchema)]
-pub struct AddTrackMultipartRequest {
+pub struct AddSourceMultipartRequest {
     pub name: String,
     pub extension: String,
     #[schema(value_type = String, format = Binary)]
@@ -66,260 +66,203 @@ pub async fn add_source(
         Err(_) => return HttpResponse::BadRequest().body("Invalid payload"),
     };
 
-    match app_state.tracks_service.insert_source(request.track, project.0).await {
-        Ok(track) => HttpResponse::Ok().json(AddSourceResult {
-            track_id: track.meta.track_id,
-            track_info: track.meta.track_info,
+    match app_state.sources_service.insert_source(request.source, project.0).await {
+        Ok(source) => HttpResponse::Ok().json(AddSourceResult {
+            source_id: source.meta.source_id,
+            source_info: source.meta.source_info,
         }),
-        Err(_e) => HttpResponse::InternalServerError().body("Could not insert track"),
+        Err(_e) => HttpResponse::InternalServerError().body("Could not insert source"),
     }
 }
 
 #[utoipa::path(
     post,
-    path = "/tracks/add-track-multi",
-    tag = "tracks",
+    path = "/sources/add-source-multi",
+    tag = "sources",
     request_body(
-        content = AddTrackMultipartRequest,
+        content = AddSourceMultipartRequest,
         content_type = "multipart/form-data",
         description = "Upload a WAV file in `samples`, or upload raw float32 PCM bytes in `samples` together with `sample_rate` and `channels` (`Mono` or `Stereo`). MP3 bytes are not decoded by this endpoint."
     ),
-    responses((status = 200, description = "Track added (multipart)", body = AddTrackResult)),
+    responses((status = 200, description = "Source added (multipart)", body = AddSourceResult)),
     security(
         ("bearerAuth" = [])
     )
 )]
-#[post("/add-track-multi")]
-pub async fn add_track_multi(
-    _role: RoleContext,
+#[post("/add-source-multi")]
+pub async fn add_source_multi(
+    role: RoleContext,
     project: ProjectContext,
     payload: Multipart,
-    app_state: web::Data<TracksAppData>,
+    app_state: web::Data<SourcesAppData>,
 ) -> HttpResponse {
-    info!("add-track-multi request received");
-    // if !role.can_edit() {
-    //     warn!("add-track-multi rejected: role cannot edit");
-    //     return HttpResponse::Forbidden().body("Forbidden");
-    // }
-    let raw_track = match app_state.multipart_parser.try_parse_multipart(payload).await {
+    info!("add-source-multi request received");
+    if !role.can_edit() {
+        return HttpResponse::Forbidden().body("Forbidden");
+    }
+    let raw_source = match app_state.multipart_parser.try_parse_multipart(payload).await {
         Ok(r) => r,
         Err(err) => {
-            error!(error = %err, "add-track-multi rejected: invalid payload");
+            error!(error = %err, "add-source-multi rejected: invalid payload");
             return HttpResponse::BadRequest().body(err);
         }
     };
 
-    match app_state.tracks_service.insert_track(raw_track, project.0).await {
-        Ok(track) => {
-            info!(track_id = %track.meta.track_id, "add-track-multi insert complete");
-            HttpResponse::Ok().json(AddTrackResult {
-                track_id: track.meta.track_id,
-                track_info: track.meta.track_info,
+    match app_state.sources_service.insert_source(raw_source, project.0).await {
+        Ok(source) => {
+            info!(source_id = %source.meta.source_id, "add-source-multi insert complete");
+            HttpResponse::Ok().json(AddSourceResult {
+                source_id: source.meta.source_id,
+                source_info: source.meta.source_info,
             })
         }
         Err(err) => {
-            error!(error = %err, "add-track-multi insert failed");
-            HttpResponse::InternalServerError().body("Could not insert track")
+            error!(error = %err, "add-source-multi insert failed");
+            HttpResponse::InternalServerError().body("Could not insert source")
         }
     }
 }
 
-#[derive(Deserialize, ToSchema)]
-pub struct CopyTrackParams {
-    pub track_id: TrackId,
-    pub copy_track_name: String,
-}
-
 #[utoipa::path(
-    post,
-    path = "/tracks/copy-track",
-    tag = "tracks",
-    request_body = CopyTrackParams,
-    responses((status = 200, description = "Track copied", body = serde_json::Value)),
+    get,
+    path = "/sources/list-sources",
+    tag = "sources",
+    responses((status = 200, description = "All source metas", body = serde_json::Value)),
     security(
         ("bearerAuth" = [])
     )
 )]
-#[post("/copy-track")]
-pub async fn copy_track(
-    role: RoleContext,
-    request_raw: web::Json<CopyTrackParams>,
-    app_state: web::Data<TracksAppData>,
-) -> HttpResponse {
-    if !role.can_edit() {
+#[get("/list-sources")]
+pub async fn list_sources(role: RoleContext, app_state: web::Data<SourcesAppData>) -> HttpResponse {
+    if !role.can_view() {
         return HttpResponse::Forbidden().body("Forbidden");
     }
-    let request = request_raw.into_inner();
-    match app_state
-        .tracks_service
-        .copy_track(&request.track_id, request.copy_track_name)
-        .await
-    {
-        Ok(_) => HttpResponse::Ok().json("track copied"),
-        Err(_e) => HttpResponse::InternalServerError().body("Could not copy track"),
+    match app_state.sources_service.get_all_source_metas().await {
+        Ok(metas) => HttpResponse::Ok().json(metas),
+        Err(_e) => HttpResponse::InternalServerError().body("Could not get sources"),
     }
 }
 
 #[derive(Deserialize, ToSchema)]
-pub struct UpdateTrackParams {
-    pub track_id: TrackId,
-    pub track_name: String,
+pub struct RenameSourceParams {
+    pub source_id: SourceId,
+    pub source_name: String,
 }
 
 #[utoipa::path(
     post,
-    path = "/tracks/update-track-info",
-    tag = "tracks",
-    request_body = UpdateTrackParams,
-    responses((status = 200, description = "Track updated", body = serde_json::Value)),
+    path = "/sources/rename-source",
+    tag = "sources",
+    request_body = RenameSourceParams,
+    responses((status = 200, description = "Source renamed", body = serde_json::Value)),
     security(
         ("bearerAuth" = [])
     )
 )]
-#[post("/update-track-info")]
-pub async fn update_track_info(
+#[post("/rename-source")]
+pub async fn rename_source(
     role: RoleContext,
-    path: web::Json<UpdateTrackParams>,
-    app_state: web::Data<TracksAppData>,
+    path: web::Json<RenameSourceParams>,
+    app_state: web::Data<SourcesAppData>,
 ) -> HttpResponse {
     if !role.can_edit() {
         return HttpResponse::Forbidden().body("Forbidden");
     }
     let request = path.into_inner();
     match app_state
-        .tracks_service
-        .update_track_info(
-            &request.track_id,
-            UpdateTrackInfoParams { track_name: request.track_name },
+        .sources_service
+        .update_source_info(
+            &request.source_id,
+            UpdateSourceInfoParams { source_name: request.source_name },
         )
         .await
     {
-        Ok(_) => HttpResponse::Ok().json("track updated"),
-        Err(_e) => HttpResponse::InternalServerError().body("Could not update track"),
+        Ok(meta) => HttpResponse::Ok().json(meta),
+        Err(_e) => HttpResponse::InternalServerError().body("Could not rename source"),
     }
 }
 
 #[derive(Deserialize, IntoParams)]
-pub struct RemoveTrackParams {
-    pub track_id: TrackId,
+pub struct DeleteSourceParams {
+    pub source_id: SourceId,
 }
 
 #[utoipa::path(
     delete,
-    path = "/tracks/remove",
-    tag = "tracks",
-    params(RemoveTrackParams),
-    responses((status = 200, description = "Track removed", body = serde_json::Value)),
+    path = "/sources/delete-source",
+    tag = "sources",
+    params(DeleteSourceParams),
+    responses((status = 200, description = "Source removed", body = serde_json::Value)),
     security(
         ("bearerAuth" = [])
     )
 )]
-#[delete("/remove")]
-pub async fn remove_track(
+#[delete("/delete-source")]
+pub async fn delete_source(
     role: RoleContext,
-    path: web::Query<RemoveTrackParams>,
-    app_state: web::Data<TracksAppData>,
+    path: web::Query<DeleteSourceParams>,
+    app_state: web::Data<SourcesAppData>,
 ) -> HttpResponse {
     if !role.can_edit() {
         return HttpResponse::Forbidden().body("Forbidden");
     }
     let request = path.into_inner();
-    match app_state.tracks_service.delete_track(&request.track_id).await {
-        Ok(_) => HttpResponse::Ok().json("track removed"),
-        Err(_e) => HttpResponse::InternalServerError().body("Could not remove track"),
+    match app_state.sources_service.delete_source(&request.source_id).await {
+        Ok(_) => HttpResponse::Ok().json("source removed"),
+        Err(_e) => HttpResponse::InternalServerError().body("Could not remove source"),
     }
 }
 
+// Not part of the product-owner's requested endpoint list (add-source, add-source-multi,
+// list-sources, rename-source, delete-source) -- added because the Creator preview session
+// needs a way to actually fetch a picked source's audio bytes to play them, the same way
+// `/stored-tracks/get` (`track_payload_controller.rs`) serves track audio today. Flagged as
+// a deviation in the implementation report; trivial to remove if out of scope.
 #[derive(Deserialize, IntoParams)]
-pub struct GetTrackParams {
-    pub track_id: TrackId,
+pub struct GetSourceAudioParams {
+    pub source_id: SourceId,
 }
 
 #[utoipa::path(
     get,
-    path = "/tracks/get-meta",
-    tag = "tracks",
-    params(GetTrackParams),
-    responses((status = 200, description = "Track metadata", body = serde_json::Value)),
+    path = "/sources/get-audio",
+    tag = "sources",
+    params(GetSourceAudioParams),
+    responses((status = 200, description = "Source audio bytes")),
     security(
         ("bearerAuth" = [])
     )
 )]
-#[get("/get-meta")]
-pub async fn get_meta(
+#[get("/get-audio")]
+pub async fn get_source_audio(
     role: RoleContext,
-    query: web::Query<GetTrackParams>,
-    app_state: web::Data<TracksAppData>,
+    query: web::Query<GetSourceAudioParams>,
+    app_state: web::Data<SourcesAppData>,
 ) -> HttpResponse {
     if !role.can_view() {
         return HttpResponse::Forbidden().body("Forbidden");
     }
     let request = query.into_inner();
-    match app_state.tracks_service.get_track_meta(&request.track_id).await {
-        Ok(meta) => HttpResponse::Ok().json(meta),
-        Err(_e) => HttpResponse::InternalServerError().body("Could not get track"),
-    }
-}
-
-#[utoipa::path(
-    get,
-    path = "/tracks/get-all",
-    tag = "tracks",
-    responses((status = 200, description = "All track metas", body = serde_json::Value)),
-    security(
-        ("bearerAuth" = [])
-    )
-)]
-#[get("/get-all")]
-pub async fn get_tracks(_role: RoleContext, app_state: web::Data<TracksAppData>) -> HttpResponse {
-    // if !role.can_view() {
-    //     return HttpResponse::Forbidden().body("Forbidden");
-    // }
-    match app_state.tracks_service.get_all_track_metas().await {
-        Ok(metas) => HttpResponse::Ok().json(metas),
-        Err(_e) => HttpResponse::InternalServerError().body("Could not get tracks"),
-    }
-}
-
-#[derive(Deserialize, ToSchema)]
-pub struct GetTrackInfoParams {
-    pub track_id: TrackId,
-}
-
-#[utoipa::path(
-    get,
-    path = "/tracks/get-track-info",
-    tag = "tracks",
-    request_body = GetTrackInfoParams,
-    responses((status = 200, description = "Track info", body = serde_json::Value)),
-    security(
-        ("bearerAuth" = [])
-    )
-)]
-#[get("/get-track-info")]
-pub async fn get_track_info(
-    role: RoleContext,
-    query: web::Json<GetTrackInfoParams>,
-    app_state: web::Data<TracksAppData>,
-) -> HttpResponse {
-    if !role.can_view() {
-        return HttpResponse::Forbidden().body("Forbidden");
-    }
-    let request = query.into_inner();
-    match app_state.tracks_service.get_track_meta(&request.track_id).await {
-        Ok(meta) => HttpResponse::Ok().json(meta),
-        Err(_e) => HttpResponse::InternalServerError().body("Could not get track info"),
-    }
+    let source = match app_state.sources_service.get_source(&request.source_id).await {
+        Ok(s) => s,
+        Err(_) => return HttpResponse::NotFound().body("Could not find source"),
+    };
+    let ext = source.meta.source_info.extension.to_lowercase();
+    let mime_type = from_ext(&ext).first_or_octet_stream().essence_str().to_owned();
+    HttpResponse::Ok()
+        .insert_header(("Content-Type", mime_type))
+        .insert_header((
+            "Content-Disposition",
+            format!("inline; filename=\"{}.{}\"", source.meta.source_info.name, ext),
+        ))
+        .body(source.payload.canonical_audio)
 }
 
 pub fn init(cfg: &mut web::ServiceConfig) {
-    cfg.service(add_track)
-        .service(add_track_multi)
-        .service(update_track_info)
-        .service(remove_track)
-        .service(get_track_info)
-        .service(get_meta)
-        .service(get_tracks)
-        .service(copy_track);
+    cfg.service(add_source)
+        .service(add_source_multi)
+        .service(list_sources)
+        .service(rename_source)
+        .service(delete_source)
+        .service(get_source_audio);
 }
-

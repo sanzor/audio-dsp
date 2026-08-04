@@ -19,7 +19,6 @@ import { usePublishWithPortShapeDiff } from "../usePublishWithPortShapeDiff";
 import { ToolbarButton } from "../toolbar-button";
 import { CompositePalette } from "./composite-palette";
 import { NODE_TYPES } from "./composite-canvas-node";
-import { useCompositePreviewControls } from "./composite-preview-controls";
 import { useCompositeGraphView } from "./composite-graph-view";
 import { NodeInspectorPanel } from "./composite-node-inspector";
 import { CompositeIoGhostSlot } from "./composite-io-placeholder";
@@ -78,7 +77,7 @@ function isConnectionAllowed(editingGraph: EditingCompositeGraph | null, connect
 
 function CompositeCanvasInner() {
   const selectedId = useCreatorStore((s) => s.selectedTransformId);
-  const { data: definition } = useGetTransformDefinition(selectedId);
+  const { data: definition, error: definitionError } = useGetTransformDefinition(selectedId);
   const { screenToFlowPosition } = useReactFlow();
 
   const editingGraph = useCompositeCanvasStore((s) => s.editingGraph);
@@ -97,19 +96,22 @@ function CompositeCanvasInner() {
 
   const saveMutation = useSaveCompositeTransform(selectedId ?? -1);
   const publishMutation = usePublishTransform(selectedId ?? -1);
-  const { togglePreview, isPreviewingThis, isLoading: previewLoading } = useCompositePreviewControls(selectedId ?? -1);
   const { handlePublish } = usePublishWithPortShapeDiff(selectedId, publishMutation);
 
   // (Re)initialize the editing graph whenever a different composite is
-  // selected — simple left-to-right auto-layout since node position isn't
-  // persisted server-side.
+  // selected — seed each node's position from the loaded definition (now
+  // persisted server-side, see CompositeGraphDefinition.ts), falling back
+  // to a left-to-right auto-layout only for nodes with no saved position at
+  // all (older rows predating this field come back as `{x:0, y:0}` rather
+  // than omitting the key, so this can't distinguish "explicitly saved at
+  // 0,0" from "never saved" — not worth the complexity to special-case).
   useEffect(() => {
     if (selectedId == null || definition == null || definition.transform_id !== selectedId) return;
     if (editingGraph != null && editingGraph.transformId === selectedId) return;
 
     const positions = new Map<number, { x: number; y: number }>();
     (definition.graph_definition?.nodes ?? []).forEach((n, i) => {
-      positions.set(n.node_id, { x: (i % 4) * 260, y: Math.floor(i / 4) * 200 });
+      positions.set(n.node_id, n.position ?? { x: (i % 4) * 260, y: Math.floor(i / 4) * 200 });
     });
     beginEditingCompositeGraph(selectedId, definition.graph_definition, positions);
   }, [selectedId, definition, editingGraph, beginEditingCompositeGraph]);
@@ -120,6 +122,15 @@ function CompositeCanvasInner() {
     return (
       <div className="w-full h-full flex items-center justify-center">
         <span className="text-sm" style={{ color: "var(--text-muted)" }}>Select or create a transform to begin.</span>
+      </div>
+    );
+  }
+  if (definitionError != null) {
+    return (
+      <div className="w-full h-full flex items-center justify-center">
+        <span className="text-xs font-mono" style={{ color: "#ff6b6b" }}>
+          Failed to load: {(definitionError as Error).message ?? "unknown error"}
+        </span>
       </div>
     );
   }
@@ -198,15 +209,8 @@ function CompositeCanvasInner() {
           className="flex items-center justify-end gap-2 px-3 h-8 flex-shrink-0"
           style={{ borderBottom: "1px solid rgba(255,255,255,0.06)", backgroundColor: "var(--bg-darker)" }}
         >
-          <ToolbarButton
-            variant={isPreviewingThis ? "stop" : "play"}
-            onClick={togglePreview}
-            disabled={editingGraph.nodes.size === 0}
-          >
-            {previewLoading ? "Loading…" : isPreviewingThis ? "Stop" : "Play"}
-          </ToolbarButton>
           <ToolbarButton variant="save" onClick={handleSave} disabled={!isDirty || saveMutation.isPending}>
-            {saveMutation.isPending ? "Saving…" : "Save"}
+            {saveMutation.isPending ? "Saving…" : "Save Draft"}
           </ToolbarButton>
           <ToolbarButton
             variant="publish"

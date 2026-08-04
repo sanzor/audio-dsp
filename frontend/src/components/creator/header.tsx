@@ -5,6 +5,7 @@ type BuildTab = "build" | "test" | "deploy";
 interface CreatorHeaderProps {
   activeTab: BuildTab;
   onTabChange: (tab: BuildTab) => void;
+  onOpenSources: () => void;
 }
 
 const TABS: { id: BuildTab; label: string }[] = [
@@ -13,7 +14,7 @@ const TABS: { id: BuildTab; label: string }[] = [
   { id: "deploy", label: "Deploy" },
 ];
 
-export function CreatorHeader({ activeTab, onTabChange }: CreatorHeaderProps) {
+export function CreatorHeader({ activeTab, onTabChange, onOpenSources }: CreatorHeaderProps) {
   return (
     <header
       className="flex items-center justify-between px-4 h-12 flex-shrink-0 gap-4"
@@ -50,7 +51,10 @@ export function CreatorHeader({ activeTab, onTabChange }: CreatorHeaderProps) {
         </div>
 
         {/* Build / Test / Deploy tabs */}
-        <nav className="flex items-center gap-1">
+        <nav
+          className="flex items-center gap-1 rounded p-1"
+          style={{ border: "1px solid rgba(255,255,255,0.08)", backgroundColor: "var(--bg-dark)" }}
+        >
           {TABS.map((tab) => (
             <button
               key={tab.id}
@@ -58,7 +62,7 @@ export function CreatorHeader({ activeTab, onTabChange }: CreatorHeaderProps) {
               className="px-3 py-1 text-xs font-mono transition-colors rounded"
               style={
                 activeTab === tab.id
-                  ? { color: "#adc6ff", borderBottom: "2px solid #adc6ff", borderRadius: 0 }
+                  ? { color: "#adc6ff", backgroundColor: "rgba(173,198,255,0.12)" }
                   : { color: "var(--text-muted)" }
               }
             >
@@ -92,13 +96,23 @@ export function CreatorHeader({ activeTab, onTabChange }: CreatorHeaderProps) {
         </div>
       </div>
 
-      {/* Right: language badge */}
-      <span
-        className="font-mono font-bold px-2 py-0.5 rounded text-[10px]"
-        style={{ color: "#ffb786", border: "1px solid rgba(255,183,134,0.3)" }}
-      >
-        RUST (WASM)
-      </span>
+      {/* Right: sources panel + language badge */}
+      <div className="flex items-center gap-3">
+        <button
+          onClick={onOpenSources}
+          className="font-mono text-[10px] px-2.5 py-1 rounded transition-colors"
+          style={{ color: "var(--text-muted)", border: "1px solid rgba(255,255,255,0.12)" }}
+          title="Manage uploaded signal sources for the Try it playback session"
+        >
+          Sources
+        </button>
+        <span
+          className="font-mono font-bold px-2 py-0.5 rounded text-[10px]"
+          style={{ color: "#ffb786", border: "1px solid rgba(255,183,134,0.3)" }}
+        >
+          RUST (WASM)
+        </span>
+      </div>
     </header>
   );
 }

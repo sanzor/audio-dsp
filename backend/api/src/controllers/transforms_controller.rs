@@ -30,6 +30,31 @@ pub struct SaveTransformParams {
     pub resource_id: Option<ResourceId>,
 }
 
+/// Mirrors `domain::db::transform_snapshot::CompositeNodePosition` exactly.
+/// A local DTO (rather than reusing the domain type directly) purely so it
+/// can derive `ToSchema` for the OpenAPI doc — `#[serde(default)]` on both
+/// fields for the same backward-compat reason as the domain type: an old
+/// client/response predating this field has no `position` key at all.
+#[derive(Debug, Deserialize, Serialize, ToSchema, Clone, Copy, Default)]
+pub struct CompositeNodePositionDto {
+    #[serde(default)]
+    pub x: f32,
+    #[serde(default)]
+    pub y: f32,
+}
+
+impl From<CompositeNodePositionDto> for domain::db::transform_snapshot::CompositeNodePosition {
+    fn from(value: CompositeNodePositionDto) -> Self {
+        Self { x: value.x, y: value.y }
+    }
+}
+
+impl From<domain::db::transform_snapshot::CompositeNodePosition> for CompositeNodePositionDto {
+    fn from(value: domain::db::transform_snapshot::CompositeNodePosition) -> Self {
+        Self { x: value.x, y: value.y }
+    }
+}
+
 /// Mirrors `domain::db::transform_snapshot::CompositeNode` exactly (same
 /// `node_kind` tag field, same variant tag values, same per-variant field
 /// names) — see that type's doc comment for why. An Input/Output node has
@@ -38,9 +63,24 @@ pub struct SaveTransformParams {
 #[derive(Debug, Deserialize, Serialize, ToSchema, Clone)]
 #[serde(tag = "node_kind", rename_all = "lowercase")]
 pub enum CompositeNodeDto {
-    Leaf { node_id: i64, transform_id: TransformId },
-    Input { node_id: i64, name: String },
-    Output { node_id: i64, name: String },
+    Leaf {
+        node_id: i64,
+        transform_id: TransformId,
+        #[serde(default)]
+        position: CompositeNodePositionDto,
+    },
+    Input {
+        node_id: i64,
+        name: String,
+        #[serde(default)]
+        position: CompositeNodePositionDto,
+    },
+    Output {
+        node_id: i64,
+        name: String,
+        #[serde(default)]
+        position: CompositeNodePositionDto,
+    },
 }
 
 #[derive(Debug, Deserialize, Serialize, ToSchema, Clone)]
@@ -65,9 +105,15 @@ pub struct SaveCompositeGraphParams {
 impl From<CompositeNodeDto> for domain::db::transform_snapshot::CompositeNode {
     fn from(value: CompositeNodeDto) -> Self {
         match value {
-            CompositeNodeDto::Leaf { node_id, transform_id } => Self::Leaf { node_id, transform_id },
-            CompositeNodeDto::Input { node_id, name } => Self::Input { node_id, name },
-            CompositeNodeDto::Output { node_id, name } => Self::Output { node_id, name },
+            CompositeNodeDto::Leaf { node_id, transform_id, position } => {
+                Self::Leaf { node_id, transform_id, position: position.into() }
+            }
+            CompositeNodeDto::Input { node_id, name, position } => {
+                Self::Input { node_id, name, position: position.into() }
+            }
+            CompositeNodeDto::Output { node_id, name, position } => {
+                Self::Output { node_id, name, position: position.into() }
+            }
         }
     }
 }
@@ -76,9 +122,15 @@ impl From<domain::db::transform_snapshot::CompositeNode> for CompositeNodeDto {
     fn from(value: domain::db::transform_snapshot::CompositeNode) -> Self {
         use domain::db::transform_snapshot::CompositeNode as DomainNode;
         match value {
-            DomainNode::Leaf { node_id, transform_id } => Self::Leaf { node_id, transform_id },
-            DomainNode::Input { node_id, name } => Self::Input { node_id, name },
-            DomainNode::Output { node_id, name } => Self::Output { node_id, name },
+            DomainNode::Leaf { node_id, transform_id, position } => {
+                Self::Leaf { node_id, transform_id, position: position.into() }
+            }
+            DomainNode::Input { node_id, name, position } => {
+                Self::Input { node_id, name, position: position.into() }
+            }
+            DomainNode::Output { node_id, name, position } => {
+                Self::Output { node_id, name, position: position.into() }
+            }
         }
     }
 }

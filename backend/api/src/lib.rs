@@ -12,6 +12,7 @@ pub mod player;
 pub mod projects;
 pub mod region_sets;
 pub mod regions;
+pub mod sources;
 pub mod tracks;
 pub mod dtos;
 pub mod users;

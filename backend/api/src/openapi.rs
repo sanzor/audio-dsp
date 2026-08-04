@@ -36,6 +36,13 @@ use utoipa::OpenApi;
         crate::controllers::track_payload_controller::get_stored_track,
         crate::controllers::tracks_crud_controller::get_tracks,
         crate::controllers::tracks_crud_controller::get_track_info,
+        // Sources
+        crate::controllers::sources_controller::add_source,
+        crate::controllers::sources_controller::add_source_multi,
+        crate::controllers::sources_controller::list_sources,
+        crate::controllers::sources_controller::rename_source,
+        crate::controllers::sources_controller::delete_source,
+        crate::controllers::sources_controller::get_source_audio,
         // Transforms
         crate::controllers::transforms_controller::list_transform_summaries,
         crate::controllers::transforms_controller::get_transform_definition,
@@ -80,6 +87,7 @@ use utoipa::OpenApi;
         (name = "Projects", description = "Project & membership management"),
         (name = "player", description = "Player commands"),
         (name = "tracks", description = "Tracks CRUD"),
+        (name = "sources", description = "Creator-surface signal sources CRUD and audition/preview audio retrieval"),
         (name = "transforms", description = "Transforms CRUD and WASM retrieval"),
         (name = "tickets", description = "Compile ticket lifecycle and resource retrieval"),
         (name = "regions", description = "Regions CRUD"),

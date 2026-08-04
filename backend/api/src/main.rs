@@ -50,6 +50,12 @@ use api::{
         data_provider::regions_data_provider_service::PostgresRegionsDataProvider,
         regions_app_data::RegionsAppData,
         regions_provider_service::RegionsProviderService,
+    }, sources::{
+        data_provider::sources_data_provider_service::PostgresSourcesDataProvider,
+        multipart_audio_parser::multipart_audio_parser_service::SourceMultipartAudioParserService,
+        sources_app_data::SourcesAppData,
+        sources_provider_service::SourcesProviderService,
+        storage_provider::source_storage_provider_service::SourceStorageProviderService,
     }, stored_tracks::{
         data_provider::stored_tracks_data_provider_service::PostgresStoredTracksDataProvider,
         stored_tracks_app_data::StoredTracksAppData,
@@ -220,6 +226,11 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
         Arc::clone(&track_storage_service)
             as Arc<dyn api::tracks::storage_provider::track_storage_provider::TrackStorageProvider>,
     ));
+    let sources_service = Arc::new(SourcesProviderService::new(
+        Arc::new(PostgresSourcesDataProvider::new(pool.clone())),
+        Arc::new(SourceStorageProviderService::new(pool.clone()))
+            as Arc<dyn api::sources::storage_provider::source_storage_provider::SourceStorageProvider>,
+    ));
     let player_service = Arc::new(PlayerService::new(
         Arc::new(AudioPlayerRegistry::new()),
         Arc::clone(&tracks_service) as Arc<dyn api::tracks::tracks_provider::TracksProvider>,
@@ -272,6 +283,11 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
         tracks_service: Arc::clone(&tracks_service)
             as Arc<dyn api::tracks::tracks_provider::TracksProvider>,
         multipart_parser: Arc::new(MultipartAudioParserService {}),
+    };
+    let sources_app_data = SourcesAppData {
+        sources_service: Arc::clone(&sources_service)
+            as Arc<dyn api::sources::sources_provider::SourcesProvider>,
+        multipart_parser: Arc::new(SourceMultipartAudioParserService {}),
     };
     let regions_app_data = RegionsAppData {
         regions_service: Arc::clone(&regions_service)
@@ -437,6 +453,7 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
             .app_data(web::Data::new(auth_app_data.clone()))
             .app_data(web::Data::new(me_app_data.clone()))
             .app_data(web::Data::new(tracks_app_data.clone()))
+            .app_data(web::Data::new(sources_app_data.clone()))
             .app_data(web::Data::new(regions_app_data.clone()))
             .app_data(web::Data::new(region_sets_app_data.clone()))
             .app_data(web::Data::new(player_app_data.clone()))
@@ -477,6 +494,12 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
                     .wrap(role_middleware.clone())
                     .wrap(jwt_middleware.clone())
                     .configure(controllers::tracks_crud_controller::init),
+            )
+            .service(
+                web::scope("/sources")
+                    .wrap(role_middleware.clone())
+                    .wrap(jwt_middleware.clone())
+                    .configure(controllers::sources_controller::init),
             )
             .service(
                 web::scope("/regions")

@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
-use crate::tracks::multipart_audio_parser::multipart_audio_parser_service::MultipartAudioParserService;
+use crate::sources::multipart_audio_parser::multipart_audio_parser_service::SourceMultipartAudioParserService;
 
-use super::tracks_provider::SourcesProvider;
+use super::sources_provider::SourcesProvider;
 
 #[derive(Clone)]
 pub struct SourcesAppData {
-    pub tracks_service: Arc<dyn SourcesProvider>,
-    pub multipart_parser: Arc<MultipartAudioParserService>
+    pub sources_service: Arc<dyn SourcesProvider>,
+    pub multipart_parser: Arc<SourceMultipartAudioParserService>,
 }

@@ -1,16 +1,21 @@
 use audiolib::{audio_buffer::AudioBuffer, utils::decode_canonical_audio, Channels};
-use domain::raw_track::{RawTrack, TrackInfo};
+use domain::sources::raw_source::{RawSource, SourceInfo};
 use tracing::{error, info, warn};
 use std::str::FromStr;
 use futures_util::StreamExt;
 
-pub struct MultipartAudioParserService {}
+/// Forked from `tracks::multipart_audio_parser` rather than shared directly: sharing would
+/// make the sources module depend on the Track domain via `RawTrack`/`TrackInfo` as its
+/// return type, contradicting sources being a storage mechanism of its own, not a Track
+/// domain consumer. The WAV-sniff/raw-PCM decoding logic is duplicated verbatim; only the
+/// return type (`RawSource`/`SourceInfo`) differs.
+pub struct SourceMultipartAudioParserService {}
 
-impl MultipartAudioParserService {
+impl SourceMultipartAudioParserService {
     pub async fn try_parse_multipart(
         &self,
         p: actix_multipart::Multipart,
-    ) -> Result<domain::raw_track::RawTrack, String> {
+    ) -> Result<RawSource, String> {
         let mut name: Option<String> = None;
         let mut payload = p;
         let mut extension: Option<String> = None;
@@ -34,13 +39,13 @@ impl MultipartAudioParserService {
         let (name, extension) = match (name, extension) {
             (Some(n), Some(ext)) => (n, ext),
             _ => {
-                warn!("add-track-multi rejected: missing required fields");
+                warn!("add-source-multi rejected: missing required fields");
                 return Err("Missing required fields".into());
             }
         };
 
         if samples_bytes.is_empty() {
-            warn!("add-track-multi rejected: missing samples data");
+            warn!("add-source-multi rejected: missing samples data");
             return Err("Missing samples data".into());
         }
 
@@ -52,7 +57,7 @@ impl MultipartAudioParserService {
                     channels: decoded.channels,
                 },
                 Err(err) => {
-                    error!(error = %err, "add-track-multi rejected: invalid wav payload");
+                    error!(error = %err, "add-source-multi rejected: invalid wav payload");
                     return Err("Invalid wav payload".into());
                 }
             }
@@ -60,7 +65,7 @@ impl MultipartAudioParserService {
             let (sample_rate, channels) = match (sample_rate, channels) {
                 (Some(sr), Some(ch)) => (sr, ch),
                 _ => {
-                    warn!("add-track-multi rejected: missing raw audio metadata");
+                    warn!("add-source-multi rejected: missing raw audio metadata");
                     return Err("Missing required fields".into());
                 }
             };
@@ -74,19 +79,19 @@ impl MultipartAudioParserService {
         let length = audio_buffer.samples.len() as f32
             / (audio_buffer.sample_rate * Self::channel_count(audio_buffer.channels) as f32);
         info!(
-            track_name = %name,
+            source_name = %name,
             extension = %extension,
             sample_rate = audio_buffer.sample_rate,
             sample_count = audio_buffer.samples.len(),
-            "add-track-multi payload parsed"
+            "add-source-multi payload parsed"
         );
-        let raw_track = RawTrack {
-            info: TrackInfo { name, extension, length },
+        let raw_source = RawSource {
+            info: SourceInfo { name, extension, length },
             data: audio_buffer,
         };
-        Ok(raw_track)
+        Ok(raw_source)
     }
- 
+
     async fn next_multipart_field(field: &mut actix_multipart::Field) -> Vec<u8> {
         let mut data = Vec::new();
         while let Some(chunk) = field.next().await {
@@ -109,12 +114,10 @@ impl MultipartAudioParserService {
         out
     }
 
-
     fn channel_count(channels: Channels) -> usize {
         match channels {
             Channels::Mono => 1,
             Channels::Stereo => 2,
         }
     }
-
 }

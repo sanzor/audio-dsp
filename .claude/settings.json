@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(bash ./scripts/db_psql.sh -c \"select graph_definition from transform_draft where transform_id=32;\")",
+      "Bash(bash ./scripts/db_psql.sh -c \"select graph_definition from transform_composite where transform_id=32;\")",
+      "Bash(bash ./scripts/db_psql.sh -c \"select email from \\\\\"user\\\\\" limit 5;\")",
+      "Bash(bash ./scripts/db_psql.sh -c \"\\\\dt\")",
+      "Bash(bash ./scripts/db_psql.sh -c \"select id, email from users limit 5;\")",
+      "Bash(curl -s -c /tmp/claude-1000/-home-sanzor-audio-dsp/b6610645-8421-4150-b159-1dac1ce9028a/scratchpad/cookies.txt -X POST http://localhost:3080/auth/login -H \"Content-Type: application/json\" -d '{\"email\":\"admin@gmail.com\",\"password\":\"admin\"}' -w \"\\\\nHTTP:%{http_code}\\\\n\")",
+      "Bash(kill 66999)",
+      "Bash(curl -s -c /tmp/claude-1000/-home-sanzor-audio-dsp/b6610645-8421-4150-b159-1dac1ce9028a/scratchpad/cookies.txt -X POST http://localhost:3080/auth/login -H \"Content-Type: application/json\" -d '{\"email\":\"admin@gmail.com\",\"password_hash\":\"admin\"}' -o /dev/null -w \"login HTTP:%{http_code}\\\\n\")",
+      "Bash(curl -s -b /tmp/claude-1000/-home-sanzor-audio-dsp/b6610645-8421-4150-b159-1dac1ce9028a/scratchpad/cookies.txt -H \"X-Project-ID: 1\" http://localhost:3080/transforms/32 -w \"\\\\nHTTP:%{http_code}\\\\n\")",
+      "Bash(python3 -c \"import sys,json; lines=sys.stdin.read\\(\\).splitlines\\(\\); print\\(json.dumps\\(json.loads\\(lines[0]\\), indent=2\\)\\); print\\(lines[1]\\)\")",
+      "Bash(curl -s -b /tmp/claude-1000/-home-sanzor-audio-dsp/b6610645-8421-4150-b159-1dac1ce9028a/scratchpad/cookies.txt -H \"X-Project-ID: 1\" http://localhost:3080/transforms/32 -o /dev/null -w \"final check GET /transforms/32 HTTP:%{http_code}\\\\n\")",
+      "Bash(make up-frontend *)",
+      "Bash(awk '/^diff --git a\\\\/backend\\\\/domain\\\\/src\\\\/db\\\\/transform_snapshot\\\\.rs/,/^diff --git a\\\\/backend\\\\/domain\\\\/src\\\\/lib\\\\.rs/' /home/sanzor/.claude/projects/-home-sanzor-audio-dsp/a5a1660f-f8db-47ea-9e5b-292140325c36/tool-results/bidx61ln2.txt)",
+      "Bash(grep -n \"\\\\.service\\(\\\\s*$\\\\|web::scope\\(\\\\\"/sources\\\\\"\\\\|web::scope\\(\\\\\"/tracks\\\\\"\\\\|web::scope\\(\\\\\"/regions\\\\\"\" -A6 backend/api/src/main.rs)",
+      "Bash(make migrate-info *)",
+      "Bash(curl -s -i -X POST http://localhost:3080/auth/login -H \"Content-Type: application/json\" -d '{\"email\":\"test@gmail.com\",\"password\":\"test\"}')",
+      "Bash(python3 -c ' *)",
+      "Bash(tee /tmp/claude-1000/-home-sanzor-audio-dsp/a5a1660f-f8db-47ea-9e5b-292140325c36/scratchpad/tsc_out.txt)"
+    ]
+  }
+}

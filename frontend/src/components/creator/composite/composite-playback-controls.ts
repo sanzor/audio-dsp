@@ -1,31 +1,31 @@
 import { useCompositeCanvasStore, type CanvasLeafNode } from "@/Stores/CompositeCanvasStore";
-import { useCreatorPreviewStore } from "@/Stores/CreatorPreviewStore";
+import { useCreatorPlaybackStore } from "@/Stores/CreatorPlaybackStore";
 import { useTransformStore } from "@/Stores/TransformStore";
 import { apiGetTransformBinaries } from "@/Services/TransformService";
 import { process as compileGraphInput, inputPortCountOf, inputPortIndexByName, type GraphInput } from "@/audio/pipeline/GraphCompiler";
 
-// ─── Preview: compiles the in-progress graph and runs it through the same
-// preview session single-transform preview uses (CreatorPreviewStore).
+// ─── Playback: compiles the in-progress graph and runs it through the same
+// playback session single-transform playback uses (CreatorPlaybackStore).
 
-export function useCompositePreviewControls(transformId: number) {
+export function useCompositePlaybackControls(transformId: number) {
   const editingGraph = useCompositeCanvasStore((s) => s.editingGraph);
-  const previewStatus = useCreatorPreviewStore((s) => s.status);
-  const previewTransformId = useCreatorPreviewStore((s) => s.previewTransformId);
-  const playPreview = useCreatorPreviewStore((s) => s.play);
-  const stopPreview = useCreatorPreviewStore((s) => s.stop);
+  const playbackStatus = useCreatorPlaybackStore((s) => s.status);
+  const playbackTransformId = useCreatorPlaybackStore((s) => s.playbackTransformId);
+  const startPlayback = useCreatorPlaybackStore((s) => s.play);
+  const stopPlayback = useCreatorPlaybackStore((s) => s.stop);
 
-  const isPreviewingThis = previewTransformId === transformId && previewStatus !== "idle" && previewStatus !== "error";
-  const isLoading = previewTransformId === transformId && previewStatus === "loading";
+  const isPlayingThis = playbackTransformId === transformId && playbackStatus !== "idle" && playbackStatus !== "error";
+  const isLoading = playbackTransformId === transformId && playbackStatus === "loading";
 
-  async function togglePreview() {
-    if (isPreviewingThis) {
-      stopPreview();
+  async function togglePlayback() {
+    if (isPlayingThis) {
+      stopPlayback();
       return;
     }
     if (!editingGraph || editingGraph.nodes.size === 0) return;
 
     // Phase 3: disabled nodes and their incident edges are excluded from the
-    // Preview/Play compile — same filtering toGraphDefinition() applies for
+    // Playback/Play compile — same filtering toGraphDefinition() applies for
     // Save (see CompositeCanvasStore.ts) — so Play always reflects exactly
     // what's currently enabled on the canvas. Input/Output boundary nodes are
     // also excluded here — they're pure wiring placeholders with no
@@ -83,8 +83,8 @@ export function useCompositePreviewControls(transformId: number) {
       edges,
     });
 
-    void playPreview(transformId, resourceKey, result.graph, binaries, []);
+    void startPlayback(transformId, resourceKey, result.graph, binaries, []);
   }
 
-  return { isPreviewingThis, isLoading, togglePreview };
+  return { isPlayingThis, isLoading, togglePlayback };
 }

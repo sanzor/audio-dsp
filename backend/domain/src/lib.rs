@@ -7,6 +7,8 @@ pub mod graphs;
 pub mod tracks;
 pub mod region_set;
 pub mod regions;
+pub mod sources;
+pub mod update_source_info_params;
 pub mod update_track_info_params;
 pub mod user;
 
