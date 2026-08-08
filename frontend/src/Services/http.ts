@@ -3,6 +3,12 @@ import { useProjectStore } from "../Stores/projectStore";
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3080";
 
+export function projectApiPath(path: string): string {
+  const projectId = useProjectStore.getState().activeProject?.project_id;
+  if (projectId == null) throw new Error("An active project is required for this request.");
+  return `/v1/projects/${projectId}${path}`;
+}
+
 type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 type RequestOptions<TInput> = {

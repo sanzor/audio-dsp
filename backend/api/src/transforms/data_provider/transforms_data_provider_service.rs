@@ -2,7 +2,7 @@ use domain::db::{
     db_transform::{DbTransform, DbTransformDefinition, DbTransformParam, DbTransformPort, TransformId},
     ticket::{create_ticket_params::CreateTicketParams, db_resource::{DbResource, ResourceId}, db_ticket::{DbTicket, TicketId}, ticket_status::TicketStatus, update_ticket_params::UpdateTicketParams},
     db_transform_draft::DbTransformDraft,
-    transform_snapshot::{CompositeGraphDefinition, ParamSnapshot, PortSnapshot},
+    transform_snapshot::{CompositeTransformDefinition, ParamSnapshot, PortSnapshot},
 };
 use sqlx::PgPool;
 
@@ -39,7 +39,8 @@ struct DbTransformDefinitionRow {
     icon: Option<String>,
     kind: String,
     source_code: Option<String>,
-    graph_definition: Option<sqlx::types::Json<CompositeGraphDefinition>>,
+    graph_definition: Option<sqlx::types::Json<CompositeTransformDefinition>>,
+    is_validated: bool,
     ports: sqlx::types::Json<Vec<DbTransformPort>>,
     params: sqlx::types::Json<Vec<DbTransformParam>>,
 }
@@ -118,9 +119,10 @@ struct DbTransformDraftRow {
     wasm_source_code: Option<String>,
     name: Option<String>,
     description: Option<String>,
-    graph_definition: Option<sqlx::types::Json<CompositeGraphDefinition>>,
+    graph_definition: Option<sqlx::types::Json<CompositeTransformDefinition>>,
     ports: Option<sqlx::types::Json<Vec<PortSnapshot>>>,
     params: Option<sqlx::types::Json<Vec<ParamSnapshot>>>,
+    is_validated: bool,
 }
 
 impl From<DbTransformDraftRow> for DbTransformDraft {
@@ -135,6 +137,7 @@ impl From<DbTransformDraftRow> for DbTransformDraft {
             graph_definition: row.graph_definition.map(|j| j.0),
             ports: row.ports.map(|j| j.0).unwrap_or_default(),
             params: row.params.map(|j| j.0).unwrap_or_default(),
+            is_validated: row.is_validated,
         }
     }
 }
@@ -363,6 +366,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
             kind: row.kind,
             source_code: row.source_code,
             graph_definition: row.graph_definition.map(|j| j.0),
+            is_validated: row.is_validated,
             ports: row.ports.0,
             params: row.params.0,
         })
@@ -396,6 +400,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
                 kind: row.kind,
                 source_code: row.source_code,
                 graph_definition: row.graph_definition.map(|j| j.0),
+                is_validated: row.is_validated,
                 ports: row.ports.0,
                 params: row.params.0,
             })
@@ -481,7 +486,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
     async fn get_draft(&self, transform_id: TransformId) -> Result<DbTransformDraft, DataError> {
         let row = sqlx::query_as::<_, DbTransformDraftRow>(
             r#"
-            SELECT transform_id, source_code, wasm_bytecode, wasm_source_code, name, description, graph_definition, ports, params
+            SELECT transform_id, source_code, wasm_bytecode, wasm_source_code, name, description, graph_definition, ports, params, is_validated
             FROM transform_draft
             WHERE transform_id = $1
             "#,
@@ -557,7 +562,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
 
         let row = sqlx::query_as::<_, DbTransformDraftRow>(
             r#"
-            SELECT transform_id, source_code, wasm_bytecode, wasm_source_code, name, description, graph_definition, ports, params
+            SELECT transform_id, source_code, wasm_bytecode, wasm_source_code, name, description, graph_definition, ports, params, is_validated
             FROM transform_draft
             WHERE transform_id = $1
             "#,
@@ -753,7 +758,30 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
     async fn save_composite_draft(
         &self,
         transform_id: TransformId,
-        graph: CompositeGraphDefinition,
+        graph: CompositeTransformDefinition,
+    ) -> Result<DbTransformDraft, DataError> {
+        // No longer touches `ports` — see
+        // agents/decisions/0007-composite-draft-validation-gate.md. Any save
+        // unconditionally invalidates the last validate result.
+        let row = sqlx::query_as::<_, DbTransformDraftRow>(
+            r#"
+            UPDATE transform_draft
+            SET graph_definition = $2, is_validated = false, updated_at = now()
+            WHERE transform_id = $1
+            RETURNING transform_id, source_code, wasm_bytecode, wasm_source_code, name, description, graph_definition, ports, params, is_validated
+            "#,
+        )
+        .bind(transform_id)
+        .bind(sqlx::types::Json(graph))
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(row.into())
+    }
+
+    async fn validate_composite_draft(
+        &self,
+        transform_id: TransformId,
         ports: Vec<NewTransformPort>,
     ) -> Result<DbTransformDraft, DataError> {
         let ports: Vec<PortSnapshot> = ports.into_iter().map(PortSnapshot::from).collect();
@@ -761,13 +789,12 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
         let row = sqlx::query_as::<_, DbTransformDraftRow>(
             r#"
             UPDATE transform_draft
-            SET graph_definition = $2, ports = $3, updated_at = now()
+            SET ports = $2, is_validated = true, updated_at = now()
             WHERE transform_id = $1
-            RETURNING transform_id, source_code, wasm_bytecode, wasm_source_code, name, description, graph_definition, ports, params
+            RETURNING transform_id, source_code, wasm_bytecode, wasm_source_code, name, description, graph_definition, ports, params, is_validated
             "#,
         )
         .bind(transform_id)
-        .bind(sqlx::types::Json(graph))
         .bind(sqlx::types::Json(ports))
         .fetch_one(&self.pool)
         .await?;
@@ -781,7 +808,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
         name: String,
         description: Option<String>,
         ports: Vec<NewTransformPort>,
-        graph_definition: CompositeGraphDefinition,
+        transform_definition: CompositeTransformDefinition,
     ) -> Result<(), String> {
         let mut tx = self.pool.begin().await.map_err(|e| e.to_string())?;
 
@@ -823,7 +850,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
                DO UPDATE SET graph_definition = EXCLUDED.graph_definition, updated_at = now()"#,
         )
         .bind(transform_id)
-        .bind(sqlx::types::Json(graph_definition))
+        .bind(sqlx::types::Json(transform_definition))
         .execute(&mut *tx)
         .await
         .map_err(|e| e.to_string())?;

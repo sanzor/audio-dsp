@@ -44,13 +44,18 @@ export function UnsavedCreatorChangesModal() {
 
   if (!pending || (!sourceDirty && !isCompositeCase)) return null;
 
+  // Whichever branch is actually active for this open (mirrors the same
+  // isCompositeCase switch used in handleSave) - used to surface that
+  // mutation's rejected error inline, same as composite-canvas.tsx's toolbar.
+  const activeMutation = isCompositeCase ? saveCompositeMutation : saveMutation;
+
   const handleDiscard = () => {
     resolvePendingTransformAction();
   };
 
   const handleSave = async () => {
+    setIsSaving(true);
     try {
-      setIsSaving(true);
       if (isCompositeCase && compositeGraph) {
         await saveCompositeMutation.mutateAsync(toGraphDefinition());
         markCompositeSaved();
@@ -59,6 +64,12 @@ export function UnsavedCreatorChangesModal() {
         markTransformSourceSaved(editing.transformId, editing.source);
       }
       resolvePendingTransformAction();
+    } catch {
+      // Rejected (e.g. the same composite-validator errors the toolbar's own
+      // Save can hit - dangling node, etc). The mutation's isError/error
+      // state already reflects this and is rendered below; keep the dialog
+      // open so the user can go fix the graph (Stay) or fall back to Discard
+      // instead of the save silently appearing to do nothing.
     } finally {
       setIsSaving(false);
     }
@@ -76,6 +87,12 @@ export function UnsavedCreatorChangesModal() {
             ? "You have unsaved changes to this transform's composite graph. Save them before switching, or discard them."
             : "You have unsaved changes to this transform's source. Save them before switching, or discard them."}
         </p>
+
+        {activeMutation.isError && (
+          <span className="font-mono text-[10px]" style={{ color: "#ff6b6b" }}>
+            {(activeMutation.error as Error | null)?.message}
+          </span>
+        )}
 
         <DialogFooter>
           <Button variant="outline" onClick={cancelPendingTransformAction} disabled={isSaving}>

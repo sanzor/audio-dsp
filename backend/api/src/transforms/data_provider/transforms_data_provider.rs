@@ -4,7 +4,7 @@ use domain::db::{
     db_transform::{DbTransform, DbTransformDefinition, DbTransformPort, TransformId},
     ticket::{create_ticket_params::CreateTicketParams, db_resource::{DbResource, ResourceId}, db_ticket::{DbTicket, TicketId}, update_ticket_params::UpdateTicketParams},
     db_transform_draft::DbTransformDraft,
-    transform_snapshot::{CompositeGraphDefinition, ParamSnapshot, PortSnapshot},
+    transform_snapshot::{CompositeTransformDefinition, ParamSnapshot, PortSnapshot},
 };
 
 use crate::transforms::composite_validator::LeafTransformInfo;
@@ -119,12 +119,29 @@ pub trait TransformsDataProvider: Send + Sync {
     async fn get_leaf_transform_infos(&self, transform_ids: &[TransformId]) -> Result<HashMap<TransformId, LeafTransformInfo>, DataError>;
 
     /// Bucket 2 — "save" for a composite. Writes the working graph_definition
-    /// plus its already-validated derived ports (mirrors save_transform_draft's
-    /// role for primitives, but there's no source_code/wasm to preserve).
+    /// as-is (mirrors save_transform_draft's role for primitives, but there's
+    /// no source_code/wasm to preserve). Unconditionally flips
+    /// `is_validated` back to `false` — any graph edit invalidates the last
+    /// validate result. Does **not** touch `ports`; the previously-derived
+    /// set (from the last successful validate/publish, or empty for a
+    /// brand-new draft) is left exactly as-is. See
+    /// `agents/decisions/0007-composite-draft-validation-gate.md`.
     async fn save_composite_draft(
         &self,
         transform_id: TransformId,
-        graph: CompositeGraphDefinition,
+        graph: CompositeTransformDefinition,
+    ) -> Result<DbTransformDraft, DataError>;
+
+    /// New explicit validate action for a composite draft — writes the
+    /// already-validated derived ports (computed by the caller via
+    /// `composite_validator::validate_composite_graph` against the
+    /// currently-persisted `graph_definition`) and flips `is_validated` to
+    /// `true`. Only ever called after that validation has already succeeded;
+    /// this method itself does no validation, it just persists the result.
+    /// See `agents/decisions/0007-composite-draft-validation-gate.md`.
+    async fn validate_composite_draft(
+        &self,
+        transform_id: TransformId,
         ports: Vec<NewTransformPort>,
     ) -> Result<DbTransformDraft, DataError>;
 
@@ -139,7 +156,7 @@ pub trait TransformsDataProvider: Send + Sync {
         name: String,
         description: Option<String>,
         ports: Vec<NewTransformPort>,
-        graph_definition: CompositeGraphDefinition,
+        graph_definition: CompositeTransformDefinition,
     ) -> Result<(), String>;
     /// Only allowed when the transform has never been published (no row in
     /// `transform_binary`) — see `agents/decisions/0002-transform-draft-lifecycle-decisions.md`.

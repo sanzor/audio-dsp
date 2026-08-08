@@ -2,8 +2,8 @@
 // component itself (react-flow's nodeTypes pattern) — not component-only,
 // so Fast Refresh can't isolate it.
 /* eslint-disable react-refresh/only-export-components */
-import { useState } from "react";
-import { Handle, Position, type NodeProps } from "reactflow";
+import { useEffect, useState } from "react";
+import { Handle, Position, useUpdateNodeInternals, type NodeProps } from "reactflow";
 import { useCompositeCanvasStore } from "@/Stores/CompositeCanvasStore";
 import { useTransformStore } from "@/Stores/TransformStore";
 import { IO_NODE_PORT_NAME } from "@/domain/Transform/CompositeGraphDefinition";
@@ -39,6 +39,20 @@ function CompositeTransformNode({ data }: NodeProps<CompositeNodeData>) {
   const height = rows * ROW_HEIGHT + 48;
   const isSelected = selectedNodeId === data.nodeId;
   const borderColor = isSelected ? "#adc6ff" : SAFETY_COLOR[data.safety];
+
+  // Port Handles only exist once `definition` resolves (useResolveTransformDefinitions
+  // is async) -- on first mount there are none, so reactflow's internal handle-bounds
+  // cache is built with zero handles for this node. Handles added on a later render
+  // (once the definition arrives) don't get picked up automatically -- reactflow needs
+  // an explicit updateNodeInternals() call, or edges referencing those handles fail to
+  // connect ("Couldn't create edge for source/target handle id" / error #008). Keyed on
+  // the actual port names (not just the count) since a same-count port-shape change
+  // (e.g. republish renaming a port) also needs a re-measure.
+  const updateNodeInternals = useUpdateNodeInternals();
+  const portKey = definition?.ports.map((p) => `${p.direction}:${p.name}`).join(",") ?? "";
+  useEffect(() => {
+    updateNodeInternals(String(data.nodeId));
+  }, [data.nodeId, portKey, updateNodeInternals]);
 
   return (
     <div

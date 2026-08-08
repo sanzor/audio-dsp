@@ -48,7 +48,7 @@ fn edge(from_node_id: i64, from_port: &str, to_node_id: i64, to_port: &str) -> C
 
 #[test]
 fn rejects_empty_graph() {
-    let graph = CompositeGraphDefinition { nodes: vec![], edges: vec![] };
+    let graph = CompositeTransformDefinition { nodes: vec![], edges: vec![] };
     let result = validate_composite_graph(&graph, &HashMap::new());
     assert!(result.is_err());
 }
@@ -58,7 +58,7 @@ fn rejects_unpublished_leaf() {
     let mut gain = gain_leaf();
     gain.published = false;
     let leaves = HashMap::from([(1, gain)]);
-    let graph = CompositeGraphDefinition { nodes: vec![leaf(1, 1)], edges: vec![] };
+    let graph = CompositeTransformDefinition { nodes: vec![leaf(1, 1)], edges: vec![] };
     let result = validate_composite_graph(&graph, &leaves);
     assert!(result.is_err());
 }
@@ -68,7 +68,7 @@ fn rejects_composite_leaf() {
     let mut gain = gain_leaf();
     gain.kind = "composite".to_string();
     let leaves = HashMap::from([(1, gain)]);
-    let graph = CompositeGraphDefinition { nodes: vec![leaf(1, 1)], edges: vec![] };
+    let graph = CompositeTransformDefinition { nodes: vec![leaf(1, 1)], edges: vec![] };
     let result = validate_composite_graph(&graph, &leaves);
     assert!(result.is_err());
 }
@@ -76,7 +76,7 @@ fn rejects_composite_leaf() {
 #[test]
 fn accepts_a_simple_chain_and_derives_io_ports() {
     let leaves = HashMap::from([(1, gain_leaf())]);
-    let graph = CompositeGraphDefinition {
+    let graph = CompositeTransformDefinition {
         nodes: vec![leaf(1, 1), leaf(2, 1), input(3, "in"), output(4, "out")],
         edges: vec![
             edge(1, "out", 2, "in"),
@@ -97,7 +97,7 @@ fn rejects_unconnected_program_input() {
     // no edge at all. Isolates the dangling-input check from every
     // Input/Output-node check below (none are exercised by this graph).
     let leaves = HashMap::from([(1, gain_leaf())]);
-    let graph = CompositeGraphDefinition { nodes: vec![leaf(1, 1)], edges: vec![] };
+    let graph = CompositeTransformDefinition { nodes: vec![leaf(1, 1)], edges: vec![] };
     let result = validate_composite_graph(&graph, &leaves);
     assert!(result.is_err());
 }
@@ -105,7 +105,7 @@ fn rejects_unconnected_program_input() {
 #[test]
 fn rejects_a_second_edge_into_a_single_cardinality_leaf_input() {
     let leaves = HashMap::from([(1, gain_leaf())]);
-    let graph = CompositeGraphDefinition {
+    let graph = CompositeTransformDefinition {
         nodes: vec![leaf(1, 1), leaf(2, 1), leaf(3, 1)],
         edges: vec![edge(1, "out", 3, "in"), edge(2, "out", 3, "in")],
     };
@@ -120,7 +120,7 @@ fn requires_at_least_one_output_node() {
     // the "must have at least one Output node" rule from the "Output node
     // present but disconnected" case covered separately below.
     let leaves = HashMap::from([(1, gain_leaf())]);
-    let graph = CompositeGraphDefinition {
+    let graph = CompositeTransformDefinition {
         nodes: vec![leaf(1, 1), input(2, "in")],
         edges: vec![edge(2, "signal", 1, "in")],
     };
@@ -131,7 +131,7 @@ fn requires_at_least_one_output_node() {
 #[test]
 fn rejects_input_node_with_no_outgoing_edge() {
     let leaves = HashMap::from([(1, gain_leaf())]);
-    let graph = CompositeGraphDefinition {
+    let graph = CompositeTransformDefinition {
         nodes: vec![leaf(1, 1), input(2, "in"), output(3, "out")],
         // Input node 2 has no outgoing edge at all — node 1's "in" is left
         // dangling too, but the Input-node check should surface first
@@ -145,7 +145,7 @@ fn rejects_input_node_with_no_outgoing_edge() {
 #[test]
 fn rejects_output_node_with_no_incoming_edge() {
     let leaves = HashMap::from([(1, gain_leaf())]);
-    let graph = CompositeGraphDefinition {
+    let graph = CompositeTransformDefinition {
         nodes: vec![leaf(1, 1), input(2, "in"), output(3, "out")],
         // Output node 3 has no incoming edge — node 1's "out" is left
         // unconnected (fine, "out" isn't Program-input-checked) but the
@@ -159,7 +159,7 @@ fn rejects_output_node_with_no_incoming_edge() {
 #[test]
 fn rejects_output_node_with_two_incoming_edges() {
     let leaves = HashMap::from([(1, gain_leaf())]);
-    let graph = CompositeGraphDefinition {
+    let graph = CompositeTransformDefinition {
         nodes: vec![leaf(1, 1), leaf(2, 1), input(3, "in1"), input(4, "in2"), output(5, "out")],
         edges: vec![
             edge(3, "signal", 1, "in"),
@@ -175,7 +175,7 @@ fn rejects_output_node_with_two_incoming_edges() {
 #[test]
 fn rejects_empty_io_node_name() {
     let leaves = HashMap::from([(1, gain_leaf())]);
-    let graph = CompositeGraphDefinition {
+    let graph = CompositeTransformDefinition {
         nodes: vec![leaf(1, 1), input(2, ""), output(3, "out")],
         edges: vec![edge(2, "signal", 1, "in"), edge(1, "out", 3, "signal")],
     };
@@ -186,7 +186,7 @@ fn rejects_empty_io_node_name() {
 #[test]
 fn rejects_duplicate_io_node_names() {
     let leaves = HashMap::from([(1, gain_leaf())]);
-    let graph = CompositeGraphDefinition {
+    let graph = CompositeTransformDefinition {
         nodes: vec![leaf(1, 1), input(2, "shared"), output(3, "shared")],
         edges: vec![edge(2, "signal", 1, "in"), edge(1, "out", 3, "signal")],
     };
@@ -197,7 +197,7 @@ fn rejects_duplicate_io_node_names() {
 #[test]
 fn input_node_may_fan_out_to_multiple_leaf_inputs() {
     let leaves = HashMap::from([(1, gain_leaf())]);
-    let graph = CompositeGraphDefinition {
+    let graph = CompositeTransformDefinition {
         nodes: vec![leaf(1, 1), leaf(2, 1), input(3, "in"), output(4, "out1"), output(5, "out2")],
         edges: vec![
             edge(3, "signal", 1, "in"),

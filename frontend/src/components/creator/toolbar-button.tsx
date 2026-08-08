@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { creatorToolbarColors } from "./creatorToolbarColors";
 
-type ToolbarButtonVariant = "play" | "stop" | "save" | "compile" | "bypass" | "publish";
+type ToolbarButtonVariant = "play" | "stop" | "save" | "compile" | "bypass" | "publish" | "validate";
 
 interface ToolbarButtonProps {
   variant: ToolbarButtonVariant;
@@ -20,6 +20,7 @@ const variantColor: Record<ToolbarButtonVariant, (typeof creatorToolbarColors)[k
   compile: creatorToolbarColors.blue,
   bypass: creatorToolbarColors.blue,
   publish: creatorToolbarColors.pink,
+  validate: creatorToolbarColors.blue,
 };
 
 export function ToolbarButton({ variant, onClick, disabled, title, muted, children }: ToolbarButtonProps) {

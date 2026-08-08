@@ -1,7 +1,7 @@
 import type { Graph } from "@/domain/Graph/Graph";
 import type { Edge } from "@/domain/Graph/Edge";
 import type { Node, NodeType } from "@/domain/Graph/Node";
-import { http } from "@/Services/http";
+import { http, projectApiPath } from "@/Services/http";
 
 // ─── Params & Results ────────────────────────────────────────────────────────
 
@@ -154,33 +154,33 @@ const mapGraph = (graph: ApiGraphResult): Graph => ({
 // ─── API ──────────────────────────────────────────────────────────────────────
 
 export async function apiGetGraph(graphId: number): Promise<Graph> {
-  const result = await http.get<ApiGraphResult>(`/graphs/get-graph?graph_id=${graphId}`);
+  const result = await http.get<ApiGraphResult>(projectApiPath(`/graphs/get-graph?graph_id=${graphId}`));
   return mapGraph(result);
 }
 
 export async function apiCreateGraph(params: CreateGraphParams): Promise<CreateGraphResult> {
-  const response = await http.post<{ graph: ApiGraphResult }, CreateGraphParams>("/graphs/create", params);
+  const response = await http.post<{ graph: ApiGraphResult }, CreateGraphParams>(projectApiPath("/graphs/create"), params);
   return { graph: mapGraph(response.graph) };
 }
 
 export async function apiUpdateGraph(params: EditGraphParams): Promise<EditGraphResult> {
-  const response = await http.patch<{ graph: ApiGraphResult }, EditGraphParams>("/graphs/edit", params);
+  const response = await http.patch<{ graph: ApiGraphResult }, EditGraphParams>(projectApiPath("/graphs/edit"), params);
   return { graph: mapGraph(response.graph) };
 }
 
 export async function apiSaveGraphState(params: SaveGraphStateParams): Promise<SaveGraphStateResult> {
   const response = await http.put<{ graph: ApiGraphResult }, { graphId: number; state: string }>(
-    "/graphs/save-state",
+    projectApiPath("/graphs/save-state"),
     { graphId: params.graphId, state: params.state },
   );
   return { graph: mapGraph(response.graph) };
 }
 
 export async function apiRemoveGraph(params: RemoveGraphParams): Promise<void> {
-  await http.delete(`/graphs/remove?graph_id=${params.graph_id}`);
+  await http.delete(projectApiPath(`/graphs/remove?graph_id=${params.graph_id}`));
 }
 
 export async function apiCopyGraph(params: CopyGraphParams): Promise<CopyGraphResult> {
-  const response = await http.post<{ graph: ApiGraphResult }, CopyGraphParams>("/graphs/copy", params);
+  const response = await http.post<{ graph: ApiGraphResult }, CopyGraphParams>(projectApiPath("/graphs/copy"), params);
   return { graph: mapGraph(response.graph) };
 }

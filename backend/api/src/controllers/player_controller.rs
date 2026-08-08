@@ -10,7 +10,7 @@ use utoipa::{IntoParams, ToSchema};
 use crate::{
     middlewares::{
         jwt::jwt_context::JwtContext,
-        role_context::role_context::RoleContext,
+        membership::membership_context::RoleContext,
     },
     player::player_app_data::PlayerAppData,
 };

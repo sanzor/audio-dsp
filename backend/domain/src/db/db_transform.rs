@@ -27,9 +27,16 @@ pub struct DbTransformDefinition {
     pub kind: String,
     pub source_code: Option<String>,
     /// Present only for kind = "composite".
-    pub graph_definition: Option<crate::db::transform_snapshot::CompositeGraphDefinition>,
+    pub graph_definition: Option<crate::db::transform_snapshot::CompositeTransformDefinition>,
     pub ports: Vec<DbTransformPort>,
     pub params: Vec<DbTransformParam>,
+    /// Mirrors `DbTransformDraft::is_validated` — the composite-only "has the
+    /// currently-persisted graph_definition passed
+    /// `validate_composite_graph`" flag, surfaced here so any consumer of a
+    /// transform's definition (e.g. the composite canvas) can read it without
+    /// a separate draft fetch. Always `false` for primitives. See
+    /// `agents/decisions/0007-composite-draft-validation-gate.md`.
+    pub is_validated: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]

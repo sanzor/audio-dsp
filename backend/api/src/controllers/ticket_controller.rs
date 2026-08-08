@@ -1,7 +1,7 @@
 use crate::{
     domain::service_error::ServiceError,
     middlewares::jwt::jwt_context::JwtContext,
-    middlewares::role_context::role_context::RoleContext,
+    middlewares::membership::membership_context::RoleContext,
     tickets::{compile_params::RequestCompileParams, compile_result::CompileResult},
     tickets::tickets_app_data::TicketsAppData,
 };

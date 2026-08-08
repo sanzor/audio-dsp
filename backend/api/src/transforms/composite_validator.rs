@@ -5,11 +5,16 @@
 //! unit-tested directly).
 //!
 //! A composite has no source code and no compiled binary; "compiling" one is
-//! just this validation, run synchronously at save time (see
-//! `TransformsProviderService::save_composite_draft`) — there's no cargo
-//! build or wasmtime introspection step to make async, so this deliberately
-//! does not go through the ticket_worker/ticket-polling machinery primitives
-//! use.
+//! just this validation, run synchronously by the explicit validate action
+//! (see `TransformsProviderService::validate_composite_draft`) against the
+//! currently-persisted graph, and independently again at publish time by
+//! `TransformsProviderService::publish_transform`'s composite branch — there's
+//! no cargo build or wasmtime introspection step to make async, so this
+//! deliberately does not go through the ticket_worker/ticket-polling
+//! machinery primitives use. As of
+//! `agents/decisions/0007-composite-draft-validation-gate.md`, `save_composite_draft`
+//! itself no longer calls this at all — Save persists the graph structurally
+//! with no validation, so incremental wiring-in-progress can be preserved.
 //!
 //! As of the Input/Output node model, a composite's own externally-visible
 //! ports are no longer a separate `exposed_ports` list — they're derived
@@ -28,7 +33,7 @@ use std::collections::{HashMap, HashSet};
 
 use domain::db::{
     db_transform::{DbTransformPort, TransformId},
-    transform_snapshot::{CompositeEdge, CompositeGraphDefinition, CompositeNode},
+    transform_snapshot::{CompositeEdge, CompositeTransformDefinition, CompositeNode},
 };
 
 use super::data_provider::transforms_data_provider::NewTransformPort;
@@ -67,7 +72,7 @@ type NodePorts<'a> = HashMap<i64, NodeRef<'a>>;
 type TouchedPorts = HashSet<(i64, String)>;
 
 pub fn validate_composite_graph(
-    graph: &CompositeGraphDefinition,
+    graph: &CompositeTransformDefinition,
     leaf_defs: &HashMap<TransformId, LeafTransformInfo>,
 ) -> Result<Vec<NewTransformPort>, String> {
     if graph.nodes.is_empty() {

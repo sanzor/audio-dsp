@@ -6,7 +6,7 @@ use utoipa::ToSchema;
 
 use crate::{
     auth::{auth_app_data::AuthAppData, invite_user_params::InviteUserParams, service_error::ServiceError},
-    middlewares::{jwt::jwt_context::JwtContext, role_context::role_context::RoleContext},
+    middlewares::{jwt::jwt_context::JwtContext, membership::membership_context::RoleContext},
     projects::project_app_data::ProjectAppData,
 };
 

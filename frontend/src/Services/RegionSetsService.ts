@@ -1,6 +1,6 @@
 import type { TrackRegionSet } from "@/domain/RegionSet/TrackRegionSet";
 import type { TrackRegion } from "@/domain/Region/TrackRegion";
-import { http } from "@/Services/http";
+import { http, projectApiPath } from "@/Services/http";
 
 interface ApiRegion {
   regionId: number;
@@ -81,17 +81,17 @@ export interface RemoveRegionSetResult {}
 // ─── API ──────────────────────────────────────────────────────────────────────
 
 export async function apiGetRegionSet(regionSetId: number): Promise<TrackRegionSet> {
-  const response = await http.get<ApiRegionSet>(`/region-sets/get?region_set_id=${regionSetId}`);
+  const response = await http.get<ApiRegionSet>(projectApiPath(`/region-sets/get?region_set_id=${regionSetId}`));
   return mapApiRegionSet(response);
 }
 
 export async function apiGetRegionSetsForTrack(trackId: number): Promise<GetRegionSetsForTrackResult> {
-  const response = await http.get<{ trackId: number; regionSets: ApiRegionSet[] }>(`/region-sets/get-all-for-track?trackId=${trackId}`);
+  const response = await http.get<{ trackId: number; regionSets: ApiRegionSet[] }>(projectApiPath(`/region-sets/get-all-for-track?trackId=${trackId}`));
   return { trackId: response.trackId, regionSets: response.regionSets.map(mapApiRegionSet) };
 }
 
 export async function apiGetAllRegionSets(): Promise<GetRegionSetsResult> {
-  const response = await http.get<{ track_region_sets_map: Record<string, ApiRegionSet[]> }>("/region-sets/get-all");
+  const response = await http.get<{ track_region_sets_map: Record<string, ApiRegionSet[]> }>(projectApiPath("/region-sets/get-all"));
   const mapped: Record<number, TrackRegionSet[]> = {};
   for (const [trackId, sets] of Object.entries(response.track_region_sets_map)) {
     mapped[Number(trackId)] = sets.map(mapApiRegionSet);
@@ -100,19 +100,19 @@ export async function apiGetAllRegionSets(): Promise<GetRegionSetsResult> {
 }
 
 export async function apiCreateRegionSet(params: CreateRegionSetParams): Promise<CreateRegionSetResult> {
-  const response = await http.post<ApiRegionSet, CreateRegionSetParams>("/region-sets/create", params);
+  const response = await http.post<ApiRegionSet, CreateRegionSetParams>(projectApiPath("/region-sets/create"), params);
   return mapApiRegionSet(response);
 }
 
 export function apiUpdateRegionSet(params: EditRegionSetParams): Promise<EditRegionSetResult> {
-  return http.patch("/region-sets/edit", params);
+  return http.patch(projectApiPath("/region-sets/edit"), params);
 }
 
 export function apiRemoveRegionSet(params: RemoveRegionSetParams): Promise<void> {
-  return http.delete(`/region-sets/delete?regionSetId=${params.regionSetId}`);
+  return http.delete(projectApiPath(`/region-sets/delete?regionSetId=${params.regionSetId}`));
 }
 
 export async function apiCopyRegionSet(params: CopyRegionSetParams): Promise<CreateRegionSetResult> {
-  const response = await http.post<ApiRegionSet, CopyRegionSetParams>("/region-sets/copy-region-set", params);
+  const response = await http.post<ApiRegionSet, CopyRegionSetParams>(projectApiPath("/region-sets/copy-region-set"), params);
   return mapApiRegionSet(response);
 }

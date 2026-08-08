@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use audiolib::utils::encode_audio_buffer_as_wav;
 use domain::{
-    db::db_track::{DbTrack, DbTrackMeta, TrackId},
+    db::db_track::{DbTrack, TrackId},
     raw_track::{RawTrack, TrackInfo},
     tracks::track_bundle::{TrackBundle, TrackPayload},
     track_meta::TrackMeta,
@@ -36,7 +36,7 @@ impl TracksProviderService {
         }
     }
 
-    fn meta_from_db(track: DbTrackMeta) -> TrackMeta {
+    fn meta_from_db(track: DbTrack) -> TrackMeta {
         TrackMeta {
             track_info: TrackInfo {
                 name: track.name,
@@ -52,20 +52,20 @@ impl TracksProviderService {
 
 #[async_trait::async_trait]
 impl TracksProvider for TracksProviderService {
-    async fn get_track_meta(&self, track_id: &TrackId) -> Result<TrackMeta, String> {
-        let track = self.data.get_track(track_id).await?;
+    async fn get_track_meta(&self, track_id: &TrackId, project_id: i32) -> Result<TrackMeta, String> {
+        let track = self.data.get_track(track_id, project_id).await?;
         Ok(Self::to_meta(&track))
     }
 
-    async fn get_track(&self, track_id: &TrackId) -> Result<TrackBundle, String> {
+    async fn get_track(&self, track_id: &TrackId, project_id: i32) -> Result<TrackBundle, String> {
+        let meta=self.data.get_track(track_id, project_id).await?;
         let payload=self.storage.get_track_payload(track_id).await?;
-        let meta=self.data.get_track(track_id).await?;
         let meta=Self::to_meta(&meta);
         Ok(TrackBundle{payload,meta})
     }
 
-    async fn get_tracks(&self) -> Result<Vec<TrackBundle>, String> {
-        let metas = self.get_all_track_metas().await?;
+    async fn get_tracks(&self, project_id: i32) -> Result<Vec<TrackBundle>, String> {
+        let metas = self.get_all_track_metas(project_id).await?;
         let mut tracks = Vec::with_capacity(metas.len());
 
         for meta in metas {
@@ -76,8 +76,8 @@ impl TracksProvider for TracksProviderService {
         Ok(tracks)
     }
 
-    async fn get_all_track_metas(&self) -> Result<Vec<TrackMeta>, String> {
-        let tracks = self.data.get_all_track_metas().await?;
+    async fn get_all_track_metas(&self, project_id: i32) -> Result<Vec<TrackMeta>, String> {
+        let tracks = self.data.get_all_track_metas(project_id).await?;
         Ok(tracks.into_iter().map(Self::meta_from_db).collect())
     }
 
@@ -94,20 +94,21 @@ impl TracksProvider for TracksProviderService {
             .insert_track_payload(&meta.track_id, payload.clone())
             .await
         {
-            let _ = self.data.delete_track(&meta.track_id).await;
+            let _ = self.data.delete_track(&meta.track_id, project_id).await;
             return Err(err);
         }
 
         Ok(TrackBundle { meta, payload })
     }
 
-    async fn delete_track(&self, track_id: &TrackId) -> Result<(), String> {
-        self.data.delete_track(track_id).await
+    async fn delete_track(&self, track_id: &TrackId, project_id: i32) -> Result<(), String> {
+        self.data.delete_track(track_id, project_id).await
     }
 
-    async fn copy_track(&self, track_id: &TrackId, copy_name: String) -> Result<TrackMeta, String> {
+    async fn copy_track(&self, track_id: &TrackId, copy_name: String, project_id: i32) -> Result<TrackMeta, String> {
+        self.data.get_track(track_id, project_id).await?;
         let source_payload = self.storage.get_track_payload(track_id).await?;
-        let db_track = self.data.copy_track(track_id, &copy_name).await?;
+        let db_track = self.data.copy_track(track_id, &copy_name, project_id).await?;
         let meta = Self::to_meta(&db_track);
 
         if let Err(err) = self
@@ -115,7 +116,7 @@ impl TracksProvider for TracksProviderService {
             .insert_track_payload(&meta.track_id, source_payload)
             .await
         {
-            let _ = self.data.delete_track(&meta.track_id).await;
+            let _ = self.data.delete_track(&meta.track_id, project_id).await;
             return Err(err);
         }
 
@@ -126,8 +127,9 @@ impl TracksProvider for TracksProviderService {
         &self,
         track_id: &TrackId,
         params: UpdateTrackInfoParams,
+        project_id: i32,
     ) -> Result<TrackMeta, String> {
-        let db_track = self.data.update_track_info(track_id, params).await?;
+        let db_track = self.data.update_track_info(track_id, params, project_id).await?;
         Ok(Self::to_meta(&db_track))
     }
 }

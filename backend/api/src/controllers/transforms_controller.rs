@@ -1,6 +1,6 @@
 use crate::{
     domain::service_error::ServiceError,
-    middlewares::role_context::role_context::RoleContext,
+    middlewares::membership::membership_context::RoleContext,
     transforms::transforms_app_data::TransformsAppData,
 };
 use actix_web::{delete, get, post, put, web, HttpResponse};
@@ -135,7 +135,7 @@ impl From<domain::db::transform_snapshot::CompositeNode> for CompositeNodeDto {
     }
 }
 
-impl From<CompositeGraphDefinitionDto> for domain::db::transform_snapshot::CompositeGraphDefinition {
+impl From<CompositeGraphDefinitionDto> for domain::db::transform_snapshot::CompositeTransformDefinition {
     fn from(value: CompositeGraphDefinitionDto) -> Self {
         Self {
             nodes: value.nodes.into_iter().map(domain::db::transform_snapshot::CompositeNode::from).collect(),
@@ -153,8 +153,8 @@ impl From<CompositeGraphDefinitionDto> for domain::db::transform_snapshot::Compo
     }
 }
 
-impl From<domain::db::transform_snapshot::CompositeGraphDefinition> for CompositeGraphDefinitionDto {
-    fn from(value: domain::db::transform_snapshot::CompositeGraphDefinition) -> Self {
+impl From<domain::db::transform_snapshot::CompositeTransformDefinition> for CompositeGraphDefinitionDto {
+    fn from(value: domain::db::transform_snapshot::CompositeTransformDefinition) -> Self {
         Self {
             nodes: value.nodes.into_iter().map(CompositeNodeDto::from).collect(),
             edges: value
@@ -232,6 +232,12 @@ pub struct TransformDefinitionDto {
     pub graph_definition: Option<CompositeGraphDefinitionDto>,
     pub ports: Vec<TransformPortDto>,
     pub params: Vec<TransformParamDto>,
+    /// Composite-only sub-state between Save and Publish: true once the
+    /// currently-persisted graph_definition has passed the explicit validate
+    /// action (`POST /transforms/{id}/validate`). Any subsequent save flips
+    /// this back to false. Always false for primitives. See
+    /// agents/decisions/0007-composite-draft-validation-gate.md.
+    pub is_validated: bool,
 }
 
 #[derive(Debug, Deserialize, Serialize, ToSchema)]
@@ -348,6 +354,7 @@ impl From<DbTransformDefinition> for TransformDefinitionDto {
             graph_definition: value.graph_definition.map(CompositeGraphDefinitionDto::from),
             ports: value.ports.into_iter().map(TransformPortDto::from).collect(),
             params: value.params.into_iter().map(TransformParamDto::from).collect(),
+            is_validated: value.is_validated,
         }
     }
 }
@@ -522,8 +529,29 @@ pub async fn save_composite_transform(
         return HttpResponse::Forbidden().body("Forbidden");
     }
     let p = body.into_inner();
-    let graph = domain::db::transform_snapshot::CompositeGraphDefinition::from(p.graph_definition);
+    let graph = domain::db::transform_snapshot::CompositeTransformDefinition::from(p.graph_definition);
     match app.transforms_service.save_composite_draft(path.into_inner().transform_id, graph).await {
+        Ok(t) => HttpResponse::Ok().json(TransformDefinitionDto::from(t)),
+        Err(e) => map_service_error(e),
+    }
+}
+
+#[utoipa::path(post, path = "/transforms/{transform_id}/validate", tag = "transforms",
+    params(TransformIdPath),
+    responses(
+        (status = 200, description = "Composite graph validated; ports derived and is_validated set to true", body = serde_json::Value),
+        (status = 400, description = "Validation failed (invalid wiring, or nothing saved yet) — ports/is_validated left untouched")
+    ))]
+#[post("/{transform_id}/validate")]
+pub async fn validate_composite_transform(
+    role: RoleContext,
+    path: web::Path<TransformIdPath>,
+    app: web::Data<TransformsAppData>,
+) -> HttpResponse {
+    if !role.can_edit() {
+        return HttpResponse::Forbidden().body("Forbidden");
+    }
+    match app.transforms_service.validate_composite_draft(path.into_inner().transform_id).await {
         Ok(t) => HttpResponse::Ok().json(TransformDefinitionDto::from(t)),
         Err(e) => map_service_error(e),
     }
@@ -594,6 +622,7 @@ pub fn init(cfg: &mut web::ServiceConfig) {
         .service(create_transform)
         .service(save_transform)
         .service(save_composite_transform)
+        .service(validate_composite_transform)
         .service(publish_transform)
         .service(get_publish_port_shape_diff)
         .service(delete_transform);

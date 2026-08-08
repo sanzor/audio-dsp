@@ -6,6 +6,7 @@ import {
   apiCopyRegionSet,
   apiCreateRegionSet,
   apiRemoveRegionSet,
+  apiUpdateRegionSet,
   type CopyRegionSetParams,
   type CreateRegionSetParams,
   type CreateRegionSetResult,
@@ -220,12 +221,9 @@ export const useRenameRegionSet = () => {
 
   return useMutation<void, Error, { setId: number; newName: string }>({
     mutationFn: async ({ setId, newName }) => {
-      const res = await fetch(`/api/region-sets/${setId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newName }),
-      });
-      if (!res.ok) throw new Error('Failed to rename');
+      const regionSet = useRegionSetStore.getState().getRegionSet(setId);
+      if (!regionSet) throw new Error('Region set not found');
+      await apiUpdateRegionSet({ region_set_id: setId, trackId: regionSet.trackId, name: newName });
     },
     onMutate: ({ setId, newName }) => {
       updateRegionSet(setId, { name: newName });

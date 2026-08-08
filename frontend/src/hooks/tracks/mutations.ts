@@ -5,6 +5,7 @@ import {
   apiAddTrack as apiCreateTrack,
   apiCopyTrack,
   apiRemoveTrack,
+  apiUpdateTrack,
   type CreateTrackParams,
   type CreateTrackResult,
   type CopyTrackParams,
@@ -115,12 +116,7 @@ export const useRenameTrack = () => {
 
   return useMutation<void, Error, { trackId: number; newName: string }, { previousTrack?: NormalizedTrackMeta }>({
     mutationFn: async ({ trackId, newName }) => {
-      const res = await fetch(`/api/tracks/${trackId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newName }),
-      });
-      if (!res.ok) throw new Error('Failed to rename track');
+      await apiUpdateTrack({ track_id: trackId, track_name: newName });
     },
     onMutate: ({ trackId, newName }) => {
       const previousTrack = getTrack(trackId);

@@ -44,7 +44,7 @@ pub struct ParamSnapshot {
 /// collapsing that into "just another node wired by a normal edge" is a
 /// real simplification, not just a UI preference.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CompositeGraphDefinition {
+pub struct CompositeTransformDefinition {
     pub nodes: Vec<CompositeNode>,
     pub edges: Vec<CompositeEdge>,
 }

@@ -3,7 +3,7 @@ use std::{collections::HashSet, sync::Arc};
 use domain::db::{
     db_transform::{DbTransform, DbTransformBinary, DbTransformDefinition, TransformId},
     ticket::db_resource::ResourceId,
-    transform_snapshot::CompositeGraphDefinition,
+    transform_snapshot::CompositeTransformDefinition,
 };
 use wasmtime::*;
 use crate::domain::service_error::ServiceError;
@@ -20,7 +20,7 @@ use super::{
 /// are harmless). Input/Output nodes have no `transform_id` to collect —
 /// `CompositeNode` is a tagged enum as of the Input/Output node model, not a
 /// flat struct, so this can no longer be a bare `.map(|n| n.transform_id)`.
-fn leaf_transform_ids(graph: &CompositeGraphDefinition) -> Vec<TransformId> {
+fn leaf_transform_ids(graph: &CompositeTransformDefinition) -> Vec<TransformId> {
     graph
         .nodes
         .iter()
@@ -108,13 +108,25 @@ impl TransformsProvider for TransformsProviderService {
         self.data.get_transform_definition(id).await.map_err(ServiceError::from)
     }
 
-    async fn save_composite_draft(&self, id: TransformId, graph: CompositeGraphDefinition) -> Result<DbTransformDefinition, ServiceError> {
+    async fn save_composite_draft(&self, id: TransformId, graph: CompositeTransformDefinition) -> Result<DbTransformDefinition, ServiceError> {
+        self.data.save_composite_draft(id, graph).await?;
+        self.data.get_transform_definition(id).await.map_err(ServiceError::from)
+    }
+
+    async fn validate_composite_draft(&self, id: TransformId) -> Result<DbTransformDefinition, ServiceError> {
+        let draft = self.data.get_draft(id).await?;
+        let Some(graph) = draft.graph_definition else {
+            return Err(ServiceError::Validation(
+                "nothing has been saved for this composite yet".to_string(),
+            ));
+        };
+
         let transform_ids: Vec<TransformId> = leaf_transform_ids(&graph);
         let leaf_defs = self.data.get_leaf_transform_infos(&transform_ids).await?;
         let ports = composite_validator::validate_composite_graph(&graph, &leaf_defs)
             .map_err(ServiceError::Validation)?;
 
-        self.data.save_composite_draft(id, graph, ports).await?;
+        self.data.validate_composite_draft(id, ports).await?;
         self.data.get_transform_definition(id).await.map_err(ServiceError::from)
     }
 
@@ -128,6 +140,20 @@ impl TransformsProvider for TransformsProviderService {
                     "nothing has been saved for this composite yet".to_string(),
                 ));
             };
+
+            // Gate: the explicit validate action must have succeeded against
+            // the currently-persisted graph before Publish will even attempt
+            // it. save_composite_draft unconditionally resets is_validated to
+            // false on every graph edit, so this can't be stale-true against
+            // unsaved canvas changes. See
+            // agents/decisions/0008-publish-requires-validated-composite-draft.md
+            // (supersedes item 4 of 0007, which had Publish independent of
+            // is_validated).
+            if !draft.is_validated {
+                return Err(ServiceError::Validation(
+                    "composite draft must be validated before publishing".to_string(),
+                ));
+            }
 
             // Re-validate at publish time, not just at save time — a leaf
             // transform referenced by this graph may have been unpublished
@@ -224,222 +250,5 @@ impl TransformsProvider for TransformsProviderService {
 }
 
 #[cfg(test)]
-mod tests {
-    //! `publish_transform`'s source/binary consistency gate (item 2 of the
-    //! transform-draft-lifecycle follow-ups, see
-    //! agents/decisions/0002-transform-draft-lifecycle-decisions.md) is pure
-    //! Rust logic over whatever `get_draft` returns — no DB needed to
-    //! exercise it. There's no DB-backed test harness in this repo yet (the
-    //! only other transform test, transform_compile_pipeline.rs, drives the
-    //! real compiler/wasmtime and is `#[ignore]`d), so this uses a minimal
-    //! in-memory `TransformsDataProvider` double instead. Anything the
-    //! publish path doesn't touch panics with `unimplemented!()` so a test
-    //! relying on unexercised behavior fails loudly rather than silently
-    //! doing the wrong thing.
-    use super::*;
-    use domain::db::{
-        db_transform::DbTransformDefinition,
-        ticket::{
-            create_ticket_params::CreateTicketParams, db_resource::DbResource,
-            db_ticket::{DbTicket, TicketId},
-            update_ticket_params::UpdateTicketParams,
-        },
-        db_transform_draft::DbTransformDraft,
-    };
-
-    struct FakeDataProvider {
-        draft: DbTransformDraft,
-        current_ports: Vec<domain::db::db_transform::DbTransformPort>,
-    }
-
-    #[async_trait::async_trait]
-    impl TransformsDataProvider for FakeDataProvider {
-        async fn create_ticket(&self, _: CreateTicketParams) -> Result<DbTicket, crate::domain::data_error::DataError> { unimplemented!() }
-        async fn get_ticket(&self, _: TicketId) -> Result<DbTicket, crate::domain::data_error::DataError> { unimplemented!() }
-        async fn create_resource(&self, _: TicketId, _: Vec<u8>, _: String, _: Option<String>, _: Vec<NewTransformPort>, _: Vec<NewTransformParam>) -> Result<DbResource, crate::domain::data_error::DataError> { unimplemented!() }
-        async fn get_resource(&self, _: ResourceId) -> Result<DbResource, crate::domain::data_error::DataError> { unimplemented!() }
-        async fn update_resource(&self, _: ResourceId, _: TicketId) -> Result<DbResource, crate::domain::data_error::DataError> { unimplemented!() }
-        async fn remove_resource(&self, _: ResourceId) -> Result<(), crate::domain::data_error::DataError> { unimplemented!() }
-        async fn remove_ticket(&self, _: TicketId) -> Result<(), crate::domain::data_error::DataError> { unimplemented!() }
-        async fn update_ticket(&self, _: UpdateTicketParams) -> Result<DbTicket, crate::domain::data_error::DataError> { unimplemented!() }
-        async fn get_transform(&self, _: TransformId) -> Result<DbTransform, String> { unimplemented!() }
-        async fn get_current_ports(&self, _: TransformId) -> Result<Vec<domain::db::db_transform::DbTransformPort>, crate::domain::data_error::DataError> { Ok(self.current_ports.clone()) }
-
-        async fn get_transform_definition(&self, id: TransformId) -> Result<DbTransformDefinition, String> {
-            Ok(DbTransformDefinition {
-                transform_id: id,
-                name: self.draft.name.clone().unwrap_or_default(),
-                description: self.draft.description.clone(),
-                icon: None,
-                kind: "primitive".to_string(),
-                source_code: Some(self.draft.source_code.clone()),
-                graph_definition: None,
-                ports: vec![],
-                params: vec![],
-            })
-        }
-
-        async fn get_transform_definitions(&self, _: &[TransformId]) -> Result<Vec<DbTransformDefinition>, String> { unimplemented!() }
-        async fn list_transform_summaries(&self, _: i64, _: i64) -> Result<(Vec<DbTransform>, i64), String> { unimplemented!() }
-        async fn insert_transform(&self, _: String, _: Option<String>, _: Option<String>, _: String) -> Result<DbTransform, String> { unimplemented!() }
-        async fn delete_transform(&self, _: TransformId) -> Result<(), crate::domain::data_error::DataError> { unimplemented!() }
-
-        async fn get_leaf_transform_infos(&self, _: &[TransformId]) -> Result<std::collections::HashMap<TransformId, crate::transforms::composite_validator::LeafTransformInfo>, crate::domain::data_error::DataError> { unimplemented!() }
-
-        async fn get_draft(&self, _: TransformId) -> Result<DbTransformDraft, crate::domain::data_error::DataError> {
-            Ok(self.draft.clone())
-        }
-
-        async fn save_transform_draft(&self, _: TransformId, _: String, _: Option<ResourceId>) -> Result<DbTransformDraft, crate::domain::data_error::DataError> { unimplemented!() }
-        async fn save_composite_draft(&self, _: TransformId, _: domain::db::transform_snapshot::CompositeGraphDefinition, _: Vec<NewTransformPort>) -> Result<DbTransformDraft, crate::domain::data_error::DataError> { unimplemented!() }
-
-        async fn publish_compiled_transform(&self, _: TransformId, _: Vec<u8>, _: String, _: String, _: Option<String>, _: Vec<NewTransformPort>, _: Vec<NewTransformParam>) -> Result<(), String> {
-            Ok(())
-        }
-
-        async fn publish_composite_transform(&self, _: TransformId, _: String, _: Option<String>, _: Vec<NewTransformPort>, _: domain::db::transform_snapshot::CompositeGraphDefinition) -> Result<(), String> { unimplemented!() }
-    }
-
-    struct FakeStorageProvider;
-
-    #[async_trait::async_trait]
-    impl TransformStorageProvider for FakeStorageProvider {
-        async fn get_transform_binary(&self, _: TransformId) -> Result<Vec<u8>, String> { unimplemented!() }
-        async fn get_transform_binaries(&self, _: &[TransformId]) -> Result<Vec<DbTransformBinary>, String> { unimplemented!() }
-        async fn write_transform_binary(&self, _: TransformId, _: &[u8]) -> Result<(), String> { unimplemented!() }
-    }
-
-    fn make_draft(source_code: &str, wasm_source_code: Option<&str>, has_binary: bool) -> DbTransformDraft {
-        DbTransformDraft {
-            transform_id: 1,
-            source_code: source_code.to_string(),
-            wasm_bytecode: if has_binary { Some(vec![0, 1, 2]) } else { None },
-            wasm_source_code: wasm_source_code.map(|s| s.to_string()),
-            graph_definition: None,
-            name: Some("Test".to_string()),
-            description: None,
-            ports: vec![],
-            params: vec![],
-        }
-    }
-
-    fn service_with(draft: DbTransformDraft) -> TransformsProviderService {
-        service_with_ports(draft, vec![])
-    }
-
-    fn service_with_ports(
-        draft: DbTransformDraft,
-        current_ports: Vec<domain::db::db_transform::DbTransformPort>,
-    ) -> TransformsProviderService {
-        TransformsProviderService::new(
-            Arc::new(FakeDataProvider { draft, current_ports }),
-            Arc::new(FakeStorageProvider),
-        )
-    }
-
-    fn db_port(name: &str, direction: &str, kind: &str, cardinality: &str) -> domain::db::db_transform::DbTransformPort {
-        domain::db::db_transform::DbTransformPort {
-            port_id: 1,
-            transform_id: 1,
-            name: name.to_string(),
-            direction: direction.to_string(),
-            port_order: 0,
-            description: None,
-            kind: kind.to_string(),
-            cardinality: cardinality.to_string(),
-        }
-    }
-
-    fn port_snapshot(name: &str, direction: &str, kind: &str, cardinality: &str) -> domain::db::transform_snapshot::PortSnapshot {
-        domain::db::transform_snapshot::PortSnapshot {
-            name: name.to_string(),
-            direction: direction.to_string(),
-            port_order: 0,
-            description: None,
-            kind: kind.to_string(),
-            cardinality: cardinality.to_string(),
-        }
-    }
-
-    #[tokio::test]
-    async fn publish_fails_when_saved_binary_no_longer_matches_saved_source() {
-        // Models: resource attached while source was "v1" (item 1 stamps
-        // wasm_source_code = "v1" at that moment), then a later source-only
-        // save moves source_code to "v2" without touching the binary. This
-        // is the drift item 2's gate exists to catch.
-        let service = service_with(make_draft("v2", Some("v1"), true));
-
-        let result = service.publish_transform(1).await;
-
-        assert!(
-            matches!(result, Err(ServiceError::Validation(_))),
-            "expected a validation error on source/binary drift, got {:?}",
-            result.err()
-        );
-    }
-
-    #[tokio::test]
-    async fn publish_succeeds_when_saved_binary_matches_saved_source() {
-        let service = service_with(make_draft("v1", Some("v1"), true));
-
-        let result = service.publish_transform(1).await;
-
-        assert!(result.is_ok(), "expected publish to succeed, got {:?}", result.err());
-    }
-
-    #[tokio::test]
-    async fn publish_fails_when_nothing_saved_with_a_binary_yet() {
-        let service = service_with(make_draft("v1", None, false));
-
-        let result = service.publish_transform(1).await;
-
-        assert!(matches!(result, Err(ServiceError::Validation(_))));
-    }
-
-    #[tokio::test]
-    async fn port_shape_diff_reports_no_change_when_never_published() {
-        // No current_ports rows at all — first-ever publish, nothing to
-        // warn about regardless of what's saved.
-        let mut draft = make_draft("v1", Some("v1"), true);
-        draft.ports = vec![port_snapshot("a", "input", "program", "single"), port_snapshot("out", "output", "program", "single")];
-        let service = service_with_ports(draft, vec![]);
-
-        let diff = service.diff_publish_port_shape(1).await.expect("diff should succeed");
-
-        assert!(!diff.changed);
-    }
-
-    #[tokio::test]
-    async fn port_shape_diff_flags_a_1_to_2_input_republish() {
-        let current = vec![db_port("in", "input", "program", "single"), db_port("out", "output", "program", "single")];
-        let mut draft = make_draft("v1", Some("v1"), true);
-        draft.ports = vec![
-            port_snapshot("a", "input", "program", "single"),
-            port_snapshot("b", "input", "sidechain", "single"),
-            port_snapshot("out", "output", "program", "single"),
-        ];
-        let service = service_with_ports(draft, current);
-
-        let diff = service.diff_publish_port_shape(1).await.expect("diff should succeed");
-
-        assert!(diff.changed, "expected a 1-input -> 2-input republish to be flagged");
-        assert_eq!(diff.current.len(), 2);
-        assert_eq!(diff.incoming.len(), 3);
-    }
-
-    #[tokio::test]
-    async fn port_shape_diff_ignores_a_pure_rename() {
-        let current = vec![db_port("in", "input", "program", "single"), db_port("out", "output", "program", "single")];
-        let mut draft = make_draft("v1", Some("v1"), true);
-        // Same shape (direction/kind/cardinality), different name only.
-        draft.ports = vec![
-            port_snapshot("input_signal", "input", "program", "single"),
-            port_snapshot("out", "output", "program", "single"),
-        ];
-        let service = service_with_ports(draft, current);
-
-        let diff = service.diff_publish_port_shape(1).await.expect("diff should succeed");
-
-        assert!(!diff.changed, "a pure rename with unchanged shape should not be flagged");
-    }
-}
+#[path = "transforms_provider_service_tests.rs"]
+mod tests;

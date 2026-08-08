@@ -12,20 +12,18 @@ use crate::{
     memberships::memberships_provider::MembershipsProvider,
     middlewares::{
         jwt::jwt_context::JwtContext,
-        role_context::role_context::RoleContext,
+        membership::membership_context::{ProjectContext, RoleContext},
     },
-    users::user_provider::UserProvider,
 };
 
 pub const PROJECT_ID_HEADER: &str = "x-project-id";
 
-pub struct ProjectGuardMiddlewareService<S> {
+pub struct MembershipMiddlewareService<S> {
     pub service: Rc<S>,
     pub memberships: Arc<dyn MembershipsProvider>,
-    pub user_provider: Arc<dyn UserProvider>,
 }
 
-impl<S, B> Service<ServiceRequest> for ProjectGuardMiddlewareService<S>
+impl<S, B> Service<ServiceRequest> for MembershipMiddlewareService<S>
 where
     S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error> + 'static,
     S::Future: 'static,
@@ -40,13 +38,13 @@ where
     fn call(&self, req: ServiceRequest) -> Self::Future {
         let srv = Rc::clone(&self.service);
         let memberships = Arc::clone(&self.memberships);
-        let user_provider = Arc::clone(&self.user_provider);
 
         Box::pin(async move {
             if req.method() == actix_web::http::Method::OPTIONS {
                 return srv.call(req).await.map(|r| r.map_into_left_body());
             }
 
+            // 1. Identity from JWT (deposited by JwtAuthMiddleware)
             let jwt_ctx = req.extensions().get::<JwtContext>().cloned();
             let jwt_ctx = match jwt_ctx {
                 Some(ctx) => ctx,
@@ -56,37 +54,27 @@ where
                 }
             };
 
-            // is_active check
-            let user = match user_provider.get_user(jwt_ctx.user_id).await {
-                Ok(u) => u,
-                Err(e) => {
-                    let res = req.into_response(actix_web::HttpResponse::InternalServerError().body(e.to_string()));
-                    return Ok(res.map_into_right_body());
-                }
-            };
-            match user {
-                None => {
-                    let res = req.into_response(actix_web::HttpResponse::Unauthorized().body("User not found"));
-                    return Ok(res.map_into_right_body());
-                }
-                Some(u) if !u.is_active => {
-                    let res = req.into_response(actix_web::HttpResponse::Forbidden().body("Account inactive"));
-                    return Ok(res.map_into_right_body());
-                }
-                _ => {}
-            }
+            // 2. Project id comes from a project-scoped route (`/{project_id}/...`)
+            // whenever one is present. The header fallback keeps routes not yet
+            // migrated to a project-scoped path on their existing contract.
+            let project_id = req
+                .match_info()
+                .get("project_id")
+                .and_then(|value| value.parse::<i32>().ok())
+                .or_else(|| {
+                    req.headers()
+                        .get(PROJECT_ID_HEADER)
+                        .and_then(|value| value.to_str().ok())
+                        .and_then(|value| value.parse::<i32>().ok())
+                });
 
+            // 3. Resolve role
             let role_ctx = if jwt_ctx.is_admin {
                 RoleContext(ProjectRole::SuperAdmin)
             } else {
-                let project_id: Option<i64> = req
-                    .headers()
-                    .get(PROJECT_ID_HEADER)
-                    .and_then(|v| v.to_str().ok())
-                    .and_then(|s| s.parse::<i64>().ok());
-
                 match project_id {
                     None => {
+                        warn!(path = %req.path(), "request rejected: missing project_id (path or X-Project-ID header)");
                         let res = req.into_response(actix_web::HttpResponse::BadRequest().body("Missing X-Project-ID header"));
                         return Ok(res.map_into_right_body());
                     }
@@ -110,6 +98,7 @@ where
                         };
                         match role {
                             None => {
+                                warn!(path = %req.path(), project_id = pid, user_id = jwt_ctx.user_id, "request rejected: access denied to project");
                                 let res = req.into_response(actix_web::HttpResponse::Forbidden().body("Access denied to this project"));
                                 return Ok(res.map_into_right_body());
                             }
@@ -119,8 +108,24 @@ where
                 }
             };
 
+            // 4. Attach to request
             req.extensions_mut().insert(role_ctx);
-            srv.call(req).await.map(|r| r.map_into_left_body())
+            if let Some(pid) = project_id {
+                req.extensions_mut().insert(ProjectContext(pid));
+            }
+            let path = req.path().to_owned();
+            match srv.call(req).await {
+                Ok(res) => {
+                    if res.status().is_server_error() {
+                        warn!(path = %path, status = %res.status(), "downstream service returned 5xx after membership check");
+                    }
+                    Ok(res.map_into_left_body())
+                }
+                Err(error) => {
+                    warn!(path = %path, %error, "downstream service returned error after membership check");
+                    Err(error)
+                }
+            }
         })
     }
 }

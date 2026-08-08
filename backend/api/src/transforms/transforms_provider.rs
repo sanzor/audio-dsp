@@ -1,7 +1,7 @@
 use domain::db::{
     db_transform::{DbTransform, DbTransformBinary, DbTransformDefinition, TransformId},
     ticket::db_resource::ResourceId,
-    transform_snapshot::CompositeGraphDefinition,
+    transform_snapshot::CompositeTransformDefinition,
 };
 
 use crate::domain::service_error::ServiceError;
@@ -43,12 +43,24 @@ pub trait TransformsProvider: Send + Sync {
     /// Bucket 2 — save. Always overwrites source_code; if `resource_id` is
     /// given, also attaches that compile resource's binary/metadata.
     async fn save_transform_draft(&self, id: TransformId, source_code: String, resource_id: Option<ResourceId>) -> Result<DbTransformDefinition, ServiceError>;
-    /// Composite counterpart to `save_transform_draft` — validates the
-    /// wiring graph (every referenced transform exists, is a published
-    /// primitive, ports/cardinality/exposure rules hold) and derives the
-    /// composite's own ports before writing the draft. See
-    /// `composite_validator::validate_composite_graph`.
-    async fn save_composite_draft(&self, id: TransformId, graph: CompositeGraphDefinition) -> Result<DbTransformDefinition, ServiceError>;
+    /// Composite counterpart to `save_transform_draft` — persists the working
+    /// wiring graph as-is, structurally, with no validation and no derived
+    /// `ports` write (whatever `ports` already held is left untouched).
+    /// Always flips `is_validated` back to `false` — see
+    /// `validate_composite_draft` below and
+    /// `agents/decisions/0007-composite-draft-validation-gate.md`.
+    async fn save_composite_draft(&self, id: TransformId, graph: CompositeTransformDefinition) -> Result<DbTransformDefinition, ServiceError>;
+    /// New explicit validate action for a composite draft. Runs
+    /// `composite_validator::validate_composite_graph` (every referenced
+    /// transform exists, is a published primitive, ports/cardinality/
+    /// exposure rules hold) against the *currently-persisted*
+    /// `graph_definition`. On success, writes the derived `ports` and flips
+    /// `is_validated` to `true`. On failure, leaves `ports`/`is_validated`
+    /// untouched and returns the validation error. Independent of Publish —
+    /// Publish keeps re-running the same validation from scratch and never
+    /// checks `is_validated` as a precondition. See
+    /// `agents/decisions/0007-composite-draft-validation-gate.md`.
+    async fn validate_composite_draft(&self, id: TransformId) -> Result<DbTransformDefinition, ServiceError>;
     /// Bucket 3 — publish. Bundles whatever's currently saved (bucket 2) into
     /// the live artifact. Fails if nothing has been saved with a binary yet.
     async fn publish_transform(&self, id: TransformId) -> Result<DbTransformDefinition, ServiceError>;

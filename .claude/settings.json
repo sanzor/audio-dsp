@@ -18,7 +18,15 @@
       "Bash(make migrate-info *)",
       "Bash(curl -s -i -X POST http://localhost:3080/auth/login -H \"Content-Type: application/json\" -d '{\"email\":\"test@gmail.com\",\"password\":\"test\"}')",
       "Bash(python3 -c ' *)",
-      "Bash(tee /tmp/claude-1000/-home-sanzor-audio-dsp/a5a1660f-f8db-47ea-9e5b-292140325c36/scratchpad/tsc_out.txt)"
+      "Bash(tee /tmp/claude-1000/-home-sanzor-audio-dsp/a5a1660f-f8db-47ea-9e5b-292140325c36/scratchpad/tsc_out.txt)",
+      "Bash(git -C /home/sanzor/audio-dsp diff -- frontend/src/components/creator/composite/composite-canvas-node.tsx)",
+      "Bash(git check-ignore *)",
+      "Bash(cd /home/sanzor/audio-dsp/backend/api/src/controllers && sed -i 's/middlewares::role_context::role_context::/middlewares::membership::membership_context::/g' player_controller.rs project_controller.rs graph_controller.rs sources_controller.rs transforms_controller.rs tracks_crud_controller.rs ticket_controller.rs region_set_controller.rs track_payload_controller.rs regions_controller.rs ws_controller.rs workspace_controller.rs && grep -rn \"role_context\" *.rs)",
+      "Bash(sed -i -e 's|path = \"/player/get-player-state\"|path = \"/v1/projects/{project_id}/player/get-player-state\"|' -e 's|path = \"/player/play\"|path = \"/v1/projects/{project_id}/player/play\"|' -e 's|path = \"/player/pause\"|path = \"/v1/projects/{project_id}/player/pause\"|' -e 's|path = \"/player/seek\"|path = \"/v1/projects/{project_id}/player/seek\"|' -e 's|path = \"/player/stop\"|path = \"/v1/projects/{project_id}/player/stop\"|' player_controller.rs)",
+      "Bash(sed -i -e 's|path = \"/sources/add-source-multi\"|path = \"/v1/projects/{project_id}/sources/add-source-multi\"|' -e 's|path = \"/sources/add-source\"|path = \"/v1/projects/{project_id}/sources/add-source\"|' -e 's|path = \"/sources/list-sources\"|path = \"/v1/projects/{project_id}/sources/list-sources\"|' -e 's|path = \"/sources/rename-source\"|path = \"/v1/projects/{project_id}/sources/rename-source\"|' -e 's|path = \"/sources/delete-source\"|path = \"/v1/projects/{project_id}/sources/delete-source\"|' -e 's|path = \"/sources/get-audio\"|path = \"/v1/projects/{project_id}/sources/get-audio\"|' sources_controller.rs)"
+    ],
+    "additionalDirectories": [
+      "/home/sanzor/audio-dsp/backend/api/src/controllers"
     ]
   }
 }

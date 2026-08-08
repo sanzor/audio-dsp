@@ -17,7 +17,7 @@ use utoipa::{IntoParams, ToSchema};
 use crate::{
     domain::service_error::ServiceError,
     graphs::graphs_app_data::GraphsAppData,
-    middlewares::role_context::role_context::RoleContext,
+    middlewares::membership::membership_context::RoleContext,
 };
 
 #[derive(Serialize)]

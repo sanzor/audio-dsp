@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 
 use crate::{
-    middlewares::role_context::role_context::RoleContext,
+    middlewares::membership::membership_context::RoleContext,
     regions::{
         regions_app_data::RegionsAppData,
         regions_provider::{AddRegionParams, CopyRegionParams, DeleteRegionParams, EditRegionParams, EndTimePolicy},

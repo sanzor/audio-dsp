@@ -127,6 +127,17 @@ export async function apiSaveCompositeTransform(
   );
 }
 
+// New explicit validate action for a composite draft (see
+// agents/decisions/0007-composite-draft-validation-gate.md). Runs the same
+// composite_validator::validate_composite_graph check Save used to run,
+// against the currently-persisted graph_definition. On success, the
+// returned definition has its derived ports and is_validated: true; on
+// failure (rejected promise, message from http.ts's response.text()) ports/
+// is_validated are left untouched server-side.
+export async function apiValidateCompositeTransform(transform_id: number): Promise<TransformDefinition> {
+  return http.post<TransformDefinition, undefined>(`/transforms/${transform_id}/validate`, undefined);
+}
+
 // Advisory pre-publish check (multi-input named ports republish warning).
 // Diffs the port shape about to be published (bucket 2, saved state)
 // against what's currently live (bucket 3, transform_ports) — count/kind/

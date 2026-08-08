@@ -1,5 +1,5 @@
 use domain::{
-    db::db_track::{DbTrack, DbTrackMeta, TrackId},
+    db::db_track::{DbTrack, TrackId},
     raw_track::TrackInfo,
     update_track_info_params::UpdateTrackInfoParams,
 };
@@ -19,28 +19,31 @@ impl PostgresTracksDataProvider {
 
 #[async_trait::async_trait]
 impl TracksDataProvider for PostgresTracksDataProvider {
-    async fn get_track(&self, track_id: &TrackId) -> Result<DbTrack, String> {
+    async fn get_track(&self, track_id: &TrackId, project_id: i32) -> Result<DbTrack, String> {
         sqlx::query_as::<_, DbTrack>(
-            "SELECT track_id, name, extension, length_seconds, created_at FROM tracks WHERE track_id = $1"
+            "SELECT track_id, name, extension, length_seconds, created_at FROM tracks WHERE track_id = $1 AND project_id = $2"
         )
         .bind(track_id)
+        .bind(project_id)
         .fetch_one(&self.pool)
         .await
         .map_err(|e| e.to_string())
     }
 
-    async fn get_all_track_metas(&self) -> Result<Vec<DbTrackMeta>, String> {
-        sqlx::query_as::<_, DbTrackMeta>(
-            "SELECT track_id, name, extension, length_seconds, created_at FROM tracks ORDER BY created_at DESC"
+    async fn get_all_track_metas(&self, project_id: i32) -> Result<Vec<DbTrack>, String> {
+        sqlx::query_as::<_, DbTrack>(
+            "SELECT track_id, name, extension, length_seconds, created_at FROM tracks WHERE project_id = $1 ORDER BY created_at DESC"
         )
+        .bind(project_id)
         .fetch_all(&self.pool)
         .await
         .map_err(|e| e.to_string())
     }
 
-    async fn delete_track(&self, track_id: &TrackId) -> Result<(), String> {
-        sqlx::query("DELETE FROM tracks WHERE track_id = $1")
+    async fn delete_track(&self, track_id: &TrackId, project_id: i32) -> Result<(), String> {
+        sqlx::query("DELETE FROM tracks WHERE track_id = $1 AND project_id = $2")
             .bind(track_id)
+            .bind(project_id)
             .execute(&self.pool)
             .await
             .map(|_| ())
@@ -62,26 +65,28 @@ impl TracksDataProvider for PostgresTracksDataProvider {
         .map_err(|e| e.to_string())
     }
 
-    async fn copy_track(&self, source_track_id: &TrackId, new_name: &str) -> Result<DbTrack, String> {
+    async fn copy_track(&self, source_track_id: &TrackId, new_name: &str, project_id: i32) -> Result<DbTrack, String> {
         sqlx::query_as::<_, DbTrack>(
-            "INSERT INTO tracks (name, extension, length_seconds)
-             SELECT $1, extension, length_seconds FROM tracks WHERE track_id = $2
+            "INSERT INTO tracks (name, extension, length_seconds, project_id)
+             SELECT $1, extension, length_seconds, project_id FROM tracks WHERE track_id = $2 AND project_id = $3
              RETURNING track_id, name, extension, length_seconds, created_at",
         )
         .bind(new_name)
         .bind(source_track_id)
+        .bind(project_id)
         .fetch_one(&self.pool)
         .await
         .map_err(|e| e.to_string())
     }
 
-    async fn update_track_info(&self, track_id: &TrackId, params: UpdateTrackInfoParams) -> Result<DbTrack, String> {
+    async fn update_track_info(&self, track_id: &TrackId, params: UpdateTrackInfoParams, project_id: i32) -> Result<DbTrack, String> {
         sqlx::query_as::<_, DbTrack>(
-            "UPDATE tracks SET name = $2 WHERE track_id = $1
+            "UPDATE tracks SET name = $2 WHERE track_id = $1 AND project_id = $3
              RETURNING track_id, name, extension, length_seconds, created_at",
         )
         .bind(track_id)
         .bind(params.track_name)
+        .bind(project_id)
         .fetch_one(&self.pool)
         .await
         .map_err(|e| e.to_string())

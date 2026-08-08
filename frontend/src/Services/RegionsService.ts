@@ -1,6 +1,6 @@
 import type { TrackRegion } from "@/domain/Region/TrackRegion";
 import type { TrackRegionSet } from "@/domain/RegionSet/TrackRegionSet";
-import { http } from "@/Services/http";
+import { http, projectApiPath } from "@/Services/http";
 
 interface ApiRegion {
   regionId?: number;
@@ -94,7 +94,7 @@ export function apiGetRegionsForRegionSet(_regionSetId: number): Promise<GetRegi
 
 export async function apiAddRegion(params: CreateRegionParams): Promise<CreateRegionResult> {
   const response = await http.post<ApiRegionSet, { regionSetId: number; startTime: number; endTime?: number; name: string }>(
-    "/regions/add",
+    projectApiPath("/regions/add"),
     {
       regionSetId: params.region_set_id,
       startTime: params.start_time,
@@ -107,7 +107,7 @@ export async function apiAddRegion(params: CreateRegionParams): Promise<CreateRe
 
 export async function apiEditRegion(params: EditRegionParams): Promise<EditRegionResult> {
   const response = await http.patch<{ region: ApiRegion }, { regionId: number; name?: string; startTime?: number; endTime?: number }>(
-    "/regions/edit",
+    projectApiPath("/regions/edit"),
     {
       regionId: params.regionId,
       ...(params.name != null ? { name: params.name } : {}),
@@ -119,7 +119,7 @@ export async function apiEditRegion(params: EditRegionParams): Promise<EditRegio
 }
 
 export async function apiRemoveRegion(params: RemoveRegionParams): Promise<RemoveRegionResult> {
-  const response = await http.delete<ApiRegionSet>(`/regions/remove?regionId=${params.regionId}`);
+  const response = await http.delete<ApiRegionSet>(projectApiPath(`/regions/remove?regionId=${params.regionId}`));
   return { regionSet: mapApiRegionSet(response) };
 }
 
@@ -133,6 +133,6 @@ export async function apiCopyRegion(params: CopyRegionParams): Promise<CopyRegio
     copyName: params.copyName,
   });
 
-  const response = await http.post<{ region: ApiRegion }, undefined>(`/regions/copy?${query.toString()}`, undefined);
+  const response = await http.post<{ region: ApiRegion }, undefined>(projectApiPath(`/regions/copy?${query.toString()}`), undefined);
   return { region: mapApiRegion(response.region) };
 }

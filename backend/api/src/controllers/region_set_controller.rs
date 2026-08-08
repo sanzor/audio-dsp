@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use utoipa::{IntoParams, ToSchema};
 
 use crate::{
-    middlewares::role_context::role_context::RoleContext,
+    middlewares::membership::membership_context::RoleContext,
     region_sets::{
         region_sets_app_data::RegionSetsAppData,
         region_sets_provider::{CopyRegionSetParams, CreateRegionSetParams, EditRegionSetParams},

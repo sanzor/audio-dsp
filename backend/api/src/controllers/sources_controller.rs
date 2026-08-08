@@ -1,5 +1,5 @@
 use crate::{
-    middlewares::role_context::role_context::{ProjectContext, RoleContext},
+    middlewares::membership::membership_context::{ProjectContext, RoleContext},
     sources::sources_app_data::SourcesAppData,
 };
 use actix_multipart::Multipart;

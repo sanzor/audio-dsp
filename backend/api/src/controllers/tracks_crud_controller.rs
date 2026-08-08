@@ -1,5 +1,5 @@
 use crate::{
-    middlewares::role_context::role_context::{ProjectContext, RoleContext},
+    middlewares::membership::membership_context::{ProjectContext, RoleContext},
     tracks::tracks_app_data::TracksAppData,
 };
 use actix_multipart::Multipart;
@@ -143,6 +143,7 @@ pub struct CopyTrackParams {
 #[post("/copy-track")]
 pub async fn copy_track(
     role: RoleContext,
+    project: ProjectContext,
     request_raw: web::Json<CopyTrackParams>,
     app_state: web::Data<TracksAppData>,
 ) -> HttpResponse {
@@ -152,7 +153,7 @@ pub async fn copy_track(
     let request = request_raw.into_inner();
     match app_state
         .tracks_service
-        .copy_track(&request.track_id, request.copy_track_name)
+        .copy_track(&request.track_id, request.copy_track_name, project.0)
         .await
     {
         Ok(_) => HttpResponse::Ok().json("track copied"),
@@ -179,6 +180,7 @@ pub struct UpdateTrackParams {
 #[post("/update-track-info")]
 pub async fn update_track_info(
     role: RoleContext,
+    project: ProjectContext,
     path: web::Json<UpdateTrackParams>,
     app_state: web::Data<TracksAppData>,
 ) -> HttpResponse {
@@ -191,6 +193,7 @@ pub async fn update_track_info(
         .update_track_info(
             &request.track_id,
             UpdateTrackInfoParams { track_name: request.track_name },
+            project.0,
         )
         .await
     {
@@ -217,6 +220,7 @@ pub struct RemoveTrackParams {
 #[delete("/remove")]
 pub async fn remove_track(
     role: RoleContext,
+    project: ProjectContext,
     path: web::Query<RemoveTrackParams>,
     app_state: web::Data<TracksAppData>,
 ) -> HttpResponse {
@@ -224,7 +228,7 @@ pub async fn remove_track(
         return HttpResponse::Forbidden().body("Forbidden");
     }
     let request = path.into_inner();
-    match app_state.tracks_service.delete_track(&request.track_id).await {
+    match app_state.tracks_service.delete_track(&request.track_id, project.0).await {
         Ok(_) => HttpResponse::Ok().json("track removed"),
         Err(_e) => HttpResponse::InternalServerError().body("Could not remove track"),
     }
@@ -248,6 +252,7 @@ pub struct GetTrackParams {
 #[get("/get-meta")]
 pub async fn get_meta(
     role: RoleContext,
+    project: ProjectContext,
     query: web::Query<GetTrackParams>,
     app_state: web::Data<TracksAppData>,
 ) -> HttpResponse {
@@ -255,7 +260,7 @@ pub async fn get_meta(
         return HttpResponse::Forbidden().body("Forbidden");
     }
     let request = query.into_inner();
-    match app_state.tracks_service.get_track_meta(&request.track_id).await {
+    match app_state.tracks_service.get_track_meta(&request.track_id, project.0).await {
         Ok(meta) => HttpResponse::Ok().json(meta),
         Err(_e) => HttpResponse::InternalServerError().body("Could not get track"),
     }
@@ -271,11 +276,15 @@ pub async fn get_meta(
     )
 )]
 #[get("/get-all")]
-pub async fn get_tracks(_role: RoleContext, app_state: web::Data<TracksAppData>) -> HttpResponse {
-    // if !role.can_view() {
-    //     return HttpResponse::Forbidden().body("Forbidden");
-    // }
-    match app_state.tracks_service.get_all_track_metas().await {
+pub async fn get_tracks(
+    role: RoleContext,
+    project: ProjectContext,
+    app_state: web::Data<TracksAppData>,
+) -> HttpResponse {
+    if !role.can_view() {
+        return HttpResponse::Forbidden().body("Forbidden");
+    }
+    match app_state.tracks_service.get_all_track_metas(project.0).await {
         Ok(metas) => HttpResponse::Ok().json(metas),
         Err(_e) => HttpResponse::InternalServerError().body("Could not get tracks"),
     }
@@ -299,6 +308,7 @@ pub struct GetTrackInfoParams {
 #[get("/get-track-info")]
 pub async fn get_track_info(
     role: RoleContext,
+    project: ProjectContext,
     query: web::Json<GetTrackInfoParams>,
     app_state: web::Data<TracksAppData>,
 ) -> HttpResponse {
@@ -306,7 +316,7 @@ pub async fn get_track_info(
         return HttpResponse::Forbidden().body("Forbidden");
     }
     let request = query.into_inner();
-    match app_state.tracks_service.get_track_meta(&request.track_id).await {
+    match app_state.tracks_service.get_track_meta(&request.track_id, project.0).await {
         Ok(meta) => HttpResponse::Ok().json(meta),
         Err(_e) => HttpResponse::InternalServerError().body("Could not get track info"),
     }
@@ -322,4 +332,3 @@ pub fn init(cfg: &mut web::ServiceConfig) {
         .service(get_tracks)
         .service(copy_track);
 }
-

@@ -1,7 +1,7 @@
 import type { TrackMeta } from '@/domain/Track/TrackMeta';
 import type { TrackInfo } from '@/domain/Track/TrackInfo';
 import type { ABuffer } from '@/domain/ABuffer';
-import { http, API_BASE_URL } from '@/Services/http';
+import { http, API_BASE_URL, projectApiPath } from '@/Services/http';
 import { useAuthStore } from '@/Stores/authStore';
 import { useProjectStore } from '@/Stores/projectStore';
 
@@ -63,16 +63,16 @@ export interface RemoveTrackResult {
 // ─── API ──────────────────────────────────────────────────────────────────────
 
 export async function apiGetTracks(): Promise<TrackMeta[]> {
-  const json: Array<{ track_id: number; track_info: TrackInfo }> = await http.get('/tracks/get-all');
+  const json: Array<{ track_id: number; track_info: TrackInfo }> = await http.get(projectApiPath('/tracks/get-all'));
   return json.map((t) => ({ trackId: t.track_id, trackInfo: t.track_info, regionSets: [] }));
 }
 
 export function apiGetTrackMeta(params: GetTrackParams): Promise<GetTrackResult> {
-  return http.get(`/tracks/get-meta?track_id=${params.track_id}`);
+  return http.get(projectApiPath(`/tracks/get-meta?track_id=${params.track_id}`));
 }
 
 export async function apiGetTrackInfo(params: GetTrackParams): Promise<GetTrackResult> {
-  const t: { track_id: number; track_info: TrackInfo } = await http.get(`/tracks/get-track-info?track_id=${params.track_id}`);
+  const t: { track_id: number; track_info: TrackInfo } = await http.get(projectApiPath(`/tracks/get-track-info?track_id=${params.track_id}`));
   return { track: { trackId: t.track_id, trackInfo: t.track_info, regionSets: [] } };
 }
 
@@ -80,7 +80,7 @@ export async function apiGetStoredTrack(params: GetTrackRawParams): Promise<GetT
   const token = useAuthStore.getState().token;
   const activeProjectId = useProjectStore.getState().activeProject?.project_id;
 
-  const res = await fetch(`${API_BASE_URL}/stored-tracks/get?track_id=${params.track_id}`, {
+  const res = await fetch(`${API_BASE_URL}${projectApiPath(`/stored-tracks/get?track_id=${params.track_id}`)}`, {
     headers: {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(activeProjectId != null ? { "X-Project-Id": String(activeProjectId) } : {}),
@@ -114,7 +114,7 @@ export async function apiAddTrack(params: CreateTrackParams): Promise<CreateTrac
     formData.append("samples", blob, "samples.raw");
   }
 
-  const res = await fetch(`${API_BASE_URL}/tracks/add-track-multi`, {
+  const res = await fetch(`${API_BASE_URL}${projectApiPath('/tracks/add-track-multi')}`, {
     method: "POST",
     headers: {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -128,13 +128,13 @@ export async function apiAddTrack(params: CreateTrackParams): Promise<CreateTrac
 }
 
 export function apiRemoveTrack(params: RemoveTrackParams): Promise<RemoveTrackResult> {
-  return http.delete(`/tracks/remove?track_id=${params.trackId}`);
+  return http.delete(projectApiPath(`/tracks/remove?track_id=${params.trackId}`));
 }
 
 export function apiUpdateTrack(params: UpdateTrackParams): Promise<UpdateTrackResult> {
-  return http.post("/tracks/update-track-info", params);
+  return http.post(projectApiPath("/tracks/update-track-info"), params);
 }
 
 export function apiCopyTrack(params: CopyTrackParams): Promise<CopyTrackResult> {
-  return http.post("/tracks/copy-track", params);
+  return http.post(projectApiPath("/tracks/copy-track"), params);
 }

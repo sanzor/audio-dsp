@@ -1,0 +1,91 @@
+<mxfile host="65bd71144e">
+    <diagram id="database-schema" name="Database schema">
+        <mxGraphModel dx="1342" dy="893" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2280" pageHeight="1020" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=24;fontStyle=1;" value="Audio DSP database schema" vertex="1">
+                    <mxGeometry height="40" width="500" x="30" y="15" as="geometry"/>
+                </mxCell>
+                <mxCell id="lane_a" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#6c8ebf;" value="Platform" vertex="1">
+                    <mxGeometry height="25" width="220" x="40" y="65" as="geometry"/>
+                </mxCell>
+                <mxCell id="lane_b" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#9673a6;" value="Billing" vertex="1">
+                    <mxGeometry height="25" width="220" x="320" y="65" as="geometry"/>
+                </mxCell>
+                <mxCell id="users" parent="1" style="rounded=1;html=1;whiteSpace=wrap;fillColor=#ffffff;strokeColor=#6c8ebf;align=left;spacingLeft=8;verticalAlign=top;" value="&lt;b&gt;users&lt;/b&gt;&lt;hr&gt;PK user_id&lt;br&gt;UK email&lt;br&gt;name, password_hash&lt;br&gt;is_admin, is_active&lt;br&gt;is_verified&lt;br&gt;created_at" vertex="1">
+                    <mxGeometry height="150" width="220" x="40" y="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="projects" parent="1" style="rounded=1;html=1;whiteSpace=wrap;fillColor=#ffffff;strokeColor=#6c8ebf;align=left;spacingLeft=8;verticalAlign=top;" value="&lt;b&gt;projects&lt;/b&gt;&lt;hr&gt;PK project_id&lt;br&gt;FK created_by → users&lt;br&gt;name, created_at" vertex="1">
+                    <mxGeometry height="110" width="220" x="40" y="270" as="geometry"/>
+                </mxCell>
+                <mxCell id="project_members" parent="1" style="rounded=1;html=1;whiteSpace=wrap;fillColor=#ffffff;strokeColor=#6c8ebf;align=left;spacingLeft=8;verticalAlign=top;" value="&lt;b&gt;project_members&lt;/b&gt;&lt;hr&gt;PK/FK project_id&lt;br&gt;PK/FK user_id&lt;br&gt;role, joined_at" vertex="1">
+                    <mxGeometry height="110" width="220" x="40" y="400" as="geometry"/>
+                </mxCell>
+                <mxCell id="tier_configs" parent="1" style="rounded=1;html=1;whiteSpace=wrap;fillColor=#ffffff;strokeColor=#9673a6;align=left;spacingLeft=8;verticalAlign=top;" value="&lt;b&gt;tier_configs&lt;/b&gt;&lt;hr&gt;PK id&lt;br&gt;UK tier&lt;br&gt;max_projects&lt;br&gt;max_tracks_per_project&lt;br&gt;max_storage_bytes, updated_at" vertex="1">
+                    <mxGeometry height="130" width="220" x="320" y="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="products" parent="1" style="rounded=1;html=1;whiteSpace=wrap;fillColor=#ffffff;strokeColor=#9673a6;align=left;spacingLeft=8;verticalAlign=top;" value="&lt;b&gt;products&lt;/b&gt;&lt;hr&gt;PK id&lt;br&gt;name, description&lt;br&gt;tier, price_cents&lt;br&gt;currency, is_active&lt;br&gt;created_at" vertex="1">
+                    <mxGeometry height="150" width="220" x="320" y="250" as="geometry"/>
+                </mxCell>
+                <mxCell id="subscriptions" parent="1" style="rounded=1;html=1;whiteSpace=wrap;fillColor=#ffffff;strokeColor=#9673a6;align=left;spacingLeft=8;verticalAlign=top;" value="&lt;b&gt;subscriptions&lt;/b&gt;&lt;hr&gt;PK id&lt;br&gt;FK user_id → users&lt;br&gt;tier, is_active&lt;br&gt;started_at, expires_at" vertex="1">
+                    <mxGeometry height="120" width="220" x="320" y="420" as="geometry"/>
+                </mxCell>
+                <mxCell id="purchased_products" parent="1" style="rounded=1;html=1;whiteSpace=wrap;fillColor=#ffffff;strokeColor=#9673a6;align=left;spacingLeft=8;verticalAlign=top;" value="&lt;b&gt;purchased_products&lt;/b&gt;&lt;hr&gt;PK id&lt;br&gt;FK user_id → users&lt;br&gt;FK product_id → products&lt;br&gt;purchased_at" vertex="1">
+                    <mxGeometry height="100" width="220" x="320" y="560" as="geometry"/>
+                </mxCell>
+                <mxCell id="invoices" parent="1" style="rounded=1;html=1;whiteSpace=wrap;fillColor=#ffffff;strokeColor=#9673a6;align=left;spacingLeft=8;verticalAlign=top;" value="&lt;b&gt;invoices&lt;/b&gt;&lt;hr&gt;PK id&lt;br&gt;FK user_id → users&lt;br&gt;stripe_invoice_id&lt;br&gt;amount, currency, status&lt;br&gt;hosted_url, created_at" vertex="1">
+                    <mxGeometry height="150" width="220" x="320" y="680" as="geometry"/>
+                </mxCell>
+                <mxCell id="usage" parent="1" style="rounded=1;html=1;whiteSpace=wrap;fillColor=#ffffff;strokeColor=#9673a6;align=left;spacingLeft=8;verticalAlign=top;" value="&lt;b&gt;usage&lt;/b&gt;&lt;hr&gt;PK id&lt;br&gt;FK/UK user_id → users&lt;br&gt;project_count&lt;br&gt;total_track_count&lt;br&gt;total_storage_bytes, updated_at" vertex="1">
+                    <mxGeometry height="110" width="220" x="320" y="850" as="geometry"/>
+                </mxCell>
+                <mxCell id="tracks" parent="1" style="rounded=1;html=1;whiteSpace=wrap;fillColor=#ffffff;strokeColor=#82b366;align=left;spacingLeft=8;verticalAlign=top;" value="&lt;b&gt;tracks&lt;/b&gt;&lt;hr&gt;PK track_id&lt;br&gt;FK project_id → projects&lt;br&gt;name, extension&lt;br&gt;length_seconds, created_at" vertex="1">
+                    <mxGeometry height="120" width="220" x="600" y="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="track_storage" parent="1" style="rounded=1;html=1;whiteSpace=wrap;fillColor=#ffffff;strokeColor=#82b366;align=left;spacingLeft=8;verticalAlign=top;" value="&lt;b&gt;track_storage&lt;/b&gt;&lt;hr&gt;PK/FK track_id&lt;br&gt;storage_type&lt;br&gt;data, uri, created_at" vertex="1">
+                    <mxGeometry height="100" width="220" x="600" y="240" as="geometry"/>
+                </mxCell>
+                <mxCell id="region_sets" parent="1" style="rounded=1;html=1;whiteSpace=wrap;fillColor=#ffffff;strokeColor=#82b366;align=left;spacingLeft=8;verticalAlign=top;" value="&lt;b&gt;region_sets&lt;/b&gt;&lt;hr&gt;PK region_set_id&lt;br&gt;FK track_id → tracks&lt;br&gt;name&lt;br&gt;track_length_seconds, created_at" vertex="1">
+                    <mxGeometry height="110" width="220" x="600" y="360" as="geometry"/>
+                </mxCell>
+                <mxCell id="regions" parent="1" style="rounded=1;html=1;whiteSpace=wrap;fillColor=#ffffff;strokeColor=#82b366;align=left;spacingLeft=8;verticalAlign=top;" value="&lt;b&gt;regions&lt;/b&gt;&lt;hr&gt;PK region_id&lt;br&gt;FK region_set_id → region_sets&lt;br&gt;name&lt;br&gt;start_time_seconds, end_time_seconds&lt;br&gt;created_at" vertex="1">
+                    <mxGeometry height="120" width="220" x="600" y="490" as="geometry"/>
+                </mxCell>
+                <mxCell id="graphs" parent="1" style="rounded=1;html=1;whiteSpace=wrap;fillColor=#ffffff;strokeColor=#82b366;align=left;spacingLeft=8;verticalAlign=top;" value="&lt;b&gt;graphs&lt;/b&gt;&lt;hr&gt;PK graph_id&lt;br&gt;UK/FK region_id → regions&lt;br&gt;name, graph_state JSONB&lt;br&gt;version, created_at, updated_at" vertex="1">
+                    <mxGeometry height="130" width="240" x="600" y="630" as="geometry"/>
+                </mxCell>
+                <mxCell id="sources" parent="1" style="rounded=1;html=1;whiteSpace=wrap;fillColor=#ffffff;strokeColor=#d6b656;align=left;spacingLeft=8;verticalAlign=top;" value="&lt;b&gt;sources&lt;/b&gt;&lt;hr&gt;PK source_id&lt;br&gt;FK project_id → projects&lt;br&gt;name, extension&lt;br&gt;length_seconds, created_at" vertex="1">
+                    <mxGeometry height="120" width="220" x="900" y="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="source_storage" parent="1" style="rounded=1;html=1;whiteSpace=wrap;fillColor=#ffffff;strokeColor=#d6b656;align=left;spacingLeft=8;verticalAlign=top;" value="&lt;b&gt;source_storage&lt;/b&gt;&lt;hr&gt;PK/FK source_id&lt;br&gt;storage_type&lt;br&gt;data, uri, created_at" vertex="1">
+                    <mxGeometry height="100" width="220" x="900" y="280" as="geometry"/>
+                </mxCell>
+                <mxCell id="transform" parent="1" style="rounded=1;html=1;whiteSpace=wrap;fillColor=#ffffff;strokeColor=#d6b656;align=left;spacingLeft=8;verticalAlign=top;" value="&lt;b&gt;transform&lt;/b&gt;&lt;hr&gt;PK transform_id&lt;br&gt;UK name&lt;br&gt;description, icon&lt;br&gt;kind, created_at" vertex="1">
+                    <mxGeometry height="120" width="210" x="1180" y="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="transform_ticket" parent="1" style="rounded=1;html=1;whiteSpace=wrap;fillColor=#ffffff;strokeColor=#d6b656;align=left;spacingLeft=8;verticalAlign=top;" value="&lt;b&gt;transform_ticket&lt;/b&gt;&lt;hr&gt;PK ticket_id&lt;br&gt;FK transform_id → transform&lt;br&gt;FK issued_by → users&lt;br&gt;source_code, status&lt;br&gt;error_message, created_at" vertex="1">
+                    <mxGeometry height="140" width="210" x="1180" y="280" as="geometry"/>
+                </mxCell>
+                <mxCell id="transform_draft" parent="1" style="rounded=1;html=1;whiteSpace=wrap;fillColor=#ffffff;strokeColor=#d6b656;align=left;spacingLeft=8;verticalAlign=top;" value="&lt;b&gt;transform_draft&lt;/b&gt;&lt;hr&gt;PK/FK transform_id → transform&lt;br&gt;source_code, wasm_bytecode&lt;br&gt;wasm_source_code&lt;br&gt;name, description&lt;br&gt;graph_definition JSONB&lt;br&gt;ports JSONB, params JSONB&lt;br&gt;is_validated, updated_at" vertex="1">
+                    <mxGeometry height="170" width="245" x="1440" y="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="transform_resource" parent="1" style="rounded=1;html=1;whiteSpace=wrap;fillColor=#ffffff;strokeColor=#d6b656;align=left;spacingLeft=8;verticalAlign=top;" value="&lt;b&gt;transform_resource&lt;/b&gt;&lt;hr&gt;PK resource_id&lt;br&gt;UK/FK ticket_id → transform_ticket&lt;br&gt;wasm_bytecode&lt;br&gt;name, description&lt;br&gt;ports JSONB, params JSONB, created_at" vertex="1">
+                    <mxGeometry height="140" width="245" x="1440" y="290" as="geometry"/>
+                </mxCell>
+                <mxCell id="transform_binary" parent="1" style="rounded=1;html=1;whiteSpace=wrap;fillColor=#ffffff;strokeColor=#d6b656;align=left;spacingLeft=8;verticalAlign=top;" value="&lt;b&gt;transform_binary&lt;/b&gt;&lt;hr&gt;PK/FK transform_id → transform&lt;br&gt;wasm_bytecode&lt;br&gt;source&lt;br&gt;created_at, updated_at" vertex="1">
+                    <mxGeometry height="120" width="220" x="1740" y="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="transform_composite" parent="1" style="rounded=1;html=1;whiteSpace=wrap;fillColor=#ffffff;strokeColor=#d6b656;align=left;spacingLeft=8;verticalAlign=top;" value="&lt;b&gt;transform_composite&lt;/b&gt;&lt;hr&gt;PK/FK transform_id → transform&lt;br&gt;graph_definition JSONB&lt;br&gt;created_at, updated_at" vertex="1">
+                    <mxGeometry height="110" width="220" x="1740" y="250" as="geometry"/>
+                </mxCell>
+                <mxCell id="transform_port" parent="1" style="rounded=1;html=1;whiteSpace=wrap;fillColor=#ffffff;strokeColor=#d6b656;align=left;spacingLeft=8;verticalAlign=top;" value="&lt;b&gt;transform_port&lt;/b&gt;&lt;hr&gt;PK port_id&lt;br&gt;FK transform_id → transform&lt;br&gt;name, direction, port_order&lt;br&gt;description, kind, cardinality" vertex="1">
+                    <mxGeometry height="125" width="220" x="2010" y="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="transform_param" parent="1" style="rounded=1;html=1;whiteSpace=wrap;fillColor=#ffffff;strokeColor=#d6b656;align=left;spacingLeft=8;verticalAlign=top;" value="&lt;b&gt;transform_param&lt;/b&gt;&lt;hr&gt;PK param_id&lt;br&gt;FK transform_id → transform&lt;br&gt;name, param_order&lt;br&gt;default/min/max_value&lt;br&gt;description, created_at" vertex="1">
+                    <mxGeometry height="125" width="220" x="2010" y="255" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>

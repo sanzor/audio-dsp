@@ -12,19 +12,9 @@ pub struct DbTrack {
     pub created_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
-pub struct DbTrackMeta {
-    pub track_id: TrackId,
-    pub name: String,
-    pub extension: String,
-    pub length_seconds: f32,
-    pub created_at: DateTime<Utc>,
-}
-
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct DbTrackStorage {
     pub track_id: TrackId,
     pub storage_type: String,
     pub data: Vec<u8>,
 }
-

@@ -3,6 +3,7 @@ import {
   apiCreateTransform,
   apiSaveTransform,
   apiSaveCompositeTransform,
+  apiValidateCompositeTransform,
   apiPublishTransform,
   apiDeleteTransform,
   type CreateTransformParams,
@@ -39,6 +40,21 @@ export function useSaveCompositeTransform(transformId: number) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (graph: CompositeGraphDefinition) => apiSaveCompositeTransform(transformId, graph),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QUERY_KEYS.transforms.byId(transformId) });
+    },
+  });
+}
+
+// New explicit validate action for a composite draft, independent of both
+// Save and Publish — see
+// agents/decisions/0007-composite-draft-validation-gate.md. Runs against
+// whatever graph_definition is currently persisted (the last Save), so this
+// only reflects the latest saved state, not uncommitted canvas edits.
+export function useValidateCompositeTransform(transformId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => apiValidateCompositeTransform(transformId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: QUERY_KEYS.transforms.byId(transformId) });
     },

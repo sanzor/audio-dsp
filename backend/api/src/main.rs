@@ -27,8 +27,8 @@ use api::{
         memberships_provider_service::MembershipsProviderService,
     }, middlewares::{
         jwt::JwtAuthMiddleware,
+        membership::MembershipMiddleware,
         permissions_context::permissions_context_middleware::PermissionsContextMiddleware,
-        role_context::RoleContextMiddleware,
     }, player::{player_app_data::PlayerAppData, player_service::PlayerService}, products::{
         data_provider::products_data_provider_service::ProductsDataProviderService,
         products_app_data::ProductsAppData,
@@ -424,7 +424,7 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
     };
 
     let jwt_middleware = JwtAuthMiddleware;
-    let role_middleware = RoleContextMiddleware {
+    let membership_middleware = MembershipMiddleware {
         memberships: Arc::clone(&memberships_service),
     };
     let users_permissions_middleware = PermissionsContextMiddleware::allow_all();
@@ -479,54 +479,51 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
                     .configure(controllers::me_controller::init),
             )
             .service(
-                web::scope("/player")
-                    .wrap(role_middleware.clone())
-                    .wrap(jwt_middleware.clone())
-                    .configure(controllers::player_controller::init),
-            )
-            .service(
                 web::scope("/users")
                     .wrap(users_permissions_middleware.clone())
                     .configure(controllers::user_controller::init),
             )
             .service(
-                web::scope("/tracks")
-                    .wrap(role_middleware.clone())
-                    .wrap(jwt_middleware.clone())
-                    .configure(controllers::tracks_crud_controller::init),
-            )
-            .service(
                 web::scope("/sources")
-                    .wrap(role_middleware.clone())
+                    .wrap(membership_middleware.clone())
                     .wrap(jwt_middleware.clone())
                     .configure(controllers::sources_controller::init),
             )
             .service(
-                web::scope("/regions")
-                    .wrap(role_middleware.clone())
-                    .wrap(jwt_middleware.clone())
-                    .configure(controllers::regions_controller::init),
-            )
-            .service(
-                web::scope("/region-sets")
-                    .wrap(role_middleware.clone())
-                    .wrap(jwt_middleware.clone())
-                    .configure(controllers::region_set_controller::init),
-            )
-            .service(
-                web::scope("/graphs")
-                    .wrap(role_middleware.clone())
-                    .wrap(jwt_middleware.clone())
-                    .configure(controllers::graph_controller::init),
-            )
-            .service(
                 web::scope("/v1/projects")
-                    .wrap(role_middleware.clone())
+                    .wrap(membership_middleware.clone())
                     .wrap(jwt_middleware.clone())
                     .configure(controllers::project_controller::init)
-                    .configure(controllers::workspace_controller::init),
+                    .service(
+                        web::scope("/{project_id}")
+                            .configure(controllers::workspace_controller::init)
+                            .service(
+                                web::scope("/tracks")
+                                    .configure(controllers::tracks_crud_controller::init),
+                            )
+                            .service(
+                                web::scope("/regions")
+                                    .configure(controllers::regions_controller::init),
+                            )
+                            .service(
+                                web::scope("/region-sets")
+                                    .configure(controllers::region_set_controller::init),
+                            )
+                            .service(
+                                web::scope("/graphs")
+                                    .configure(controllers::graph_controller::init),
+                            )
+                            .service(
+                                web::scope("/stored-tracks")
+                                    .configure(controllers::track_payload_controller::init),
+                            )
+                            .service(
+                                web::scope("/player")
+                                    .configure(controllers::player_controller::init),
+                            )
+                            .service(web::scope("/ws").configure(ws_controller::init)),
+                    ),
             )
-            .service(web::scope("/ws").configure(ws_controller::init))
             .service(
                 web::scope("/v1/invoices")
                     .wrap(jwt_middleware.clone())
@@ -557,16 +554,10 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
             )
             .service(
                 web::scope("/transforms")
-                    .wrap(role_middleware.clone())
+                    .wrap(membership_middleware.clone())
                     .wrap(jwt_middleware.clone())
                     .configure(controllers::transforms_controller::init)
                     .configure(controllers::ticket_controller::init),
-            )
-            .service(
-                web::scope("/stored-tracks")
-                    .wrap(role_middleware.clone())
-                    .wrap(jwt_middleware.clone())
-                    .configure(controllers::track_payload_controller::init),
             )
     })
     .bind((host.as_str(), port))?

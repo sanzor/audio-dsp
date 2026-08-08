@@ -8,7 +8,7 @@ use super::*;
 #[test]
 fn deserializes_the_migrated_vocal_chain_draft_row() {
     let json = r#"{"edges": [{"to_port": "In", "from_port": "Out", "to_node_id": 4, "from_node_id": 1}, {"to_port": "In", "from_port": "Out", "to_node_id": 3, "from_node_id": 4}, {"to_port": "In", "from_port": "signal", "to_node_id": 1, "from_node_id": 5}, {"to_port": "signal", "from_port": "Out", "to_node_id": 6, "from_node_id": 3}], "nodes": [{"node_id": 1, "node_kind": "leaf", "transform_id": 3}, {"node_id": 3, "node_kind": "leaf", "transform_id": 5}, {"node_id": 4, "node_kind": "leaf", "transform_id": 1}, {"name": "In", "node_id": 5, "node_kind": "input"}, {"name": "Out", "node_id": 6, "node_kind": "output"}]}"#;
-    let parsed: CompositeGraphDefinition = serde_json::from_str(json).expect("should deserialize");
+    let parsed: CompositeTransformDefinition = serde_json::from_str(json).expect("should deserialize");
     assert_eq!(parsed.nodes.len(), 5);
     assert_eq!(parsed.edges.len(), 4);
     assert!(matches!(parsed.nodes[3], CompositeNode::Input { node_id: 5, .. }));
@@ -23,14 +23,14 @@ fn deserializes_the_migrated_vocal_chain_draft_row() {
 
     // Round-trips back through our own Serialize impl too.
     let reserialized = serde_json::to_string(&parsed).expect("should reserialize");
-    let reparsed: CompositeGraphDefinition = serde_json::from_str(&reserialized).expect("should reparse");
+    let reparsed: CompositeTransformDefinition = serde_json::from_str(&reserialized).expect("should reparse");
     assert_eq!(reparsed.nodes.len(), 5);
 }
 
 #[test]
 fn deserializes_the_migrated_vocal_chain_published_row() {
     let json = r#"{"edges": [{"to_port": "In", "from_port": "Out", "to_node_id": 2, "from_node_id": 1}, {"to_port": "In", "from_port": "Out", "to_node_id": 3, "from_node_id": 2}, {"to_port": "In", "from_port": "signal", "to_node_id": 1, "from_node_id": 4}, {"to_port": "signal", "from_port": "Out", "to_node_id": 5, "from_node_id": 3}], "nodes": [{"node_id": 1, "node_kind": "leaf", "transform_id": 3}, {"node_id": 2, "node_kind": "leaf", "transform_id": 4}, {"node_id": 3, "node_kind": "leaf", "transform_id": 5}, {"name": "In", "node_id": 4, "node_kind": "input"}, {"name": "Out", "node_id": 5, "node_kind": "output"}]}"#;
-    let parsed: CompositeGraphDefinition = serde_json::from_str(json).expect("should deserialize");
+    let parsed: CompositeTransformDefinition = serde_json::from_str(json).expect("should deserialize");
     assert_eq!(parsed.nodes.len(), 5);
     assert_eq!(parsed.edges.len(), 4);
     assert!(matches!(parsed.nodes[3], CompositeNode::Input { node_id: 4, .. }));
@@ -50,12 +50,12 @@ fn deserializes_and_round_trips_an_explicit_position() {
         {"node_id": 2, "node_kind": "input", "name": "In", "position": {"x": -10, "y": 5}},
         {"node_id": 3, "node_kind": "output", "name": "Out", "position": {"x": 300, "y": 60}}
     ]}"#;
-    let parsed: CompositeGraphDefinition = serde_json::from_str(json).expect("should deserialize");
+    let parsed: CompositeTransformDefinition = serde_json::from_str(json).expect("should deserialize");
     assert_eq!(parsed.nodes[0].position(), CompositeNodePosition { x: 120.4142, y: -40.71 });
     assert_eq!(parsed.nodes[1].position(), CompositeNodePosition { x: -10.0, y: 5.0 });
     assert_eq!(parsed.nodes[2].position(), CompositeNodePosition { x: 300.0, y: 60.0 });
 
     let reserialized = serde_json::to_string(&parsed).expect("should reserialize");
-    let reparsed: CompositeGraphDefinition = serde_json::from_str(&reserialized).expect("should reparse");
+    let reparsed: CompositeTransformDefinition = serde_json::from_str(&reserialized).expect("should reparse");
     assert_eq!(reparsed.nodes[0].position(), CompositeNodePosition { x: 120.4142, y: -40.71 });
 }

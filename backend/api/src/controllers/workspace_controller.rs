@@ -2,13 +2,13 @@ use actix_web::{get, web, HttpResponse};
 use tracing::{error, info};
 
 use crate::{
-    middlewares::{jwt::jwt_context::JwtContext, role_context::role_context::RoleContext},
+    middlewares::{jwt::jwt_context::JwtContext, membership::membership_context::RoleContext},
     workspace::workspace_app_data::WorkspaceAppData,
 };
 
 #[utoipa::path(get, path = "/v1/projects/{project_id}/workspace", tag = "Workspace",
     responses((status = 200), (status = 403), (status = 500)))]
-#[get("/{project_id}/workspace")]
+#[get("/workspace")]
 pub async fn get_project_workspace(
     jwt: JwtContext,
     role: RoleContext,

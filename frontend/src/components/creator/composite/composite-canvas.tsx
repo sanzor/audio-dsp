@@ -13,7 +13,7 @@ import "reactflow/dist/style.css";
 import { useCreatorStore } from "@/Stores/CreatorStore";
 import { useCompositeCanvasStore, type CanvasNode, type EditingCompositeGraph } from "@/Stores/CompositeCanvasStore";
 import { useGetTransformDefinition } from "@/hooks/transforms/queries";
-import { useSaveCompositeTransform, usePublishTransform } from "@/hooks/transforms/mutations";
+import { useSaveCompositeTransform, useValidateCompositeTransform, usePublishTransform } from "@/hooks/transforms/mutations";
 import { useTransformStore } from "@/Stores/TransformStore";
 import { usePublishWithPortShapeDiff } from "../usePublishWithPortShapeDiff";
 import { ToolbarButton } from "../toolbar-button";
@@ -95,6 +95,7 @@ function CompositeCanvasInner() {
   const selectNode = useCompositeCanvasStore((s) => s.selectNode);
 
   const saveMutation = useSaveCompositeTransform(selectedId ?? -1);
+  const validateMutation = useValidateCompositeTransform(selectedId ?? -1);
   const publishMutation = usePublishTransform(selectedId ?? -1);
   const { handlePublish } = usePublishWithPortShapeDiff(selectedId, publishMutation);
 
@@ -201,6 +202,29 @@ function CompositeCanvasInner() {
     saveMutation.mutate(toGraphDefinition(), { onSuccess: () => markSaved() });
   }
 
+  // Validates whatever graph_definition is currently persisted (the last
+  // Save) — not uncommitted canvas edits, hence disabled while isDirty below
+  // so the result can't be misread as covering changes it never saw.
+  function handleValidate() {
+    validateMutation.mutate();
+  }
+
+  // Three states, mirroring the "stale until re-verified" pattern
+  // attachableResourceId uses for primitives in code-editor.tsx, just
+  // sourced from the backend-owned is_validated flag instead of a
+  // client-derived source-text comparison:
+  //  - unsaved local edits not yet persisted (isDirty) — Validate would only
+  //    check the older persisted graph, so it's disabled and called out here
+  //  - is_validated: true on the persisted draft — last Validate succeeded
+  //  - is_validated: false — either never validated, or invalidated by a
+  //    save since the last successful validate (the backend doesn't
+  //    distinguish the two; neither does this indicator)
+  const validationStatus: { label: string; color: string } = isDirty
+    ? { label: "Unsaved changes", color: "var(--text-muted)" }
+    : definition.is_validated
+      ? { label: "Validated", color: "#4ae176" }
+      : { label: "Not validated", color: "#ff6b6b" };
+
   return (
     <div className="flex h-full min-h-0">
       <CompositePalette />
@@ -213,6 +237,18 @@ function CompositeCanvasInner() {
             {saveMutation.isPending ? "Saving…" : "Save Draft"}
           </ToolbarButton>
           <ToolbarButton
+            variant="validate"
+            onClick={handleValidate}
+            disabled={isDirty || validateMutation.isPending || definition.graph_definition == null}
+            title={isDirty ? "Save first — Validate checks the last saved graph" : validateMutation.error?.message}
+          >
+            {validateMutation.isPending ? "Validating…" : "Validate"}
+          </ToolbarButton>
+          <span className="flex items-center gap-1 font-mono text-[10px]" style={{ color: validationStatus.color }} title="Composite draft validation status">
+            <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ backgroundColor: validationStatus.color }} />
+            {validationStatus.label}
+          </span>
+          <ToolbarButton
             variant="publish"
             onClick={handlePublish}
             disabled={publishMutation.isPending}
@@ -220,9 +256,11 @@ function CompositeCanvasInner() {
           >
             {publishMutation.isPending ? "Publishing…" : "Publish"}
           </ToolbarButton>
-          {(saveMutation.isError || publishMutation.isError) && (
+          {(saveMutation.isError || validateMutation.isError || publishMutation.isError) && (
             <span className="font-mono text-[10px] max-w-[240px] truncate" style={{ color: "#ff6b6b" }}>
-              {(saveMutation.error as Error | null)?.message ?? (publishMutation.error as Error | null)?.message}
+              {(saveMutation.error as Error | null)?.message
+                ?? (validateMutation.error as Error | null)?.message
+                ?? (publishMutation.error as Error | null)?.message}
             </span>
           )}
         </div>

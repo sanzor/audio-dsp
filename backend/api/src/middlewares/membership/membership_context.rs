@@ -25,7 +25,7 @@ impl FromRequest for RoleContext {
     }
 }
 
-/// The validated project_id for this request, inserted by the role-context middleware.
+/// The validated project_id for this request, inserted by the membership middleware.
 #[derive(Debug, Clone, Copy)]
 pub struct ProjectContext(pub i32);
 
