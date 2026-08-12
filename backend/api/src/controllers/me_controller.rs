@@ -1,5 +1,5 @@
 use actix_web::{get, post, web, HttpResponse};
-use domain::project_role::ProjectRole;
+use domain::workspace_role::WorkspaceRole;
 use serde::{Deserialize, Serialize};
 use tracing::error;
 use utoipa::ToSchema;
@@ -15,7 +15,7 @@ use crate::{
     me::MeBootstrapResult,
     memberships::memberships_provider::CreateMembershipParams,
     middlewares::jwt::jwt_context::JwtContext,
-    projects::projects_provider::CreateProjectParams,
+    workspaces::workspaces_provider::CreateWorkspaceParams,
 };
 
 #[utoipa::path(get, path = "/v1/me/bootstrap", tag = "Me",
@@ -34,26 +34,26 @@ pub async fn bootstrap(
     }
 }
 
-// ── create project ─────────────────────────────────────────────────────────────
+// ── create workspace ───────────────────────────────────────────────────────────
 
 #[derive(Deserialize, ToSchema)]
-pub struct CreateProjectInput {
+pub struct CreateWorkspaceInput {
     pub name: String,
 }
 
 #[derive(Serialize, ToSchema)]
-pub struct ProjectOutput {
-    pub project_id: i32,
+pub struct WorkspaceOutput {
+    pub workspace_id: i32,
     pub name: String,
 }
 
-#[utoipa::path(post, path = "/v1/me/projects", tag = "Me",
-    request_body = CreateProjectInput,
-    responses((status = 201, body = ProjectOutput), (status = 401)))]
-#[post("/projects")]
-pub async fn create_project(
+#[utoipa::path(post, path = "/v1/me/workspaces", tag = "Me",
+    request_body = CreateWorkspaceInput,
+    responses((status = 201, body = WorkspaceOutput), (status = 401)))]
+#[post("/workspaces")]
+pub async fn create_workspace(
     auth: JwtContext,
-    payload: web::Json<CreateProjectInput>,
+    payload: web::Json<CreateWorkspaceInput>,
     app: web::Data<AppData>,
 ) -> HttpResponse {
     let input = payload.into_inner();
@@ -61,24 +61,24 @@ pub async fn create_project(
         return HttpResponse::BadRequest().body("name required");
     }
 
-    let project = match app
-        .projects_service
-        .create_project(CreateProjectParams { name: input.name, created_by: auth.user_id })
+    let workspace = match app
+        .workspaces_service
+        .create_workspace(CreateWorkspaceParams { name: input.name, created_by: auth.user_id })
         .await
     {
-        Ok(p) => p,
+        Ok(w) => w,
         Err(e) => {
-            error!(error = %e, "create project failed");
-            return HttpResponse::InternalServerError().body("create project failed");
+            error!(error = %e, "create workspace failed");
+            return HttpResponse::InternalServerError().body("create workspace failed");
         }
     };
 
     if let Err(e) = app
         .memberships_service
         .create_membership(CreateMembershipParams {
-            project_id: project.project_id,
+            workspace_id: workspace.workspace_id,
             user_id: auth.user_id,
-            role: ProjectRole::Owner,
+            role: WorkspaceRole::Owner,
         })
         .await
     {
@@ -86,7 +86,7 @@ pub async fn create_project(
         return HttpResponse::InternalServerError().body("failed to set owner");
     }
 
-    HttpResponse::Created().json(ProjectOutput { project_id: project.project_id, name: project.name })
+    HttpResponse::Created().json(WorkspaceOutput { workspace_id: workspace.workspace_id, name: workspace.name })
 }
 
 // ── accept invite ──────────────────────────────────────────────────────────────
@@ -98,8 +98,8 @@ pub struct AcceptInviteInput {
 
 #[derive(Serialize, ToSchema)]
 pub struct AcceptInviteOutput {
-    pub project_id: i32,
-    pub role: ProjectRole,
+    pub workspace_id: i32,
+    pub role: WorkspaceRole,
 }
 
 #[utoipa::path(post, path = "/v1/me/accept-invite", tag = "Me",
@@ -124,7 +124,7 @@ pub async fn accept_invite(
         })
         .await
     {
-        Ok(r) => HttpResponse::Ok().json(AcceptInviteOutput { project_id: r.project_id, role: r.role }),
+        Ok(r) => HttpResponse::Ok().json(AcceptInviteOutput { workspace_id: r.workspace_id, role: r.role }),
         Err(ServiceError::NotFound) => HttpResponse::NotFound().body("user not found"),
         Err(ServiceError::Forbidden) => HttpResponse::Forbidden().body("this invite is not for you"),
         Err(e) => {
@@ -136,6 +136,6 @@ pub async fn accept_invite(
 
 pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(bootstrap)
-        .service(create_project)
+        .service(create_workspace)
         .service(accept_invite);
 }

@@ -2,11 +2,11 @@ use std::sync::Arc;
 
 use crate::{
     memberships::memberships_provider::MembershipsProvider,
-    projects::projects_provider::ProjectsProvider,
+    workspaces::workspaces_provider::WorkspacesProvider,
 };
 
 #[derive(Clone)]
 pub struct AppData {
-    pub projects_service: Arc<dyn ProjectsProvider>,
+    pub workspaces_service: Arc<dyn WorkspacesProvider>,
     pub memberships_service: Arc<dyn MembershipsProvider>,
 }

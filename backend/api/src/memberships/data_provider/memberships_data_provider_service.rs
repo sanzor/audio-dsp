@@ -1,4 +1,4 @@
-use domain::{db::DbMembership, project_role::ProjectRole};
+use domain::{db::DbMembership, workspace_role::WorkspaceRole};
 use sqlx::PgPool;
 
 use crate::memberships::memberships_provider::CreateMembershipParams;
@@ -23,13 +23,13 @@ impl MembershipsDataProvider for PostgresMembershipsDataProvider {
     ) -> Result<DbMembership, String> {
         sqlx::query_as::<_, DbMembership>(
             r#"
-            INSERT INTO project_members (project_id, user_id, role)
+            INSERT INTO workspace_members (workspace_id, user_id, role)
             VALUES ($1, $2, $3)
-            ON CONFLICT (project_id, user_id) DO UPDATE SET role = EXCLUDED.role
+            ON CONFLICT (workspace_id, user_id) DO UPDATE SET role = EXCLUDED.role
             RETURNING *
             "#,
         )
-        .bind(params.project_id)
+        .bind(params.workspace_id)
         .bind(params.user_id)
         .bind(&params.role)
         .fetch_one(&self.pool)
@@ -37,10 +37,10 @@ impl MembershipsDataProvider for PostgresMembershipsDataProvider {
         .map_err(|e| e.to_string())
     }
 
-    async fn delete_membership(&self, project_id: i32, user_id: i32) -> Result<bool, String> {
+    async fn delete_membership(&self, workspace_id: i32, user_id: i32) -> Result<bool, String> {
         let result =
-            sqlx::query("DELETE FROM project_members WHERE project_id = $1 AND user_id = $2")
-                .bind(project_id)
+            sqlx::query("DELETE FROM workspace_members WHERE workspace_id = $1 AND user_id = $2")
+                .bind(workspace_id)
                 .bind(user_id)
                 .execute(&self.pool)
                 .await
@@ -50,13 +50,13 @@ impl MembershipsDataProvider for PostgresMembershipsDataProvider {
 
     async fn get_membership(
         &self,
-        project_id: i32,
+        workspace_id: i32,
         user_id: i32,
     ) -> Result<Option<DbMembership>, String> {
         sqlx::query_as::<_, DbMembership>(
-            "SELECT * FROM project_members WHERE project_id = $1 AND user_id = $2",
+            "SELECT * FROM workspace_members WHERE workspace_id = $1 AND user_id = $2",
         )
-        .bind(project_id)
+        .bind(workspace_id)
         .bind(user_id)
         .fetch_optional(&self.pool)
         .await
@@ -65,12 +65,12 @@ impl MembershipsDataProvider for PostgresMembershipsDataProvider {
 
     async fn list_memberships(
         &self,
-        project_id: Option<i32>,
+        workspace_id: Option<i32>,
         user_id: Option<i32>,
     ) -> Result<Vec<DbMembership>, String> {
-        match (project_id, user_id) {
+        match (workspace_id, user_id) {
             (Some(p), Some(u)) => sqlx::query_as::<_, DbMembership>(
-                "SELECT * FROM project_members WHERE project_id = $1 AND user_id = $2",
+                "SELECT * FROM workspace_members WHERE workspace_id = $1 AND user_id = $2",
             )
             .bind(p)
             .bind(u)
@@ -78,20 +78,20 @@ impl MembershipsDataProvider for PostgresMembershipsDataProvider {
             .await
             .map_err(|e| e.to_string()),
             (Some(p), None) => sqlx::query_as::<_, DbMembership>(
-                "SELECT * FROM project_members WHERE project_id = $1",
+                "SELECT * FROM workspace_members WHERE workspace_id = $1",
             )
             .bind(p)
             .fetch_all(&self.pool)
             .await
             .map_err(|e| e.to_string()),
             (None, Some(u)) => sqlx::query_as::<_, DbMembership>(
-                "SELECT * FROM project_members WHERE user_id = $1",
+                "SELECT * FROM workspace_members WHERE user_id = $1",
             )
             .bind(u)
             .fetch_all(&self.pool)
             .await
             .map_err(|e| e.to_string()),
-            (None, None) => sqlx::query_as::<_, DbMembership>("SELECT * FROM project_members")
+            (None, None) => sqlx::query_as::<_, DbMembership>("SELECT * FROM workspace_members")
                 .fetch_all(&self.pool)
                 .await
                 .map_err(|e| e.to_string()),
@@ -100,13 +100,13 @@ impl MembershipsDataProvider for PostgresMembershipsDataProvider {
 
     async fn get_role(
         &self,
-        project_id: i32,
+        workspace_id: i32,
         user_id: i32,
-    ) -> Result<Option<ProjectRole>, String> {
-        let row: Option<(ProjectRole,)> = sqlx::query_as(
-            "SELECT role FROM project_members WHERE project_id = $1 AND user_id = $2",
+    ) -> Result<Option<WorkspaceRole>, String> {
+        let row: Option<(WorkspaceRole,)> = sqlx::query_as(
+            "SELECT role FROM workspace_members WHERE workspace_id = $1 AND user_id = $2",
         )
-        .bind(project_id)
+        .bind(workspace_id)
         .bind(user_id)
         .fetch_optional(&self.pool)
         .await
@@ -117,18 +117,18 @@ impl MembershipsDataProvider for PostgresMembershipsDataProvider {
 
     async fn update_role(
         &self,
-        project_id: i32,
+        workspace_id: i32,
         user_id: i32,
-        role: ProjectRole,
+        role: WorkspaceRole,
     ) -> Result<Option<DbMembership>, String> {
         sqlx::query_as::<_, DbMembership>(
             r#"
-            UPDATE project_members SET role = $3
-            WHERE project_id = $1 AND user_id = $2
+            UPDATE workspace_members SET role = $3
+            WHERE workspace_id = $1 AND user_id = $2
             RETURNING *
             "#,
         )
-        .bind(project_id)
+        .bind(workspace_id)
         .bind(user_id)
         .bind(&role)
         .fetch_optional(&self.pool)

@@ -1,8 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::db::{
-    ticket::db_ticket::TicketId,
-    transform_snapshot::{ParamSnapshot, PortSnapshot},
+    ticket::db_ticket::TicketId
 };
 
 pub type ResourceId = i64;

@@ -69,11 +69,11 @@ impl SourcesProvider for SourcesProviderService {
         Ok(sources.into_iter().map(Self::meta_from_db).collect())
     }
 
-    async fn insert_source(&self, source: RawSource, project_id: i32) -> Result<SourceBundle, String> {
+    async fn insert_source(&self, source: RawSource, workspace_id: i32) -> Result<SourceBundle, String> {
         let canonical_audio = encode_audio_buffer_as_wav(&source.data)
             .map_err(|_| "Could not encode source as wav".to_string())?;
 
-        let db_source = self.data.insert_source(source.info, project_id).await?;
+        let db_source = self.data.insert_source(source.info, workspace_id).await?;
         let meta = Self::to_meta(&db_source);
         let payload = SourcePayload { canonical_audio };
 

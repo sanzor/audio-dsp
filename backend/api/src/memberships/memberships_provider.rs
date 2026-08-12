@@ -1,10 +1,10 @@
 use domain::db::DbMembership;
-pub use domain::project_role::ProjectRole;
+pub use domain::workspace_role::WorkspaceRole;
 
 pub struct CreateMembershipParams {
-    pub project_id: i32,
+    pub workspace_id: i32,
     pub user_id: i32,
-    pub role: ProjectRole,
+    pub role: WorkspaceRole,
 }
 
 #[async_trait::async_trait]
@@ -13,26 +13,26 @@ pub trait MembershipsProvider: Send + Sync {
         &self,
         params: CreateMembershipParams,
     ) -> Result<DbMembership, String>;
-    async fn delete_membership(&self, project_id: i32, user_id: i32) -> Result<bool, String>;
+    async fn delete_membership(&self, workspace_id: i32, user_id: i32) -> Result<bool, String>;
     async fn get_membership(
         &self,
-        project_id: i32,
+        workspace_id: i32,
         user_id: i32,
     ) -> Result<Option<DbMembership>, String>;
     async fn list_memberships(
         &self,
-        project_id: Option<i32>,
+        workspace_id: Option<i32>,
         user_id: Option<i32>,
     ) -> Result<Vec<DbMembership>, String>;
     async fn get_role(
         &self,
-        project_id: i32,
+        workspace_id: i32,
         user_id: i32,
-    ) -> Result<Option<ProjectRole>, String>;
+    ) -> Result<Option<WorkspaceRole>, String>;
     async fn update_role(
         &self,
-        project_id: i32,
+        workspace_id: i32,
         user_id: i32,
-        role: ProjectRole,
+        role: WorkspaceRole,
     ) -> Result<Option<DbMembership>, String>;
 }

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use tracing::{error, info, warn};
 
-use domain::project_role::ProjectRole;
+use domain::workspace_role::WorkspaceRole;
 
 use crate::{
     memberships::memberships_provider::{CreateMembershipParams, MembershipsProvider},
@@ -164,17 +164,17 @@ impl AuthProvider for AuthProviderService {
     }
 
     async fn invite_user(&self, params: InviteUserParams) -> Result<InviteUserResult, ServiceError> {
-        info!(email = %params.email, project_id = %params.project_id, role = %params.role, "invite requested");
+        info!(email = %params.email, workspace_id = %params.workspace_id, role = %params.role, "invite requested");
 
         // Issue token with invitee email — user does not need to exist yet
-        let token = self.jwt_provider.issue_invite_token(&params.email, params.project_id, &params.role.to_string())?;
+        let token = self.jwt_provider.issue_invite_token(&params.email, params.workspace_id, &params.role.to_string())?;
 
         let frontend_url = std::env::var("FRONTEND_URL").unwrap_or_else(|_| "http://localhost:5173".to_string());
         let accept_link = format!("{frontend_url}/accept-invite?token={token}");
         let body = format!(
-            "You've been invited to a project.\n\nAccept your invitation here:\n\n{accept_link}\n\nExpires in 7 days."
+            "You've been invited to a workspace.\n\nAccept your invitation here:\n\n{accept_link}\n\nExpires in 7 days."
         );
-        if let Err(e) = self.email_sender.send_email(&params.email, "Project invitation", &body).await {
+        if let Err(e) = self.email_sender.send_email(&params.email, "Workspace invitation", &body).await {
             error!(error = %e, "failed to send invite email");
         }
 
@@ -192,11 +192,11 @@ impl AuthProvider for AuthProviderService {
 
         let invitee_email = claims.email
             .ok_or_else(|| ServiceError::Internal("missing email in invite token".to_string()))?;
-        let project_id = claims.project_id
-            .ok_or_else(|| ServiceError::Internal("missing project_id in token".to_string()))?;
+        let workspace_id = claims.workspace_id
+            .ok_or_else(|| ServiceError::Internal("missing workspace_id in token".to_string()))?;
         let role_str = claims.role
             .ok_or_else(|| ServiceError::Internal("missing role in token".to_string()))?;
-        let role = ProjectRole::from_str(&role_str)
+        let role = WorkspaceRole::from_str(&role_str)
             .ok_or_else(|| ServiceError::Internal(format!("unknown role: {role_str}")))?;
 
         // Verify that the authenticated caller's email matches the invite
@@ -212,13 +212,13 @@ impl AuthProvider for AuthProviderService {
 
         self.memberships_provider.create_membership(CreateMembershipParams {
             user_id: caller.id,
-            project_id,
+            workspace_id,
             role: role.clone(),
         }).await?;
 
         Ok(AcceptInviteResult {
             user_id: caller.id,
-            project_id,
+            workspace_id,
             role,
         })
     }

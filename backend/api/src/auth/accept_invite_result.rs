@@ -1,8 +1,8 @@
-use domain::project_role::ProjectRole;
+use domain::workspace_role::WorkspaceRole;
 
 #[derive(Clone, Debug)]
 pub struct AcceptInviteResult {
     pub user_id: i32,
-    pub project_id: i32,
-    pub role: ProjectRole,
+    pub workspace_id: i32,
+    pub role: WorkspaceRole,
 }

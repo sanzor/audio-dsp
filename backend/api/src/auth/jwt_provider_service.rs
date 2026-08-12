@@ -18,8 +18,8 @@ impl JwtProvider for JwtProviderService {
         Ok(create_verification_token(user_id))
     }
 
-    fn issue_invite_token(&self, invitee_email: &str, project_id: i32, role: &str) -> Result<String, String> {
-        Ok(create_invite_token(invitee_email, project_id, role))
+    fn issue_invite_token(&self, invitee_email: &str, workspace_id: i32, role: &str) -> Result<String, String> {
+        Ok(create_invite_token(invitee_email, workspace_id, role))
     }
 
     fn verify(&self, token: &str) -> Result<Claims, String> {

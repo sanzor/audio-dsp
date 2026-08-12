@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::me::me_project_result::MeProjectResult;
+use crate::me::me_workspace_result::MeWorkspaceResult;
 
 #[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
 pub struct MeUserResult {
@@ -15,5 +15,5 @@ pub struct MeUserResult {
 #[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
 pub struct MeBootstrapResult {
     pub user: MeUserResult,
-    pub projects: Vec<MeProjectResult>,
+    pub workspaces: Vec<MeWorkspaceResult>,
 }

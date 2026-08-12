@@ -19,74 +19,74 @@ impl PostgresTracksDataProvider {
 
 #[async_trait::async_trait]
 impl TracksDataProvider for PostgresTracksDataProvider {
-    async fn get_track(&self, track_id: &TrackId, project_id: i32) -> Result<DbTrack, String> {
+    async fn get_track(&self, track_id: &TrackId, workspace_id: i32) -> Result<DbTrack, String> {
         sqlx::query_as::<_, DbTrack>(
-            "SELECT track_id, name, extension, length_seconds, created_at FROM tracks WHERE track_id = $1 AND project_id = $2"
+            "SELECT track_id, name, extension, length_seconds, created_at FROM tracks WHERE track_id = $1 AND workspace_id = $2"
         )
         .bind(track_id)
-        .bind(project_id)
+        .bind(workspace_id)
         .fetch_one(&self.pool)
         .await
         .map_err(|e| e.to_string())
     }
 
-    async fn get_all_track_metas(&self, project_id: i32) -> Result<Vec<DbTrack>, String> {
+    async fn get_all_track_metas(&self, workspace_id: i32) -> Result<Vec<DbTrack>, String> {
         sqlx::query_as::<_, DbTrack>(
-            "SELECT track_id, name, extension, length_seconds, created_at FROM tracks WHERE project_id = $1 ORDER BY created_at DESC"
+            "SELECT track_id, name, extension, length_seconds, created_at FROM tracks WHERE workspace_id = $1 ORDER BY created_at DESC"
         )
-        .bind(project_id)
+        .bind(workspace_id)
         .fetch_all(&self.pool)
         .await
         .map_err(|e| e.to_string())
     }
 
-    async fn delete_track(&self, track_id: &TrackId, project_id: i32) -> Result<(), String> {
-        sqlx::query("DELETE FROM tracks WHERE track_id = $1 AND project_id = $2")
+    async fn delete_track(&self, track_id: &TrackId, workspace_id: i32) -> Result<(), String> {
+        sqlx::query("DELETE FROM tracks WHERE track_id = $1 AND workspace_id = $2")
             .bind(track_id)
-            .bind(project_id)
+            .bind(workspace_id)
             .execute(&self.pool)
             .await
             .map(|_| ())
             .map_err(|e| e.to_string())
     }
 
-    async fn insert_track(&self, track_info: TrackInfo, project_id: i32) -> Result<DbTrack, String> {
+    async fn insert_track(&self, track_info: TrackInfo, workspace_id: i32) -> Result<DbTrack, String> {
         sqlx::query_as::<_, DbTrack>(
-            "INSERT INTO tracks (name, extension, length_seconds, project_id)
+            "INSERT INTO tracks (name, extension, length_seconds, workspace_id)
              VALUES ($1, $2, $3, $4)
              RETURNING track_id, name, extension, length_seconds, created_at",
         )
         .bind(&track_info.name)
         .bind(&track_info.extension)
         .bind(track_info.length)
-        .bind(project_id)
+        .bind(workspace_id)
         .fetch_one(&self.pool)
         .await
         .map_err(|e| e.to_string())
     }
 
-    async fn copy_track(&self, source_track_id: &TrackId, new_name: &str, project_id: i32) -> Result<DbTrack, String> {
+    async fn copy_track(&self, source_track_id: &TrackId, new_name: &str, workspace_id: i32) -> Result<DbTrack, String> {
         sqlx::query_as::<_, DbTrack>(
-            "INSERT INTO tracks (name, extension, length_seconds, project_id)
-             SELECT $1, extension, length_seconds, project_id FROM tracks WHERE track_id = $2 AND project_id = $3
+            "INSERT INTO tracks (name, extension, length_seconds, workspace_id)
+             SELECT $1, extension, length_seconds, workspace_id FROM tracks WHERE track_id = $2 AND workspace_id = $3
              RETURNING track_id, name, extension, length_seconds, created_at",
         )
         .bind(new_name)
         .bind(source_track_id)
-        .bind(project_id)
+        .bind(workspace_id)
         .fetch_one(&self.pool)
         .await
         .map_err(|e| e.to_string())
     }
 
-    async fn update_track_info(&self, track_id: &TrackId, params: UpdateTrackInfoParams, project_id: i32) -> Result<DbTrack, String> {
+    async fn update_track_info(&self, track_id: &TrackId, params: UpdateTrackInfoParams, workspace_id: i32) -> Result<DbTrack, String> {
         sqlx::query_as::<_, DbTrack>(
-            "UPDATE tracks SET name = $2 WHERE track_id = $1 AND project_id = $3
+            "UPDATE tracks SET name = $2 WHERE track_id = $1 AND workspace_id = $3
              RETURNING track_id, name, extension, length_seconds, created_at",
         )
         .bind(track_id)
         .bind(params.track_name)
-        .bind(project_id)
+        .bind(workspace_id)
         .fetch_one(&self.pool)
         .await
         .map_err(|e| e.to_string())

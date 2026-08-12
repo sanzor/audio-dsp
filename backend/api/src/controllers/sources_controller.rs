@@ -1,5 +1,5 @@
 use crate::{
-    middlewares::membership::membership_context::{ProjectContext, RoleContext},
+    middlewares::membership::membership_context::{WorkspaceContext, RoleContext},
     sources::sources_app_data::SourcesAppData,
 };
 use actix_multipart::Multipart;
@@ -54,7 +54,7 @@ pub struct AddSourceMultipartRequest {
 #[post("/add-source")]
 pub async fn add_source(
     role: RoleContext,
-    project: ProjectContext,
+    workspace: WorkspaceContext,
     path: web::Json<serde_json::Value>,
     app_state: web::Data<SourcesAppData>,
 ) -> HttpResponse {
@@ -66,7 +66,7 @@ pub async fn add_source(
         Err(_) => return HttpResponse::BadRequest().body("Invalid payload"),
     };
 
-    match app_state.sources_service.insert_source(request.source, project.0).await {
+    match app_state.sources_service.insert_source(request.source, workspace.0).await {
         Ok(source) => HttpResponse::Ok().json(AddSourceResult {
             source_id: source.meta.source_id,
             source_info: source.meta.source_info,
@@ -92,7 +92,7 @@ pub async fn add_source(
 #[post("/add-source-multi")]
 pub async fn add_source_multi(
     role: RoleContext,
-    project: ProjectContext,
+    workspace: WorkspaceContext,
     payload: Multipart,
     app_state: web::Data<SourcesAppData>,
 ) -> HttpResponse {
@@ -108,7 +108,7 @@ pub async fn add_source_multi(
         }
     };
 
-    match app_state.sources_service.insert_source(raw_source, project.0).await {
+    match app_state.sources_service.insert_source(raw_source, workspace.0).await {
         Ok(source) => {
             info!(source_id = %source.meta.source_id, "add-source-multi insert complete");
             HttpResponse::Ok().json(AddSourceResult {

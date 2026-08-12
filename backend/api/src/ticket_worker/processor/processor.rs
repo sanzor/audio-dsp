@@ -59,7 +59,7 @@ impl Processor {
         // A module that compiles but whose metadata is missing/malformed
         // must still fail the ticket — the DB definition must never drift
         // from the binary.
-        let metadata = match metadata_introspector::introspect_metadata(&wasm_bytecode, self.metadata_fuel_limit) {
+        let metadata: metadata_introspector::TransformMetadataJson = match metadata_introspector::introspect_metadata(&wasm_bytecode, self.metadata_fuel_limit) {
             Ok(metadata) => metadata,
             Err(e) => {
                 self.mark_failed(event.ticket_id, e.clone()).await;
@@ -69,37 +69,15 @@ impl Processor {
 
         let name = metadata.name;
         let description = metadata.description;
-        let ports = metadata
-            .ports
-            .into_iter()
-            .map(|p| NewTransformPort {
-                name: p.name,
-                direction: p.direction.as_db_str().to_string(),
-                order: p.order,
-                description: p.description,
-                kind: p.kind.as_db_str().to_string(),
-                cardinality: p.cardinality.as_db_str().to_string(),
-            })
-            .collect();
-        let new_params = metadata
-            .params
-            .into_iter()
-            .map(|p| NewTransformParam {
-                name: p.name,
-                order: p.order,
-                default_value: p.default,
-                min_value: p.min,
-                max_value: p.max,
-                description: p.description,
-            })
-            .collect();
+        let metadata_payload=serde_json::to_string(metadata)?;
+       
 
         // 4 — store the artifact as a resource (bucket 1: compile check).
         // This never touches live state — a compile ticket is purely a check;
         // becoming the published transform is a separate, explicit action.
         let resource = self
             .data_provider
-            .create_resource(event.ticket_id, wasm_bytecode, name, description, ports, new_params)
+            .create_resource(event.ticket_id, wasm_bytecode, name, description, metadata_payload)
             .await
             .map_err(|e| ProcessorError::DataError(e.to_string()))?;
 

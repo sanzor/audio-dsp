@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use domain::{db::db_project::ProjectId, tracks::track_subtree::TrackSubtree};
+use domain::{db::db_workspace::WorkspaceId, tracks::track_subtree::TrackSubtree};
 
 use super::{
     data_provider::workspace_data_provider::WorkspaceDataProvider,
@@ -19,7 +19,7 @@ impl WorkspaceProviderService {
 
 #[async_trait::async_trait]
 impl WorkspaceProvider for WorkspaceProviderService {
-    async fn get_project_workspace(&self, project_id: ProjectId) -> Result<Vec<TrackSubtree>, String> {
-        self.data_provider.get_project_workspace(project_id).await
+    async fn get_workspace_tracks(&self, workspace_id: WorkspaceId) -> Result<Vec<TrackSubtree>, String> {
+        self.data_provider.get_workspace_tracks(workspace_id).await
     }
 }

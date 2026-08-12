@@ -144,7 +144,7 @@ impl From<DbTransformDraftRow> for DbTransformDraft {
 
 #[async_trait::async_trait]
 impl TransformsDataProvider for PostgresTransformsDataProvider {
-    async fn create_ticket(&self, ticket: CreateTicketParams) -> Result<DbTicket, DataError> {
+    async fn create_transform_ticket(&self, ticket: CreateTicketParams) -> Result<DbTicket, DataError> {
         let row = sqlx::query_as::<_, DbTicketRow>(
             r#"
             INSERT INTO transform_ticket (transform_id, issued_by, source_code, status)
@@ -187,6 +187,31 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
         .await?;
 
         DbTicket::try_from(row)
+    }
+
+    async fn get_ticket(&self, ticket_id: TicketId) -> Result<TransformId, DataError> {
+        sqlx::query_scalar::<_, TransformId>(
+            "SELECT transform_id FROM transform_ticket WHERE ticket_id = $1",
+        )
+        .bind(ticket_id)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(DataError::from)
+    }
+
+    async fn get_resource_transform_id(&self, resource_id: ResourceId) -> Result<TransformId, DataError> {
+        sqlx::query_scalar::<_, TransformId>(
+            r#"
+            SELECT tt.transform_id
+            FROM transform_resource tr
+            JOIN transform_ticket tt ON tt.ticket_id = tr.ticket_id
+            WHERE tr.resource_id = $1
+            "#,
+        )
+        .bind(resource_id)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(DataError::from)
     }
 
     async fn remove_ticket(&self, ticket_id: TicketId) -> Result<(), DataError> {
@@ -272,7 +297,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
         Ok(row.into())
     }
 
-    async fn get_resource(&self, resource_id: ResourceId) -> Result<DbResource, DataError> {
+    async fn get_compiled_transform(&self, resource_id: ResourceId) -> Result<DbResource, DataError> {
         let row = sqlx::query_as::<_, DbResourceRow>(
             r#"
             SELECT resource_id AS id, ticket_id, wasm_bytecode, name, description, ports, params
@@ -287,7 +312,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
         Ok(row.into())
     }
 
-    async fn update_resource(&self, resource_id: ResourceId, ticket_id: TicketId) -> Result<DbResource, DataError> {
+    async fn update_compiled_transform(&self, resource_id: ResourceId, ticket_id: TicketId) -> Result<DbResource, DataError> {
         let row = sqlx::query_as::<_, DbResourceRow>(
             r#"
             UPDATE transform_resource
@@ -304,7 +329,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
         Ok(row.into())
     }
 
-    async fn remove_resource(&self, resource_id: ResourceId) -> Result<(), DataError> {
+    async fn remove_compiled_transform(&self, resource_id: ResourceId) -> Result<(), DataError> {
         let result = sqlx::query(r#"DELETE FROM transform_resource WHERE resource_id = $1"#)
             .bind(resource_id)
             .execute(&self.pool)
@@ -321,7 +346,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
         sqlx::query_as::<_, DbTransform>(&format!(
             r#"
             SELECT
-                t.transform_id, t.name, t.description, t.icon, t.kind, t.created_at,
+                t.transform_id, t.name, t.description, t.icon, t.kind, t.owner_user_id, t.created_at,
                 {} AS published
             FROM transform t WHERE t.transform_id = $1
             "#,
@@ -331,6 +356,14 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
         .fetch_one(&self.pool)
         .await
         .map_err(|e| e.to_string())
+    }
+
+    async fn get_transform_owner(&self, id: TransformId) -> Result<i32, String> {
+        sqlx::query_scalar::<_, i32>("SELECT owner_user_id FROM transform WHERE transform_id = $1")
+            .bind(id)
+            .fetch_one(&self.pool)
+            .await
+            .map_err(|e| e.to_string())
     }
 
     async fn get_current_ports(&self, transform_id: TransformId) -> Result<Vec<DbTransformPort>, DataError> {
@@ -372,7 +405,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
         })
     }
 
-    async fn get_transform_definitions(&self, ids: &[TransformId]) -> Result<Vec<DbTransformDefinition>, String> {
+    async fn get_transform(&self, ids: &[TransformId]) -> Result<Vec<DbTransformDefinition>, String> {
         if ids.is_empty() {
             return Ok(Vec::new());
         }
@@ -407,7 +440,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
             .collect())
     }
 
-    async fn list_transform_summaries(&self, offset: i64, limit: i64) -> Result<(Vec<DbTransform>, i64), String> {
+    async fn list_transforms(&self, offset: i64, limit: i64) -> Result<(Vec<DbTransform>, i64), String> {
         #[derive(sqlx::FromRow)]
         struct Row {
             transform_id: TransformId,
@@ -415,6 +448,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
             description: Option<String>,
             icon: Option<String>,
             kind: String,
+            owner_user_id: i32,
             published: bool,
             created_at: chrono::DateTime<chrono::Utc>,
             total: i64,
@@ -423,7 +457,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
         let rows = sqlx::query_as::<_, Row>(&format!(
             r#"
             SELECT
-                t.transform_id, t.name, t.description, t.icon, t.kind,
+                t.transform_id, t.name, t.description, t.icon, t.kind, t.owner_user_id,
                 {} AS published,
                 t.created_at,
                 COUNT(*) OVER () AS total
@@ -444,11 +478,34 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
             description: r.description,
             icon: r.icon,
             kind: r.kind,
+            owner_user_id: r.owner_user_id,
             published: r.published,
             created_at: r.created_at,
         }).collect();
 
         Ok((transforms, total))
+    }
+
+    async fn get_transforms_for_workspace_and_user(&self, user_id: i32, workspace_id: i32) -> Result<Vec<DbTransform>, String> {
+        sqlx::query_as::<_, DbTransform>(&format!(
+            r#"
+            SELECT DISTINCT
+                t.transform_id, t.name, t.description, t.icon, t.kind, t.owner_user_id,
+                {} AS published,
+                t.created_at
+            FROM transform t
+            WHERE t.owner_user_id = $1
+               OR EXISTS (SELECT 1 FROM transform_grants g WHERE g.transform_id = t.transform_id AND g.grantee_user_id = $1)
+               OR EXISTS (SELECT 1 FROM transform_grants g WHERE g.transform_id = t.transform_id AND g.grantee_workspace_id = $2)
+            ORDER BY t.created_at DESC
+            "#,
+            published_predicate("t.transform_id"),
+        ))
+        .bind(user_id)
+        .bind(workspace_id)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| e.to_string())
     }
 
     async fn insert_transform(
@@ -457,17 +514,19 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
         description: Option<String>,
         icon: Option<String>,
         kind: String,
+        owner_user_id: i32,
     ) -> Result<DbTransform, String> {
         let mut tx = self.pool.begin().await.map_err(|e| e.to_string())?;
 
         let transform = sqlx::query_as::<_, DbTransform>(
-            r#"INSERT INTO transform (name, description, icon, kind) VALUES ($1, $2, $3, $4)
-               RETURNING transform_id, name, description, icon, kind, FALSE AS published, created_at"#,
+            r#"INSERT INTO transform (name, description, icon, kind, owner_user_id) VALUES ($1, $2, $3, $4, $5)
+               RETURNING transform_id, name, description, icon, kind, owner_user_id, FALSE AS published, created_at"#,
         )
         .bind(name)
         .bind(description)
         .bind(icon)
         .bind(kind)
+        .bind(owner_user_id)
         .fetch_one(&mut *tx)
         .await
         .map_err(|e| e.to_string())?;
@@ -612,7 +671,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
         Ok(())
     }
 
-    async fn publish_compiled_transform(
+    async fn publish_transform(
         &self,
         transform_id: TransformId,
         wasm_bytecode: Vec<u8>,
@@ -755,7 +814,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
             .collect())
     }
 
-    async fn save_composite_draft(
+    async fn save_transform_draft(
         &self,
         transform_id: TransformId,
         graph: CompositeTransformDefinition,
@@ -779,7 +838,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
         Ok(row.into())
     }
 
-    async fn validate_composite_draft(
+    async fn validate_transform(
         &self,
         transform_id: TransformId,
         ports: Vec<NewTransformPort>,
@@ -802,7 +861,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
         Ok(row.into())
     }
 
-    async fn publish_composite_transform(
+    async fn publish_transform(
         &self,
         transform_id: TransformId,
         name: String,

@@ -4,27 +4,27 @@ use async_trait::async_trait;
 
 use crate::me::me_bootstrap_result::{MeBootstrapResult, MeUserResult};
 use crate::me::me_data_provider::MeProvider;
-use crate::me::me_project_result::MeProjectResult;
+use crate::me::me_workspace_result::MeWorkspaceResult;
 use crate::memberships::memberships_provider::MembershipsProvider;
-use crate::projects::projects_provider::ProjectsProvider;
 use crate::users::user_provider::UserProvider;
+use crate::workspaces::workspaces_provider::WorkspacesProvider;
 
 pub struct MeProviderService {
     users_provider: Arc<dyn UserProvider>,
     memberships_provider: Arc<dyn MembershipsProvider>,
-    projects_provider: Arc<dyn ProjectsProvider>,
+    workspaces_provider: Arc<dyn WorkspacesProvider>,
 }
 
 impl MeProviderService {
     pub fn new(
         users_provider: Arc<dyn UserProvider>,
         memberships_provider: Arc<dyn MembershipsProvider>,
-        projects_provider: Arc<dyn ProjectsProvider>,
+        workspaces_provider: Arc<dyn WorkspacesProvider>,
     ) -> Self {
         Self {
             users_provider,
             memberships_provider,
-            projects_provider,
+            workspaces_provider,
         }
     }
 }
@@ -44,19 +44,19 @@ impl MeProvider for MeProviderService {
             .list_memberships(None, Some(user_id))
             .await?;
 
-        let mut projects = Vec::new();
+        let mut workspaces = Vec::new();
         for m in memberships {
-            match self.projects_provider.get_project(&m.project_id).await {
-                Ok(Some(project)) => projects.push(MeProjectResult {
-                    project_id: project.project_id,
-                    name: project.name,
+            match self.workspaces_provider.get_workspace(&m.workspace_id).await {
+                Ok(Some(workspace)) => workspaces.push(MeWorkspaceResult {
+                    workspace_id: workspace.workspace_id,
+                    name: workspace.name,
                     role: m.role,
                 }),
                 Ok(None) => {
-                    tracing::warn!(project_id = %m.project_id, "project not found for membership, skipping");
+                    tracing::warn!(workspace_id = %m.workspace_id, "workspace not found for membership, skipping");
                 }
                 Err(e) => {
-                    tracing::warn!(project_id = %m.project_id, error = %e, "project lookup failed, skipping");
+                    tracing::warn!(workspace_id = %m.workspace_id, error = %e, "workspace lookup failed, skipping");
                 }
             }
         }
@@ -69,7 +69,7 @@ impl MeProvider for MeProviderService {
                 is_admin: false,
                 is_verified: user.is_verified,
             },
-            projects,
+            workspaces,
         })
     }
 }

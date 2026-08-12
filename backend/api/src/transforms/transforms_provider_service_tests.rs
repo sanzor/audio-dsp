@@ -43,12 +43,12 @@ struct FakeDataProvider {
 
 #[async_trait::async_trait]
 impl TransformsDataProvider for FakeDataProvider {
-    async fn create_ticket(&self, _: CreateTicketParams) -> Result<DbTicket, crate::domain::data_error::DataError> { unimplemented!() }
+    async fn create_transform_ticket(&self, _: CreateTicketParams) -> Result<DbTicket, crate::domain::data_error::DataError> { unimplemented!() }
     async fn get_ticket(&self, _: TicketId) -> Result<DbTicket, crate::domain::data_error::DataError> { unimplemented!() }
     async fn create_resource(&self, _: TicketId, _: Vec<u8>, _: String, _: Option<String>, _: Vec<NewTransformPort>, _: Vec<NewTransformParam>) -> Result<DbResource, crate::domain::data_error::DataError> { unimplemented!() }
-    async fn get_resource(&self, _: ResourceId) -> Result<DbResource, crate::domain::data_error::DataError> { unimplemented!() }
-    async fn update_resource(&self, _: ResourceId, _: TicketId) -> Result<DbResource, crate::domain::data_error::DataError> { unimplemented!() }
-    async fn remove_resource(&self, _: ResourceId) -> Result<(), crate::domain::data_error::DataError> { unimplemented!() }
+    async fn get_compiled_transform(&self, _: ResourceId) -> Result<DbResource, crate::domain::data_error::DataError> { unimplemented!() }
+    async fn update_compiled_transform(&self, _: ResourceId, _: TicketId) -> Result<DbResource, crate::domain::data_error::DataError> { unimplemented!() }
+    async fn remove_compiled_transform(&self, _: ResourceId) -> Result<(), crate::domain::data_error::DataError> { unimplemented!() }
     async fn remove_ticket(&self, _: TicketId) -> Result<(), crate::domain::data_error::DataError> { unimplemented!() }
     async fn update_ticket(&self, _: UpdateTicketParams) -> Result<DbTicket, crate::domain::data_error::DataError> { unimplemented!() }
 
@@ -60,9 +60,14 @@ impl TransformsDataProvider for FakeDataProvider {
             icon: None,
             kind: self.kind.clone(),
             published: false,
+            owner_user_id: 0,
             created_at: chrono::Utc::now(),
         })
     }
+
+    async fn get_transform_owner(&self, _: TransformId) -> Result<i32, String> { unimplemented!() }
+    async fn get_ticket(&self, _: TicketId) -> Result<TransformId, crate::domain::data_error::DataError> { unimplemented!() }
+    async fn get_resource_transform_id(&self, _: ResourceId) -> Result<TransformId, crate::domain::data_error::DataError> { unimplemented!() }
 
     async fn get_current_ports(&self, _: TransformId) -> Result<Vec<domain::db::db_transform::DbTransformPort>, crate::domain::data_error::DataError> { Ok(self.current_ports.clone()) }
 
@@ -83,7 +88,8 @@ impl TransformsDataProvider for FakeDataProvider {
 
     async fn get_transform_definitions(&self, _: &[TransformId]) -> Result<Vec<DbTransformDefinition>, String> { unimplemented!() }
     async fn list_transform_summaries(&self, _: i64, _: i64) -> Result<(Vec<DbTransform>, i64), String> { unimplemented!() }
-    async fn insert_transform(&self, _: String, _: Option<String>, _: Option<String>, _: String) -> Result<DbTransform, String> { unimplemented!() }
+    async fn get_transforms_for_workspace_and_user(&self, _: i32, _: i32) -> Result<Vec<DbTransform>, String> { unimplemented!() }
+    async fn insert_transform(&self, _: String, _: Option<String>, _: Option<String>, _: String, _: i32) -> Result<DbTransform, String> { unimplemented!() }
     async fn delete_transform(&self, _: TransformId) -> Result<(), crate::domain::data_error::DataError> { unimplemented!() }
 
     async fn get_leaf_transform_infos(&self, ids: &[TransformId]) -> Result<std::collections::HashMap<TransformId, crate::transforms::composite_validator::LeafTransformInfo>, crate::domain::data_error::DataError> {
@@ -109,14 +115,14 @@ impl TransformsDataProvider for FakeDataProvider {
     }
 
     async fn save_transform_draft(&self, _: TransformId, _: String, _: Option<ResourceId>) -> Result<DbTransformDraft, crate::domain::data_error::DataError> { unimplemented!() }
-    async fn save_composite_draft(&self, _: TransformId, _: domain::db::transform_snapshot::CompositeTransformDefinition) -> Result<DbTransformDraft, crate::domain::data_error::DataError> { unimplemented!() }
-    async fn validate_composite_draft(&self, _: TransformId, _: Vec<NewTransformPort>) -> Result<DbTransformDraft, crate::domain::data_error::DataError> { unimplemented!() }
+    async fn save_transform_draft(&self, _: TransformId, _: domain::db::transform_snapshot::CompositeTransformDefinition) -> Result<DbTransformDraft, crate::domain::data_error::DataError> { unimplemented!() }
+    async fn validate_transform(&self, _: TransformId, _: Vec<NewTransformPort>) -> Result<DbTransformDraft, crate::domain::data_error::DataError> { unimplemented!() }
 
     async fn publish_compiled_transform(&self, _: TransformId, _: Vec<u8>, _: String, _: String, _: Option<String>, _: Vec<NewTransformPort>, _: Vec<NewTransformParam>) -> Result<(), String> {
         Ok(())
     }
 
-    async fn publish_composite_transform(&self, _: TransformId, _: String, _: Option<String>, _: Vec<NewTransformPort>, _: domain::db::transform_snapshot::CompositeTransformDefinition) -> Result<(), String> {
+    async fn publish_transform(&self, _: TransformId, _: String, _: Option<String>, _: Vec<NewTransformPort>, _: domain::db::transform_snapshot::CompositeTransformDefinition) -> Result<(), String> {
         Ok(())
     }
 }

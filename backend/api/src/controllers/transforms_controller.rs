@@ -1,7 +1,8 @@
 use crate::{
     domain::service_error::ServiceError,
-    middlewares::membership::membership_context::RoleContext,
-    transforms::transforms_app_data::TransformsAppData,
+    middlewares::jwt::jwt_context::JwtContext,
+    transform_grants::transform_grants_app_data::TransformGrantsAppData,
+    transforms::{authz::{require_access, require_owner}, transforms_app_data::TransformsAppData},
 };
 use actix_web::{delete, get, post, put, web, HttpResponse};
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine};
@@ -387,10 +388,16 @@ fn map_service_error(err: ServiceError) -> HttpResponse {
     responses((status = 200, description = "Paginated transform summaries", body = serde_json::Value)))]
 #[get("")]
 pub async fn list_transform_summaries(
-    _role: RoleContext,
+    jwt: JwtContext,
     query: web::Query<PaginationQuery>,
     app: web::Data<TransformsAppData>,
 ) -> HttpResponse {
+    // Unfiltered, cross-owner browsing doesn't fit the ownership model —
+    // regular users get filtered results from the workspace-scoped catalog
+    // endpoint (GET /v1/workspaces/{workspace_id}/transforms) instead.
+    if !jwt.is_admin {
+        return HttpResponse::Forbidden().body("Forbidden");
+    }
     let offset = query.offset.unwrap_or(0);
     let limit = query.limit.unwrap_or(20).clamp(1, 100);
     match app.transforms_service.list_transform_summaries(offset, limit).await {
@@ -407,11 +414,16 @@ pub async fn list_transform_summaries(
     responses((status = 200, description = "Transform definition", body = serde_json::Value)))]
 #[get("/{transform_id}")]
 pub async fn get_transform_definition(
-    _role: RoleContext,
+    jwt: JwtContext,
     path: web::Path<TransformIdPath>,
     app: web::Data<TransformsAppData>,
+    grants: web::Data<TransformGrantsAppData>,
 ) -> HttpResponse {
-    match app.transforms_service.get_transform_definition(path.into_inner().transform_id).await {
+    let transform_id = path.into_inner().transform_id;
+    if let Err(resp) = require_access(&app, &grants, transform_id, &jwt).await {
+        return resp;
+    }
+    match app.transforms_service.get_transform_definition(transform_id).await {
         Ok(t) => HttpResponse::Ok().json(TransformDefinitionDto::from(t)),
         Err(e) => map_service_error(e),
     }
@@ -422,11 +434,17 @@ pub async fn get_transform_definition(
     responses((status = 200, description = "Resolved transform definitions", body = serde_json::Value)))]
 #[post("/resolve")]
 pub async fn resolve_transform_definitions(
-    _role: RoleContext,
+    jwt: JwtContext,
     body: web::Json<TransformIdsRequest>,
     app: web::Data<TransformsAppData>,
+    grants: web::Data<TransformGrantsAppData>,
 ) -> HttpResponse {
     let request = body.into_inner();
+    for id in &request.ids {
+        if let Err(resp) = require_access(&app, &grants, *id, &jwt).await {
+            return resp;
+        }
+    }
     match app.transforms_service.get_transform_definitions(&request.ids).await {
         Ok(transforms) => HttpResponse::Ok().json(TransformDefinitionsResponse {
             transforms: transforms.into_iter().map(TransformDefinitionDto::from).collect(),
@@ -441,11 +459,16 @@ pub async fn resolve_transform_definitions(
               (status = 404, description = "Transform not found")))]
 #[get("/{transform_id}/binary")]
 pub async fn get_transform_binary(
-    _role: RoleContext,
+    jwt: JwtContext,
     path: web::Path<TransformIdPath>,
     app: web::Data<TransformsAppData>,
+    grants: web::Data<TransformGrantsAppData>,
 ) -> HttpResponse {
-    match app.transforms_service.get_transform_binary(path.into_inner().transform_id).await {
+    let transform_id = path.into_inner().transform_id;
+    if let Err(resp) = require_access(&app, &grants, transform_id, &jwt).await {
+        return resp;
+    }
+    match app.transforms_service.get_transform_binary(transform_id).await {
         Ok(bytes) => HttpResponse::Ok()
             .content_type("application/wasm")
             .body(bytes),
@@ -458,11 +481,17 @@ pub async fn get_transform_binary(
     responses((status = 200, description = "Resolved transform binaries", body = serde_json::Value)))]
 #[post("/binaries")]
 pub async fn get_transform_binaries(
-    _role: RoleContext,
+    jwt: JwtContext,
     body: web::Json<TransformIdsRequest>,
     app: web::Data<TransformsAppData>,
+    grants: web::Data<TransformGrantsAppData>,
 ) -> HttpResponse {
     let request = body.into_inner();
+    for id in &request.ids {
+        if let Err(resp) = require_access(&app, &grants, *id, &jwt).await {
+            return resp;
+        }
+    }
     match app.transforms_service.get_transform_binaries(&request.ids).await {
         Ok(binaries) => HttpResponse::Ok().json(TransformBinariesResponse {
             binaries: binaries.into_iter().map(TransformBinaryDto::from).collect(),
@@ -476,18 +505,15 @@ pub async fn get_transform_binaries(
     responses((status = 200, description = "Created transform", body = serde_json::Value)))]
 #[post("")]
 pub async fn create_transform(
-    role: RoleContext,
+    jwt: JwtContext,
     body: web::Json<CreateTransformParams>,
     app: web::Data<TransformsAppData>,
 ) -> HttpResponse {
-    if !role.can_edit() {
-        return HttpResponse::Forbidden().body("Forbidden");
-    }
     let p = body.into_inner();
     if p.kind != "primitive" && p.kind != "composite" {
         return HttpResponse::BadRequest().body("kind must be 'primitive' or 'composite'");
     }
-    match app.transforms_service.create_transform(p.name, p.description, p.icon, p.kind).await {
+    match app.transforms_service.create_transform(p.name, p.description, p.icon, p.kind, jwt.user_id).await {
         Ok(t) => HttpResponse::Ok().json(TransformDefinitionDto::from(t)),
         Err(e) => map_service_error(e),
     }
@@ -499,16 +525,17 @@ pub async fn create_transform(
     responses((status = 200, description = "Saved transform state", body = serde_json::Value)))]
 #[put("/{transform_id}/save")]
 pub async fn save_transform(
-    role: RoleContext,
+    jwt: JwtContext,
     path: web::Path<TransformIdPath>,
     body: web::Json<SaveTransformParams>,
     app: web::Data<TransformsAppData>,
 ) -> HttpResponse {
-    if !role.can_edit() {
-        return HttpResponse::Forbidden().body("Forbidden");
+    let transform_id = path.into_inner().transform_id;
+    if let Err(resp) = require_owner(&app, transform_id, &jwt).await {
+        return resp;
     }
     let p = body.into_inner();
-    match app.transforms_service.save_transform_draft(path.into_inner().transform_id, p.source_code, p.resource_id).await {
+    match app.transforms_service.save_transform_draft(transform_id, p.source_code, p.resource_id).await {
         Ok(t) => HttpResponse::Ok().json(TransformDefinitionDto::from(t)),
         Err(e) => map_service_error(e),
     }
@@ -520,17 +547,18 @@ pub async fn save_transform(
     responses((status = 200, description = "Saved composite transform graph", body = serde_json::Value)))]
 #[put("/{transform_id}/save-composite")]
 pub async fn save_composite_transform(
-    role: RoleContext,
+    jwt: JwtContext,
     path: web::Path<TransformIdPath>,
     body: web::Json<SaveCompositeGraphParams>,
     app: web::Data<TransformsAppData>,
 ) -> HttpResponse {
-    if !role.can_edit() {
-        return HttpResponse::Forbidden().body("Forbidden");
+    let transform_id = path.into_inner().transform_id;
+    if let Err(resp) = require_owner(&app, transform_id, &jwt).await {
+        return resp;
     }
     let p = body.into_inner();
     let graph = domain::db::transform_snapshot::CompositeTransformDefinition::from(p.graph_definition);
-    match app.transforms_service.save_composite_draft(path.into_inner().transform_id, graph).await {
+    match app.transforms_service.save_composite_draft(transform_id, graph).await {
         Ok(t) => HttpResponse::Ok().json(TransformDefinitionDto::from(t)),
         Err(e) => map_service_error(e),
     }
@@ -544,14 +572,15 @@ pub async fn save_composite_transform(
     ))]
 #[post("/{transform_id}/validate")]
 pub async fn validate_composite_transform(
-    role: RoleContext,
+    jwt: JwtContext,
     path: web::Path<TransformIdPath>,
     app: web::Data<TransformsAppData>,
 ) -> HttpResponse {
-    if !role.can_edit() {
-        return HttpResponse::Forbidden().body("Forbidden");
+    let transform_id = path.into_inner().transform_id;
+    if let Err(resp) = require_owner(&app, transform_id, &jwt).await {
+        return resp;
     }
-    match app.transforms_service.validate_composite_draft(path.into_inner().transform_id).await {
+    match app.transforms_service.validate_composite_draft(transform_id).await {
         Ok(t) => HttpResponse::Ok().json(TransformDefinitionDto::from(t)),
         Err(e) => map_service_error(e),
     }
@@ -565,14 +594,15 @@ pub async fn validate_composite_transform(
     ))]
 #[post("/{transform_id}/publish")]
 pub async fn publish_transform(
-    role: RoleContext,
+    jwt: JwtContext,
     path: web::Path<TransformIdPath>,
     app: web::Data<TransformsAppData>,
 ) -> HttpResponse {
-    if !role.can_edit() {
-        return HttpResponse::Forbidden().body("Forbidden");
+    let transform_id = path.into_inner().transform_id;
+    if let Err(resp) = require_owner(&app, transform_id, &jwt).await {
+        return resp;
     }
-    match app.transforms_service.publish_transform(path.into_inner().transform_id).await {
+    match app.transforms_service.publish_transform(transform_id).await {
         Ok(t) => HttpResponse::Ok().json(TransformDefinitionDto::from(t)),
         Err(e) => map_service_error(e),
     }
@@ -583,11 +613,16 @@ pub async fn publish_transform(
     responses((status = 200, description = "Whether the about-to-be-published port shape differs from what's currently live", body = serde_json::Value)))]
 #[get("/{transform_id}/publish/port-diff")]
 pub async fn get_publish_port_shape_diff(
-    _role: RoleContext,
+    jwt: JwtContext,
     path: web::Path<TransformIdPath>,
     app: web::Data<TransformsAppData>,
+    grants: web::Data<TransformGrantsAppData>,
 ) -> HttpResponse {
-    match app.transforms_service.diff_publish_port_shape(path.into_inner().transform_id).await {
+    let transform_id = path.into_inner().transform_id;
+    if let Err(resp) = require_access(&app, &grants, transform_id, &jwt).await {
+        return resp;
+    }
+    match app.transforms_service.diff_publish_port_shape(transform_id).await {
         Ok(diff) => HttpResponse::Ok().json(PublishPortShapeDiffDto::from(diff)),
         Err(e) => map_service_error(e),
     }
@@ -598,14 +633,15 @@ pub async fn get_publish_port_shape_diff(
     responses((status = 200, description = "Deleted")))]
 #[delete("/{transform_id}")]
 pub async fn delete_transform(
-    role: RoleContext,
+    jwt: JwtContext,
     path: web::Path<TransformIdPath>,
     app: web::Data<TransformsAppData>,
 ) -> HttpResponse {
-    if !role.can_edit() {
-        return HttpResponse::Forbidden().body("Forbidden");
+    let transform_id = path.into_inner().transform_id;
+    if let Err(resp) = require_owner(&app, transform_id, &jwt).await {
+        return resp;
     }
-    match app.transforms_service.delete_transform(path.into_inner().transform_id).await {
+    match app.transforms_service.delete_transform(transform_id).await {
         Ok(_) => HttpResponse::Ok().body("Deleted"),
         Err(e) => map_service_error(e),
     }

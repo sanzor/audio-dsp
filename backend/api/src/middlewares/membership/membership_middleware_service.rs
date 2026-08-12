@@ -5,14 +5,14 @@ use actix_web::{
 };
 use std::{future::Future, pin::Pin, rc::Rc, sync::Arc};
 
-use domain::project_role::ProjectRole;
+use domain::workspace_role::WorkspaceRole;
 use tracing::warn;
 
 use crate::{
     memberships::memberships_provider::MembershipsProvider,
     middlewares::{
         jwt::jwt_context::JwtContext,
-        membership::membership_context::{ProjectContext, RoleContext},
+        membership::membership_context::{WorkspaceContext, RoleContext},
     },
 };
 
@@ -54,12 +54,12 @@ where
                 }
             };
 
-            // 2. Project id comes from a project-scoped route (`/{project_id}/...`)
+            // 2. Workspace id comes from a workspace-scoped route (`/{workspace_id}/...`)
             // whenever one is present. The header fallback keeps routes not yet
-            // migrated to a project-scoped path on their existing contract.
-            let project_id = req
+            // migrated to a workspace-scoped path on their existing contract.
+            let workspace_id = req
                 .match_info()
-                .get("project_id")
+                .get("workspace_id")
                 .and_then(|value| value.parse::<i32>().ok())
                 .or_else(|| {
                     req.headers()
@@ -70,36 +70,36 @@ where
 
             // 3. Resolve role
             let role_ctx = if jwt_ctx.is_admin {
-                RoleContext(ProjectRole::SuperAdmin)
+                RoleContext(WorkspaceRole::SuperAdmin)
             } else {
-                match project_id {
+                match workspace_id {
                     None => {
-                        warn!(path = %req.path(), "request rejected: missing project_id (path or X-Project-ID header)");
+                        warn!(path = %req.path(), "request rejected: missing workspace_id (path or X-Project-ID header)");
                         let res = req.into_response(actix_web::HttpResponse::BadRequest().body("Missing X-Project-ID header"));
                         return Ok(res.map_into_right_body());
                     }
-                    Some(pid) => {
-                        let role = match memberships.get_role(pid, jwt_ctx.user_id).await {
+                    Some(wid) => {
+                        let role = match memberships.get_role(wid, jwt_ctx.user_id).await {
                             Ok(role) => role,
                             Err(error) => {
                                 warn!(
                                     path = %req.path(),
-                                    project_id = pid,
+                                    workspace_id = wid,
                                     user_id = jwt_ctx.user_id,
                                     %error,
-                                    "request rejected: failed to resolve project role"
+                                    "request rejected: failed to resolve workspace role"
                                 );
                                 let res = req.into_response(
                                     actix_web::HttpResponse::InternalServerError()
-                                        .body("Failed to resolve project role"),
+                                        .body("Failed to resolve workspace role"),
                                 );
                                 return Ok(res.map_into_right_body());
                             }
                         };
                         match role {
                             None => {
-                                warn!(path = %req.path(), project_id = pid, user_id = jwt_ctx.user_id, "request rejected: access denied to project");
-                                let res = req.into_response(actix_web::HttpResponse::Forbidden().body("Access denied to this project"));
+                                warn!(path = %req.path(), workspace_id = wid, user_id = jwt_ctx.user_id, "request rejected: access denied to workspace");
+                                let res = req.into_response(actix_web::HttpResponse::Forbidden().body("Access denied to this workspace"));
                                 return Ok(res.map_into_right_body());
                             }
                             Some(r) => RoleContext(r),
@@ -110,8 +110,8 @@ where
 
             // 4. Attach to request
             req.extensions_mut().insert(role_ctx);
-            if let Some(pid) = project_id {
-                req.extensions_mut().insert(ProjectContext(pid));
+            if let Some(wid) = workspace_id {
+                req.extensions_mut().insert(WorkspaceContext(wid));
             }
             let path = req.path().to_owned();
             match srv.call(req).await {

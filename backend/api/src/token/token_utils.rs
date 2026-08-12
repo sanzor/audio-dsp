@@ -26,8 +26,8 @@ pub(crate) fn create_verification_token(user_id: i32) -> String {
 
 /// Invite token embeds the invitee's email in the `email` field.
 /// The `user_id` field is set to 0 because the invitee may not have an account yet.
-pub(crate) fn create_invite_token(invitee_email: &str, project_id: i32, role: &str) -> String {
-    create_token(0, Some(invitee_email), None, false, Some(project_id), Some("invite"), Some(role), 60 * 24 * 7)
+pub(crate) fn create_invite_token(invitee_email: &str, workspace_id: i32, role: &str) -> String {
+    create_token(0, Some(invitee_email), None, false, Some(workspace_id), Some("invite"), Some(role), 60 * 24 * 7)
 }
 
 pub(crate) fn generate_csrf_token() -> String {
@@ -40,7 +40,7 @@ pub(crate) fn create_token(
     email: Option<&str>,
     name: Option<&str>,
     is_admin: bool,
-    project_id: Option<i32>,
+    workspace_id: Option<i32>,
     purpose: Option<&str>,
     role: Option<&str>,
     minutes: i64,
@@ -57,7 +57,7 @@ pub(crate) fn create_token(
         name: name.map(|e| e.to_owned()),
         email: email.map(|e| e.to_owned()),
         is_admin,
-        project_id,
+        workspace_id,
         purpose: purpose.map(|p| p.to_owned()),
         role: role.map(|r| r.to_owned()),
     };

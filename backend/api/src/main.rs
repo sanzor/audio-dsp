@@ -33,11 +33,6 @@ use api::{
         data_provider::products_data_provider_service::ProductsDataProviderService,
         products_app_data::ProductsAppData,
         products_provider_service::ProductsProviderService,
-    }, projects::{
-        data_provider::projects_data_provider_service::PostgresProjectsDataProvider,
-        project_app_data::ProjectAppData,
-        projects_provider::ProjectsProvider,
-        projects_provider_service::ProjectsProviderService,
     }, purchased_products::{
         data_provider::purchased_products_data_provider_service::PurchasedProductsDataProviderService,
         purchased_products_app_data::PurchasedProductsAppData,
@@ -65,7 +60,11 @@ use api::{
         subscriptions_provider_service::SubscriptionsProviderService,
     }, ticket_worker::{
         consumer::channel_consumer::ChannelConsumer, events::ticket_created_event::TicketCreatedEvent, processor::{build_job_config::BuildJobConfig, processor::Processor, processor_params::ProcessorParams}, worker::Worker, worker_config::WorkerConfig, worker_params::WorkerParams,
-    }, tickets::{tickets_app_data::TicketsAppData, tickets_provider_service::TicketsProviderService}, tier_configs::{
+    }, tickets::{tickets_app_data::TicketsAppData, tickets_provider_service::TicketsProviderService}, transform_grants::{
+        data_provider::transform_grants_data_provider_service::PostgresTransformGrantsDataProvider,
+        transform_grants_app_data::TransformGrantsAppData,
+        transform_grants_provider_service::TransformGrantsProviderService,
+    }, tier_configs::{
         data_provider::tier_configs_data_provider_service::TierConfigsDataProviderService,
         tier_configs_app_data::TierConfigsAppData,
         tier_configs_provider_service::TierConfigsProviderService,
@@ -89,6 +88,11 @@ use api::{
         data_provider::workspace_data_provider_service::PostgresWorkspaceDataProvider,
         workspace_app_data::WorkspaceAppData,
         workspace_provider_service::WorkspaceProviderService,
+    }, workspaces::{
+        data_provider::workspaces_data_provider_service::PostgresWorkspacesDataProvider,
+        workspaces_app_data::WorkspacesAppData,
+        workspaces_provider::WorkspacesProvider,
+        workspaces_provider_service::WorkspacesProviderService,
     },
 };
 use tokio_util::sync::CancellationToken;
@@ -244,8 +248,8 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
     let graphs_service = Arc::new(GraphsProviderService::new(Arc::new(
         PostgresGraphsDataProvider::new(pool.clone()),
     )));
-    let projects_service: Arc<dyn ProjectsProvider> = Arc::new(ProjectsProviderService::new(
-        Arc::new(PostgresProjectsDataProvider::new(pool.clone())),
+    let workspaces_service: Arc<dyn WorkspacesProvider> = Arc::new(WorkspacesProviderService::new(
+        Arc::new(PostgresWorkspacesDataProvider::new(pool.clone())),
     ));
     let memberships_service: Arc<dyn MembershipsProvider> =
         Arc::new(MembershipsProviderService::new(Arc::new(
@@ -271,12 +275,12 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
         me_data_provider: Arc::new(MeProviderService::new(
             Arc::clone(&user_provider),
             Arc::clone(&memberships_service),
-            Arc::clone(&projects_service),
+            Arc::clone(&workspaces_service),
         )),
     };
-    
+
     let app_data = AppData {
-        projects_service: Arc::clone(&projects_service),
+        workspaces_service: Arc::clone(&workspaces_service),
         memberships_service: Arc::clone(&memberships_service),
     };
     let tracks_app_data = TracksAppData {
@@ -301,8 +305,8 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
         player_service: Arc::clone(&player_service)
             as Arc<dyn api::player::player_provider::PlayerProvider>,
     };
-    let project_app_data = ProjectAppData {
-        projects_service: Arc::clone(&projects_service),
+    let workspaces_app_data = WorkspacesAppData {
+        workspaces_service: Arc::clone(&workspaces_service),
         memberships_service: Arc::clone(&memberships_service),
     };
     let users_app_data = UsersAppData {
@@ -363,6 +367,11 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
             Arc::clone(&transforms_data_provider),
             Arc::clone(&producer),
         )),
+    };
+    let transform_grants_app_data = TransformGrantsAppData {
+        transform_grants_service: Arc::new(TransformGrantsProviderService::new(Arc::new(
+            PostgresTransformGrantsDataProvider::new(pool.clone()),
+        ))),
     };
 
     // Path to the transform-sdk crate the generated per-compile Cargo.toml
@@ -457,7 +466,7 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
             .app_data(web::Data::new(regions_app_data.clone()))
             .app_data(web::Data::new(region_sets_app_data.clone()))
             .app_data(web::Data::new(player_app_data.clone()))
-            .app_data(web::Data::new(project_app_data.clone()))
+            .app_data(web::Data::new(workspaces_app_data.clone()))
             .app_data(web::Data::new(users_app_data.clone()))
             .app_data(web::Data::new(graphs_app_data.clone()))
             .app_data(web::Data::new(memberships_app_data.clone()))
@@ -469,6 +478,7 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
             .app_data(web::Data::new(usage_app_data.clone()))
             .app_data(web::Data::new(transforms_app_data.clone()))
             .app_data(web::Data::new(tickets_app_data.clone()))
+            .app_data(web::Data::new(transform_grants_app_data.clone()))
             .app_data(web::Data::new(stored_tracks_app_data.clone()))
             .app_data(web::Data::new(workspace_app_data.clone()))
             .configure(controllers::openapi_controller::init)
@@ -490,13 +500,13 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
                     .configure(controllers::sources_controller::init),
             )
             .service(
-                web::scope("/v1/projects")
+                web::scope("/v1/workspaces")
                     .wrap(membership_middleware.clone())
                     .wrap(jwt_middleware.clone())
-                    .configure(controllers::project_controller::init)
+                    .configure(controllers::workspace_controller::init)
                     .service(
-                        web::scope("/{project_id}")
-                            .configure(controllers::workspace_controller::init)
+                        web::scope("/{workspace_id}")
+                            .configure(controllers::workspace_tracks_controller::init)
                             .service(
                                 web::scope("/tracks")
                                     .configure(controllers::tracks_crud_controller::init),
@@ -554,10 +564,10 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
             )
             .service(
                 web::scope("/transforms")
-                    .wrap(membership_middleware.clone())
                     .wrap(jwt_middleware.clone())
                     .configure(controllers::transforms_controller::init)
-                    .configure(controllers::ticket_controller::init),
+                    .configure(controllers::ticket_controller::init)
+                    .configure(controllers::transform_grants_controller::init),
             )
     })
     .bind((host.as_str(), port))?

@@ -1,83 +1,23 @@
 use std::collections::HashMap;
 
-use domain::db::{
-    db_transform::{DbTransform, DbTransformDefinition, DbTransformPort, TransformId},
-    ticket::{create_ticket_params::CreateTicketParams, db_resource::{DbResource, ResourceId}, db_ticket::{DbTicket, TicketId}, update_ticket_params::UpdateTicketParams},
-    db_transform_draft::DbTransformDraft,
-    transform_snapshot::{CompositeTransformDefinition, ParamSnapshot, PortSnapshot},
-};
+use domain::{db::{
+    WorkspaceId, db_transform::{DbTransform, TransformId}, db_transform_draft::DbTransformDraft, ticket::{create_ticket_params::CreateTicketParams, db_resource::{DbResource, ResourceId}, db_ticket::{DbTicket, TicketId}, update_ticket_params::UpdateTicketParams}, transform_snapshot::{CompositeTransformDefinition, ParamSnapshot, PortSnapshot},
+}, domain_user::UserId, user::User};
 
 use crate::transforms::composite_validator::LeafTransformInfo;
 
 use crate::{domain::data_error::DataError};
 
-/// A port as introspected from a compiled transform's metadata, not yet
-/// persisted. `direction`/`kind`/`cardinality` are already validated/mapped
-/// to their DB string forms by the caller (see
-/// worker::processor::metadata_introspector).
-pub struct NewTransformPort {
-    pub name: String,
-    pub direction: String,
-    pub order: i32,
-    pub description: Option<String>,
-    pub kind: String,
-    pub cardinality: String,
-}
-
-/// A param as introspected from a compiled transform's metadata, not yet
-/// persisted.
-pub struct NewTransformParam {
-    pub name: String,
-    pub order: i32,
-    pub default_value: f32,
-    pub min_value: Option<f32>,
-    pub max_value: Option<f32>,
-    pub description: Option<String>,
-}
-
-impl From<NewTransformPort> for PortSnapshot {
-    fn from(p: NewTransformPort) -> Self {
-        Self {
-            name: p.name,
-            direction: p.direction,
-            port_order: p.order,
-            description: p.description,
-            kind: p.kind,
-            cardinality: p.cardinality,
-        }
-    }
-}
-
-impl From<PortSnapshot> for NewTransformPort {
-    fn from(p: PortSnapshot) -> Self {
-        Self {
-            name: p.name,
-            direction: p.direction,
-            order: p.port_order,
-            description: p.description,
-            kind: p.kind,
-            cardinality: p.cardinality,
-        }
-    }
-}
-
-impl From<NewTransformParam> for ParamSnapshot {
-    fn from(p: NewTransformParam) -> Self {
-        Self { name: p.name, param_order: p.order, default_value: p.default_value, min_value: p.min_value, max_value: p.max_value, description: p.description }
-    }
-}
-
-impl From<ParamSnapshot> for NewTransformParam {
-    fn from(p: ParamSnapshot) -> Self {
-        Self { name: p.name, order: p.param_order, default_value: p.default_value, min_value: p.min_value, max_value: p.max_value, description: p.description }
-    }
-}
 
 #[async_trait::async_trait]
 pub trait TransformsDataProvider: Send + Sync {
 
-    async fn create_ticket(&self,ticket:CreateTicketParams)->Result<DbTicket,DataError>;
+    async fn create_transform_ticket(&self,ticket:CreateTicketParams)->Result<DbTicket,DataError>;
     async fn get_ticket(&self,ticket_id:TicketId)->Result<DbTicket,DataError>;
+    /// Point-lookup used for authorization — resolves which transform a
+    /// ticket/resource belongs to without fetching the full ticket/resource.
+    async fn get_ticket_transform_id(&self, ticket_id: TicketId) -> Result<TransformId, DataError>;
+    async fn get_resource_transform_id(&self, resource_id: ResourceId) -> Result<TransformId, DataError>;
 
     /// Stores the full artifact a successful compile ticket produced —
     /// bucket 1. Immutable history; never touches bucket 2 (save) or
@@ -88,35 +28,33 @@ pub trait TransformsDataProvider: Send + Sync {
         wasm_bytecode: Vec<u8>,
         name: String,
         description: Option<String>,
-        ports: Vec<NewTransformPort>,
-        params: Vec<NewTransformParam>,
+        metadata:String
     ) -> Result<DbResource, DataError>;
-    async fn get_resource(&self,resource_id:ResourceId)->Result<DbResource,DataError>;
-    async fn update_resource(&self, resource_id: ResourceId, ticket_id: TicketId) -> Result<DbResource, DataError>;
-    async fn remove_resource(&self, resource_id: ResourceId) -> Result<(), DataError>;
+    async fn get_compiled_transform(&self,resource_id:ResourceId)->Result<DbResource,DataError>;
+    async fn update_compiled_transform(&self, resource_id: ResourceId, ticket_id: TicketId) -> Result<DbResource, DataError>;
+    async fn remove_compiled_transform(&self, resource_id: ResourceId) -> Result<(), DataError>;
     async fn remove_ticket(&self,ticket_id:TicketId)->Result<(),DataError>;
     async fn update_ticket(&self,ticket:UpdateTicketParams)->Result<DbTicket,DataError>;
     
     async fn get_transform(&self, id: TransformId) -> Result<DbTransform, String>;
-    async fn get_transform_definition(&self, id: TransformId) -> Result<DbTransformDefinition, String>;
-    /// Currently-published (bucket 3) ports only — no join through saved
-    /// state. Empty for a transform that's never been published. Used by
-    /// the pre-publish port-shape diff (see
-    /// `TransformsProvider::diff_publish_port_shape`) to compare against
-    /// what's about to be published.
-    async fn get_current_ports(&self, transform_id: TransformId) -> Result<Vec<DbTransformPort>, DataError>;
-    async fn get_transform_definitions(&self, ids: &[TransformId]) -> Result<Vec<DbTransformDefinition>, String>;
-    async fn list_transform_summaries(&self, offset: i64, limit: i64) -> Result<(Vec<DbTransform>, i64), String>;
+    async fn get_transform_owner(&self, id: TransformId) -> Result<User, String>;
+    
+    async fn get_transforms(&self, offset: i64, limit: i64) -> Result<(Vec<DbTransform>, i64), String>;
+    /// Catalog for one workspace: transforms owned by `user_id`, granted
+    /// directly to `user_id`, or granted to `workspace_id` itself.
+    async fn get_transforms_for_workspace_and_user(&self, user_id: UserId, workspace_id: WorkspaceId) -> Result<Vec<DbTransform>, String>;
     /// Also creates the transform's (bucket 2) draft row, so it's
     /// always present — save/publish never have to special-case "no row yet".
     /// `kind` is "primitive" | "composite", validated by the caller.
-    async fn insert_transform(&self, name: String, description: Option<String>, icon: Option<String>, kind: String) -> Result<DbTransform, String>;
-
-    /// Batched lookup of everything `composite_validator::validate_composite_graph`
-    /// needs about each transform referenced as a node in a composite's graph:
-    /// its kind, whether it's published (live in transform_binary OR
-    /// transform_composite), and its currently-published ports (by name).
-    async fn get_leaf_transform_infos(&self, transform_ids: &[TransformId]) -> Result<HashMap<TransformId, LeafTransformInfo>, DataError>;
+    async fn insert_transform(&self, 
+        name: String, 
+        description: Option<String>, 
+        icon: Option<String>, 
+        kind: String, 
+        owner_user_id: i32,
+        source_code:String,
+        metadata:String,
+        wasm_bytecode: Vec<u8>) -> Result<DbTransform, String>;
 
     /// Bucket 2 — "save" for a composite. Writes the working graph_definition
     /// as-is (mirrors save_transform_draft's role for primitives, but there's
@@ -126,10 +64,10 @@ pub trait TransformsDataProvider: Send + Sync {
     /// set (from the last successful validate/publish, or empty for a
     /// brand-new draft) is left exactly as-is. See
     /// `agents/decisions/0007-composite-draft-validation-gate.md`.
-    async fn save_composite_draft(
+    async fn save_transform_draft(
         &self,
         transform_id: TransformId,
-        graph: CompositeTransformDefinition,
+        metadata: String,
     ) -> Result<DbTransformDraft, DataError>;
 
     /// New explicit validate action for a composite draft — writes the
@@ -139,10 +77,9 @@ pub trait TransformsDataProvider: Send + Sync {
     /// `true`. Only ever called after that validation has already succeeded;
     /// this method itself does no validation, it just persists the result.
     /// See `agents/decisions/0007-composite-draft-validation-gate.md`.
-    async fn validate_composite_draft(
+    async fn validate_transform(
         &self,
         transform_id: TransformId,
-        ports: Vec<NewTransformPort>,
     ) -> Result<DbTransformDraft, DataError>;
 
     /// Composite counterpart to `publish_compiled_transform` — same
@@ -150,13 +87,11 @@ pub trait TransformsDataProvider: Send + Sync {
     /// transform_port), but promotes graph_definition into transform_composite
     /// instead of a compiled binary into transform_binary. No params rows
     /// (v1 composites always have params: []).
-    async fn publish_composite_transform(
+    async fn publish_transform(
         &self,
         transform_id: TransformId,
         name: String,
-        description: Option<String>,
-        ports: Vec<NewTransformPort>,
-        graph_definition: CompositeTransformDefinition,
+        description: Option<String>
     ) -> Result<(), String>;
     /// Only allowed when the transform has never been published (no row in
     /// `transform_binary`) — see `agents/decisions/0002-transform-draft-lifecycle-decisions.md`.

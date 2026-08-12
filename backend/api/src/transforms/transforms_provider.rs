@@ -34,12 +34,16 @@ pub struct PublishPortShapeDiff {
 #[async_trait::async_trait]
 pub trait TransformsProvider: Send + Sync {
     async fn list_transform_summaries(&self, offset: i64, limit: i64) -> Result<(Vec<DbTransform>, i64), ServiceError>;
+    /// Catalog for one workspace — see `TransformsDataProvider::list_transforms_for_workspace_and_user`.
+    async fn list_transforms_for_workspace_and_user(&self, user_id: i32, workspace_id: i32) -> Result<Vec<DbTransform>, ServiceError>;
     async fn get_transform_definition(&self, id: TransformId) -> Result<DbTransformDefinition, ServiceError>;
     async fn get_transform_definitions(&self, ids: &[TransformId]) -> Result<Vec<DbTransformDefinition>, ServiceError>;
     async fn get_transform_binary(&self, id: TransformId) -> Result<Vec<u8>, ServiceError>;
     async fn get_transform_binaries(&self, ids: &[TransformId]) -> Result<Vec<DbTransformBinary>, ServiceError>;
+    /// Cheap point-lookup for ownership checks.
+    async fn get_transform_owner(&self, id: TransformId) -> Result<i32, ServiceError>;
     /// `kind` is "primitive" | "composite" — validated by the controller.
-    async fn create_transform(&self, name: String, description: Option<String>, icon: Option<String>, kind: String) -> Result<DbTransformDefinition, ServiceError>;
+    async fn create_transform(&self, name: String, description: Option<String>, icon: Option<String>, kind: String, owner_user_id: i32) -> Result<DbTransformDefinition, ServiceError>;
     /// Bucket 2 — save. Always overwrites source_code; if `resource_id` is
     /// given, also attaches that compile resource's binary/metadata.
     async fn save_transform_draft(&self, id: TransformId, source_code: String, resource_id: Option<ResourceId>) -> Result<DbTransformDefinition, ServiceError>;

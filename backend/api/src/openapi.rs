@@ -12,14 +12,14 @@ use utoipa::OpenApi;
         crate::controllers::auth_controller::logout,
         // Me
         crate::controllers::me_controller::bootstrap,
-        crate::controllers::me_controller::create_project,
+        crate::controllers::me_controller::create_workspace,
         crate::controllers::me_controller::accept_invite,
         // Projects
-        crate::controllers::project_controller::list_members,
-        crate::controllers::project_controller::invite_member,
-        crate::controllers::project_controller::delete_project,
-        crate::controllers::project_controller::remove_member,
-        crate::controllers::project_controller::change_role,
+        crate::controllers::workspace_controller::list_members,
+        crate::controllers::workspace_controller::invite_member,
+        crate::controllers::workspace_controller::delete_workspace,
+        crate::controllers::workspace_controller::remove_member,
+        crate::controllers::workspace_controller::change_role,
         // Player
         crate::controllers::player_controller::get_player_state,
         crate::controllers::player_controller::play,
@@ -85,7 +85,7 @@ use utoipa::OpenApi;
     tags(
         (name = "Auth", description = "Email/password authentication"),
         (name = "Me", description = "Current user bootstrap & project creation"),
-        (name = "Projects", description = "Project & membership management"),
+        (name = "Workspaces", description = "Workspace & membership management"),
         (name = "player", description = "Player commands"),
         (name = "tracks", description = "Tracks CRUD"),
         (name = "sources", description = "Creator-surface signal sources CRUD and audition/preview audio retrieval"),

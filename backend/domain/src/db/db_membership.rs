@@ -1,12 +1,12 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::project_role::ProjectRole;
+use crate::{db::WorkspaceId, domain_user::UserId, workspace_role::WorkspaceRole};
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct DbMembership {
-    pub project_id: i32,
-    pub user_id: i32,
-    pub role: ProjectRole,
+    pub workspace_id: WorkspaceId,
+    pub user_id: UserId,
+    pub role: WorkspaceRole,
     pub joined_at: DateTime<Utc>,
 }

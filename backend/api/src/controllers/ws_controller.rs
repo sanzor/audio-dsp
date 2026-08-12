@@ -17,7 +17,7 @@ use tokio::sync::Mutex;
 use utoipa::IntoParams;
 
 use crate::{
-    middlewares::{jwt::jwt_context::JwtContext, membership::membership_context::ProjectContext},
+    middlewares::{jwt::jwt_context::JwtContext, membership::membership_context::WorkspaceContext},
     player::{player_app_data::PlayerAppData, player_provider::{AttachSinkParams, PlayerProvider}},
 };
 
@@ -50,7 +50,7 @@ pub enum WsMessage {
 #[get("/run")]
 pub async fn run_player(
     jwt: JwtContext,
-    project: ProjectContext,
+    workspace: WorkspaceContext,
     req: HttpRequest,
     stream: web::Payload,
     query: web::Query<PlayRequest>,
@@ -70,7 +70,7 @@ pub async fn run_player(
         .attach_sink(AttachSinkParams {
             user_id,
             track_id: track_id.clone(),
-            project_id: project.0,
+            workspace_id: workspace.0,
             sink: Box::new(sink),
         })
         .await

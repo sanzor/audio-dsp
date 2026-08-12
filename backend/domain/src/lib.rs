@@ -1,5 +1,5 @@
 pub mod actors;
-pub mod project_role;
+pub mod workspace_role;
 pub mod create_domain_user_params;
 pub mod db;
 pub mod domain_user;

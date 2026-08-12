@@ -1,14 +1,14 @@
 use actix_web::{Error, FromRequest, HttpMessage, HttpRequest, dev::Payload};
 use std::{future::{ready, Ready}, ops::Deref};
 
-use domain::project_role::ProjectRole;
+use domain::workspace_role::WorkspaceRole;
 
 #[derive(Debug, Clone)]
-pub struct RoleContext(pub ProjectRole);
+pub struct RoleContext(pub WorkspaceRole);
 
 impl Deref for RoleContext {
-    type Target = ProjectRole;
-    fn deref(&self) -> &ProjectRole {
+    type Target = WorkspaceRole;
+    fn deref(&self) -> &WorkspaceRole {
         &self.0
     }
 }
@@ -25,18 +25,18 @@ impl FromRequest for RoleContext {
     }
 }
 
-/// The validated project_id for this request, inserted by the membership middleware.
+/// The validated workspace_id for this request, inserted by the membership middleware.
 #[derive(Debug, Clone, Copy)]
-pub struct ProjectContext(pub i32);
+pub struct WorkspaceContext(pub i32);
 
-impl FromRequest for ProjectContext {
+impl FromRequest for WorkspaceContext {
     type Error = Error;
     type Future = Ready<Result<Self, Self::Error>>;
 
     fn from_request(req: &HttpRequest, _: &mut Payload) -> Self::Future {
-        match req.extensions().get::<ProjectContext>() {
+        match req.extensions().get::<WorkspaceContext>() {
             Some(ctx) => ready(Ok(*ctx)),
-            None => ready(Err(actix_web::error::ErrorBadRequest("No project context"))),
+            None => ready(Err(actix_web::error::ErrorBadRequest("No workspace context"))),
         }
     }
 }

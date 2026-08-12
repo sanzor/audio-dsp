@@ -1,6 +1,8 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+use crate::domain_user::UserId;
+
 pub type TransformId = i64;
 pub type TransformPortId = i64;
 
@@ -12,59 +14,10 @@ pub struct DbTransform {
     pub icon: Option<String>,
     /// "primitive" | "composite".
     pub kind: String,
-    /// Live in transform_binary (primitive) or transform_composite (composite).
-    pub published: bool,
+    pub source_code:String,
+    pub wasm_bytecode:Vec<u8>,
+    pub metadata:Vec<u32>,
+    pub owner_user_id: UserId,
     pub created_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DbTransformDefinition {
-    pub transform_id: TransformId,
-    pub name: String,
-    pub description: Option<String>,
-    pub icon: Option<String>,
-    /// "primitive" | "composite".
-    pub kind: String,
-    pub source_code: Option<String>,
-    /// Present only for kind = "composite".
-    pub graph_definition: Option<crate::db::transform_snapshot::CompositeTransformDefinition>,
-    pub ports: Vec<DbTransformPort>,
-    pub params: Vec<DbTransformParam>,
-    /// Mirrors `DbTransformDraft::is_validated` — the composite-only "has the
-    /// currently-persisted graph_definition passed
-    /// `validate_composite_graph`" flag, surfaced here so any consumer of a
-    /// transform's definition (e.g. the composite canvas) can read it without
-    /// a separate draft fetch. Always `false` for primitives. See
-    /// `agents/decisions/0007-composite-draft-validation-gate.md`.
-    pub is_validated: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
-pub struct DbTransformBinary {
-    pub transform_id: TransformId,
-    pub wasm_bytecode: Vec<u8>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
-pub struct DbTransformPort {
-    pub port_id: TransformPortId,
-    pub transform_id: TransformId,
-    pub name: String,
-    pub direction: String, // "input" | "output"
-    pub port_order: i32,
-    pub description: Option<String>,
-    pub kind: String,        // "program" | "sidechain"
-    pub cardinality: String, // "single" | "many"
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
-pub struct DbTransformParam {
-    pub param_id: i64,
-    pub transform_id: TransformId,
-    pub name: String,
-    pub param_order: i32,
-    pub default_value: f32,
-    pub min_value: Option<f32>,
-    pub max_value: Option<f32>,
-    pub description: Option<String>,
-}

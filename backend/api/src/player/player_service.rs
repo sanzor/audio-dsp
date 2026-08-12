@@ -95,7 +95,7 @@ impl PlayerProvider for PlayerService {
 
         let track = self
             .tracks_provider
-            .get_track(&params.track_id, params.project_id)
+            .get_track(&params.track_id, params.workspace_id)
             .await?;
         let decoded = decode_canonical_audio(&track.payload.canonical_audio)?;
 

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use domain::db::ticket::{create_ticket_params::CreateTicketParams, db_resource::ResourceId, db_ticket::{DbTicket, TicketId}};
+use domain::db::{db_transform::TransformId, ticket::{create_ticket_params::CreateTicketParams, db_resource::ResourceId, db_ticket::{DbTicket, TicketId}}};
 
 use crate::{
     domain::service_error::ServiceError,
@@ -29,7 +29,7 @@ impl TicketsProvider for TicketsProviderService {
         let source_code = params.payload;
         let transform_id = params.transform_id;
 
-        let ticket = self.data.create_ticket(CreateTicketParams {
+        let ticket = self.data.create_transform_ticket(CreateTicketParams {
             transform_id,
             user_id: params.user_id,
             source_code: source_code.clone(),
@@ -53,12 +53,27 @@ impl TicketsProvider for TicketsProviderService {
     }
 
     async fn get_ticket_result(&self, id: ResourceId) -> Result<CompileResult, ServiceError> {
-        let resource = self.data.get_resource(id).await.map_err(ServiceError::from)?;
+        let ticket = match self.data.get_ticket(ticket_id).await{
+            Ok(id) => id,
+            Err(e) => return map_service_error(e),
+        };
+        if let Err(resp) = require_access(&transforms_app, &grants_app, transform_id, &jwt).await {
+            return resp;
+        }
+        let resource = self.data.get_compiled_transform(id).await.map_err(ServiceError::from)?;
         Ok(CompileResult {
             resource_id: resource.id,
             ticket_id: resource.ticket_id,
             wasm_bytecode: resource.wasm_bytecode,
             params: resource.params,
         })
+    }
+
+    async fn get_ticket_result(&self, ticket_id: TicketId) -> Result<TransformId, ServiceError> {
+        self.data.get_ticket(ticket_id).await.map_err(ServiceError::from)
+    }
+
+    async fn get_compiled_transform_id(&self, resource_id: ResourceId) -> Result<TransformId, ServiceError> {
+        self.data.get_resource_transform_id(resource_id).await.map_err(ServiceError::from)
     }
 }

@@ -63,6 +63,10 @@ impl TransformsProvider for TransformsProviderService {
         self.data.list_transform_summaries(offset, limit).await.map_err(ServiceError::from)
     }
 
+    async fn list_transforms_for_workspace_and_user(&self, user_id: i32, workspace_id: i32) -> Result<Vec<DbTransform>, ServiceError> {
+        self.data.get_transforms_for_workspace_and_user(user_id, workspace_id).await.map_err(ServiceError::from)
+    }
+
     async fn get_transform_definition(&self, id: TransformId) -> Result<DbTransformDefinition, ServiceError> {
         self.data.get_transform_definition(id).await.map_err(ServiceError::from)
     }
@@ -92,14 +96,19 @@ impl TransformsProvider for TransformsProviderService {
         }
     }
 
+    async fn get_transform_owner(&self, id: TransformId) -> Result<i32, ServiceError> {
+        self.data.get_transform_owner(id).await.map_err(ServiceError::from)
+    }
+
     async fn create_transform(
         &self,
         name: String,
         description: Option<String>,
         icon: Option<String>,
         kind: String,
+        owner_user_id: i32,
     ) -> Result<DbTransformDefinition, ServiceError> {
-        let db = self.data.insert_transform(name, description, icon, kind).await?;
+        let db = self.data.insert_transform(name, description, icon, kind, owner_user_id).await?;
         self.data.get_transform_definition(db.transform_id).await.map_err(ServiceError::from)
     }
 
@@ -109,7 +118,7 @@ impl TransformsProvider for TransformsProviderService {
     }
 
     async fn save_composite_draft(&self, id: TransformId, graph: CompositeTransformDefinition) -> Result<DbTransformDefinition, ServiceError> {
-        self.data.save_composite_draft(id, graph).await?;
+        self.data.save_transform_draft(id, graph).await?;
         self.data.get_transform_definition(id).await.map_err(ServiceError::from)
     }
 
@@ -126,7 +135,7 @@ impl TransformsProvider for TransformsProviderService {
         let ports = composite_validator::validate_composite_graph(&graph, &leaf_defs)
             .map_err(ServiceError::Validation)?;
 
-        self.data.validate_composite_draft(id, ports).await?;
+        self.data.validate_transform(id, ports).await?;
         self.data.get_transform_definition(id).await.map_err(ServiceError::from)
     }
 
@@ -164,7 +173,7 @@ impl TransformsProvider for TransformsProviderService {
                 .map_err(ServiceError::Validation)?;
 
             self.data
-                .publish_composite_transform(id, draft.name.unwrap_or_default(), draft.description, ports, graph)
+                .publish_transform(id, draft.name.unwrap_or_default(), draft.description, ports, graph)
                 .await?;
 
             return self.data.get_transform_definition(id).await.map_err(ServiceError::from);

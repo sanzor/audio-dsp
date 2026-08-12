@@ -29,9 +29,9 @@ impl UsageDataProvider for UsageDataProviderService {
         sqlx::query_as::<_, DbUsage>(
             "INSERT INTO usage (user_id, project_count, total_track_count, total_storage_bytes, updated_at)
              SELECT $1,
-               (SELECT COUNT(*) FROM memberships WHERE user_id = $1),
-               (SELECT COUNT(*) FROM tracks t JOIN projects p ON t.project_id = p.id JOIN memberships m ON m.project_id = p.id WHERE m.user_id = $1),
-               (SELECT COALESCE(SUM(t.size_bytes), 0) FROM tracks t JOIN projects p ON t.project_id = p.id JOIN memberships m ON m.project_id = p.id WHERE m.user_id = $1),
+               (SELECT COUNT(*) FROM workspace_members WHERE user_id = $1),
+               (SELECT COUNT(*) FROM tracks t JOIN workspaces w ON t.workspace_id = w.workspace_id JOIN workspace_members m ON m.workspace_id = w.workspace_id WHERE m.user_id = $1),
+               (SELECT COALESCE(SUM(octet_length(ts.data)), 0) FROM tracks t JOIN workspaces w ON t.workspace_id = w.workspace_id JOIN workspace_members m ON m.workspace_id = w.workspace_id LEFT JOIN track_storage ts ON ts.track_id = t.track_id WHERE m.user_id = $1),
                NOW()
              ON CONFLICT (user_id) DO UPDATE
                SET project_count = EXCLUDED.project_count,

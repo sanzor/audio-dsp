@@ -1,5 +1,5 @@
 pub mod auth_controller;
-pub mod project_controller;
+pub mod workspace_controller;
 pub mod me_controller;
 pub mod openapi_controller;
 pub mod player_controller;
@@ -15,8 +15,9 @@ pub mod subscriptions_controller;
 pub mod purchased_products_controller;
 pub mod usage_controller;
 pub mod transforms_controller;
+pub mod transform_grants_controller;
 pub mod ticket_controller;
 pub mod track_payload_controller;
-pub mod workspace_controller;
+pub mod workspace_tracks_controller;
 pub mod graph_controller;
 pub mod sources_controller;

@@ -4,7 +4,7 @@ use player::sink::AudioSink;
 pub struct AttachSinkParams {
     pub user_id: i32,
     pub track_id: TrackId,
-    pub project_id: i32,
+    pub workspace_id: i32,
     pub sink: Box<dyn AudioSink + Send + Sync>,
 }
 

@@ -1,5 +1,5 @@
 use crate::{
-    middlewares::membership::membership_context::{ProjectContext, RoleContext},
+    middlewares::membership::membership_context::{WorkspaceContext, RoleContext},
     stored_tracks::stored_tracks_app_data::StoredTracksAppData,
 };
 use actix_web::{get, web, HttpResponse};
@@ -24,7 +24,7 @@ pub struct GetStoredTrackParams {
 #[get("/get")]
 pub async fn get_stored_track(
     role: RoleContext,
-    project: ProjectContext,
+    workspace: WorkspaceContext,
     query: web::Query<GetStoredTrackParams>,
     app_state: web::Data<StoredTracksAppData>,
 ) -> HttpResponse {
@@ -32,7 +32,7 @@ pub async fn get_stored_track(
         return HttpResponse::Forbidden().body("Forbidden");
     }
     let request = query.into_inner();
-    let track = match app_state.tracks_service.get_track(&request.track_id, project.0).await {
+    let track = match app_state.tracks_service.get_track(&request.track_id, workspace.0).await {
         Ok(t) => t,
         Err(_) => return HttpResponse::NotFound().body("Could not find track"),
     };

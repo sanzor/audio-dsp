@@ -1,12 +1,14 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-pub type ProjectId = i32;
+use crate::domain_user::UserId;
+
+pub type WorkspaceId = i32;
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
-pub struct DbProject {
-    pub project_id: ProjectId,
+pub struct DbWorkspace {
+    pub workspace_id: WorkspaceId,
     pub name: String,
-    pub created_by: i32,
+    pub created_by: UserId,
     pub created_at: DateTime<Utc>,
 }

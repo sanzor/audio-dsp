@@ -1,9 +1,10 @@
 use crate::{
     domain::service_error::ServiceError,
     middlewares::jwt::jwt_context::JwtContext,
-    middlewares::membership::membership_context::RoleContext,
     tickets::{compile_params::RequestCompileParams, compile_result::CompileResult},
     tickets::tickets_app_data::TicketsAppData,
+    transform_grants::transform_grants_app_data::TransformGrantsAppData,
+    transforms::{authz::{require_access, require_owner}, transforms_app_data::TransformsAppData},
 };
 use actix_web::{get, post, web, HttpResponse};
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine};
@@ -171,15 +172,16 @@ fn map_service_error(err: ServiceError) -> HttpResponse {
 #[post("/tickets")]
 pub async fn create_compile_ticket(
     auth: JwtContext,
-    role: RoleContext,
     body: web::Json<CreateCompileTicketRequest>,
     app: web::Data<TicketsAppData>,
+    transforms_app: web::Data<TransformsAppData>,
 ) -> HttpResponse {
-    if !role.can_edit() {
-        return HttpResponse::Forbidden().body("Forbidden");
+    let request = body.into_inner();
+
+    if let Err(resp) = require_owner(&transforms_app, request.transform_id, &auth).await {
+        return resp;
     }
 
-    let request = body.into_inner();
     if request.source_code.trim().is_empty() {
         return HttpResponse::BadRequest().body("sourceCode is required");
     }
@@ -203,24 +205,22 @@ pub async fn create_compile_ticket(
     responses((status = 200, description = "Compile ticket status", body = CompileTicketDto)))]
 #[get("/tickets/{ticket_id}")]
 pub async fn get_compile_ticket_status(
-    role: RoleContext,
+    jwt: JwtContext,
     path: web::Path<TicketIdPath>,
     app: web::Data<TicketsAppData>,
+    transforms_app: web::Data<TransformsAppData>,
+    grants_app: web::Data<TransformGrantsAppData>,
 ) -> HttpResponse {
-    if !role.can_view() {
-        return HttpResponse::Forbidden().body("Forbidden");
-    }
+    let ticket_id = path.into_inner().ticket_id;
+
+    
 
     match app
         .tickets_service
-        .get_compile_ticket_status(path.into_inner().ticket_id)
+        .get_compile_ticket_status(ticket_id)
         .await
     {
         Ok(ticket) => {
-            // TicketStatus::Successful only carries a resource_id, not the
-            // bytecode itself — fetch the resource so the "Try it" preview
-            // flow can decode-and-run this exact build client-side. See
-            // agents/decisions/0003-transform-preview-flow.md.
             let successful_resource_id = match &ticket.status {
                 TicketStatus::Successful { resource_id } => Some(*resource_id),
                 _ => None,
@@ -254,17 +254,25 @@ pub async fn get_compile_ticket_status(
     responses((status = 200, description = "Compile resource", body = CompileResourceDto)))]
 #[get("/resources/{resource_id}")]
 pub async fn get_compile_resource(
-    role: RoleContext,
+    jwt: JwtContext,
     path: web::Path<ResourceIdPath>,
     app: web::Data<TicketsAppData>,
+    transforms_app: web::Data<TransformsAppData>,
+    grants_app: web::Data<TransformGrantsAppData>,
 ) -> HttpResponse {
-    if !role.can_view() {
-        return HttpResponse::Forbidden().body("Forbidden");
+    let resource_id = path.into_inner().resource_id;
+
+    let transform_id = match app.tickets_service.get_compiled_transform_id(resource_id).await {
+        Ok(id) => id,
+        Err(e) => return map_service_error(e),
+    };
+    if let Err(resp) = require_access(&transforms_app, &grants_app, transform_id, &jwt).await {
+        return resp;
     }
 
     match app
         .tickets_service
-        .get_ticket_result(path.into_inner().resource_id)
+        .get_ticket_result(resource_id)
         .await
     {
         Ok(resource) => HttpResponse::Ok().json(CompileResourceDto::from(resource)),
