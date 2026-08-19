@@ -19,7 +19,7 @@ pub async fn require_owner(
     }
 
     match app.transforms_service.get_transform_owner(transform_id).await {
-        Ok(owner_id) if owner_id == jwt.user_id => Ok(()),
+        Ok(owner_id) if owner_id == domain::domain_user::UserId::from(jwt.user_id) => Ok(()),
         Ok(_) => Err(HttpResponse::Forbidden().body("not the transform owner")),
         Err(crate::domain::service_error::ServiceError::NotFound) => {
             Err(HttpResponse::NotFound().body("not found"))
@@ -42,7 +42,7 @@ pub async fn require_access(
     }
 
     match app.transforms_service.get_transform_owner(transform_id).await {
-        Ok(owner_id) if owner_id == jwt.user_id => return Ok(()),
+        Ok(owner_id) if owner_id == domain::domain_user::UserId::from(jwt.user_id) => return Ok(()),
         Ok(_) => {}
         Err(crate::domain::service_error::ServiceError::NotFound) => {
             return Err(HttpResponse::NotFound().body("not found"));

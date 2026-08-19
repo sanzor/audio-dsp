@@ -2,9 +2,7 @@ use std::sync::Arc;
 
 use domain::db::ticket::{ticket_status::TicketStatus, update_ticket_params::UpdateTicketParams};
 
-use crate::{ticket_worker::processor::build_job_config::BuildJobConfig, transforms::data_provider::transforms_data_provider::{
-    NewTransformParam, NewTransformPort, TransformsDataProvider,
-}};
+use crate::{ticket_worker::processor::build_job_config::BuildJobConfig, transforms::data_provider::transforms_data_provider::TransformsDataProvider};
 
 use super::{
     build_job::{self},
@@ -34,11 +32,9 @@ impl Processor {
         let event = &params.event;
 
         // 1 — verify ticket exists
-        if let Err(e)=self.data_provider
-            .get_ticket(event.ticket_id)
-            .await{
-                return Err(ProcessorError::DataError(format!("Could not find ticket with id {:?}",event.ticket_id)));
-            }
+        if self.data_provider.get_ticket(event.ticket_id).await.is_err() {
+            return Err(ProcessorError::DataError(format!("Could not find ticket with id {:?}", event.ticket_id)));
+        }
 
         // 2 — compile the submitted Rust source to wasm32-unknown-unknown
         let wasm_bytecode = match build_job::compile_transform_source(
@@ -67,10 +63,17 @@ impl Processor {
             }
         };
 
+        let metadata_payload = match serde_json::to_string(&metadata) {
+            Ok(payload) => payload,
+            Err(e) => {
+                let message = format!("failed to serialize compiled metadata: {e}");
+                self.mark_failed(event.ticket_id, message.clone()).await;
+                return Err(ProcessorError::MetadataError(message));
+            }
+        };
         let name = metadata.name;
         let description = metadata.description;
-        let metadata_payload=serde_json::to_string(metadata)?;
-       
+
 
         // 4 — store the artifact as a resource (bucket 1: compile check).
         // This never touches live state — a compile ticket is purely a check;

@@ -1,13 +1,5 @@
-use std::collections::HashSet;
-
 use serde::{Deserialize, Serialize};
-use wasmtime::{Config, Engine, Linker, Module, Store};
 
-pub struct TransformMetadata{
-    pub ports: Vec<PortMetadataJson>,
-    pub params: Vec<ParamMetadataJson>,
-    pub graph: Option
-}
 /// Backend-side mirror of `transform_sdk::TransformMetadata`. Kept separate
 /// from the SDK crate's serialize-side types since they compile for
 /// different targets (native here, wasm32 there).
@@ -19,7 +11,7 @@ pub struct TransformMetadataJson {
     pub params: Vec<ParamMetadataJson>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct PortMetadataJson {
     pub name: String,
     pub direction: DirectionJson,
@@ -29,7 +21,7 @@ pub struct PortMetadataJson {
     pub cardinality: PortCardinalityJson,
 }
 
-#[derive(Debug, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum DirectionJson {
     Input,
@@ -48,7 +40,7 @@ impl DirectionJson {
 /// Mirrors `transform_sdk::PortKind`. See that type's doc comment for the
 /// unwired-port semantics (`Program` fails closed, `Sidechain` resolves to
 /// silence) — this side only needs to deserialize and validate the shape.
-#[derive(Debug, Deserialize, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Clone, Copy)]
 #[serde(rename_all = "lowercase")]
 pub enum PortKindJson {
     Program,
@@ -65,7 +57,7 @@ impl PortKindJson {
 }
 
 /// Mirrors `transform_sdk::PortCardinality`.
-#[derive(Debug, Deserialize, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Clone, Copy)]
 #[serde(rename_all = "lowercase")]
 pub enum PortCardinalityJson {
     Single,
@@ -81,7 +73,7 @@ impl PortCardinalityJson {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ParamMetadataJson {
     pub name: String,
     pub order: i32,

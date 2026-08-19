@@ -72,7 +72,6 @@ use api::{
         data_provider::tracks_data_provider_service::PostgresTracksDataProvider, multipart_audio_parser::multipart_audio_parser_service::MultipartAudioParserService, storage_provider::track_storage_provider_service::TrackStorageProviderService, tracks_app_data::TracksAppData, tracks_provider_service::TracksProviderService,
     }, transforms::{
         data_provider::transforms_data_provider_service::PostgresTransformsDataProvider,
-        storage_provider::transform_storage_provider_service::DbTransformStorageProvider,
         transforms_app_data::TransformsAppData,
         transforms_provider_service::TransformsProviderService,
     }, usage::{
@@ -359,7 +358,6 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
     let transforms_app_data = TransformsAppData {
         transforms_service: Arc::new(TransformsProviderService::new(
             Arc::clone(&transforms_data_provider),
-            Arc::new(DbTransformStorageProvider::new(pool.clone())),
         )),
     };
     let tickets_app_data = TicketsAppData {

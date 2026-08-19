@@ -15,7 +15,5 @@ pub struct DbResource {
     pub ticket_id: TicketId,
     pub wasm_bytecode: Vec<u8>,
     pub name: String,
-    pub description: Option<String>,
-    pub ports: Vec<PortSnapshot>,
-    pub params: Vec<ParamSnapshot>,
+    pub description: Option<String>
 }

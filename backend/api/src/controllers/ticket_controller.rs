@@ -14,8 +14,7 @@ use domain::{db::{
         db_resource::ResourceId,
         db_ticket::{DbTicket, TicketId},
         ticket_status::TicketStatus,
-    },
-    transform_snapshot::ParamSnapshot,
+    }
 }, domain_user::UserId};
 use serde::{Deserialize, Serialize};
 use tracing::error;
@@ -30,45 +29,11 @@ pub struct CreateCompileTicketRequest {
 }
 
 #[derive(Debug, Serialize, ToSchema)]
-pub struct CompileParamDto {
-    pub name: String,
-    pub param_order: i32,
-    pub default_value: f32,
-    pub min_value: Option<f32>,
-    pub max_value: Option<f32>,
-    pub description: Option<String>,
-}
-
-impl From<ParamSnapshot> for CompileParamDto {
-    fn from(value: ParamSnapshot) -> Self {
-        Self {
-            name: value.name,
-            param_order: value.param_order,
-            default_value: value.default_value,
-            min_value: value.min_value,
-            max_value: value.max_value,
-            description: value.description,
-        }
-    }
-}
-
-#[derive(Debug, Serialize, ToSchema)]
 pub struct CompileTicketStatusDto {
     pub state: String,
     pub resource_id: Option<ResourceId>,
     pub message: Option<String>,
-    /// Present only once state == "successful" — the compiled binary,
-    /// base64-encoded (same encoding `TransformBinaryDto` uses for published
-    /// binaries), so the creator surface can run a "Try it" preview of this
-    /// exact build before deciding to save. Never sent back to the backend —
-    /// see agents/decisions/0003-transform-preview-flow.md.
     pub wasm_base64: Option<String>,
-    /// Present alongside wasm_base64 — the introspected params (with
-    /// default_value), so "Try it" can seed the preview graph with this
-    /// build's real declared defaults instead of zeros. Ports aren't needed
-    /// here: preview always wires exactly one raw input to one sink output,
-    /// so port identity/order doesn't affect execution the way param values do.
-    pub params: Option<Vec<CompileParamDto>>,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -86,7 +51,6 @@ pub struct CompileResourceDto {
     /// The compiled binary, base64-encoded — see the note on
     /// `CompileTicketStatusDto::wasm_base64`.
     pub wasm_base64: String,
-    pub params: Vec<CompileParamDto>,
 }
 
 #[derive(Deserialize, IntoParams)]
@@ -107,24 +71,20 @@ impl From<TicketStatus> for CompileTicketStatusDto {
                 resource_id: None,
                 message: None,
                 wasm_base64: None,
-                params: None,
             },
             TicketStatus::Failed { message } => Self {
                 state: "failed".to_string(),
                 resource_id: None,
                 message: Some(message),
                 wasm_base64: None,
-                params: None,
             },
             TicketStatus::Successful { resource_id } => Self {
                 state: "successful".to_string(),
                 resource_id: Some(resource_id),
                 message: None,
                 // Filled in by the handler (needs a second fetch to get the
-                // resource's bytecode/params) — TicketStatus alone doesn't
-                // carry them.
+                // resource's bytecode) — TicketStatus alone doesn't carry it.
                 wasm_base64: None,
-                params: None,
             },
         }
     }
@@ -147,7 +107,6 @@ impl From<CompileResult> for CompileResourceDto {
             resource_id: value.resource_id,
             ticket_id: value.ticket_id,
             wasm_base64: BASE64_STANDARD.encode(&value.wasm_bytecode),
-            params: value.params.into_iter().map(CompileParamDto::from).collect(),
         }
     }
 }
@@ -213,7 +172,13 @@ pub async fn get_compile_ticket_status(
 ) -> HttpResponse {
     let ticket_id = path.into_inner().ticket_id;
 
-    
+    let transform_id = match app.tickets_service.get_ticket_transform_id(ticket_id).await {
+        Ok(id) => id,
+        Err(e) => return map_service_error(e),
+    };
+    if let Err(resp) = require_access(&transforms_app, &grants_app, transform_id, &jwt).await {
+        return resp;
+    }
 
     match app
         .tickets_service
@@ -232,7 +197,6 @@ pub async fn get_compile_ticket_status(
                 match app.tickets_service.get_ticket_result(resource_id).await {
                     Ok(result) => {
                         dto.status.wasm_base64 = Some(BASE64_STANDARD.encode(&result.wasm_bytecode));
-                        dto.status.params = Some(result.params.into_iter().map(CompileParamDto::from).collect());
                     }
                     Err(e) => {
                         // Don't fail the whole status response over this —

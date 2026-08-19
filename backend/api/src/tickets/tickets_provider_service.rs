@@ -52,25 +52,17 @@ impl TicketsProvider for TicketsProviderService {
             .map_err(ServiceError::from)
     }
 
-    async fn get_ticket_result(&self, id: ResourceId) -> Result<CompileResult, ServiceError> {
-        let ticket = match self.data.get_ticket(ticket_id).await{
-            Ok(id) => id,
-            Err(e) => return map_service_error(e),
-        };
-        if let Err(resp) = require_access(&transforms_app, &grants_app, transform_id, &jwt).await {
-            return resp;
-        }
-        let resource = self.data.get_compiled_transform(id).await.map_err(ServiceError::from)?;
+    async fn get_ticket_result(&self, resource_id: ResourceId) -> Result<CompileResult, ServiceError> {
+        let resource = self.data.get_compiled_transform(resource_id).await.map_err(ServiceError::from)?;
         Ok(CompileResult {
             resource_id: resource.id,
             ticket_id: resource.ticket_id,
             wasm_bytecode: resource.wasm_bytecode,
-            params: resource.params,
         })
     }
 
-    async fn get_ticket_result(&self, ticket_id: TicketId) -> Result<TransformId, ServiceError> {
-        self.data.get_ticket(ticket_id).await.map_err(ServiceError::from)
+    async fn get_ticket_transform_id(&self, ticket_id: TicketId) -> Result<TransformId, ServiceError> {
+        self.data.get_ticket_transform_id(ticket_id).await.map_err(ServiceError::from)
     }
 
     async fn get_compiled_transform_id(&self, resource_id: ResourceId) -> Result<TransformId, ServiceError> {

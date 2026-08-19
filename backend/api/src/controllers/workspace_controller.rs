@@ -15,7 +15,7 @@ use crate::{
 
 #[derive(Serialize, ToSchema)]
 pub struct MemberOutput {
-    pub user_id: i32,
+    pub user_id: i64,
     pub role: WorkspaceRole,
 }
 
@@ -211,7 +211,6 @@ pub struct WorkspaceTransformSummaryDto {
     pub icon: Option<String>,
     /// "primitive" | "composite".
     pub kind: String,
-    pub published: bool,
 }
 
 impl From<domain::db::DbTransform> for WorkspaceTransformSummaryDto {
@@ -222,7 +221,6 @@ impl From<domain::db::DbTransform> for WorkspaceTransformSummaryDto {
             description: value.description,
             icon: value.icon,
             kind: value.kind,
-            published: value.published,
         }
     }
 }
@@ -249,7 +247,7 @@ pub async fn list_workspace_transforms(
 
     match transforms_app
         .transforms_service
-        .list_transforms_for_workspace_and_user(jwt.user_id, workspace_id)
+        .get_transforms_for_workspace_and_user(domain::domain_user::UserId::from(jwt.user_id), workspace_id)
         .await
     {
         Ok(transforms) => HttpResponse::Ok().json(WorkspaceTransformsResponse {

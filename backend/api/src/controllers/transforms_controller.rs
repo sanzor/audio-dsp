@@ -6,7 +6,14 @@ use crate::{
 };
 use actix_web::{delete, get, post, put, web, HttpResponse};
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine};
-use domain::db::{db_transform::{DbTransform, DbTransformDefinition, DbTransformParam, DbTransformPort, TransformId}, ticket::db_resource::ResourceId};
+use domain::{
+    db::{
+        db_transform::{DbTransform, TransformId},
+        db_transform_draft::{DbTransformDraft, TransformDraftId},
+        ticket::db_resource::ResourceId,
+    },
+    domain_user::UserId,
+};
 use serde::{Deserialize, Serialize};
 use tracing::error;
 use utoipa::{IntoParams, ToSchema};
@@ -31,147 +38,6 @@ pub struct SaveTransformParams {
     pub resource_id: Option<ResourceId>,
 }
 
-/// Mirrors `domain::db::transform_snapshot::CompositeNodePosition` exactly.
-/// A local DTO (rather than reusing the domain type directly) purely so it
-/// can derive `ToSchema` for the OpenAPI doc — `#[serde(default)]` on both
-/// fields for the same backward-compat reason as the domain type: an old
-/// client/response predating this field has no `position` key at all.
-#[derive(Debug, Deserialize, Serialize, ToSchema, Clone, Copy, Default)]
-pub struct CompositeNodePositionDto {
-    #[serde(default)]
-    pub x: f32,
-    #[serde(default)]
-    pub y: f32,
-}
-
-impl From<CompositeNodePositionDto> for domain::db::transform_snapshot::CompositeNodePosition {
-    fn from(value: CompositeNodePositionDto) -> Self {
-        Self { x: value.x, y: value.y }
-    }
-}
-
-impl From<domain::db::transform_snapshot::CompositeNodePosition> for CompositeNodePositionDto {
-    fn from(value: domain::db::transform_snapshot::CompositeNodePosition) -> Self {
-        Self { x: value.x, y: value.y }
-    }
-}
-
-/// Mirrors `domain::db::transform_snapshot::CompositeNode` exactly (same
-/// `node_kind` tag field, same variant tag values, same per-variant field
-/// names) — see that type's doc comment for why. An Input/Output node has
-/// no `transform_id` (nothing left over from `CompositeExposedPort`, which
-/// this replaces); a Leaf node has no `name`.
-#[derive(Debug, Deserialize, Serialize, ToSchema, Clone)]
-#[serde(tag = "node_kind", rename_all = "lowercase")]
-pub enum CompositeNodeDto {
-    Leaf {
-        node_id: i64,
-        transform_id: TransformId,
-        #[serde(default)]
-        position: CompositeNodePositionDto,
-    },
-    Input {
-        node_id: i64,
-        name: String,
-        #[serde(default)]
-        position: CompositeNodePositionDto,
-    },
-    Output {
-        node_id: i64,
-        name: String,
-        #[serde(default)]
-        position: CompositeNodePositionDto,
-    },
-}
-
-#[derive(Debug, Deserialize, Serialize, ToSchema, Clone)]
-pub struct CompositeEdgeDto {
-    pub from_node_id: i64,
-    pub from_port: String,
-    pub to_node_id: i64,
-    pub to_port: String,
-}
-
-#[derive(Debug, Deserialize, Serialize, ToSchema, Clone)]
-pub struct CompositeGraphDefinitionDto {
-    pub nodes: Vec<CompositeNodeDto>,
-    pub edges: Vec<CompositeEdgeDto>,
-}
-
-#[derive(Deserialize, Serialize, ToSchema)]
-pub struct SaveCompositeGraphParams {
-    pub graph_definition: CompositeGraphDefinitionDto,
-}
-
-impl From<CompositeNodeDto> for domain::db::transform_snapshot::CompositeNode {
-    fn from(value: CompositeNodeDto) -> Self {
-        match value {
-            CompositeNodeDto::Leaf { node_id, transform_id, position } => {
-                Self::Leaf { node_id, transform_id, position: position.into() }
-            }
-            CompositeNodeDto::Input { node_id, name, position } => {
-                Self::Input { node_id, name, position: position.into() }
-            }
-            CompositeNodeDto::Output { node_id, name, position } => {
-                Self::Output { node_id, name, position: position.into() }
-            }
-        }
-    }
-}
-
-impl From<domain::db::transform_snapshot::CompositeNode> for CompositeNodeDto {
-    fn from(value: domain::db::transform_snapshot::CompositeNode) -> Self {
-        use domain::db::transform_snapshot::CompositeNode as DomainNode;
-        match value {
-            DomainNode::Leaf { node_id, transform_id, position } => {
-                Self::Leaf { node_id, transform_id, position: position.into() }
-            }
-            DomainNode::Input { node_id, name, position } => {
-                Self::Input { node_id, name, position: position.into() }
-            }
-            DomainNode::Output { node_id, name, position } => {
-                Self::Output { node_id, name, position: position.into() }
-            }
-        }
-    }
-}
-
-impl From<CompositeGraphDefinitionDto> for domain::db::transform_snapshot::CompositeTransformDefinition {
-    fn from(value: CompositeGraphDefinitionDto) -> Self {
-        Self {
-            nodes: value.nodes.into_iter().map(domain::db::transform_snapshot::CompositeNode::from).collect(),
-            edges: value
-                .edges
-                .into_iter()
-                .map(|e| domain::db::transform_snapshot::CompositeEdge {
-                    from_node_id: e.from_node_id,
-                    from_port: e.from_port,
-                    to_node_id: e.to_node_id,
-                    to_port: e.to_port,
-                })
-                .collect(),
-        }
-    }
-}
-
-impl From<domain::db::transform_snapshot::CompositeTransformDefinition> for CompositeGraphDefinitionDto {
-    fn from(value: domain::db::transform_snapshot::CompositeTransformDefinition) -> Self {
-        Self {
-            nodes: value.nodes.into_iter().map(CompositeNodeDto::from).collect(),
-            edges: value
-                .edges
-                .into_iter()
-                .map(|e| CompositeEdgeDto {
-                    from_node_id: e.from_node_id,
-                    from_port: e.from_port,
-                    to_node_id: e.to_node_id,
-                    to_port: e.to_port,
-                })
-                .collect(),
-        }
-    }
-}
-
 #[derive(Deserialize, IntoParams)]
 pub struct PaginationQuery {
     pub offset: Option<i64>,
@@ -192,53 +58,37 @@ pub struct TransformSummaryDto {
     pub icon: Option<String>,
     /// "primitive" | "composite".
     pub kind: String,
-    /// Live in transform_binary (primitive) or transform_composite (composite).
-    pub published: bool,
 }
 
+/// A published (bucket 3) transform's definition. `wasm_bytecode`/`metadata`
+/// aren't included here — fetch those via the dedicated binary endpoints
+/// below, which base64-encode `wasm_bytecode` for transport.
 #[derive(Debug, Serialize, ToSchema)]
-pub struct TransformPortDto {
-    pub port_id: i64,
-    pub name: String,
-    pub direction: String,
-    pub port_order: i32,
-    pub description: Option<String>,
-    /// "program" | "sidechain".
-    pub kind: String,
-    /// "single" | "many".
-    pub cardinality: String,
-}
-
-#[derive(Debug, Serialize, ToSchema)]
-pub struct TransformParamDto {
-    pub param_id: i64,
-    pub name: String,
-    pub param_order: i32,
-    pub default_value: f32,
-    pub min_value: Option<f32>,
-    pub max_value: Option<f32>,
-    pub description: Option<String>,
-}
-
-#[derive(Debug, Serialize, ToSchema)]
-pub struct TransformDefinitionDto {
+pub struct TransformDto {
     pub transform_id: TransformId,
     pub name: String,
     pub description: Option<String>,
     pub icon: Option<String>,
     /// "primitive" | "composite".
     pub kind: String,
-    pub source_code: Option<String>,
-    /// Present only for kind = "composite".
-    pub graph_definition: Option<CompositeGraphDefinitionDto>,
-    pub ports: Vec<TransformPortDto>,
-    pub params: Vec<TransformParamDto>,
-    /// Composite-only sub-state between Save and Publish: true once the
-    /// currently-persisted graph_definition has passed the explicit validate
-    /// action (`POST /transforms/{id}/validate`). Any subsequent save flips
-    /// this back to false. Always false for primitives. See
-    /// agents/decisions/0007-composite-draft-validation-gate.md.
-    pub is_validated: bool,
+    pub source_code: String,
+    pub owner_user_id: UserId,
+    /// RFC 3339 / ISO 8601.
+    pub created_at: String,
+}
+
+/// A transform's in-progress (bucket 2) draft state.
+#[derive(Debug, Serialize, ToSchema)]
+pub struct TransformDraftDto {
+    pub transform_id: TransformDraftId,
+    pub source_code: String,
+    pub name: Option<String>,
+    pub description: Option<String>,
+    pub kind: String,
+    /// Whether a compiled binary is currently attached (via a prior save
+    /// with a `resource_id`) — not whether it's still in sync with
+    /// `source_code`; a source-only save can leave a stale binary attached.
+    pub has_binary: bool,
 }
 
 #[derive(Debug, Deserialize, Serialize, ToSchema)]
@@ -247,8 +97,8 @@ pub struct TransformIdsRequest {
 }
 
 #[derive(Debug, Serialize, ToSchema)]
-pub struct TransformDefinitionsResponse {
-    pub transforms: Vec<TransformDefinitionDto>,
+pub struct TransformsResponse {
+    pub transforms: Vec<TransformDto>,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -262,44 +112,18 @@ pub struct TransformBinariesResponse {
     pub binaries: Vec<TransformBinaryDto>,
 }
 
+#[derive(Debug, Serialize, ToSchema)]
+pub struct DraftPublishableDto {
+    /// Whether bucket 2 currently holds a binary in sync with its source —
+    /// i.e. whether `publish` would succeed right now. See
+    /// `TransformsProvider::validate_composite_draft` — the name is a
+    /// holdover from the retired composite-graph model.
+    pub publishable: bool,
+}
+
 #[derive(Deserialize, IntoParams)]
 pub struct TransformIdPath {
     pub transform_id: TransformId,
-}
-
-#[derive(Debug, Serialize, ToSchema)]
-pub struct PortShapeSummaryDto {
-    pub name: String,
-    pub direction: String,
-    pub kind: String,
-    pub cardinality: String,
-}
-
-/// Advisory pre-publish check — see `TransformsProvider::diff_publish_port_shape`.
-/// The creator's Publish flow polls this immediately before calling
-/// `POST /transforms/{id}/publish` and shows a non-blocking confirm dialog
-/// when `changed` is true. The backend never blocks on this itself.
-#[derive(Debug, Serialize, ToSchema)]
-pub struct PublishPortShapeDiffDto {
-    pub changed: bool,
-    pub current: Vec<PortShapeSummaryDto>,
-    pub incoming: Vec<PortShapeSummaryDto>,
-}
-
-impl From<crate::transforms::transforms_provider::PortShapeSummary> for PortShapeSummaryDto {
-    fn from(value: crate::transforms::transforms_provider::PortShapeSummary) -> Self {
-        Self { name: value.name, direction: value.direction, kind: value.kind, cardinality: value.cardinality }
-    }
-}
-
-impl From<crate::transforms::transforms_provider::PublishPortShapeDiff> for PublishPortShapeDiffDto {
-    fn from(value: crate::transforms::transforms_provider::PublishPortShapeDiff) -> Self {
-        Self {
-            changed: value.changed,
-            current: value.current.into_iter().map(PortShapeSummaryDto::from).collect(),
-            incoming: value.incoming.into_iter().map(PortShapeSummaryDto::from).collect(),
-        }
-    }
 }
 
 impl From<DbTransform> for TransformSummaryDto {
@@ -310,41 +134,12 @@ impl From<DbTransform> for TransformSummaryDto {
             description: value.description,
             icon: value.icon,
             kind: value.kind,
-            published: value.published,
         }
     }
 }
 
-impl From<DbTransformPort> for TransformPortDto {
-    fn from(value: DbTransformPort) -> Self {
-        Self {
-            port_id: value.port_id,
-            name: value.name,
-            direction: value.direction,
-            port_order: value.port_order,
-            description: value.description,
-            kind: value.kind,
-            cardinality: value.cardinality,
-        }
-    }
-}
-
-impl From<DbTransformParam> for TransformParamDto {
-    fn from(value: DbTransformParam) -> Self {
-        Self {
-            param_id: value.param_id,
-            name: value.name,
-            param_order: value.param_order,
-            default_value: value.default_value,
-            min_value: value.min_value,
-            max_value: value.max_value,
-            description: value.description,
-        }
-    }
-}
-
-impl From<DbTransformDefinition> for TransformDefinitionDto {
-    fn from(value: DbTransformDefinition) -> Self {
+impl From<DbTransform> for TransformDto {
+    fn from(value: DbTransform) -> Self {
         Self {
             transform_id: value.transform_id,
             name: value.name,
@@ -352,19 +147,30 @@ impl From<DbTransformDefinition> for TransformDefinitionDto {
             icon: value.icon,
             kind: value.kind,
             source_code: value.source_code,
-            graph_definition: value.graph_definition.map(CompositeGraphDefinitionDto::from),
-            ports: value.ports.into_iter().map(TransformPortDto::from).collect(),
-            params: value.params.into_iter().map(TransformParamDto::from).collect(),
-            is_validated: value.is_validated,
+            owner_user_id: value.owner_user_id,
+            created_at: value.created_at.to_rfc3339(),
         }
     }
 }
 
-impl From<domain::db::db_transform::DbTransformBinary> for TransformBinaryDto {
-    fn from(value: domain::db::db_transform::DbTransformBinary) -> Self {
+impl From<DbTransform> for TransformBinaryDto {
+    fn from(value: DbTransform) -> Self {
         Self {
             transform_id: value.transform_id,
             wasm_base64: BASE64_STANDARD.encode(value.wasm_bytecode),
+        }
+    }
+}
+
+impl From<DbTransformDraft> for TransformDraftDto {
+    fn from(value: DbTransformDraft) -> Self {
+        Self {
+            transform_id: value.transform_id,
+            source_code: value.source_code,
+            has_binary: value.wasm_bytecode.is_some(),
+            name: value.name,
+            description: value.description,
+            kind: value.kind,
         }
     }
 }
@@ -423,8 +229,8 @@ pub async fn get_transform_definition(
     if let Err(resp) = require_access(&app, &grants, transform_id, &jwt).await {
         return resp;
     }
-    match app.transforms_service.get_transform_definition(transform_id).await {
-        Ok(t) => HttpResponse::Ok().json(TransformDefinitionDto::from(t)),
+    match app.transforms_service.get_transform(transform_id).await {
+        Ok(t) => HttpResponse::Ok().json(TransformDto::from(t)),
         Err(e) => map_service_error(e),
     }
 }
@@ -445,9 +251,9 @@ pub async fn resolve_transform_definitions(
             return resp;
         }
     }
-    match app.transforms_service.get_transform_definitions(&request.ids).await {
-        Ok(transforms) => HttpResponse::Ok().json(TransformDefinitionsResponse {
-            transforms: transforms.into_iter().map(TransformDefinitionDto::from).collect(),
+    match app.transforms_service.get_transforms(&request.ids).await {
+        Ok(transforms) => HttpResponse::Ok().json(TransformsResponse {
+            transforms: transforms.into_iter().map(TransformDto::from).collect(),
         }),
         Err(e) => map_service_error(e),
     }
@@ -468,10 +274,10 @@ pub async fn get_transform_binary(
     if let Err(resp) = require_access(&app, &grants, transform_id, &jwt).await {
         return resp;
     }
-    match app.transforms_service.get_transform_binary(transform_id).await {
-        Ok(bytes) => HttpResponse::Ok()
+    match app.transforms_service.get_transform(transform_id).await {
+        Ok(t) => HttpResponse::Ok()
             .content_type("application/wasm")
-            .body(bytes),
+            .body(t.wasm_bytecode),
         Err(e) => map_service_error(e),
     }
 }
@@ -492,9 +298,9 @@ pub async fn get_transform_binaries(
             return resp;
         }
     }
-    match app.transforms_service.get_transform_binaries(&request.ids).await {
-        Ok(binaries) => HttpResponse::Ok().json(TransformBinariesResponse {
-            binaries: binaries.into_iter().map(TransformBinaryDto::from).collect(),
+    match app.transforms_service.get_transforms(&request.ids).await {
+        Ok(transforms) => HttpResponse::Ok().json(TransformBinariesResponse {
+            binaries: transforms.into_iter().map(TransformBinaryDto::from).collect(),
         }),
         Err(e) => map_service_error(e),
     }
@@ -502,7 +308,7 @@ pub async fn get_transform_binaries(
 
 #[utoipa::path(post, path = "/transforms", tag = "transforms",
     request_body = CreateTransformParams,
-    responses((status = 200, description = "Created transform", body = serde_json::Value)))]
+    responses((status = 200, description = "Created transform draft", body = serde_json::Value)))]
 #[post("")]
 pub async fn create_transform(
     jwt: JwtContext,
@@ -513,8 +319,8 @@ pub async fn create_transform(
     if p.kind != "primitive" && p.kind != "composite" {
         return HttpResponse::BadRequest().body("kind must be 'primitive' or 'composite'");
     }
-    match app.transforms_service.create_transform(p.name, p.description, p.icon, p.kind, jwt.user_id).await {
-        Ok(t) => HttpResponse::Ok().json(TransformDefinitionDto::from(t)),
+    match app.transforms_service.create_transform_draft(p.name, p.description, p.icon, p.kind, UserId::from(jwt.user_id)).await {
+        Ok(t) => HttpResponse::Ok().json(TransformDraftDto::from(t)),
         Err(e) => map_service_error(e),
     }
 }
@@ -522,7 +328,7 @@ pub async fn create_transform(
 #[utoipa::path(put, path = "/transforms/{transform_id}/save", tag = "transforms",
     params(TransformIdPath),
     request_body = SaveTransformParams,
-    responses((status = 200, description = "Saved transform state", body = serde_json::Value)))]
+    responses((status = 200, description = "Saved transform draft state", body = serde_json::Value)))]
 #[put("/{transform_id}/save")]
 pub async fn save_transform(
     jwt: JwtContext,
@@ -536,42 +342,16 @@ pub async fn save_transform(
     }
     let p = body.into_inner();
     match app.transforms_service.save_transform_draft(transform_id, p.source_code, p.resource_id).await {
-        Ok(t) => HttpResponse::Ok().json(TransformDefinitionDto::from(t)),
-        Err(e) => map_service_error(e),
-    }
-}
-
-#[utoipa::path(put, path = "/transforms/{transform_id}/save-composite", tag = "transforms",
-    params(TransformIdPath),
-    request_body = SaveCompositeGraphParams,
-    responses((status = 200, description = "Saved composite transform graph", body = serde_json::Value)))]
-#[put("/{transform_id}/save-composite")]
-pub async fn save_composite_transform(
-    jwt: JwtContext,
-    path: web::Path<TransformIdPath>,
-    body: web::Json<SaveCompositeGraphParams>,
-    app: web::Data<TransformsAppData>,
-) -> HttpResponse {
-    let transform_id = path.into_inner().transform_id;
-    if let Err(resp) = require_owner(&app, transform_id, &jwt).await {
-        return resp;
-    }
-    let p = body.into_inner();
-    let graph = domain::db::transform_snapshot::CompositeTransformDefinition::from(p.graph_definition);
-    match app.transforms_service.save_composite_draft(transform_id, graph).await {
-        Ok(t) => HttpResponse::Ok().json(TransformDefinitionDto::from(t)),
+        Ok(t) => HttpResponse::Ok().json(TransformDraftDto::from(t)),
         Err(e) => map_service_error(e),
     }
 }
 
 #[utoipa::path(post, path = "/transforms/{transform_id}/validate", tag = "transforms",
     params(TransformIdPath),
-    responses(
-        (status = 200, description = "Composite graph validated; ports derived and is_validated set to true", body = serde_json::Value),
-        (status = 400, description = "Validation failed (invalid wiring, or nothing saved yet) — ports/is_validated left untouched")
-    ))]
+    responses((status = 200, description = "Whether the currently-saved draft is in a publishable state", body = serde_json::Value)))]
 #[post("/{transform_id}/validate")]
-pub async fn validate_composite_transform(
+pub async fn validate_transform_draft(
     jwt: JwtContext,
     path: web::Path<TransformIdPath>,
     app: web::Data<TransformsAppData>,
@@ -581,7 +361,7 @@ pub async fn validate_composite_transform(
         return resp;
     }
     match app.transforms_service.validate_composite_draft(transform_id).await {
-        Ok(t) => HttpResponse::Ok().json(TransformDefinitionDto::from(t)),
+        Ok(publishable) => HttpResponse::Ok().json(DraftPublishableDto { publishable }),
         Err(e) => map_service_error(e),
     }
 }
@@ -603,27 +383,7 @@ pub async fn publish_transform(
         return resp;
     }
     match app.transforms_service.publish_transform(transform_id).await {
-        Ok(t) => HttpResponse::Ok().json(TransformDefinitionDto::from(t)),
-        Err(e) => map_service_error(e),
-    }
-}
-
-#[utoipa::path(get, path = "/transforms/{transform_id}/publish/port-diff", tag = "transforms",
-    params(TransformIdPath),
-    responses((status = 200, description = "Whether the about-to-be-published port shape differs from what's currently live", body = serde_json::Value)))]
-#[get("/{transform_id}/publish/port-diff")]
-pub async fn get_publish_port_shape_diff(
-    jwt: JwtContext,
-    path: web::Path<TransformIdPath>,
-    app: web::Data<TransformsAppData>,
-    grants: web::Data<TransformGrantsAppData>,
-) -> HttpResponse {
-    let transform_id = path.into_inner().transform_id;
-    if let Err(resp) = require_access(&app, &grants, transform_id, &jwt).await {
-        return resp;
-    }
-    match app.transforms_service.diff_publish_port_shape(transform_id).await {
-        Ok(diff) => HttpResponse::Ok().json(PublishPortShapeDiffDto::from(diff)),
+        Ok(t) => HttpResponse::Ok().json(TransformDto::from(t)),
         Err(e) => map_service_error(e),
     }
 }
@@ -657,9 +417,7 @@ pub fn init(cfg: &mut web::ServiceConfig) {
         .service(get_transform_binaries)
         .service(create_transform)
         .service(save_transform)
-        .service(save_composite_transform)
-        .service(validate_composite_transform)
+        .service(validate_transform_draft)
         .service(publish_transform)
-        .service(get_publish_port_shape_diff)
         .service(delete_transform);
 }

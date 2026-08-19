@@ -38,9 +38,9 @@ pub struct CreateGrantInput {
 pub struct GrantDto {
     pub grant_id: i64,
     pub transform_id: TransformId,
-    pub grantee_user_id: Option<i32>,
+    pub grantee_user_id: Option<i64>,
     pub grantee_workspace_id: Option<i32>,
-    pub granted_by: i32,
+    pub granted_by: i64,
 }
 
 impl From<DbTransformGrant> for GrantDto {
