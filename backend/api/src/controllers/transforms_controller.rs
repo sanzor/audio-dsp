@@ -18,6 +18,8 @@ use serde::{Deserialize, Serialize};
 use tracing::error;
 use utoipa::{IntoParams, ToSchema};
 
+use crate::ticket_worker::processor::transform_metadata::PortMetadataJson;
+
 // ─── Request / Response types ────────────────────────────────────────────────
 
 #[derive(Deserialize, Serialize, ToSchema)]
@@ -27,6 +29,13 @@ pub struct CreateTransformParams {
     pub icon: Option<String>,
     /// "primitive" | "composite".
     pub kind: String,
+}
+
+#[derive(Deserialize, Serialize, ToSchema)]
+pub struct CheckSourceParams {
+    /// Not necessarily what's saved — the caller can check live in-progress
+    /// edits before saving.
+    pub source_code: String,
 }
 
 #[derive(Deserialize, Serialize, ToSchema)]
@@ -115,10 +124,24 @@ pub struct TransformBinariesResponse {
 #[derive(Debug, Serialize, ToSchema)]
 pub struct DraftPublishableDto {
     /// Whether bucket 2 currently holds a binary in sync with its source —
-    /// i.e. whether `publish` would succeed right now. See
-    /// `TransformsProvider::validate_composite_draft` — the name is a
-    /// holdover from the retired composite-graph model.
+    /// i.e. whether `publish` would succeed right now. Primitive drafts
+    /// only; see `POST /{transform_id}/validate-graph` for composites.
+    /// See `GET /{transform_id}/publishable`.
     pub publishable: bool,
+}
+
+#[derive(Debug, Deserialize, Serialize, ToSchema)]
+pub struct ValidateGraphParams {
+    /// The composite's wiring graph JSON to validate — not necessarily
+    /// what's currently saved; the caller can send live in-progress edits.
+    pub metadata_json: String,
+}
+
+/// A composite's derived externally-visible ports on a successful
+/// `validate-graph` call.
+#[derive(Debug, Serialize)]
+pub struct ValidateGraphResponse {
+    pub ports: Vec<PortMetadataJson>,
 }
 
 #[derive(Deserialize, IntoParams)]
@@ -347,11 +370,11 @@ pub async fn save_transform(
     }
 }
 
-#[utoipa::path(post, path = "/transforms/{transform_id}/validate", tag = "transforms",
+#[utoipa::path(get, path = "/transforms/{transform_id}/publishable", tag = "transforms",
     params(TransformIdPath),
     responses((status = 200, description = "Whether the currently-saved draft is in a publishable state", body = serde_json::Value)))]
-#[post("/{transform_id}/validate")]
-pub async fn validate_transform_draft(
+#[get("/{transform_id}/publishable")]
+pub async fn is_draft_publishable(
     jwt: JwtContext,
     path: web::Path<TransformIdPath>,
     app: web::Data<TransformsAppData>,
@@ -360,8 +383,58 @@ pub async fn validate_transform_draft(
     if let Err(resp) = require_owner(&app, transform_id, &jwt).await {
         return resp;
     }
-    match app.transforms_service.validate_composite_draft(transform_id).await {
+    match app.transforms_service.is_draft_publishable(transform_id).await {
         Ok(publishable) => HttpResponse::Ok().json(DraftPublishableDto { publishable }),
+        Err(e) => map_service_error(e),
+    }
+}
+
+#[utoipa::path(post, path = "/transforms/{transform_id}/validate-source", tag = "transforms",
+    params(TransformIdPath),
+    request_body = CheckSourceParams,
+    responses(
+        (status = 200, description = "Source compiles cleanly (cargo check, no codegen)"),
+        (status = 400, description = "Compiler diagnostics")
+    ))]
+#[post("/{transform_id}/validate-source")]
+pub async fn validate_source(
+    jwt: JwtContext,
+    path: web::Path<TransformIdPath>,
+    body: web::Json<CheckSourceParams>,
+    app: web::Data<TransformsAppData>,
+) -> HttpResponse {
+    let transform_id = path.into_inner().transform_id;
+    if let Err(resp) = require_owner(&app, transform_id, &jwt).await {
+        return resp;
+    }
+    let p = body.into_inner();
+    match app.transforms_service.check_source(p.source_code).await {
+        Ok(()) => HttpResponse::Ok().finish(),
+        Err(e) => map_service_error(e),
+    }
+}
+
+#[utoipa::path(post, path = "/transforms/{transform_id}/validate-graph", tag = "transforms",
+    params(TransformIdPath),
+    request_body = ValidateGraphParams,
+    responses(
+        (status = 200, description = "Derived composite ports on success", body = serde_json::Value),
+        (status = 400, description = "Graph is malformed, or references a transform that doesn't exist, isn't published, or is the wrong kind")
+    ))]
+#[post("/{transform_id}/validate-graph")]
+pub async fn validate_graph_draft(
+    jwt: JwtContext,
+    path: web::Path<TransformIdPath>,
+    body: web::Json<ValidateGraphParams>,
+    app: web::Data<TransformsAppData>,
+) -> HttpResponse {
+    let transform_id = path.into_inner().transform_id;
+    if let Err(resp) = require_owner(&app, transform_id, &jwt).await {
+        return resp;
+    }
+    let p = body.into_inner();
+    match app.transforms_service.validate_graph_draft(transform_id, p.metadata_json).await {
+        Ok(ports) => HttpResponse::Ok().json(ValidateGraphResponse { ports }),
         Err(e) => map_service_error(e),
     }
 }
@@ -417,7 +490,9 @@ pub fn init(cfg: &mut web::ServiceConfig) {
         .service(get_transform_binaries)
         .service(create_transform)
         .service(save_transform)
-        .service(validate_transform_draft)
+        .service(is_draft_publishable)
+        .service(validate_source)
+        .service(validate_graph_draft)
         .service(publish_transform)
         .service(delete_transform);
 }

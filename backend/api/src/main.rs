@@ -355,11 +355,6 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
 
     let transforms_data_provider: Arc<dyn api::transforms::data_provider::transforms_data_provider::TransformsDataProvider> =
         Arc::new(PostgresTransformsDataProvider::new(pool.clone()));
-    let transforms_app_data = TransformsAppData {
-        transforms_service: Arc::new(TransformsProviderService::new(
-            Arc::clone(&transforms_data_provider),
-        )),
-    };
     let tickets_app_data = TicketsAppData {
         tickets_service: Arc::new(TicketsProviderService::new(
             Arc::clone(&transforms_data_provider),
@@ -400,20 +395,32 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
         .and_then(|v| v.parse().ok())
         .unwrap_or(10_000_000);
 
+    let build_job_config = BuildJobConfig {
+        sdk_path: transform_sdk_path,
+        build_workdir: transform_build_workdir,
+        cargo_target_dir: transform_cargo_target_dir,
+        cargo_home: transform_cargo_home,
+        compile_timeout: std::time::Duration::from_secs(transform_compile_timeout_secs),
+        max_wasm_bytes: transform_max_wasm_bytes,
+    };
+
+    // Also used synchronously by TransformsProviderService::check_source
+    // (a fast `cargo check`, not a ticket) — the worker only ever needs it
+    // for the async `cargo build --release` ticket pipeline.
+    let transforms_app_data = TransformsAppData {
+        transforms_service: Arc::new(TransformsProviderService::new(
+            Arc::clone(&transforms_data_provider),
+            build_job_config.clone(),
+        )),
+    };
+
     let token = CancellationToken::new();
     let worker_handle = Worker::spawn(
         WorkerParams {
             consumer: Box::new(ChannelConsumer::new(rx)),
             processor: Processor::new(ProcessorParams {
                 data_provider: Arc::clone(&transforms_data_provider),
-                build_job_config: BuildJobConfig {
-                    sdk_path: transform_sdk_path,
-                    build_workdir: transform_build_workdir,
-                    cargo_target_dir: transform_cargo_target_dir,
-                    cargo_home: transform_cargo_home,
-                    compile_timeout: std::time::Duration::from_secs(transform_compile_timeout_secs),
-                    max_wasm_bytes: transform_max_wasm_bytes,
-                },
+                build_job_config,
                 metadata_fuel_limit: transform_metadata_fuel_limit,
             }),
         },

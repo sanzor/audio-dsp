@@ -11,7 +11,7 @@ pub struct TransformMetadataJson {
     pub params: Vec<ParamMetadataJson>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct PortMetadataJson {
     pub name: String,
     pub direction: DirectionJson,
@@ -21,7 +21,7 @@ pub struct PortMetadataJson {
     pub cardinality: PortCardinalityJson,
 }
 
-#[derive(Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Clone, Copy)]
 #[serde(rename_all = "lowercase")]
 pub enum DirectionJson {
     Input,
