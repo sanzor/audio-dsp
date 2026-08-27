@@ -17,6 +17,7 @@ fn base_metadata(ports: Vec<PortMetadataJson>) -> TransformMetadataJson {
         description: None,
         ports,
         params: vec![],
+        graph: None,
     }
 }
 

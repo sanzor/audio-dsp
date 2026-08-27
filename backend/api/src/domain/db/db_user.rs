@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use utoipa::ToSchema;
 
-pub type UserId = i32;
+pub use domain::domain_user::UserId;
 
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema, FromRow)]
 pub struct DbUser {

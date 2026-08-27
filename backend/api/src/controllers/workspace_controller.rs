@@ -15,7 +15,7 @@ use crate::{
 
 #[derive(Serialize, ToSchema)]
 pub struct MemberOutput {
-    pub user_id: i64,
+    pub user_id: domain::domain_user::UserId,
     pub role: WorkspaceRole,
 }
 
@@ -137,7 +137,7 @@ pub async fn delete_workspace(
 pub async fn remove_member(
     jwt: JwtContext,
     role: RoleContext,
-    path: web::Path<(i32, i32)>,
+    path: web::Path<(i32, domain::domain_user::UserId)>,
     app: web::Data<WorkspacesAppData>,
 ) -> HttpResponse {
     let (workspace_id, target_user_id) = path.into_inner();
@@ -175,7 +175,7 @@ pub struct ChangeRoleInput {
 pub async fn change_role(
     jwt: JwtContext,
     role: RoleContext,
-    path: web::Path<(i32, i32)>,
+    path: web::Path<(i32, domain::domain_user::UserId)>,
     payload: web::Json<ChangeRoleInput>,
     app: web::Data<WorkspacesAppData>,
 ) -> HttpResponse {

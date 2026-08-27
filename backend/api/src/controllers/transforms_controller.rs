@@ -1,202 +1,27 @@
 use crate::{
     domain::service_error::ServiceError,
-    middlewares::jwt::jwt_context::JwtContext,
-    transform_grants::transform_grants_app_data::TransformGrantsAppData,
-    transforms::{authz::{require_access, require_owner}, transforms_app_data::TransformsAppData},
-};
-use actix_web::{delete, get, post, put, web, HttpResponse};
-use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine};
-use domain::{
-    db::{
-        db_transform::{DbTransform, TransformId},
-        db_transform_draft::{DbTransformDraft, TransformDraftId},
-        ticket::db_resource::ResourceId,
+    middlewares::{
+        authz::{
+            transform_access_context::TransformAccessContext,
+            transform_authz::{require_access, require_owner},
+        },
+        jwt::jwt_context::JwtContext,
     },
-    domain_user::UserId,
+    transforms::{
+        dto::{
+            requests::{PaginationQuery, TransformIdPath, TransformIdsRequest},
+            responses::{
+                TransformBinariesResponse, TransformBinaryDto, TransformDto, TransformSummaryDto,
+                TransformSummaryListResponse, TransformsResponse,
+            },
+        },
+        transforms_app_data::TransformsAppData,
+    },
 };
-use serde::{Deserialize, Serialize};
+use actix_web::{delete, get, post, web, HttpResponse};
 use tracing::error;
-use utoipa::{IntoParams, ToSchema};
 
-use crate::ticket_worker::processor::transform_metadata::PortMetadataJson;
-
-// ─── Request / Response types ────────────────────────────────────────────────
-
-#[derive(Deserialize, Serialize, ToSchema)]
-pub struct CreateTransformParams {
-    pub name: String,
-    pub description: Option<String>,
-    pub icon: Option<String>,
-    /// "primitive" | "composite".
-    pub kind: String,
-}
-
-#[derive(Deserialize, Serialize, ToSchema)]
-pub struct CheckSourceParams {
-    /// Not necessarily what's saved — the caller can check live in-progress
-    /// edits before saving.
-    pub source_code: String,
-}
-
-#[derive(Deserialize, Serialize, ToSchema)]
-pub struct SaveTransformParams {
-    pub source_code: String,
-    /// A resource_id from a successful compile ticket, if the frontend wants
-    /// to attach that build's binary/metadata to this save. Omit to save
-    /// source only, leaving any previously saved binary untouched.
-    pub resource_id: Option<ResourceId>,
-}
-
-#[derive(Deserialize, IntoParams)]
-pub struct PaginationQuery {
-    pub offset: Option<i64>,
-    pub limit: Option<i64>,
-}
-
-#[derive(Serialize)]
-pub struct TransformSummaryListResponse {
-    pub transforms: Vec<TransformSummaryDto>,
-    pub total: i64,
-}
-
-#[derive(Debug, Serialize, ToSchema)]
-pub struct TransformSummaryDto {
-    pub transform_id: TransformId,
-    pub name: String,
-    pub description: Option<String>,
-    pub icon: Option<String>,
-    /// "primitive" | "composite".
-    pub kind: String,
-}
-
-/// A published (bucket 3) transform's definition. `wasm_bytecode`/`metadata`
-/// aren't included here — fetch those via the dedicated binary endpoints
-/// below, which base64-encode `wasm_bytecode` for transport.
-#[derive(Debug, Serialize, ToSchema)]
-pub struct TransformDto {
-    pub transform_id: TransformId,
-    pub name: String,
-    pub description: Option<String>,
-    pub icon: Option<String>,
-    /// "primitive" | "composite".
-    pub kind: String,
-    pub source_code: String,
-    pub owner_user_id: UserId,
-    /// RFC 3339 / ISO 8601.
-    pub created_at: String,
-}
-
-/// A transform's in-progress (bucket 2) draft state.
-#[derive(Debug, Serialize, ToSchema)]
-pub struct TransformDraftDto {
-    pub transform_id: TransformDraftId,
-    pub source_code: String,
-    pub name: Option<String>,
-    pub description: Option<String>,
-    pub kind: String,
-    /// Whether a compiled binary is currently attached (via a prior save
-    /// with a `resource_id`) — not whether it's still in sync with
-    /// `source_code`; a source-only save can leave a stale binary attached.
-    pub has_binary: bool,
-}
-
-#[derive(Debug, Deserialize, Serialize, ToSchema)]
-pub struct TransformIdsRequest {
-    pub ids: Vec<TransformId>,
-}
-
-#[derive(Debug, Serialize, ToSchema)]
-pub struct TransformsResponse {
-    pub transforms: Vec<TransformDto>,
-}
-
-#[derive(Debug, Serialize, ToSchema)]
-pub struct TransformBinaryDto {
-    pub transform_id: TransformId,
-    pub wasm_base64: String,
-}
-
-#[derive(Debug, Serialize, ToSchema)]
-pub struct TransformBinariesResponse {
-    pub binaries: Vec<TransformBinaryDto>,
-}
-
-#[derive(Debug, Serialize, ToSchema)]
-pub struct DraftPublishableDto {
-    /// Whether bucket 2 currently holds a binary in sync with its source —
-    /// i.e. whether `publish` would succeed right now. Primitive drafts
-    /// only; see `POST /{transform_id}/validate-graph` for composites.
-    /// See `GET /{transform_id}/publishable`.
-    pub publishable: bool,
-}
-
-#[derive(Debug, Deserialize, Serialize, ToSchema)]
-pub struct ValidateGraphParams {
-    /// The composite's wiring graph JSON to validate — not necessarily
-    /// what's currently saved; the caller can send live in-progress edits.
-    pub metadata_json: String,
-}
-
-/// A composite's derived externally-visible ports on a successful
-/// `validate-graph` call.
-#[derive(Debug, Serialize)]
-pub struct ValidateGraphResponse {
-    pub ports: Vec<PortMetadataJson>,
-}
-
-#[derive(Deserialize, IntoParams)]
-pub struct TransformIdPath {
-    pub transform_id: TransformId,
-}
-
-impl From<DbTransform> for TransformSummaryDto {
-    fn from(value: DbTransform) -> Self {
-        Self {
-            transform_id: value.transform_id,
-            name: value.name,
-            description: value.description,
-            icon: value.icon,
-            kind: value.kind,
-        }
-    }
-}
-
-impl From<DbTransform> for TransformDto {
-    fn from(value: DbTransform) -> Self {
-        Self {
-            transform_id: value.transform_id,
-            name: value.name,
-            description: value.description,
-            icon: value.icon,
-            kind: value.kind,
-            source_code: value.source_code,
-            owner_user_id: value.owner_user_id,
-            created_at: value.created_at.to_rfc3339(),
-        }
-    }
-}
-
-impl From<DbTransform> for TransformBinaryDto {
-    fn from(value: DbTransform) -> Self {
-        Self {
-            transform_id: value.transform_id,
-            wasm_base64: BASE64_STANDARD.encode(value.wasm_bytecode),
-        }
-    }
-}
-
-impl From<DbTransformDraft> for TransformDraftDto {
-    fn from(value: DbTransformDraft) -> Self {
-        Self {
-            transform_id: value.transform_id,
-            source_code: value.source_code,
-            has_binary: value.wasm_bytecode.is_some(),
-            name: value.name,
-            description: value.description,
-            kind: value.kind,
-        }
-    }
-}
+// ─── /transforms handlers (published, bucket 3) ───────────────────────────────
 
 fn map_service_error(err: ServiceError) -> HttpResponse {
     match err {
@@ -209,8 +34,6 @@ fn map_service_error(err: ServiceError) -> HttpResponse {
         }
     }
 }
-
-// ─── Handlers ────────────────────────────────────────────────────────────────
 
 #[utoipa::path(get, path = "/transforms", tag = "transforms",
     params(PaginationQuery),
@@ -240,16 +63,16 @@ pub async fn list_transform_summaries(
 
 #[utoipa::path(get, path = "/transforms/{transform_id}", tag = "transforms",
     params(TransformIdPath),
-    responses((status = 200, description = "Transform definition", body = serde_json::Value)))]
+    responses((status = 200, description = "Transform", body = serde_json::Value)))]
 #[get("/{transform_id}")]
-pub async fn get_transform_definition(
+pub async fn get_transform(
     jwt: JwtContext,
     path: web::Path<TransformIdPath>,
     app: web::Data<TransformsAppData>,
-    grants: web::Data<TransformGrantsAppData>,
+    access: TransformAccessContext,
 ) -> HttpResponse {
     let transform_id = path.into_inner().transform_id;
-    if let Err(resp) = require_access(&app, &grants, transform_id, &jwt).await {
+    if let Err(resp) = require_access(&app, &access, transform_id, &jwt).await {
         return resp;
     }
     match app.transforms_service.get_transform(transform_id).await {
@@ -262,15 +85,15 @@ pub async fn get_transform_definition(
     request_body = TransformIdsRequest,
     responses((status = 200, description = "Resolved transform definitions", body = serde_json::Value)))]
 #[post("/resolve")]
-pub async fn resolve_transform_definitions(
+pub async fn get_transforms(
     jwt: JwtContext,
     body: web::Json<TransformIdsRequest>,
     app: web::Data<TransformsAppData>,
-    grants: web::Data<TransformGrantsAppData>,
+    access: TransformAccessContext,
 ) -> HttpResponse {
     let request = body.into_inner();
     for id in &request.ids {
-        if let Err(resp) = require_access(&app, &grants, *id, &jwt).await {
+        if let Err(resp) = require_access(&app, &access, *id, &jwt).await {
             return resp;
         }
     }
@@ -278,29 +101,6 @@ pub async fn resolve_transform_definitions(
         Ok(transforms) => HttpResponse::Ok().json(TransformsResponse {
             transforms: transforms.into_iter().map(TransformDto::from).collect(),
         }),
-        Err(e) => map_service_error(e),
-    }
-}
-
-#[utoipa::path(get, path = "/transforms/{transform_id}/binary", tag = "transforms",
-    params(TransformIdPath),
-    responses((status = 200, description = "Transform WASM binary", content_type = "application/wasm"),
-              (status = 404, description = "Transform not found")))]
-#[get("/{transform_id}/binary")]
-pub async fn get_transform_binary(
-    jwt: JwtContext,
-    path: web::Path<TransformIdPath>,
-    app: web::Data<TransformsAppData>,
-    grants: web::Data<TransformGrantsAppData>,
-) -> HttpResponse {
-    let transform_id = path.into_inner().transform_id;
-    if let Err(resp) = require_access(&app, &grants, transform_id, &jwt).await {
-        return resp;
-    }
-    match app.transforms_service.get_transform(transform_id).await {
-        Ok(t) => HttpResponse::Ok()
-            .content_type("application/wasm")
-            .body(t.wasm_bytecode),
         Err(e) => map_service_error(e),
     }
 }
@@ -313,11 +113,11 @@ pub async fn get_transform_binaries(
     jwt: JwtContext,
     body: web::Json<TransformIdsRequest>,
     app: web::Data<TransformsAppData>,
-    grants: web::Data<TransformGrantsAppData>,
+    access: TransformAccessContext,
 ) -> HttpResponse {
     let request = body.into_inner();
     for id in &request.ids {
-        if let Err(resp) = require_access(&app, &grants, *id, &jwt).await {
+        if let Err(resp) = require_access(&app, &access, *id, &jwt).await {
             return resp;
         }
     }
@@ -325,138 +125,6 @@ pub async fn get_transform_binaries(
         Ok(transforms) => HttpResponse::Ok().json(TransformBinariesResponse {
             binaries: transforms.into_iter().map(TransformBinaryDto::from).collect(),
         }),
-        Err(e) => map_service_error(e),
-    }
-}
-
-#[utoipa::path(post, path = "/transforms", tag = "transforms",
-    request_body = CreateTransformParams,
-    responses((status = 200, description = "Created transform draft", body = serde_json::Value)))]
-#[post("")]
-pub async fn create_transform(
-    jwt: JwtContext,
-    body: web::Json<CreateTransformParams>,
-    app: web::Data<TransformsAppData>,
-) -> HttpResponse {
-    let p = body.into_inner();
-    if p.kind != "primitive" && p.kind != "composite" {
-        return HttpResponse::BadRequest().body("kind must be 'primitive' or 'composite'");
-    }
-    match app.transforms_service.create_transform_draft(p.name, p.description, p.icon, p.kind, UserId::from(jwt.user_id)).await {
-        Ok(t) => HttpResponse::Ok().json(TransformDraftDto::from(t)),
-        Err(e) => map_service_error(e),
-    }
-}
-
-#[utoipa::path(put, path = "/transforms/{transform_id}/save", tag = "transforms",
-    params(TransformIdPath),
-    request_body = SaveTransformParams,
-    responses((status = 200, description = "Saved transform draft state", body = serde_json::Value)))]
-#[put("/{transform_id}/save")]
-pub async fn save_transform(
-    jwt: JwtContext,
-    path: web::Path<TransformIdPath>,
-    body: web::Json<SaveTransformParams>,
-    app: web::Data<TransformsAppData>,
-) -> HttpResponse {
-    let transform_id = path.into_inner().transform_id;
-    if let Err(resp) = require_owner(&app, transform_id, &jwt).await {
-        return resp;
-    }
-    let p = body.into_inner();
-    match app.transforms_service.save_transform_draft(transform_id, p.source_code, p.resource_id).await {
-        Ok(t) => HttpResponse::Ok().json(TransformDraftDto::from(t)),
-        Err(e) => map_service_error(e),
-    }
-}
-
-#[utoipa::path(get, path = "/transforms/{transform_id}/publishable", tag = "transforms",
-    params(TransformIdPath),
-    responses((status = 200, description = "Whether the currently-saved draft is in a publishable state", body = serde_json::Value)))]
-#[get("/{transform_id}/publishable")]
-pub async fn is_draft_publishable(
-    jwt: JwtContext,
-    path: web::Path<TransformIdPath>,
-    app: web::Data<TransformsAppData>,
-) -> HttpResponse {
-    let transform_id = path.into_inner().transform_id;
-    if let Err(resp) = require_owner(&app, transform_id, &jwt).await {
-        return resp;
-    }
-    match app.transforms_service.is_draft_publishable(transform_id).await {
-        Ok(publishable) => HttpResponse::Ok().json(DraftPublishableDto { publishable }),
-        Err(e) => map_service_error(e),
-    }
-}
-
-#[utoipa::path(post, path = "/transforms/{transform_id}/validate-source", tag = "transforms",
-    params(TransformIdPath),
-    request_body = CheckSourceParams,
-    responses(
-        (status = 200, description = "Source compiles cleanly (cargo check, no codegen)"),
-        (status = 400, description = "Compiler diagnostics")
-    ))]
-#[post("/{transform_id}/validate-source")]
-pub async fn validate_source(
-    jwt: JwtContext,
-    path: web::Path<TransformIdPath>,
-    body: web::Json<CheckSourceParams>,
-    app: web::Data<TransformsAppData>,
-) -> HttpResponse {
-    let transform_id = path.into_inner().transform_id;
-    if let Err(resp) = require_owner(&app, transform_id, &jwt).await {
-        return resp;
-    }
-    let p = body.into_inner();
-    match app.transforms_service.check_source(p.source_code).await {
-        Ok(()) => HttpResponse::Ok().finish(),
-        Err(e) => map_service_error(e),
-    }
-}
-
-#[utoipa::path(post, path = "/transforms/{transform_id}/validate-graph", tag = "transforms",
-    params(TransformIdPath),
-    request_body = ValidateGraphParams,
-    responses(
-        (status = 200, description = "Derived composite ports on success", body = serde_json::Value),
-        (status = 400, description = "Graph is malformed, or references a transform that doesn't exist, isn't published, or is the wrong kind")
-    ))]
-#[post("/{transform_id}/validate-graph")]
-pub async fn validate_graph_draft(
-    jwt: JwtContext,
-    path: web::Path<TransformIdPath>,
-    body: web::Json<ValidateGraphParams>,
-    app: web::Data<TransformsAppData>,
-) -> HttpResponse {
-    let transform_id = path.into_inner().transform_id;
-    if let Err(resp) = require_owner(&app, transform_id, &jwt).await {
-        return resp;
-    }
-    let p = body.into_inner();
-    match app.transforms_service.validate_graph_draft(transform_id, p.metadata_json).await {
-        Ok(ports) => HttpResponse::Ok().json(ValidateGraphResponse { ports }),
-        Err(e) => map_service_error(e),
-    }
-}
-
-#[utoipa::path(post, path = "/transforms/{transform_id}/publish", tag = "transforms",
-    params(TransformIdPath),
-    responses(
-        (status = 200, description = "Published transform", body = serde_json::Value),
-        (status = 400, description = "Nothing saved with a successful build yet")
-    ))]
-#[post("/{transform_id}/publish")]
-pub async fn publish_transform(
-    jwt: JwtContext,
-    path: web::Path<TransformIdPath>,
-    app: web::Data<TransformsAppData>,
-) -> HttpResponse {
-    let transform_id = path.into_inner().transform_id;
-    if let Err(resp) = require_owner(&app, transform_id, &jwt).await {
-        return resp;
-    }
-    match app.transforms_service.publish_transform(transform_id).await {
-        Ok(t) => HttpResponse::Ok().json(TransformDto::from(t)),
         Err(e) => map_service_error(e),
     }
 }
@@ -482,17 +150,11 @@ pub async fn delete_transform(
 
 // ─── Route registration ───────────────────────────────────────────────────────
 
+/// Mounted at `/transforms` — published (bucket 3) reads and deletion.
 pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(list_transform_summaries)
-        .service(get_transform_definition)
-        .service(resolve_transform_definitions)
-        .service(get_transform_binary)
+        .service(get_transform)
+        .service(get_transforms)
         .service(get_transform_binaries)
-        .service(create_transform)
-        .service(save_transform)
-        .service(is_draft_publishable)
-        .service(validate_source)
-        .service(validate_graph_draft)
-        .service(publish_transform)
         .service(delete_transform);
 }

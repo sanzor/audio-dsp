@@ -1,14 +1,22 @@
 use serde::{Deserialize, Serialize};
 
+use crate::transform_drafts::validator::graph_definition::GraphDefinition;
+
 /// Backend-side mirror of `transform_sdk::TransformMetadata`. Kept separate
 /// from the SDK crate's serialize-side types since they compile for
 /// different targets (native here, wasm32 there).
-#[derive(Debug, Deserialize,Serialize)]
+///
+/// `graph` is present only for a composite — its authored wiring graph,
+/// alongside the same `ports`/`params` any consumer (primitive or
+/// composite) reads. A primitive's `metadata` never has it.
+#[derive(Debug, Deserialize, Serialize)]
 pub struct TransformMetadataJson {
     pub name: String,
     pub description: Option<String>,
     pub ports: Vec<PortMetadataJson>,
     pub params: Vec<ParamMetadataJson>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub graph: Option<GraphDefinition>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

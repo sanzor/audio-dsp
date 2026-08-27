@@ -6,7 +6,7 @@ use crate::usage::usage_app_data::UsageAppData;
 
 #[derive(Deserialize, IntoParams)]
 pub struct UserIdQuery {
-    pub user_id: Option<i32>,
+    pub user_id: Option<domain::domain_user::UserId>,
 }
 
 #[utoipa::path(get, path = "/v1/usage/mine", tag = "Usage",

@@ -60,7 +60,7 @@ impl WorkspacesDataProvider for PostgresWorkspacesDataProvider {
         Ok(result.rows_affected() > 0)
     }
 
-    async fn list_workspaces_for_user(&self, user_id: i32) -> Result<Vec<DbWorkspace>, String> {
+    async fn list_workspaces_for_user(&self, user_id: domain::domain_user::UserId) -> Result<Vec<DbWorkspace>, String> {
         sqlx::query_as::<_, DbWorkspace>(
             r#"
             SELECT w.* FROM workspaces w

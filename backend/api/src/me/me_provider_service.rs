@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use domain::domain_user::UserId;
+
 
 use crate::me::me_bootstrap_result::{MeBootstrapResult, MeUserResult};
 use crate::me::me_data_provider::MeProvider;
@@ -31,7 +33,7 @@ impl MeProviderService {
 
 #[async_trait]
 impl MeProvider for MeProviderService {
-    async fn get_bootstrap_data(&self, user_id: i32) -> Result<MeBootstrapResult, String> {
+    async fn get_bootstrap_data(&self, user_id: UserId) -> Result<MeBootstrapResult, String> {
         let user = self
             .users_provider
             .get_user(user_id)

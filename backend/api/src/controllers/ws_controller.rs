@@ -136,7 +136,7 @@ pub async fn run_player(
 
 async fn handle_ws_message(
     message: WsMessage,
-    user_id: i32,
+    user_id: domain::domain_user::UserId,
     player: &Arc<dyn PlayerProvider>,
 ) -> Result<(), String> {
     match message {

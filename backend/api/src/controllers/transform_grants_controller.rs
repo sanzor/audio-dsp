@@ -5,12 +5,12 @@ use tracing::error;
 use utoipa::{IntoParams, ToSchema};
 
 use crate::{
-    middlewares::jwt::jwt_context::JwtContext,
+    middlewares::{authz::transform_authz::require_owner, jwt::jwt_context::JwtContext},
     transform_grants::{
         transform_grants_app_data::TransformGrantsAppData,
         transform_grants_provider::CreateGrantParams,
     },
-    transforms::{authz::require_owner, transforms_app_data::TransformsAppData},
+    transforms::transforms_app_data::TransformsAppData,
 };
 
 #[derive(Deserialize, IntoParams)]
@@ -30,7 +30,7 @@ pub struct GrantIdPath {
 /// error from Postgres.
 #[derive(Deserialize, ToSchema)]
 pub struct CreateGrantInput {
-    pub grantee_user_id: Option<i32>,
+    pub grantee_user_id: Option<domain::domain_user::UserId>,
     pub grantee_workspace_id: Option<i32>,
 }
 
@@ -38,9 +38,9 @@ pub struct CreateGrantInput {
 pub struct GrantDto {
     pub grant_id: i64,
     pub transform_id: TransformId,
-    pub grantee_user_id: Option<i64>,
+    pub grantee_user_id: Option<domain::domain_user::UserId>,
     pub grantee_workspace_id: Option<i32>,
-    pub granted_by: i64,
+    pub granted_by: domain::domain_user::UserId,
 }
 
 impl From<DbTransformGrant> for GrantDto {

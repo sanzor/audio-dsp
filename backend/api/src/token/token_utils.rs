@@ -1,13 +1,14 @@
 use std::env;
 
 use base64::{engine::general_purpose, Engine};
+use domain::domain_user::UserId;
 use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use rand::Rng;
 
 use crate::dtos::claims::Claims;
 
 pub(crate) fn create_access_token(
-    user_id: i32,
+    user_id: UserId,
     name: Option<&str>,
     email: Option<&str>,
     is_admin: bool,
@@ -16,11 +17,11 @@ pub(crate) fn create_access_token(
 }
 
 
-pub(crate) fn create_refresh_token(user_id: i32, name: Option<&str>, email: Option<&str>, is_admin: bool) -> String {
+pub(crate) fn create_refresh_token(user_id: UserId, name: Option<&str>, email: Option<&str>, is_admin: bool) -> String {
     create_token(user_id, email, name, is_admin, None, Some("refresh"), None, 60 * 24 * 7)
 }
 
-pub(crate) fn create_verification_token(user_id: i32) -> String {
+pub(crate) fn create_verification_token(user_id: UserId) -> String {
     create_token(user_id, None, None, false, None, Some("verification"), None, 60 * 24)
 }
 
@@ -36,7 +37,7 @@ pub(crate) fn generate_csrf_token() -> String {
 }
 
 pub(crate) fn create_token(
-    user_id: i32,
+    user_id: UserId,
     email: Option<&str>,
     name: Option<&str>,
     is_admin: bool,

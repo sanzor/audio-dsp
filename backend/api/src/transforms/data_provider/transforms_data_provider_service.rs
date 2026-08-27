@@ -1,7 +1,6 @@
 use domain::{
     db::{
         db_transform::{DbTransform, TransformId},
-        db_transform_draft::DbTransformDraft,
         ticket::{
             create_ticket_params::CreateTicketParams,
             db_resource::{DbResource, ResourceId},
@@ -26,18 +25,6 @@ impl PostgresTransformsDataProvider {
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
-}
-
-/// `metadata` is persisted as a JSON string (`transform.metadata` /
-/// `transform_draft.metadata` / `transform_resource.metadata` are all TEXT
-/// columns), but `DbTransform`/`DbTransformDraft` declare the field as
-/// `Vec<u32>`, not `String` — that type was already committed to elsewhere
-/// and this file isn't the place to change it. `Vec<u32>` has no natural
-/// encoding for an arbitrary JSON blob, so this is a deliberately simple,
-/// total, lossless stopgap: one `u32` per UTF-8 byte. See the conversation
-/// report for why this almost certainly wants to just be `String` instead.
-fn metadata_to_words(json: &str) -> Vec<u32> {
-    json.bytes().map(u32::from).collect()
 }
 
 #[derive(sqlx::FromRow)]
@@ -103,42 +90,15 @@ impl From<DbResourceRow> for DbResource {
 }
 
 #[derive(sqlx::FromRow)]
-struct DbTransformDraftRow {
-    transform_id: TransformId,
-    source_code: String,
-    wasm_bytecode: Option<Vec<u8>>,
-    wasm_source_code: Option<String>,
-    name: Option<String>,
-    description: Option<String>,
-    kind: String,
-    metadata: String,
-}
-
-impl From<DbTransformDraftRow> for DbTransformDraft {
-    fn from(row: DbTransformDraftRow) -> Self {
-        Self {
-            transform_id: row.transform_id,
-            source_code: row.source_code,
-            wasm_bytecode: row.wasm_bytecode,
-            wasm_source_code: row.wasm_source_code,
-            name: row.name,
-            description: row.description,
-            kind: row.kind,
-            metadata: metadata_to_words(&row.metadata),
-        }
-    }
-}
-
-#[derive(sqlx::FromRow)]
 struct DbTransformRow {
     transform_id: TransformId,
     name: String,
     description: Option<String>,
     icon: Option<String>,
     kind: String,
-    source_code: String,
-    wasm_bytecode: Vec<u8>,
-    metadata: String,
+    source_code: Option<String>,
+    wasm_bytecode: Option<Vec<u8>>,
+    metadata: Option<String>,
     owner_user_id: UserId,
     created_at: chrono::DateTime<chrono::Utc>,
 }
@@ -153,7 +113,7 @@ impl From<DbTransformRow> for DbTransform {
             kind: row.kind,
             source_code: row.source_code,
             wasm_bytecode: row.wasm_bytecode,
-            metadata: metadata_to_words(&row.metadata),
+            metadata: row.metadata,
             owner_user_id: row.owner_user_id,
             created_at: row.created_at,
         }
@@ -161,8 +121,6 @@ impl From<DbTransformRow> for DbTransform {
 }
 
 const TRANSFORM_ROW_COLUMNS: &str = "t.transform_id, t.name, t.description, t.icon, t.kind, t.source_code, t.wasm_bytecode, t.metadata, t.owner_user_id, t.created_at";
-const TRANSFORM_ROW_COLUMNS_BARE: &str = "transform_id, name, description, icon, kind, source_code, wasm_bytecode, metadata, owner_user_id, created_at";
-const DRAFT_ROW_COLUMNS: &str = "transform_id, source_code, wasm_bytecode, wasm_source_code, name, description, kind, metadata";
 
 #[async_trait::async_trait]
 impl TransformsDataProvider for PostgresTransformsDataProvider {
@@ -316,6 +274,39 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
         Ok(row.into())
     }
 
+    async fn cache_compiled_binary_on_draft(
+        &self,
+        transform_id: TransformId,
+        wasm_bytecode: Vec<u8>,
+        source_code: String,
+        name: String,
+        description: Option<String>,
+        metadata: String,
+    ) -> Result<(), DataError> {
+        sqlx::query(
+            r#"
+            UPDATE transform_draft
+            SET wasm_bytecode = $2,
+                wasm_source_code = $3,
+                name = $4,
+                description = $5,
+                metadata = $6,
+                updated_at = now()
+            WHERE transform_id = $1
+            "#,
+        )
+        .bind(transform_id)
+        .bind(wasm_bytecode)
+        .bind(&source_code)
+        .bind(&name)
+        .bind(&description)
+        .bind(&metadata)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
     async fn list_transform_summaries(&self, offset: i64, limit: i64) -> Result<(Vec<DbTransform>, i64), DataError> {
         #[derive(sqlx::FromRow)]
         struct Row {
@@ -324,9 +315,9 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
             description: Option<String>,
             icon: Option<String>,
             kind: String,
-            source_code: String,
-            wasm_bytecode: Vec<u8>,
-            metadata: String,
+            source_code: Option<String>,
+            wasm_bytecode: Option<Vec<u8>>,
+            metadata: Option<String>,
             owner_user_id: UserId,
             created_at: chrono::DateTime<chrono::Utc>,
             total: i64,
@@ -357,7 +348,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
                 kind: r.kind,
                 source_code: r.source_code,
                 wasm_bytecode: r.wasm_bytecode,
-                metadata: metadata_to_words(&r.metadata),
+                metadata: r.metadata,
                 owner_user_id: r.owner_user_id,
                 created_at: r.created_at,
             })
@@ -423,6 +414,26 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
             .map_err(DataError::from)
     }
 
+    async fn list_accessible_transform_ids(&self, user_id: UserId) -> Result<Vec<TransformId>, DataError> {
+        sqlx::query_scalar::<_, TransformId>(
+            r#"
+            SELECT t.transform_id
+            FROM transform t
+            WHERE t.owner_user_id = $1
+               OR EXISTS (SELECT 1 FROM transform_grants g WHERE g.transform_id = t.transform_id AND g.grantee_user_id = $1)
+               OR EXISTS (
+                    SELECT 1 FROM transform_grants g
+                    WHERE g.transform_id = t.transform_id
+                      AND g.grantee_workspace_id IN (SELECT workspace_id FROM workspace_members WHERE user_id = $1)
+               )
+            "#,
+        )
+        .bind(user_id)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(DataError::from)
+    }
+
     async fn delete_transform(&self, id: TransformId) -> Result<(), DataError> {
         // Draft deletion is only allowed for transforms that have never been
         // published — a published transform may already be referenced by
@@ -457,180 +468,5 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
         }
 
         Ok(())
-    }
-
-    async fn insert_transform_draft(
-        &self,
-        name: String,
-        description: Option<String>,
-        icon: Option<String>,
-        kind: String,
-        owner_user_id: UserId,
-    ) -> Result<DbTransformDraft, DataError> {
-        let mut tx = self.pool.begin().await?;
-
-        let transform_id: TransformId = sqlx::query_scalar(
-            r#"INSERT INTO transform (name, description, icon, kind, owner_user_id, source_code, wasm_bytecode, metadata)
-               VALUES ($1, $2, $3, $4, $5, '', ''::bytea, '')
-               RETURNING transform_id"#,
-        )
-        .bind(&name)
-        .bind(&description)
-        .bind(&icon)
-        .bind(&kind)
-        .bind(owner_user_id)
-        .fetch_one(&mut *tx)
-        .await?;
-
-        let row = sqlx::query_as::<_, DbTransformDraftRow>(&format!(
-            r#"
-            INSERT INTO transform_draft (transform_id, source_code, name, description, kind, metadata)
-            VALUES ($1, '', $2, $3, $4, '')
-            RETURNING {DRAFT_ROW_COLUMNS}
-            "#,
-        ))
-        .bind(transform_id)
-        .bind(&name)
-        .bind(&description)
-        .bind(&kind)
-        .fetch_one(&mut *tx)
-        .await?;
-
-        tx.commit().await?;
-
-        Ok(row.into())
-    }
-
-    async fn get_transform_draft(&self, id: domain::db::db_transform_draft::TransformDraftId) -> Result<DbTransformDraft, DataError> {
-        let row = sqlx::query_as::<_, DbTransformDraftRow>(&format!(
-            r#"SELECT {DRAFT_ROW_COLUMNS} FROM transform_draft WHERE transform_id = $1"#,
-        ))
-        .bind(id)
-        .fetch_one(&self.pool)
-        .await?;
-
-        Ok(row.into())
-    }
-
-    async fn get_transform_drafts(&self, ids: &[domain::db::db_transform_draft::TransformDraftId]) -> Result<Vec<DbTransformDraft>, DataError> {
-        if ids.is_empty() {
-            return Ok(Vec::new());
-        }
-
-        let rows = sqlx::query_as::<_, DbTransformDraftRow>(&format!(
-            r#"SELECT {DRAFT_ROW_COLUMNS} FROM transform_draft WHERE transform_id = ANY($1)"#,
-        ))
-        .bind(ids)
-        .fetch_all(&self.pool)
-        .await?;
-
-        Ok(rows.into_iter().map(DbTransformDraft::from).collect())
-    }
-
-    async fn delete_transform_draft(&self, id: domain::db::db_transform_draft::TransformDraftId) -> Result<(), DataError> {
-        // Today a draft and its transform share the same underlying id (see
-        // the trait doc comment), so this guards and cascades identically to
-        // `delete_transform`.
-        self.delete_transform(id).await
-    }
-
-    async fn save_transform_draft(
-        &self,
-        id: domain::db::db_transform_draft::TransformDraftId,
-        source_code: String,
-        resource_id: Option<ResourceId>,
-    ) -> Result<DbTransformDraft, DataError> {
-        let mut tx = self.pool.begin().await?;
-
-        sqlx::query(r#"UPDATE transform_draft SET source_code = $2, updated_at = now() WHERE transform_id = $1"#)
-            .bind(id)
-            .bind(&source_code)
-            .execute(&mut *tx)
-            .await?;
-
-        if let Some(resource_id) = resource_id {
-            // Provenance check, in the same query as the "belongs to this
-            // transform" check: the resource's own compile ticket's
-            // source_code must equal the source_code being saved right now
-            // (t.source_code = $3). This is what actually guarantees
-            // transform_draft never ends up with a binary that doesn't
-            // correspond to its own saved source — the frontend's
-            // `attachableResourceId` guard (code-editor.tsx) already only
-            // ever sends a resource_id while the editor buffer still matches
-            // what was compiled, so a mismatch reaching here at all means a
-            // stale or buggy client. We treat that as a hard validation
-            // error (rolling back the whole save, including the source-only
-            // part) rather than silently downgrading to a source-only save —
-            // consistent with the pre-existing "resource does not belong to
-            // this transform" case below, which already fails the same way.
-            let result = sqlx::query(
-                r#"
-                UPDATE transform_draft d
-                SET wasm_bytecode = r.wasm_bytecode,
-                    wasm_source_code = $3,
-                    name = r.name,
-                    description = r.description,
-                    metadata = r.metadata,
-                    updated_at = now()
-                FROM transform_resource r
-                JOIN transform_ticket t ON t.ticket_id = r.ticket_id
-                WHERE d.transform_id = $1
-                  AND r.resource_id = $2
-                  AND t.transform_id = $1
-                  AND t.source_code = $3
-                "#,
-            )
-            .bind(id)
-            .bind(resource_id)
-            .bind(&source_code)
-            .execute(&mut *tx)
-            .await?;
-
-            if result.rows_affected() == 0 {
-                return Err(DataError::Validation(
-                    "resource_id does not correspond to a compile of the exact source being saved (foreign, stale, or mismatched resource)".to_string(),
-                ));
-            }
-        }
-
-        let row = sqlx::query_as::<_, DbTransformDraftRow>(&format!(
-            r#"SELECT {DRAFT_ROW_COLUMNS} FROM transform_draft WHERE transform_id = $1"#,
-        ))
-        .bind(id)
-        .fetch_one(&mut *tx)
-        .await?;
-
-        tx.commit().await?;
-
-        Ok(row.into())
-    }
-
-    async fn publish_compiled_transform(
-        &self,
-        id: domain::db::db_transform_draft::TransformDraftId,
-        wasm_bytecode: Vec<u8>,
-        source_code: String,
-        name: String,
-        description: Option<String>,
-        metadata: String,
-    ) -> Result<DbTransform, DataError> {
-        let row = sqlx::query_as::<_, DbTransformRow>(&format!(
-            r#"
-            UPDATE transform
-            SET name = $2, description = $3, source_code = $4, wasm_bytecode = $5, metadata = $6
-            WHERE transform_id = $1
-            RETURNING {TRANSFORM_ROW_COLUMNS_BARE}
-            "#,
-        ))
-        .bind(id)
-        .bind(&name)
-        .bind(&description)
-        .bind(&source_code)
-        .bind(&wasm_bytecode)
-        .bind(&metadata)
-        .fetch_one(&self.pool)
-        .await?;
-
-        Ok(row.into())
     }
 }

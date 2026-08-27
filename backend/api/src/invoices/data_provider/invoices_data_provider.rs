@@ -8,6 +8,6 @@ pub trait InvoicesDataProvider: Send + Sync {
     async fn create_invoice(&self, params: CreateInvoiceParams) -> Result<DbInvoice, DataError>;
     async fn get_invoice(&self, id: InvoiceId) -> Result<Option<DbInvoice>, DataError>;
     async fn delete_invoice(&self, id: InvoiceId) -> Result<bool, DataError>;
-    async fn list_by_user_paginated(&self, user_id: i32, offset: i64, limit: i64) -> Result<(Vec<DbInvoice>, i64), DataError>;
-    async fn list_all_paginated(&self, user_id: Option<i32>, offset: i64, limit: i64) -> Result<(Vec<DbInvoice>, i64), DataError>;
+    async fn list_by_user_paginated(&self, user_id: domain::domain_user::UserId, offset: i64, limit: i64) -> Result<(Vec<DbInvoice>, i64), DataError>;
+    async fn list_all_paginated(&self, user_id: Option<domain::domain_user::UserId>, offset: i64, limit: i64) -> Result<(Vec<DbInvoice>, i64), DataError>;
 }

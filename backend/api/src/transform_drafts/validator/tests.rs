@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use domain::db::db_transform::TransformId;
 
 use crate::ticket_worker::processor::transform_metadata::{DirectionJson, PortCardinalityJson, PortKindJson, PortMetadataJson};
-use crate::transforms::validator::{
+use crate::transform_drafts::validator::{
     composite::Composite,
     edge::Edge,
     graph_definition::GraphDefinition,
@@ -42,11 +42,11 @@ fn nested_composite_leaf() -> TransformInfo {
 }
 
 fn primitive(node_id: i64, transform_id: i64) -> Node {
-    Node::Primitive(Primitive { node_id, transform_id, position: NodePosition::default() })
+    Node::Primitive(Primitive { node_id, transform_id: TransformId(transform_id), position: NodePosition::default() })
 }
 
 fn composite(node_id: i64, transform_id: i64) -> Node {
-    Node::Composite(Composite { node_id, transform_id, position: NodePosition::default() })
+    Node::Composite(Composite { node_id, transform_id: TransformId(transform_id), position: NodePosition::default() })
 }
 
 fn input(node_id: i64, name: &str) -> Node {
@@ -89,7 +89,7 @@ fn rejects_unknown_leaf_transform() {
 
 #[test]
 fn rejects_primitive_node_pointing_at_a_composite_transform() {
-    let leaves = HashMap::from([(1, nested_composite_leaf())]);
+    let leaves = HashMap::from([(TransformId(1), nested_composite_leaf())]);
     let graph = GraphDefinition { nodes: vec![primitive(1, 1)], edges: vec![] };
     let result = validate(graph, leaves);
     assert!(result.is_err());
@@ -97,7 +97,7 @@ fn rejects_primitive_node_pointing_at_a_composite_transform() {
 
 #[test]
 fn rejects_composite_node_pointing_at_a_primitive_transform() {
-    let leaves = HashMap::from([(1, gain_leaf())]);
+    let leaves = HashMap::from([(TransformId(1), gain_leaf())]);
     let graph = GraphDefinition { nodes: vec![composite(1, 1)], edges: vec![] };
     let result = validate(graph, leaves);
     assert!(result.is_err());
@@ -105,7 +105,7 @@ fn rejects_composite_node_pointing_at_a_primitive_transform() {
 
 #[test]
 fn accepts_a_composite_node_referencing_a_published_composite() {
-    let leaves = HashMap::from([(1, nested_composite_leaf())]);
+    let leaves = HashMap::from([(TransformId(1), nested_composite_leaf())]);
     let graph = GraphDefinition {
         nodes: vec![composite(1, 1), input(2, "in"), output(3, "out")],
         edges: vec![edge(2, "signal", 1, "in"), edge(1, "out", 3, "signal")],
@@ -117,7 +117,7 @@ fn accepts_a_composite_node_referencing_a_published_composite() {
 
 #[test]
 fn accepts_a_simple_chain_and_derives_io_ports() {
-    let leaves = HashMap::from([(1, gain_leaf())]);
+    let leaves = HashMap::from([(TransformId(1), gain_leaf())]);
     let graph = GraphDefinition {
         nodes: vec![primitive(1, 1), primitive(2, 1), input(3, "in"), output(4, "out")],
         edges: vec![edge(1, "out", 2, "in"), edge(3, "signal", 1, "in"), edge(2, "out", 4, "signal")],
@@ -134,7 +134,7 @@ fn rejects_unconnected_program_input() {
     // "in" is a Program-kind input left completely unwired — no Input node,
     // no edge at all. Isolates the dangling-input check from every
     // Input/Output-node check below (none are exercised by this graph).
-    let leaves = HashMap::from([(1, gain_leaf())]);
+    let leaves = HashMap::from([(TransformId(1), gain_leaf())]);
     let graph = GraphDefinition { nodes: vec![primitive(1, 1)], edges: vec![] };
     let result = validate(graph, leaves);
     assert!(result.is_err());
@@ -142,7 +142,7 @@ fn rejects_unconnected_program_input() {
 
 #[test]
 fn rejects_a_second_edge_into_a_single_cardinality_leaf_input() {
-    let leaves = HashMap::from([(1, gain_leaf())]);
+    let leaves = HashMap::from([(TransformId(1), gain_leaf())]);
     let graph = GraphDefinition {
         nodes: vec![primitive(1, 1), primitive(2, 1), primitive(3, 1)],
         edges: vec![edge(1, "out", 3, "in"), edge(2, "out", 3, "in")],
@@ -157,7 +157,7 @@ fn requires_at_least_one_output_node() {
     // passes), but no Output node exists anywhere in the graph — isolates
     // the "must have at least one Output node" rule from the "Output node
     // present but disconnected" case covered separately below.
-    let leaves = HashMap::from([(1, gain_leaf())]);
+    let leaves = HashMap::from([(TransformId(1), gain_leaf())]);
     let graph = GraphDefinition { nodes: vec![primitive(1, 1), input(2, "in")], edges: vec![edge(2, "signal", 1, "in")] };
     let result = validate(graph, leaves);
     assert!(result.is_err());
@@ -165,7 +165,7 @@ fn requires_at_least_one_output_node() {
 
 #[test]
 fn rejects_input_node_with_no_outgoing_edge() {
-    let leaves = HashMap::from([(1, gain_leaf())]);
+    let leaves = HashMap::from([(TransformId(1), gain_leaf())]);
     let graph = GraphDefinition {
         nodes: vec![primitive(1, 1), input(2, "in"), output(3, "out")],
         // Input node 2 has no outgoing edge at all — node 1's "in" is left
@@ -179,7 +179,7 @@ fn rejects_input_node_with_no_outgoing_edge() {
 
 #[test]
 fn rejects_output_node_with_no_incoming_edge() {
-    let leaves = HashMap::from([(1, gain_leaf())]);
+    let leaves = HashMap::from([(TransformId(1), gain_leaf())]);
     let graph = GraphDefinition {
         nodes: vec![primitive(1, 1), input(2, "in"), output(3, "out")],
         // Output node 3 has no incoming edge — node 1's "out" is left
@@ -193,7 +193,7 @@ fn rejects_output_node_with_no_incoming_edge() {
 
 #[test]
 fn rejects_output_node_with_two_incoming_edges() {
-    let leaves = HashMap::from([(1, gain_leaf())]);
+    let leaves = HashMap::from([(TransformId(1), gain_leaf())]);
     let graph = GraphDefinition {
         nodes: vec![primitive(1, 1), primitive(2, 1), input(3, "in1"), input(4, "in2"), output(5, "out")],
         edges: vec![
@@ -209,7 +209,7 @@ fn rejects_output_node_with_two_incoming_edges() {
 
 #[test]
 fn rejects_empty_io_node_name() {
-    let leaves = HashMap::from([(1, gain_leaf())]);
+    let leaves = HashMap::from([(TransformId(1), gain_leaf())]);
     let graph = GraphDefinition {
         nodes: vec![primitive(1, 1), input(2, ""), output(3, "out")],
         edges: vec![edge(2, "signal", 1, "in"), edge(1, "out", 3, "signal")],
@@ -220,7 +220,7 @@ fn rejects_empty_io_node_name() {
 
 #[test]
 fn rejects_duplicate_io_node_names() {
-    let leaves = HashMap::from([(1, gain_leaf())]);
+    let leaves = HashMap::from([(TransformId(1), gain_leaf())]);
     let graph = GraphDefinition {
         nodes: vec![primitive(1, 1), input(2, "shared"), output(3, "shared")],
         edges: vec![edge(2, "signal", 1, "in"), edge(1, "out", 3, "signal")],
@@ -231,7 +231,7 @@ fn rejects_duplicate_io_node_names() {
 
 #[test]
 fn input_node_may_fan_out_to_multiple_leaf_inputs() {
-    let leaves = HashMap::from([(1, gain_leaf())]);
+    let leaves = HashMap::from([(TransformId(1), gain_leaf())]);
     let graph = GraphDefinition {
         nodes: vec![primitive(1, 1), primitive(2, 1), input(3, "in"), output(4, "out1"), output(5, "out2")],
         edges: vec![
@@ -254,7 +254,7 @@ fn rejects_malformed_json() {
 
 #[test]
 fn validates_hand_written_json_directly() {
-    let leaves = HashMap::from([(1, gain_leaf())]);
+    let leaves = HashMap::from([(TransformId(1), gain_leaf())]);
     let metadata_json = serde_json::json!({
         "nodes": [
             {"node_kind": "primitive", "node_id": 1, "transform_id": 1, "position": {"x": 0.0, "y": 0.0}},

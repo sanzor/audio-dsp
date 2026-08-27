@@ -20,7 +20,7 @@ impl PurchasedProductsProvider for PurchasedProductsProviderService {
     async fn get_purchased_product(&self, id: PurchasedProductId) -> Result<Option<DbPurchasedProduct>, ServiceError> {
         self.data_provider.get_purchased_product(id).await.map_err(ServiceError::from)
     }
-    async fn list_by_user(&self, user_id: i32) -> Result<Vec<DbPurchasedProduct>, ServiceError> {
+    async fn list_by_user(&self, user_id: domain::domain_user::UserId) -> Result<Vec<DbPurchasedProduct>, ServiceError> {
         self.data_provider.list_by_user(user_id).await.map_err(ServiceError::from)
     }
     async fn delete_purchased_product(&self, id: PurchasedProductId) -> Result<bool, ServiceError> {

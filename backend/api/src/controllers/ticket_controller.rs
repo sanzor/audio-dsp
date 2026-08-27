@@ -1,10 +1,15 @@
 use crate::{
     domain::service_error::ServiceError,
-    middlewares::jwt::jwt_context::JwtContext,
+    middlewares::{
+        authz::{
+            transform_access_context::TransformAccessContext,
+            transform_authz::{require_access, require_owner},
+        },
+        jwt::jwt_context::JwtContext,
+    },
     tickets::{compile_params::RequestCompileParams, compile_result::CompileResult},
     tickets::tickets_app_data::TicketsAppData,
-    transform_grants::transform_grants_app_data::TransformGrantsAppData,
-    transforms::{authz::{require_access, require_owner}, transforms_app_data::TransformsAppData},
+    transforms::transforms_app_data::TransformsAppData,
 };
 use actix_web::{get, post, web, HttpResponse};
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine};
@@ -168,7 +173,7 @@ pub async fn get_compile_ticket_status(
     path: web::Path<TicketIdPath>,
     app: web::Data<TicketsAppData>,
     transforms_app: web::Data<TransformsAppData>,
-    grants_app: web::Data<TransformGrantsAppData>,
+    access: TransformAccessContext,
 ) -> HttpResponse {
     let ticket_id = path.into_inner().ticket_id;
 
@@ -176,7 +181,7 @@ pub async fn get_compile_ticket_status(
         Ok(id) => id,
         Err(e) => return map_service_error(e),
     };
-    if let Err(resp) = require_access(&transforms_app, &grants_app, transform_id, &jwt).await {
+    if let Err(resp) = require_access(&transforms_app, &access, transform_id, &jwt).await {
         return resp;
     }
 
@@ -222,7 +227,7 @@ pub async fn get_compile_resource(
     path: web::Path<ResourceIdPath>,
     app: web::Data<TicketsAppData>,
     transforms_app: web::Data<TransformsAppData>,
-    grants_app: web::Data<TransformGrantsAppData>,
+    access: TransformAccessContext,
 ) -> HttpResponse {
     let resource_id = path.into_inner().resource_id;
 
@@ -230,7 +235,7 @@ pub async fn get_compile_resource(
         Ok(id) => id,
         Err(e) => return map_service_error(e),
     };
-    if let Err(resp) = require_access(&transforms_app, &grants_app, transform_id, &jwt).await {
+    if let Err(resp) = require_access(&transforms_app, &access, transform_id, &jwt).await {
         return resp;
     }
 

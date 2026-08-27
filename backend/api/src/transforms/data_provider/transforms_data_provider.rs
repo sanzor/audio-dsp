@@ -2,7 +2,6 @@ use domain::{
     db::{
         WorkspaceId,
         db_transform::{DbTransform, TransformId},
-        db_transform_draft::{DbTransformDraft, TransformDraftId},
         ticket::{
             create_ticket_params::CreateTicketParams,
             db_resource::{DbResource, ResourceId},
@@ -43,6 +42,24 @@ pub trait TransformsDataProvider: Send + Sync {
         metadata: String,
     ) -> Result<DbResource, DataError>;
     async fn get_compiled_transform(&self, resource_id: ResourceId) -> Result<DbResource, DataError>;
+    /// Called by the ticket worker immediately after a compile succeeds —
+    /// caches the result directly on the transform's draft row (bucket 2)
+    /// so the draft never depends on `transform_ticket`/`transform_resource`
+    /// surviving past this point (they can be deleted independently).
+    /// Unconditionally overwrites whatever was cached from an earlier
+    /// compile, including one from an unsaved/experimental buffer;
+    /// `wasm_source_code` records what source produced it, which is what
+    /// lets `publish_primitive` still tell a stale cache apart from a fresh
+    /// one (see `DbTransformDraft::wasm_source_code` and decision 0002).
+    async fn cache_compiled_binary_on_draft(
+        &self,
+        transform_id: TransformId,
+        wasm_bytecode: Vec<u8>,
+        source_code: String,
+        name: String,
+        description: Option<String>,
+        metadata: String,
+    ) -> Result<(), DataError>;
 
     // ── Published transforms (bucket 3) ─────────────────────────────────
 
@@ -53,60 +70,19 @@ pub trait TransformsDataProvider: Send + Sync {
     async fn get_transform(&self, id: TransformId) -> Result<DbTransform, DataError>;
     async fn get_transforms(&self, ids: &[TransformId]) -> Result<Vec<DbTransform>, DataError>;
     async fn get_transform_owner(&self, id: TransformId) -> Result<UserId, DataError>;
+    /// All transform ids the user may read: owned, granted directly to
+    /// them, or granted to a workspace they belong to. Backs
+    /// `TransformAccessContext`, loaded once per request by
+    /// `TransformAccessMiddleware` so handlers can check membership
+    /// locally instead of a grants lookup per resource id.
+    async fn list_accessible_transform_ids(&self, user_id: UserId) -> Result<Vec<TransformId>, DataError>;
     /// Only allowed when the transform has never been published (its
     /// `wasm_bytecode` is still empty) — see
     /// `agents/decisions/0002-transform-draft-lifecycle-decisions.md`.
     /// Cascades to `transform_draft`/`transform_ticket`/`transform_resource`
-    /// via existing FK `ON DELETE CASCADE`.
+    /// via existing FK `ON DELETE CASCADE`. Also the backing implementation
+    /// for `TransformDraftsProviderService::delete_transform_draft` — a
+    /// draft and its transform share the same underlying row id, see
+    /// `TransformDraftId`'s doc comment.
     async fn delete_transform(&self, id: TransformId) -> Result<(), DataError>;
-
-    // ── Drafts (bucket 2) ────────────────────────────────────────────────
-
-    /// Creates a transform and its (bucket 2) draft row together, so the
-    /// draft row is always present — save/publish never have to
-    /// special-case "no row yet". `kind` is "primitive" | "composite",
-    /// validated by the caller.
-    async fn insert_transform_draft(
-        &self,
-        name: String,
-        description: Option<String>,
-        icon: Option<String>,
-        kind: String,
-        owner_user_id: UserId,
-    ) -> Result<DbTransformDraft, DataError>;
-    async fn get_transform_draft(&self, id: TransformDraftId) -> Result<DbTransformDraft, DataError>;
-    async fn get_transform_drafts(&self, ids: &[TransformDraftId]) -> Result<Vec<DbTransformDraft>, DataError>;
-    /// Only allowed when the transform has never been published — same
-    /// guard as `delete_transform` (today `TransformDraftId` and
-    /// `TransformId` share the same underlying row, just kept as distinct
-    /// Rust types so a draft id and a published id can't be swapped by
-    /// accident at a call site).
-    async fn delete_transform_draft(&self, id: TransformDraftId) -> Result<(), DataError>;
-
-    /// Bucket 2 — "save". Always overwrites source_code. If `resource_id` is
-    /// given, also copies that resource's (bucket 1) binary/metadata into the
-    /// draft; the resource must belong to this transform and correspond to
-    /// the exact source being saved. If omitted, any previously saved
-    /// binary/metadata is left untouched — a source-only save never wipes
-    /// out the last good build.
-    async fn save_transform_draft(
-        &self,
-        id: TransformDraftId,
-        source_code: String,
-        resource_id: Option<ResourceId>,
-    ) -> Result<DbTransformDraft, DataError>;
-
-    /// Atomically replaces the live transform's source/binary/metadata with
-    /// what's currently saved (bucket 2), publishing it as bucket 3. One
-    /// transaction so a transform's definition and its binary can never
-    /// observably drift from each other.
-    async fn publish_compiled_transform(
-        &self,
-        id: TransformDraftId,
-        wasm_bytecode: Vec<u8>,
-        source_code: String,
-        name: String,
-        description: Option<String>,
-        metadata: String,
-    ) -> Result<DbTransform, DataError>;
 }

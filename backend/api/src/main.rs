@@ -26,6 +26,7 @@ use api::{
         memberships_provider::MembershipsProvider,
         memberships_provider_service::MembershipsProviderService,
     }, middlewares::{
+        authz::transform_access_middleware::TransformAccessMiddleware,
         jwt::JwtAuthMiddleware,
         membership::MembershipMiddleware,
         permissions_context::permissions_context_middleware::PermissionsContextMiddleware,
@@ -70,6 +71,10 @@ use api::{
         tier_configs_provider_service::TierConfigsProviderService,
     }, tracks::{
         data_provider::tracks_data_provider_service::PostgresTracksDataProvider, multipart_audio_parser::multipart_audio_parser_service::MultipartAudioParserService, storage_provider::track_storage_provider_service::TrackStorageProviderService, tracks_app_data::TracksAppData, tracks_provider_service::TracksProviderService,
+    }, transform_drafts::{
+        data_provider::transform_drafts_data_provider_service::PostgresTransformDraftsDataProvider,
+        transform_drafts_app_data::TransformDraftsAppData,
+        transform_drafts_provider_service::TransformDraftsProviderService,
     }, transforms::{
         data_provider::transforms_data_provider_service::PostgresTransformsDataProvider,
         transforms_app_data::TransformsAppData,
@@ -355,6 +360,8 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
 
     let transforms_data_provider: Arc<dyn api::transforms::data_provider::transforms_data_provider::TransformsDataProvider> =
         Arc::new(PostgresTransformsDataProvider::new(pool.clone()));
+    let transform_drafts_data_provider: Arc<dyn api::transform_drafts::data_provider::transform_drafts_data_provider::TransformDraftsDataProvider> =
+        Arc::new(PostgresTransformDraftsDataProvider::new(pool.clone()));
     let tickets_app_data = TicketsAppData {
         tickets_service: Arc::new(TicketsProviderService::new(
             Arc::clone(&transforms_data_provider),
@@ -404,12 +411,17 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
         max_wasm_bytes: transform_max_wasm_bytes,
     };
 
-    // Also used synchronously by TransformsProviderService::check_source
-    // (a fast `cargo check`, not a ticket) — the worker only ever needs it
-    // for the async `cargo build --release` ticket pipeline.
     let transforms_app_data = TransformsAppData {
-        transforms_service: Arc::new(TransformsProviderService::new(
-            Arc::clone(&transforms_data_provider),
+        transforms_service: Arc::new(TransformsProviderService::new(Arc::clone(&transforms_data_provider))),
+    };
+
+    // build_job_config is also used synchronously by
+    // TransformDraftsProviderService::check_source (a fast `cargo check`,
+    // not a ticket) — the worker only ever needs it for the async
+    // `cargo build --release` ticket pipeline.
+    let transform_drafts_app_data = TransformDraftsAppData {
+        transform_drafts_service: Arc::new(TransformDraftsProviderService::new(
+            Arc::clone(&transform_drafts_data_provider),
             build_job_config.clone(),
         )),
     };
@@ -442,6 +454,9 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
         memberships: Arc::clone(&memberships_service),
     };
     let users_permissions_middleware = PermissionsContextMiddleware::allow_all();
+    let transform_access_middleware = TransformAccessMiddleware {
+        transforms_service: Arc::clone(&transforms_app_data.transforms_service),
+    };
 
     println!("Server running at http://{host}:{port}");
 
@@ -482,6 +497,7 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
             .app_data(web::Data::new(purchased_products_app_data.clone()))
             .app_data(web::Data::new(usage_app_data.clone()))
             .app_data(web::Data::new(transforms_app_data.clone()))
+            .app_data(web::Data::new(transform_drafts_app_data.clone()))
             .app_data(web::Data::new(tickets_app_data.clone()))
             .app_data(web::Data::new(transform_grants_app_data.clone()))
             .app_data(web::Data::new(stored_tracks_app_data.clone()))
@@ -569,10 +585,17 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
             )
             .service(
                 web::scope("/transforms")
+                    .wrap(transform_access_middleware.clone())
                     .wrap(jwt_middleware.clone())
                     .configure(controllers::transforms_controller::init)
                     .configure(controllers::ticket_controller::init)
                     .configure(controllers::transform_grants_controller::init),
+            )
+            .service(
+                web::scope("/draft_transforms")
+                    .wrap(transform_access_middleware.clone())
+                    .wrap(jwt_middleware.clone())
+                    .configure(controllers::transform_drafts_controller::init),
             )
     })
     .bind((host.as_str(), port))?

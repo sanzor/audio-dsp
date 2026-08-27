@@ -56,7 +56,7 @@ impl TransformGrantsDataProvider for PostgresTransformGrantsDataProvider {
         .map_err(|e| e.to_string())
     }
 
-    async fn has_access(&self, transform_id: TransformId, user_id: i32) -> Result<bool, String> {
+    async fn has_access(&self, transform_id: TransformId, user_id: domain::domain_user::UserId) -> Result<bool, String> {
         sqlx::query_scalar::<_, bool>(
             r#"
             SELECT EXISTS (

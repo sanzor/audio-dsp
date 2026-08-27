@@ -5,7 +5,7 @@ use crate::me::me_workspace_result::MeWorkspaceResult;
 
 #[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
 pub struct MeUserResult {
-    pub id: i32,
+    pub id: domain::domain_user::UserId,
     pub name: String,
     pub email: String,
     pub is_admin: bool,

@@ -31,7 +31,7 @@ impl TransformGrantsProvider for TransformGrantsProviderService {
         self.data_provider.list_grants(transform_id).await
     }
 
-    async fn has_access(&self, transform_id: TransformId, user_id: i32) -> Result<bool, String> {
+    async fn has_access(&self, transform_id: TransformId, user_id: domain::domain_user::UserId) -> Result<bool, String> {
         self.data_provider.has_access(transform_id, user_id).await
     }
 }

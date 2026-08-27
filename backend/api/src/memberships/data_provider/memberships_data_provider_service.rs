@@ -1,4 +1,4 @@
-use domain::{db::DbMembership, workspace_role::WorkspaceRole};
+use domain::{db::DbMembership, domain_user::UserId, workspace_role::WorkspaceRole};
 use sqlx::PgPool;
 
 use crate::memberships::memberships_provider::CreateMembershipParams;
@@ -37,7 +37,7 @@ impl MembershipsDataProvider for PostgresMembershipsDataProvider {
         .map_err(|e| e.to_string())
     }
 
-    async fn delete_membership(&self, workspace_id: i32, user_id: i32) -> Result<bool, String> {
+    async fn delete_membership(&self, workspace_id: i32, user_id: UserId) -> Result<bool, String> {
         let result =
             sqlx::query("DELETE FROM workspace_members WHERE workspace_id = $1 AND user_id = $2")
                 .bind(workspace_id)
@@ -51,7 +51,7 @@ impl MembershipsDataProvider for PostgresMembershipsDataProvider {
     async fn get_membership(
         &self,
         workspace_id: i32,
-        user_id: i32,
+        user_id: UserId,
     ) -> Result<Option<DbMembership>, String> {
         sqlx::query_as::<_, DbMembership>(
             "SELECT * FROM workspace_members WHERE workspace_id = $1 AND user_id = $2",
@@ -66,7 +66,7 @@ impl MembershipsDataProvider for PostgresMembershipsDataProvider {
     async fn list_memberships(
         &self,
         workspace_id: Option<i32>,
-        user_id: Option<i32>,
+        user_id: Option<UserId>,
     ) -> Result<Vec<DbMembership>, String> {
         match (workspace_id, user_id) {
             (Some(p), Some(u)) => sqlx::query_as::<_, DbMembership>(
@@ -101,7 +101,7 @@ impl MembershipsDataProvider for PostgresMembershipsDataProvider {
     async fn get_role(
         &self,
         workspace_id: i32,
-        user_id: i32,
+        user_id: UserId,
     ) -> Result<Option<WorkspaceRole>, String> {
         let row: Option<(WorkspaceRole,)> = sqlx::query_as(
             "SELECT role FROM workspace_members WHERE workspace_id = $1 AND user_id = $2",
@@ -118,7 +118,7 @@ impl MembershipsDataProvider for PostgresMembershipsDataProvider {
     async fn update_role(
         &self,
         workspace_id: i32,
-        user_id: i32,
+        user_id: UserId,
         role: WorkspaceRole,
     ) -> Result<Option<DbMembership>, String> {
         sqlx::query_as::<_, DbMembership>(

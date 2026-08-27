@@ -1,8 +1,9 @@
 use async_trait::async_trait;
+use domain::domain_user::UserId;
 use sqlx::PgPool;
 
 use crate::domain::data_error::DataError;
-use crate::domain::db::db_user::{DbUser, UserId};
+use crate::domain::db::db_user::{DbUser};
 use crate::users::create_user_params::CreateUserParams;
 use crate::users::data_provider::user_data_provider::UserDataProvider;
 use crate::users::update_user_params::UpdateUserParams;

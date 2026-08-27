@@ -74,6 +74,12 @@ impl Processor {
         let name = metadata.name;
         let description = metadata.description;
 
+        // Keep copies of the small fields for the draft-cache write below —
+        // `wasm_bytecode` itself we get back off `resource` without cloning
+        // the (potentially large) binary a second time.
+        let cached_name = name.clone();
+        let cached_description = description.clone();
+        let cached_metadata = metadata_payload.clone();
 
         // 4 — store the artifact as a resource (bucket 1: compile check).
         // This never touches live state — a compile ticket is purely a check;
@@ -92,6 +98,34 @@ impl Processor {
             })
             .await
             .map_err(|e| ProcessorError::DataError(e.to_string()))?;
+
+        // 5 — cache the compiled binary directly on the draft row. Best
+        // effort: a failure here doesn't fail the ticket (the compile did
+        // succeed — that's `ticket`/`resource`'s job to record), it just
+        // means the draft's cached preview stays whatever it was until the
+        // next successful compile. See `TransformsDataProvider::
+        // cache_compiled_binary_on_draft` for why this happens here rather
+        // than being re-derived later from ticket/resource rows that may by
+        // then have been deleted.
+        if let Err(e) = self
+            .data_provider
+            .cache_compiled_binary_on_draft(
+                event.transform_id,
+                resource.wasm_bytecode,
+                event.source_code.clone(),
+                cached_name,
+                cached_description,
+                cached_metadata,
+            )
+            .await
+        {
+            tracing::warn!(
+                ticket_id = event.ticket_id,
+                transform_id = %event.transform_id,
+                error = %e,
+                "failed to cache compiled binary on transform draft"
+            );
+        }
 
         Ok(ProcessResult { ticket })
     }

@@ -1,6 +1,7 @@
 use async_trait::async_trait;
+use domain::domain_user::UserId;
 
-use crate::domain::db::db_user::UserId;
+
 use crate::domain::service_error::ServiceError;
 use crate::users::{
     create_user_params::CreateUserParams, create_user_result::CreateUserResult,

@@ -39,7 +39,7 @@ impl WorkspacesProvider for WorkspacesProviderService {
         self.data_provider.delete_workspace(workspace_id).await
     }
 
-    async fn list_workspaces_for_user(&self, user_id: i32) -> Result<Vec<DbWorkspace>, String> {
+    async fn list_workspaces_for_user(&self, user_id: domain::domain_user::UserId) -> Result<Vec<DbWorkspace>, String> {
         self.data_provider.list_workspaces_for_user(user_id).await
     }
 }

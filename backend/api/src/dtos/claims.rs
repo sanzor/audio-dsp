@@ -1,8 +1,9 @@
+use domain::domain_user::UserId;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Claims {
-    pub user_id: i32,
+    pub user_id: UserId,
     pub name: Option<String>,
     pub email: Option<String>,
     pub is_admin: bool,
