@@ -1,6 +1,6 @@
 # 0003: Compiled-binary transport — preview flow vs. save flow are separate
 
-- **Status:** Accepted
+- **Status:** Superseded by 0009
 - **Date:** 2026-07-22
 
 ## Context

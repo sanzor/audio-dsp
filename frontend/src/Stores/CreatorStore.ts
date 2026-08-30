@@ -25,12 +25,11 @@ interface CreatorState {
   activeTicketByTransform: Record<number, { ticketId: number; sourceCode: string }>;
   setActiveTicket: (transformId: number, ticketId: number, sourceCode: string) => void;
 
-  // The most recent successful compile resource per transform (bucket 1),
-  // paired with the exact source it was built from. Save only attaches this
-  // resource_id when the current buffer still matches that source — otherwise
-  // it's stale and Save omits it, leaving any previously saved binary as-is.
-  lastCompiledResourceByTransform: Record<number, { resourceId: number; sourceCode: string }>;
-  setLastCompiledResource: (transformId: number, resourceId: number, sourceCode: string) => void;
+  // Temporary Creator-side compile handoff. This is intentionally not
+  // persisted: refresh before Save means the creator must retrieve/recompile
+  // again. Source and binary stay paired so Save never combines builds.
+  compiledDraftByTransform: Record<number, { resourceId: number; sourceCode: string; wasmBase64: string }>;
+  setCompiledDraft: (transformId: number, resourceId: number, sourceCode: string, wasmBase64: string) => void;
 
   // The live (possibly unsaved) source buffer for whichever transform is
   // currently open in the code editor. Lives here rather than as local
@@ -83,12 +82,12 @@ export const useCreatorStore = create<CreatorState>()(
             activeTicketByTransform: { ...state.activeTicketByTransform, [transformId]: { ticketId, sourceCode } },
           })),
 
-        lastCompiledResourceByTransform: {},
-        setLastCompiledResource: (transformId, resourceId, sourceCode) =>
+        compiledDraftByTransform: {},
+        setCompiledDraft: (transformId, resourceId, sourceCode, wasmBase64) =>
           set((state) => ({
-            lastCompiledResourceByTransform: {
-              ...state.lastCompiledResourceByTransform,
-              [transformId]: { resourceId, sourceCode },
+            compiledDraftByTransform: {
+              ...state.compiledDraftByTransform,
+              [transformId]: { resourceId, sourceCode, wasmBase64 },
             },
           })),
 

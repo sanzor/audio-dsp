@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::transform_drafts::validator::graph_definition::GraphDefinition;
+use crate::transform_drafts::graph_validator::graph_definition::GraphDefinition;
 
 /// Backend-side mirror of `transform_sdk::TransformMetadata`. Kept separate
 /// from the SDK crate's serialize-side types since they compile for

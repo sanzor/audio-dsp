@@ -28,7 +28,7 @@ use domain::db::db_transform::TransformId;
 
 use crate::ticket_worker::processor::transform_metadata::{DirectionJson, PortCardinalityJson, PortKindJson, PortMetadataJson};
 
-use super::{edge::Edge, graph_definition::GraphDefinition, transnform_info::TransformInfo, node::Node};
+use super::{edge::Edge, graph_definition::GraphDefinition, transform_info::TransformInfo, node::Node};
 
 /// Fixed pseudo-port name used on the single implicit handle every
 /// Input/Output node exposes (an Input node's one output handle, an Output

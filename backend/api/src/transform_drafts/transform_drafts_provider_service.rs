@@ -14,10 +14,10 @@ use crate::ticket_worker::processor::{
 };
 
 use super::{
-    data_provider::transform_drafts_data_provider::TransformDraftsDataProvider,
+    data_provider::transform_drafts_data_provider::{CompiledPrimitiveDraft, TransformDraftsDataProvider},
     transform_drafts_provider::TransformDraftsProvider,
-    validator::{
-        graph_definition::GraphDefinition, transnform_info::TransformInfo, validator::{Validator, ValidatorInput},
+    graph_validator::{
+        graph_definition::GraphDefinition, transform_info::TransformInfo, validator::{Validator, ValidatorInput},
     },
 };
 
@@ -39,11 +39,16 @@ fn require_kind(draft: &DbTransformDraft, expected: &str) -> Result<(), ServiceE
 pub struct TransformDraftsProviderService {
     data: Arc<dyn TransformDraftsDataProvider>,
     build_job_config: BuildJobConfig,
+    metadata_fuel_limit: u64,
 }
 
 impl TransformDraftsProviderService {
-    pub fn new(data: Arc<dyn TransformDraftsDataProvider>, build_job_config: BuildJobConfig) -> Self {
-        Self { data, build_job_config }
+    pub fn new(
+        data: Arc<dyn TransformDraftsDataProvider>,
+        build_job_config: BuildJobConfig,
+        metadata_fuel_limit: u64,
+    ) -> Self {
+        Self { data, build_job_config, metadata_fuel_limit }
     }
 
     /// Fetches already-published transforms by id (silently omitting any
@@ -112,9 +117,40 @@ impl TransformDraftsProvider for TransformDraftsProviderService {
         &self,
         id: TransformDraftId,
         source_code: String,
+        wasm_bytecode: Option<Vec<u8>>,
     ) -> Result<DbTransformDraft, ServiceError> {
         require_kind(&self.data.get_transform_draft(id).await?, "primitive")?;
-        self.data.save_primitive_draft(id, source_code).await.map_err(ServiceError::from)
+        let compiled = wasm_bytecode
+            .map(|wasm_bytecode| {
+                if wasm_bytecode.len() as u64 > self.build_job_config.max_wasm_bytes {
+                    return Err(ServiceError::Validation(format!(
+                        "compiled wasm exceeds the {} byte limit",
+                        self.build_job_config.max_wasm_bytes
+                    )));
+                }
+
+                let metadata = crate::ticket_worker::processor::metadata_introspector::introspect_metadata(
+                    &wasm_bytecode,
+                    self.metadata_fuel_limit,
+                )
+                .map_err(ServiceError::Validation)?;
+                let metadata_json = serde_json::to_string(&metadata).map_err(|e| {
+                    ServiceError::Internal(format!("failed to serialize compiled metadata: {e}"))
+                })?;
+
+                Ok(CompiledPrimitiveDraft {
+                    wasm_bytecode,
+                    name: metadata.name,
+                    description: metadata.description,
+                    metadata: metadata_json,
+                })
+            })
+            .transpose()?;
+
+        self.data
+            .save_primitive_draft(id, source_code, compiled)
+            .await
+            .map_err(ServiceError::from)
     }
 
     async fn save_composite_draft(&self, id: TransformDraftId, graph_json: String) -> Result<DbTransformDraft, ServiceError> {

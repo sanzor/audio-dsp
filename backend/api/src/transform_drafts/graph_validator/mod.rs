@@ -6,7 +6,7 @@ pub mod composite;
 pub mod edge;
 pub mod graph_definition;
 pub mod input;
-pub mod transnform_info;
+pub mod transform_info;
 pub mod node;
 pub mod node_position;
 pub mod output;

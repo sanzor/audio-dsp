@@ -57,6 +57,9 @@ impl TicketsProvider for TicketsProviderService {
         Ok(CompileResult {
             resource_id: resource.id,
             ticket_id: resource.ticket_id,
+            source_code: resource.source_code.ok_or_else(|| {
+                ServiceError::Internal("compile resource is missing its ticket source".to_string())
+            })?,
             wasm_bytecode: resource.wasm_bytecode,
         })
     }

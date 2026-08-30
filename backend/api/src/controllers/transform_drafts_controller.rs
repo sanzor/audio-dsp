@@ -20,6 +20,7 @@ use crate::{
     transforms::dto::responses::TransformDto,
 };
 use actix_web::{delete, get, post, put, web, HttpResponse};
+use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine};
 use domain::domain_user::UserId;
 use tracing::error;
 
@@ -119,7 +120,14 @@ pub async fn save_primitive_draft(
         return resp;
     }
     let p = body.into_inner();
-    match app.transform_drafts_service.save_primitive_draft(transform_id, p.source_code).await {
+    let wasm_bytecode = match p.wasm_base64 {
+        Some(encoded) => match BASE64_STANDARD.decode(encoded) {
+            Ok(bytes) => Some(bytes),
+            Err(_) => return HttpResponse::BadRequest().body("wasm_base64 must be valid base64"),
+        },
+        None => None,
+    };
+    match app.transform_drafts_service.save_primitive_draft(transform_id, p.source_code, wasm_bytecode).await {
         Ok(t) => HttpResponse::Ok().json(TransformDraftDto::from(t)),
         Err(e) => map_service_error(e),
     }

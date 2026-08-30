@@ -9,7 +9,7 @@ use sqlx::PgPool;
 
 use crate::domain::data_error::DataError;
 
-use super::transform_drafts_data_provider::TransformDraftsDataProvider;
+use super::transform_drafts_data_provider::{CompiledPrimitiveDraft, TransformDraftsDataProvider};
 
 pub struct PostgresTransformDraftsDataProvider {
     pool: PgPool,
@@ -213,8 +213,42 @@ impl TransformDraftsDataProvider for PostgresTransformDraftsDataProvider {
         &self,
         id: TransformDraftId,
         source_code: String,
+        compiled: Option<CompiledPrimitiveDraft>,
     ) -> Result<DbTransformDraft, DataError> {
-        self.save_draft_row(id, Some(source_code), None).await
+        let (wasm_bytecode, name, description, metadata) = match compiled {
+            Some(compiled) => (
+                Some(compiled.wasm_bytecode),
+                Some(compiled.name),
+                Some(compiled.description),
+                Some(compiled.metadata),
+            ),
+            None => (None, None, None, None),
+        };
+
+        let row = sqlx::query_as::<_, DbTransformDraftRow>(&format!(
+            r#"
+            UPDATE transform_draft
+            SET source_code = $2,
+                wasm_bytecode = CASE WHEN $3::BYTEA IS NULL THEN wasm_bytecode ELSE $3 END,
+                wasm_source_code = CASE WHEN $3::BYTEA IS NULL THEN wasm_source_code ELSE $2 END,
+                name = CASE WHEN $3::BYTEA IS NULL THEN name ELSE $4 END,
+                description = CASE WHEN $3::BYTEA IS NULL THEN description ELSE $5 END,
+                metadata = CASE WHEN $3::BYTEA IS NULL THEN metadata ELSE $6 END,
+                updated_at = now()
+            WHERE transform_id = $1
+            RETURNING {DRAFT_ROW_COLUMNS}
+            "#,
+        ))
+        .bind(id)
+        .bind(&source_code)
+        .bind(wasm_bytecode)
+        .bind(name)
+        .bind(description)
+        .bind(metadata)
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(row.into())
     }
 
     async fn save_composite_draft(
@@ -280,13 +314,8 @@ impl TransformDraftsDataProvider for PostgresTransformDraftsDataProvider {
     }
 }
 impl PostgresTransformDraftsDataProvider {
-    /// Shared UPDATE mechanism behind `save_primitive_draft`/
-    /// `save_composite_draft` — one of `source_code`/`graph_json` is always
-    /// `None` (the field the other kind owns), so COALESCE leaves it as
-    /// whatever's already saved rather than clobbering it. Never touches
-    /// `wasm_bytecode`/`wasm_source_code` — those are written by the ticket
-    /// worker as soon as a compile succeeds, not by a save (see
-    /// `TransformsDataProvider::cache_compiled_binary_on_draft`).
+    /// Composite Save's structural graph update. Primitive Save has a
+    /// separate path because it may atomically replace its compiled snapshot.
     async fn save_draft_row(
         &self,
         id: TransformDraftId,

@@ -3,12 +3,12 @@ use std::collections::HashMap;
 use domain::db::db_transform::TransformId;
 
 use crate::ticket_worker::processor::transform_metadata::{DirectionJson, PortCardinalityJson, PortKindJson, PortMetadataJson};
-use crate::transform_drafts::validator::{
+use crate::transform_drafts::graph_validator::{
     composite::Composite,
     edge::Edge,
     graph_definition::GraphDefinition,
     input::Input,
-    transnform_info::TransformInfo,
+    transform_info::TransformInfo,
     node::Node,
     node_position::NodePosition,
     output::Output,

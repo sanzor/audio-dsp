@@ -1,6 +1,5 @@
 import { useCreatorStore } from "@/Stores/CreatorStore";
 import { useCreatorPlaybackStore } from "@/Stores/CreatorPlaybackStore";
-import { useCompileTicketStatus } from "@/hooks/tickets/queries";
 import { decodeBase64Binary } from "@/Services/TransformService";
 import { buildPrimitivePlaybackGraph, PRIMITIVE_PLAYBACK_NODE_ID } from "./creatorTransformPlayback";
 
@@ -16,28 +15,24 @@ import { buildPrimitivePlaybackGraph, PRIMITIVE_PLAYBACK_NODE_ID } from "./creat
 // to CreatorPlaybackStore.play" shape, but for a single already-compiled
 // primitive resource instead of a graph.
 export function usePrimitivePlaybackControls(transformId: number | null) {
-  const activeTicketByTransform = useCreatorStore((s) => s.activeTicketByTransform);
   const editing = useCreatorStore((s) => s.editingTransformSource);
-  const lastCompiledResourceByTransform = useCreatorStore((s) => s.lastCompiledResourceByTransform);
+  const compiledDraftByTransform = useCreatorStore((s) => s.compiledDraftByTransform);
 
   const playbackStatus = useCreatorPlaybackStore((s) => s.status);
   const playbackTransformId = useCreatorPlaybackStore((s) => s.playbackTransformId);
   const startPlayback = useCreatorPlaybackStore((s) => s.play);
   const stopPlayback = useCreatorPlaybackStore((s) => s.stop);
 
-  const activeTicket = transformId != null ? activeTicketByTransform[transformId] ?? null : null;
-  const ticketStatus = useCompileTicketStatus(activeTicket?.ticketId ?? null, transformId);
-
   const code = editing?.transformId === transformId ? editing.source : "";
-  const attachableResourceId =
-    transformId != null && lastCompiledResourceByTransform[transformId]?.sourceCode === code
-      ? lastCompiledResourceByTransform[transformId].resourceId
+  const attachableCompiledDraft =
+    transformId != null && compiledDraftByTransform[transformId]?.sourceCode === code
+      ? compiledDraftByTransform[transformId]
       : undefined;
 
   const isPlayingThis =
     transformId != null && playbackTransformId === transformId && playbackStatus !== "idle" && playbackStatus !== "error";
   const isLoading = transformId != null && playbackTransformId === transformId && playbackStatus === "loading";
-  const canStartPlayback = attachableResourceId != null && ticketStatus.data?.status.wasm_base64 != null;
+  const canStartPlayback = attachableCompiledDraft != null;
 
   function togglePlayback() {
     if (transformId == null) return;
@@ -45,13 +40,10 @@ export function usePrimitivePlaybackControls(transformId: number | null) {
       stopPlayback();
       return;
     }
-    const wasmBase64 = ticketStatus.data?.status.wasm_base64;
-    if (wasmBase64 == null || attachableResourceId == null) return;
-    const wasmBytes = decodeBase64Binary(wasmBase64);
-    const params = [...(ticketStatus.data?.status.params ?? [])]
-      .sort((a, b) => a.param_order - b.param_order)
-      .map((p) => p.default_value);
-    const resourceKey = `${attachableResourceId}:${code}`;
+    if (attachableCompiledDraft == null) return;
+    const wasmBytes = decodeBase64Binary(attachableCompiledDraft.wasmBase64);
+    const params: number[] = [];
+    const resourceKey = `${transformId}:${code}`;
     const graph = buildPrimitivePlaybackGraph(params);
     void startPlayback(transformId, resourceKey, graph, { [PRIMITIVE_PLAYBACK_NODE_ID]: wasmBytes }, params);
   }

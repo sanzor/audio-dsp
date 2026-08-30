@@ -6,6 +6,7 @@ import { useGetTransformDefinition } from "@/hooks/transforms/queries";
 import { useCompileTicketStatus } from "@/hooks/tickets/queries";
 import { useRequestCompileTransform } from "@/hooks/tickets/mutations";
 import { useSaveTransform, usePublishTransform } from "@/hooks/transforms/mutations";
+import { apiGetCompileResource } from "@/Services/TicketService";
 import { validateTransformSource } from "./validateTransformSource";
 import { usePublishWithPortShapeDiff } from "./usePublishWithPortShapeDiff";
 import { ToolbarButton } from "./toolbar-button";
@@ -60,8 +61,8 @@ export function CreatorCodeEditor() {
   const selectedId = useCreatorStore((s) => s.selectedTransformId);
   const activeTicketByTransform = useCreatorStore((s) => s.activeTicketByTransform);
   const setActiveTicket = useCreatorStore((s) => s.setActiveTicket);
-  const lastCompiledResourceByTransform = useCreatorStore((s) => s.lastCompiledResourceByTransform);
-  const setLastCompiledResource = useCreatorStore((s) => s.setLastCompiledResource);
+  const compiledDraftByTransform = useCreatorStore((s) => s.compiledDraftByTransform);
+  const setCompiledDraft = useCreatorStore((s) => s.setCompiledDraft);
   const editing = useCreatorStore((s) => s.editingTransformSource);
   const beginEditingTransformSource = useCreatorStore((s) => s.beginEditingTransformSource);
   const updateEditingTransformSource = useCreatorStore((s) => s.updateEditingTransformSource);
@@ -98,18 +99,19 @@ export function CreatorCodeEditor() {
   const isCompiling = compileMutation.isPending || buildState === "processing";
   const resourceId = ticketStatus.data?.status.resource_id ?? null;
 
-  // Once a compile ticket succeeds, record its resource against the exact
-  // source that produced it — Save can only safely attach it while the
-  // buffer still matches that text.
+  // Once a compile ticket succeeds, retrieve one source/WASM package from
+  // the resource endpoint. The package remains frontend-owned until Save.
   useEffect(() => {
-    if (selectedId == null || resourceId == null || activeTicket == null) return;
-    if (lastCompiledResourceByTransform[selectedId]?.resourceId === resourceId) return;
-    setLastCompiledResource(selectedId, resourceId, activeTicket.sourceCode);
-  }, [selectedId, resourceId, activeTicket, lastCompiledResourceByTransform, setLastCompiledResource]);
+    if (selectedId == null || resourceId == null) return;
+    if (compiledDraftByTransform[selectedId]?.resourceId === resourceId) return;
+    void apiGetCompileResource(resourceId).then((resource) => {
+      setCompiledDraft(selectedId, resource.resource_id, resource.source_code, resource.wasm_base64);
+    });
+  }, [selectedId, resourceId, compiledDraftByTransform, setCompiledDraft]);
 
-  const attachableResourceId =
-    selectedId != null && lastCompiledResourceByTransform[selectedId]?.sourceCode === code
-      ? lastCompiledResourceByTransform[selectedId].resourceId
+  const attachableCompiledDraft =
+    selectedId != null && compiledDraftByTransform[selectedId]?.sourceCode === code
+      ? compiledDraftByTransform[selectedId]
       : undefined;
 
   const validation = useMemo(() => validateTransformSource(code), [code]);
@@ -139,10 +141,10 @@ export function CreatorCodeEditor() {
   // needs it, and that's a trivial store-only read.
 
   function handleSave() {
-    if (selectedId == null || !isDirty) return;
+    if (selectedId == null || (!isDirty && attachableCompiledDraft == null)) return;
     const source = code;
     saveMutation.mutate(
-      { source_code: source, resource_id: attachableResourceId },
+      { source_code: source, wasm_base64: attachableCompiledDraft?.wasmBase64 },
       { onSuccess: () => markTransformSourceSaved(selectedId, source) }
     );
   }
@@ -234,7 +236,7 @@ export function CreatorCodeEditor() {
           <ToolbarButton
             variant="save"
             onClick={handleSave}
-            disabled={selectedId == null || !isDirty || saveMutation.isPending}
+            disabled={selectedId == null || (!isDirty && attachableCompiledDraft == null) || saveMutation.isPending}
           >
             {saveMutation.isPending ? "Saving…" : "Save Draft"}
           </ToolbarButton>

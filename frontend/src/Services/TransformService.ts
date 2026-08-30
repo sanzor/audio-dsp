@@ -16,9 +16,9 @@ export interface CreateTransformParams {
 
 export interface SaveTransformParams {
   source_code: string;
-  // A resource_id from a successful compile ticket, if attaching that
-  // build's binary/metadata to this save. Omit to save source only.
-  resource_id?: number;
+  // The temporary frontend-held result of a successful compile. Omit to save
+  // source only, preserving any previously saved binary snapshot.
+  wasm_base64?: string;
 }
 
 // ─── API ─────────────────────────────────────────────────────────────────────
@@ -91,15 +91,14 @@ export async function apiDeleteTransform(transform_id: number): Promise<void> {
   await http.delete<void>(`/transforms/${transform_id}`);
 }
 
-// Bucket 2 — save. Always overwrites source_code; optionally attaches a
-// compiled resource's binary/metadata. Independent of compiling — never
-// blocked by or waiting on an in-flight compile ticket.
+// Bucket 2 — save. Always overwrites source_code; optionally persists the
+// frontend-held source/WASM compile package. Independent of compiling.
 export async function apiSaveTransform(
   transform_id: number,
   params: SaveTransformParams
 ): Promise<TransformDefinition> {
   return http.put<TransformDefinition, SaveTransformParams>(
-    `/transforms/${transform_id}/save`,
+    `/draft_transforms/${transform_id}/save-primitive`,
     params
   );
 }

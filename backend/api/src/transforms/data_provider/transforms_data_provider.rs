@@ -42,25 +42,6 @@ pub trait TransformsDataProvider: Send + Sync {
         metadata: String,
     ) -> Result<DbResource, DataError>;
     async fn get_compiled_transform(&self, resource_id: ResourceId) -> Result<DbResource, DataError>;
-    /// Called by the ticket worker immediately after a compile succeeds —
-    /// caches the result directly on the transform's draft row (bucket 2)
-    /// so the draft never depends on `transform_ticket`/`transform_resource`
-    /// surviving past this point (they can be deleted independently).
-    /// Unconditionally overwrites whatever was cached from an earlier
-    /// compile, including one from an unsaved/experimental buffer;
-    /// `wasm_source_code` records what source produced it, which is what
-    /// lets `publish_primitive` still tell a stale cache apart from a fresh
-    /// one (see `DbTransformDraft::wasm_source_code` and decision 0002).
-    async fn cache_compiled_binary_on_draft(
-        &self,
-        transform_id: TransformId,
-        wasm_bytecode: Vec<u8>,
-        source_code: String,
-        name: String,
-        description: Option<String>,
-        metadata: String,
-    ) -> Result<(), DataError>;
-
     // ── Published transforms (bucket 3) ─────────────────────────────────
 
     async fn list_transform_summaries(&self, offset: i64, limit: i64) -> Result<(Vec<DbTransform>, i64), DataError>;

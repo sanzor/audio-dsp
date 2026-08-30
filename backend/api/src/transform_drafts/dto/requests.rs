@@ -31,6 +31,10 @@ pub struct CheckSourceParams {
 #[derive(Deserialize, Serialize, ToSchema)]
 pub struct SavePrimitiveParams {
     pub source_code: String,
+    /// Optional compiled WASM held temporarily by the Creator frontend.
+    /// Omit for a source-only save; then any older saved build remains in
+    /// place and Publish's source snapshot check will mark it stale.
+    pub wasm_base64: Option<String>,
 }
 
 #[derive(Deserialize, Serialize, ToSchema)]

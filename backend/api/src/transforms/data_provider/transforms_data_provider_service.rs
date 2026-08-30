@@ -72,6 +72,7 @@ impl TryFrom<DbTicketRow> for DbTicket {
 struct DbResourceRow {
     id: ResourceId,
     ticket_id: TicketId,
+    source_code: Option<String>,
     wasm_bytecode: Vec<u8>,
     name: String,
     description: Option<String>,
@@ -82,6 +83,7 @@ impl From<DbResourceRow> for DbResource {
         Self {
             id: row.id,
             ticket_id: row.ticket_id,
+            source_code: row.source_code,
             wasm_bytecode: row.wasm_bytecode,
             name: row.name,
             description: row.description,
@@ -245,7 +247,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
             r#"
             INSERT INTO transform_resource (ticket_id, wasm_bytecode, name, description, metadata)
             VALUES ($1, $2, $3, $4, $5)
-            RETURNING resource_id AS id, ticket_id, wasm_bytecode, name, description
+            RETURNING resource_id AS id, ticket_id, NULL::TEXT AS source_code, wasm_bytecode, name, description
             "#,
         )
         .bind(ticket_id)
@@ -262,9 +264,10 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
     async fn get_compiled_transform(&self, resource_id: ResourceId) -> Result<DbResource, DataError> {
         let row = sqlx::query_as::<_, DbResourceRow>(
             r#"
-            SELECT resource_id AS id, ticket_id, wasm_bytecode, name, description
-            FROM transform_resource
-            WHERE resource_id = $1
+            SELECT tr.resource_id AS id, tr.ticket_id, tt.source_code, tr.wasm_bytecode, tr.name, tr.description
+            FROM transform_resource tr
+            JOIN transform_ticket tt ON tt.ticket_id = tr.ticket_id
+            WHERE tr.resource_id = $1
             "#,
         )
         .bind(resource_id)
@@ -272,39 +275,6 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
         .await?;
 
         Ok(row.into())
-    }
-
-    async fn cache_compiled_binary_on_draft(
-        &self,
-        transform_id: TransformId,
-        wasm_bytecode: Vec<u8>,
-        source_code: String,
-        name: String,
-        description: Option<String>,
-        metadata: String,
-    ) -> Result<(), DataError> {
-        sqlx::query(
-            r#"
-            UPDATE transform_draft
-            SET wasm_bytecode = $2,
-                wasm_source_code = $3,
-                name = $4,
-                description = $5,
-                metadata = $6,
-                updated_at = now()
-            WHERE transform_id = $1
-            "#,
-        )
-        .bind(transform_id)
-        .bind(wasm_bytecode)
-        .bind(&source_code)
-        .bind(&name)
-        .bind(&description)
-        .bind(&metadata)
-        .execute(&self.pool)
-        .await?;
-
-        Ok(())
     }
 
     async fn list_transform_summaries(&self, offset: i64, limit: i64) -> Result<(Vec<DbTransform>, i64), DataError> {

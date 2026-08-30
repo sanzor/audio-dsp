@@ -24,6 +24,7 @@ export function UnsavedCreatorChangesModal() {
   const [isSaving, setIsSaving] = useState(false);
   const pending = useCreatorStore((s) => s.pendingTransformAction);
   const editing = useCreatorStore((s) => s.editingTransformSource);
+  const compiledDraftByTransform = useCreatorStore((s) => s.compiledDraftByTransform);
   const resolvePendingTransformAction = useCreatorStore((s) => s.resolvePendingTransformAction);
   const cancelPendingTransformAction = useCreatorStore((s) => s.cancelPendingTransformAction);
   const markTransformSourceSaved = useCreatorStore((s) => s.markTransformSourceSaved);
@@ -60,7 +61,11 @@ export function UnsavedCreatorChangesModal() {
         await saveCompositeMutation.mutateAsync(toGraphDefinition());
         markCompositeSaved();
       } else if (editing) {
-        await saveMutation.mutateAsync({ source_code: editing.source });
+        const compiledDraft = compiledDraftByTransform[editing.transformId];
+        await saveMutation.mutateAsync({
+          source_code: editing.source,
+          wasm_base64: compiledDraft?.sourceCode === editing.source ? compiledDraft.wasmBase64 : undefined,
+        });
         markTransformSourceSaved(editing.transformId, editing.source);
       }
       resolvePendingTransformAction();

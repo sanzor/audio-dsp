@@ -17,13 +17,12 @@ pub trait TransformDraftsProvider: Send + Sync {
         kind: String,
         owner_user_id: UserId) -> Result<DbTransformDraft, ServiceError>;
     /// Bucket 2 — save, primitive only. Errors if `id` is a composite draft.
-    /// Only ever touches `source_code` — the compiled binary is cached onto
-    /// the draft separately, by the ticket worker the moment a compile
-    /// succeeds (`TransformsDataProvider::cache_compiled_binary_on_draft`),
-    /// not by this call.
+    /// An optional frontend-held compiled WASM payload is saved atomically
+    /// with source after server-side introspection.
     async fn save_primitive_draft(&self,
          id: TransformDraftId,
-         source_code: String) -> Result<DbTransformDraft, ServiceError>;
+         source_code: String,
+         wasm_bytecode: Option<Vec<u8>>) -> Result<DbTransformDraft, ServiceError>;
     /// Bucket 2 — save, composite only. Errors if `id` is a primitive draft.
     /// `graph_json` is the raw wiring graph (`{nodes, edges}`, same shape
     /// `validate_graph_draft` takes) — stored as-is; the richer

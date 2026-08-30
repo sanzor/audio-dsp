@@ -423,6 +423,7 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
         transform_drafts_service: Arc::new(TransformDraftsProviderService::new(
             Arc::clone(&transform_drafts_data_provider),
             build_job_config.clone(),
+            transform_metadata_fuel_limit,
         )),
     };
 

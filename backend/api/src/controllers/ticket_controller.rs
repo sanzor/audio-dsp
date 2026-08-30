@@ -38,7 +38,6 @@ pub struct CompileTicketStatusDto {
     pub state: String,
     pub resource_id: Option<ResourceId>,
     pub message: Option<String>,
-    pub wasm_base64: Option<String>,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -50,11 +49,13 @@ pub struct CompileTicketDto {
 }
 
 #[derive(Debug, Serialize, ToSchema)]
-pub struct CompileResourceDto {
+pub struct CompileResultDto {
     pub resource_id: ResourceId,
     pub ticket_id: TicketId,
-    /// The compiled binary, base64-encoded — see the note on
-    /// `CompileTicketStatusDto::wasm_base64`.
+    /// Exact source submitted to the ticket which produced this binary.
+    pub source_code: String,
+    /// The compiled binary, base64-encoded for the Creator's temporary
+    /// source/WASM package.
     pub wasm_base64: String,
 }
 
@@ -75,21 +76,16 @@ impl From<TicketStatus> for CompileTicketStatusDto {
                 state: "processing".to_string(),
                 resource_id: None,
                 message: None,
-                wasm_base64: None,
             },
             TicketStatus::Failed { message } => Self {
                 state: "failed".to_string(),
                 resource_id: None,
                 message: Some(message),
-                wasm_base64: None,
             },
             TicketStatus::Successful { resource_id } => Self {
                 state: "successful".to_string(),
                 resource_id: Some(resource_id),
                 message: None,
-                // Filled in by the handler (needs a second fetch to get the
-                // resource's bytecode) — TicketStatus alone doesn't carry it.
-                wasm_base64: None,
             },
         }
     }
@@ -106,11 +102,12 @@ impl From<DbTicket> for CompileTicketDto {
     }
 }
 
-impl From<CompileResult> for CompileResourceDto {
+impl From<CompileResult> for CompileResultDto {
     fn from(value: CompileResult) -> Self {
         Self {
             resource_id: value.resource_id,
             ticket_id: value.ticket_id,
+            source_code: value.source_code,
             wasm_base64: BASE64_STANDARD.encode(&value.wasm_bytecode),
         }
     }
@@ -190,37 +187,14 @@ pub async fn get_compile_ticket_status(
         .get_compile_ticket_status(ticket_id)
         .await
     {
-        Ok(ticket) => {
-            let successful_resource_id = match &ticket.status {
-                TicketStatus::Successful { resource_id } => Some(*resource_id),
-                _ => None,
-            };
-
-            let mut dto = CompileTicketDto::from(ticket);
-
-            if let Some(resource_id) = successful_resource_id {
-                match app.tickets_service.get_ticket_result(resource_id).await {
-                    Ok(result) => {
-                        dto.status.wasm_base64 = Some(BASE64_STANDARD.encode(&result.wasm_bytecode));
-                    }
-                    Err(e) => {
-                        // Don't fail the whole status response over this —
-                        // the ticket status itself is still valid, preview
-                        // just won't be available this poll.
-                        error!(error = %e, resource_id, "failed to fetch compile resource for preview binary");
-                    }
-                }
-            }
-
-            HttpResponse::Ok().json(dto)
-        }
+        Ok(ticket) => HttpResponse::Ok().json(CompileTicketDto::from(ticket)),
         Err(e) => map_service_error(e),
     }
 }
 
 #[utoipa::path(get, path = "/transforms/resources/{resource_id}", tag = "tickets",
     params(ResourceIdPath),
-    responses((status = 200, description = "Compile resource", body = CompileResourceDto)))]
+    responses((status = 200, description = "Compile resource", body = CompileResultDto)))]
 #[get("/resources/{resource_id}")]
 pub async fn get_compile_resource(
     jwt: JwtContext,
@@ -244,7 +218,7 @@ pub async fn get_compile_resource(
         .get_ticket_result(resource_id)
         .await
     {
-        Ok(resource) => HttpResponse::Ok().json(CompileResourceDto::from(resource)),
+        Ok(resource) => HttpResponse::Ok().json(CompileResultDto::from(resource)),
         Err(e) => map_service_error(e),
     }
 }
@@ -255,4 +229,23 @@ pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(create_compile_ticket)
         .service(get_compile_ticket_status)
         .service(get_compile_resource);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::CompileResultDto;
+    use crate::tickets::compile_result::CompileResult;
+
+    #[test]
+    fn compile_resource_dto_keeps_ticket_source_paired_with_wasm() {
+        let dto = CompileResultDto::from(CompileResult {
+            resource_id: 7,
+            ticket_id: 11,
+            source_code: "pub struct Test;".to_string(),
+            wasm_bytecode: vec![0, 97, 115, 109],
+        });
+
+        assert_eq!(dto.source_code, "pub struct Test;");
+        assert_eq!(dto.wasm_base64, "AGFzbQ==");
+    }
 }
