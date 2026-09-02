@@ -23,8 +23,7 @@ pub struct CreateTransformParams {
 
 #[derive(Deserialize, Serialize, ToSchema)]
 pub struct CheckSourceParams {
-    /// Not necessarily what's saved — the caller can check live in-progress
-    /// edits before saving.
+    /// Not necessarily what's saved — callers may check live edits first.
     pub source_code: String,
 }
 
@@ -39,14 +38,56 @@ pub struct SavePrimitiveParams {
 
 #[derive(Deserialize, Serialize, ToSchema)]
 pub struct SaveCompositeParams {
-    /// The wiring graph JSON (`{nodes, edges}`) — same shape
-    /// `validate-graph` takes. Overwrites whatever was saved before.
-    pub graph_json: String,
+    /// The wiring graph (`{nodes, edges}`). Save intentionally persists this
+    /// structurally without validating it; validation is a separate action.
+    pub graph_definition: serde_json::Value,
+}
+
+/// The one Bucket-2 save payload. The draft's persisted `kind` decides
+/// which variant is accepted, so callers never need to send a redundant
+/// kind or transform id in the body.
+#[derive(Deserialize, Serialize, ToSchema)]
+#[serde(untagged)]
+pub enum SaveDraftParams {
+    Primitive(SavePrimitiveParams),
+    Composite(SaveCompositeParams),
 }
 
 #[derive(Debug, Deserialize, Serialize, ToSchema)]
 pub struct ValidateGraphParams {
-    /// The composite's wiring graph JSON to validate — not necessarily
-    /// what's currently saved; the caller can send live in-progress edits.
+    /// The graph to validate, which may include unsaved canvas edits.
     pub graph_json: String,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{SaveDraftParams, SavePrimitiveParams};
+
+    #[test]
+    fn save_primitive_payload_accepts_optional_base64_wasm() {
+        let payload: SaveDraftParams = serde_json::from_str(
+            r#"{"source_code":"impl Transform for Gain {}","wasm_base64":"AGFzbQ=="}"#,
+        )
+        .expect("primitive save payload should deserialize");
+
+        match payload {
+            SaveDraftParams::Primitive(SavePrimitiveParams {
+                source_code,
+                wasm_base64,
+            }) => {
+                assert_eq!(source_code, "impl Transform for Gain {}");
+                assert_eq!(wasm_base64.as_deref(), Some("AGFzbQ=="));
+            }
+            SaveDraftParams::Composite(_) => panic!("expected primitive payload"),
+        }
+    }
+
+    #[test]
+    fn save_composite_payload_accepts_graph_definition() {
+        let payload: SaveDraftParams =
+            serde_json::from_str(r#"{"graph_definition":{"nodes":[],"edges":[]}}"#)
+                .expect("composite save payload should deserialize");
+
+        assert!(matches!(payload, SaveDraftParams::Composite(_)));
+    }
 }

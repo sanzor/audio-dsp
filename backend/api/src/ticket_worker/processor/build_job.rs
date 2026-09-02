@@ -1,4 +1,3 @@
-
 use std::process::Stdio;
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -64,9 +63,12 @@ pub async fn compile_transform_source(
     ticket_id: TicketId,
     source_code: &str,
 ) -> Result<Vec<u8>, String> {
-    with_job_dir(config, &ticket_id.to_string(), source_code, async |config, job_dir| {
-        run_build(config, job_dir).await
-    })
+    with_job_dir(
+        config,
+        &ticket_id.to_string(),
+        source_code,
+        async |config, job_dir| run_build(config, job_dir).await,
+    )
     .await
 }
 
@@ -74,15 +76,36 @@ pub async fn compile_transform_source(
 /// so it's meaningfully cheaper than `compile_transform_source` and meant to
 /// be called synchronously for quick editor feedback, not through a ticket.
 /// `Ok(())` means it compiles cleanly; no wasm artifact is produced or kept.
-pub async fn check_transform_source(config: &BuildJobConfig, source_code: &str) -> Result<(), String> {
+pub async fn check_transform_source(
+    config: &BuildJobConfig,
+    source_code: &str,
+) -> Result<(), String> {
     static NEXT_JOB_ID: AtomicU64 = AtomicU64::new(0);
-    let job_id = format!("check-{}-{}", std::process::id(), NEXT_JOB_ID.fetch_add(1, Ordering::Relaxed));
+    let job_id = format!(
+        "check-{}-{}",
+        std::process::id(),
+        NEXT_JOB_ID.fetch_add(1, Ordering::Relaxed)
+    );
 
-    with_job_dir(config, &job_id, source_code, async |config, job_dir| run_check(config, job_dir).await).await
+    with_job_dir(config, &job_id, source_code, async |config, job_dir| {
+        run_check(config, job_dir).await
+    })
+    .await
 }
 
 async fn run_build(config: &BuildJobConfig, job_dir: &std::path::Path) -> Result<Vec<u8>, String> {
-    run_cargo(config, job_dir, &["build", "--release", "--target", "wasm32-unknown-unknown", "--offline"]).await?;
+    run_cargo(
+        config,
+        job_dir,
+        &[
+            "build",
+            "--release",
+            "--target",
+            "wasm32-unknown-unknown",
+            "--offline",
+        ],
+    )
+    .await?;
 
     let wasm_path = config
         .cargo_target_dir
@@ -106,10 +129,19 @@ async fn run_build(config: &BuildJobConfig, job_dir: &std::path::Path) -> Result
 }
 
 async fn run_check(config: &BuildJobConfig, job_dir: &std::path::Path) -> Result<(), String> {
-    run_cargo(config, job_dir, &["check", "--target", "wasm32-unknown-unknown", "--offline"]).await
+    run_cargo(
+        config,
+        job_dir,
+        &["check", "--target", "wasm32-unknown-unknown", "--offline"],
+    )
+    .await
 }
 
-async fn run_cargo(config: &BuildJobConfig, job_dir: &std::path::Path, args: &[&str]) -> Result<(), String> {
+async fn run_cargo(
+    config: &BuildJobConfig,
+    job_dir: &std::path::Path,
+    args: &[&str],
+) -> Result<(), String> {
     let mut command = Command::new("cargo");
     command
         .args(args)
@@ -124,7 +156,8 @@ async fn run_cargo(config: &BuildJobConfig, job_dir: &std::path::Path, args: &[&
         .spawn()
         .map_err(|e| format!("failed to spawn cargo: {e}"))?;
 
-    let output = match tokio::time::timeout(config.compile_timeout, child.wait_with_output()).await {
+    let output = match tokio::time::timeout(config.compile_timeout, child.wait_with_output()).await
+    {
         Ok(Ok(output)) => output,
         Ok(Err(e)) => return Err(format!("failed to run cargo: {e}")),
         Err(_) => {

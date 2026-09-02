@@ -10,8 +10,8 @@ use crate::{
     transform_drafts::{
         dto::{
             requests::{
-                CheckSourceParams, CreateTransformParams, SaveCompositeParams, SavePrimitiveParams,
-                TransformDraftIdPath, TransformDraftIdsRequest, ValidateGraphParams,
+                CheckSourceParams, CreateTransformParams, SaveDraftParams, TransformDraftIdPath,
+                TransformDraftIdsRequest,
             },
             responses::{TransformDraftDto, TransformDraftsResponse, ValidateGraphResponse},
         },
@@ -20,7 +20,6 @@ use crate::{
     transforms::dto::responses::TransformDto,
 };
 use actix_web::{delete, get, post, put, web, HttpResponse};
-use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine};
 use domain::domain_user::UserId;
 use tracing::error;
 
@@ -51,7 +50,17 @@ pub async fn create_transform_draft(
     if p.kind != "primitive" && p.kind != "composite" {
         return HttpResponse::BadRequest().body("kind must be 'primitive' or 'composite'");
     }
-    match app.transform_drafts_service.create_transform_draft(p.name, p.description, p.icon, p.kind, UserId::from(jwt.user_id)).await {
+    match app
+        .transform_drafts_service
+        .create_transform_draft(
+            p.name,
+            p.description,
+            p.icon,
+            p.kind,
+            UserId::from(jwt.user_id),
+        )
+        .await
+    {
         Ok(t) => HttpResponse::Ok().json(TransformDraftDto::from(t)),
         Err(e) => map_service_error(e),
     }
@@ -71,7 +80,11 @@ pub async fn get_transform_draft(
     if let Err(resp) = require_access(&app, &access, transform_id, &jwt).await {
         return resp;
     }
-    match app.transform_drafts_service.get_transform_draft(transform_id).await {
+    match app
+        .transform_drafts_service
+        .get_transform_draft(transform_id)
+        .await
+    {
         Ok(t) => HttpResponse::Ok().json(TransformDraftDto::from(t)),
         Err(e) => map_service_error(e),
     }
@@ -93,7 +106,11 @@ pub async fn get_transform_drafts(
             return resp;
         }
     }
-    match app.transform_drafts_service.get_transform_drafts(&request.ids).await {
+    match app
+        .transform_drafts_service
+        .get_transform_drafts(&request.ids)
+        .await
+    {
         Ok(drafts) => HttpResponse::Ok().json(TransformDraftsResponse {
             drafts: drafts.into_iter().map(TransformDraftDto::from).collect(),
         }),
@@ -101,58 +118,29 @@ pub async fn get_transform_drafts(
     }
 }
 
-#[utoipa::path(put, path = "/draft_transforms/{transform_id}/save-primitive", tag = "draft_transforms",
+#[utoipa::path(put, path = "/draft_transforms/{transform_id}/save", tag = "draft_transforms",
     params(TransformDraftIdPath),
-    request_body = SavePrimitiveParams,
+    request_body = SaveDraftParams,
     responses(
         (status = 200, description = "Saved transform draft state", body = serde_json::Value),
-        (status = 400, description = "transform_id is a composite draft")
+        (status = 400, description = "Payload does not match the draft kind, or WASM is invalid")
     ))]
-#[put("/{transform_id}/save-primitive")]
-pub async fn save_primitive_draft(
+#[put("/{transform_id}/save")]
+pub async fn save_draft(
     jwt: JwtContext,
     path: web::Path<TransformDraftIdPath>,
-    body: web::Json<SavePrimitiveParams>,
+    body: web::Json<SaveDraftParams>,
     app: web::Data<TransformDraftsAppData>,
 ) -> HttpResponse {
     let transform_id = path.into_inner().transform_id;
     if let Err(resp) = require_owner(&app, transform_id, &jwt).await {
         return resp;
     }
-    let p = body.into_inner();
-    let wasm_bytecode = match p.wasm_base64 {
-        Some(encoded) => match BASE64_STANDARD.decode(encoded) {
-            Ok(bytes) => Some(bytes),
-            Err(_) => return HttpResponse::BadRequest().body("wasm_base64 must be valid base64"),
-        },
-        None => None,
-    };
-    match app.transform_drafts_service.save_primitive_draft(transform_id, p.source_code, wasm_bytecode).await {
-        Ok(t) => HttpResponse::Ok().json(TransformDraftDto::from(t)),
-        Err(e) => map_service_error(e),
-    }
-}
-
-#[utoipa::path(put, path = "/draft_transforms/{transform_id}/save-composite", tag = "draft_transforms",
-    params(TransformDraftIdPath),
-    request_body = SaveCompositeParams,
-    responses(
-        (status = 200, description = "Saved transform draft state", body = serde_json::Value),
-        (status = 400, description = "transform_id is a primitive draft")
-    ))]
-#[put("/{transform_id}/save-composite")]
-pub async fn save_composite_draft(
-    jwt: JwtContext,
-    path: web::Path<TransformDraftIdPath>,
-    body: web::Json<SaveCompositeParams>,
-    app: web::Data<TransformDraftsAppData>,
-) -> HttpResponse {
-    let transform_id = path.into_inner().transform_id;
-    if let Err(resp) = require_owner(&app, transform_id, &jwt).await {
-        return resp;
-    }
-    let p = body.into_inner();
-    match app.transform_drafts_service.save_composite_draft(transform_id, p.graph_json).await {
+    match app
+        .transform_drafts_service
+        .save_draft(transform_id, body.into_inner())
+        .await
+    {
         Ok(t) => HttpResponse::Ok().json(TransformDraftDto::from(t)),
         Err(e) => map_service_error(e),
     }
@@ -161,10 +149,7 @@ pub async fn save_composite_draft(
 #[utoipa::path(post, path = "/draft_transforms/{transform_id}/validate-source", tag = "draft_transforms",
     params(TransformDraftIdPath),
     request_body = CheckSourceParams,
-    responses(
-        (status = 200, description = "Source compiles cleanly (cargo check, no codegen)"),
-        (status = 400, description = "Compiler diagnostics")
-    ))]
+    responses((status = 200, description = "Source compiles cleanly"), (status = 400, description = "Compiler diagnostics")))]
 #[post("/{transform_id}/validate-source")]
 pub async fn validate_source(
     jwt: JwtContext,
@@ -176,8 +161,11 @@ pub async fn validate_source(
     if let Err(resp) = require_owner(&app, transform_id, &jwt).await {
         return resp;
     }
-    let p = body.into_inner();
-    match app.transform_drafts_service.check_source(p.source_code).await {
+    match app
+        .transform_drafts_service
+        .check_source(body.into_inner().source_code)
+        .await
+    {
         Ok(()) => HttpResponse::Ok().finish(),
         Err(e) => map_service_error(e),
     }
@@ -185,24 +173,24 @@ pub async fn validate_source(
 
 #[utoipa::path(post, path = "/draft_transforms/{transform_id}/validate-graph", tag = "draft_transforms",
     params(TransformDraftIdPath),
-    request_body = ValidateGraphParams,
-    responses(
-        (status = 200, description = "Derived composite ports on success", body = serde_json::Value),
-        (status = 400, description = "Graph is malformed, or references a transform that doesn't exist, isn't published, or is the wrong kind")
-    ))]
+    request_body = crate::transform_drafts::dto::requests::ValidateGraphParams,
+    responses((status = 200, description = "Derived composite ports", body = serde_json::Value), (status = 400, description = "Invalid graph")))]
 #[post("/{transform_id}/validate-graph")]
 pub async fn validate_graph_draft(
     jwt: JwtContext,
     path: web::Path<TransformDraftIdPath>,
-    body: web::Json<ValidateGraphParams>,
+    body: web::Json<crate::transform_drafts::dto::requests::ValidateGraphParams>,
     app: web::Data<TransformDraftsAppData>,
 ) -> HttpResponse {
     let transform_id = path.into_inner().transform_id;
     if let Err(resp) = require_owner(&app, transform_id, &jwt).await {
         return resp;
     }
-    let p = body.into_inner();
-    match app.transform_drafts_service.validate_graph_draft(transform_id, p.graph_json).await {
+    match app
+        .transform_drafts_service
+        .validate_graph_draft(transform_id, body.into_inner().graph_json)
+        .await
+    {
         Ok(ports) => HttpResponse::Ok().json(ValidateGraphResponse { ports }),
         Err(e) => map_service_error(e),
     }
@@ -224,7 +212,7 @@ pub async fn publish_primitive(
     if let Err(resp) = require_owner(&app, transform_id, &jwt).await {
         return resp;
     }
-    match app.transform_drafts_service.publish_primitive(transform_id).await {
+    match app.transform_drafts_service.publish(transform_id).await {
         Ok(t) => HttpResponse::Ok().json(TransformDto::from(t)),
         Err(e) => map_service_error(e),
     }
@@ -246,7 +234,7 @@ pub async fn publish_composite(
     if let Err(resp) = require_owner(&app, transform_id, &jwt).await {
         return resp;
     }
-    match app.transform_drafts_service.publish_composite(transform_id).await {
+    match app.transform_drafts_service.publish(transform_id).await {
         Ok(t) => HttpResponse::Ok().json(TransformDto::from(t)),
         Err(e) => map_service_error(e),
     }
@@ -265,7 +253,11 @@ pub async fn delete_transform_draft(
     if let Err(resp) = require_owner(&app, transform_id, &jwt).await {
         return resp;
     }
-    match app.transform_drafts_service.delete_transform_draft(transform_id).await {
+    match app
+        .transform_drafts_service
+        .delete_transform_draft(transform_id)
+        .await
+    {
         Ok(_) => HttpResponse::Ok().body("Deleted"),
         Err(e) => map_service_error(e),
     }
@@ -279,8 +271,7 @@ pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(create_transform_draft)
         .service(get_transform_draft)
         .service(get_transform_drafts)
-        .service(save_primitive_draft)
-        .service(save_composite_draft)
+        .service(save_draft)
         .service(validate_source)
         .service(validate_graph_draft)
         .service(publish_primitive)

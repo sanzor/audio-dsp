@@ -8,13 +8,13 @@ export type MeUser = {
   is_verified: boolean;
 };
 
-export type MeProject = {
-  project_id: number;
+export type MeWorkspace = {
+  workspace_id: number;
   name: string;
   role: ProjectRole;
 };
 
 export type BootstrapResponse = {
   user: MeUser;
-  projects: MeProject[];
+  workspaces: MeWorkspace[];
 };

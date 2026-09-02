@@ -1,5 +1,5 @@
-use std::sync::Arc;
 use crate::usage::usage_provider::UsageProvider;
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct UsageAppData {

@@ -4,10 +4,8 @@ use domain::{
         db_region_set::{DbRegionSet, RegionSetId},
     },
     regions::{
-        add_region_params::AddRegionParams,
-        copy_region_params::CopyRegionParams,
-        delete_region_params::DeleteRegionParams,
-        edit_region_params::EditRegionParams,
+        add_region_params::AddRegionParams, copy_region_params::CopyRegionParams,
+        delete_region_params::DeleteRegionParams, edit_region_params::EditRegionParams,
     },
 };
 use sqlx::PgPool;
@@ -54,7 +52,10 @@ impl RegionsDataProvider for PostgresRegionsDataProvider {
         .map_err(|e| e.to_string())
     }
 
-    async fn get_regions_for_region_set(&self, set_id: &RegionSetId) -> Result<Vec<DbRegion>, String> {
+    async fn get_regions_for_region_set(
+        &self,
+        set_id: &RegionSetId,
+    ) -> Result<Vec<DbRegion>, String> {
         sqlx::query_as::<_, DbRegion>(
             r#"
             SELECT region_id, region_set_id, name, start_time_seconds, end_time_seconds, created_at

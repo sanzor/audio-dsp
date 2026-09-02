@@ -35,18 +35,20 @@ impl TransformGrantsDataProvider for PostgresTransformGrantsDataProvider {
     }
 
     async fn delete_grant(&self, transform_id: TransformId, grant_id: i64) -> Result<bool, String> {
-        let result = sqlx::query(
-            "DELETE FROM transform_grants WHERE transform_id = $1 AND grant_id = $2",
-        )
-        .bind(transform_id)
-        .bind(grant_id)
-        .execute(&self.pool)
-        .await
-        .map_err(|e| e.to_string())?;
+        let result =
+            sqlx::query("DELETE FROM transform_grants WHERE transform_id = $1 AND grant_id = $2")
+                .bind(transform_id)
+                .bind(grant_id)
+                .execute(&self.pool)
+                .await
+                .map_err(|e| e.to_string())?;
         Ok(result.rows_affected() > 0)
     }
 
-    async fn list_grants(&self, transform_id: TransformId) -> Result<Vec<DbTransformGrant>, String> {
+    async fn list_grants(
+        &self,
+        transform_id: TransformId,
+    ) -> Result<Vec<DbTransformGrant>, String> {
         sqlx::query_as::<_, DbTransformGrant>(
             "SELECT * FROM transform_grants WHERE transform_id = $1 ORDER BY created_at DESC",
         )
@@ -56,7 +58,11 @@ impl TransformGrantsDataProvider for PostgresTransformGrantsDataProvider {
         .map_err(|e| e.to_string())
     }
 
-    async fn has_access(&self, transform_id: TransformId, user_id: domain::domain_user::UserId) -> Result<bool, String> {
+    async fn has_access(
+        &self,
+        transform_id: TransformId,
+        user_id: domain::domain_user::UserId,
+    ) -> Result<bool, String> {
         sqlx::query_scalar::<_, bool>(
             r#"
             SELECT EXISTS (

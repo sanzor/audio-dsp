@@ -22,7 +22,11 @@ impl AudioPlayerRegistry {
         self.players.lock().await.get(key).cloned()
     }
 
-    pub async fn insert(&self, key: String, params: CreateAudioPlayerActorParams) -> ActorRef<AudioPlayerActor> {
+    pub async fn insert(
+        &self,
+        key: String,
+        params: CreateAudioPlayerActorParams,
+    ) -> ActorRef<AudioPlayerActor> {
         let actor = AudioPlayerActor::spawn(AudioPlayerActor::new(params));
         self.players.lock().await.insert(key, actor.clone());
         actor

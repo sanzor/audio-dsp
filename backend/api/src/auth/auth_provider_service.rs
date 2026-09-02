@@ -12,21 +12,12 @@ use crate::{
 };
 
 use super::{
-    accept_invite_params::AcceptInviteParams,
-    accept_invite_result::AcceptInviteResult,
-    auth_provider::AuthProvider,
-    email_sender::EmailSender,
-    invite_user_params::InviteUserParams,
-    invite_user_result::InviteUserResult,
-    jwt_provider::JwtProvider,
-    login_params::LoginParams,
-    login_result::LoginResult,
-    register_user_params::RegisterUserParams,
-    register_user_result::RegisterUserResult,
-    service_error::ServiceError,
-    user::AuthUser,
-    verify_user_params::VerifyUserParams,
-    verify_user_result::VerifyUserResult,
+    accept_invite_params::AcceptInviteParams, accept_invite_result::AcceptInviteResult,
+    auth_provider::AuthProvider, email_sender::EmailSender, invite_user_params::InviteUserParams,
+    invite_user_result::InviteUserResult, jwt_provider::JwtProvider, login_params::LoginParams,
+    login_result::LoginResult, register_user_params::RegisterUserParams,
+    register_user_result::RegisterUserResult, service_error::ServiceError, user::AuthUser,
+    verify_user_params::VerifyUserParams, verify_user_result::VerifyUserResult,
 };
 
 pub struct AuthProviderService {
@@ -43,7 +34,12 @@ impl AuthProviderService {
         jwt_provider: Arc<dyn JwtProvider>,
         email_sender: Arc<dyn EmailSender>,
     ) -> Self {
-        Self { user_provider, memberships_provider, jwt_provider, email_sender }
+        Self {
+            user_provider,
+            memberships_provider,
+            jwt_provider,
+            email_sender,
+        }
     }
 
     fn map_user(u: UserResult) -> AuthUser {
@@ -63,13 +59,9 @@ impl AuthProvider for AuthProviderService {
     async fn login(&self, params: LoginParams) -> Result<LoginResult, ServiceError> {
         info!(email = %params.email, "login requested");
 
-        let user = self
-            .user_provider
-            .get_user_by_email(&params.email)
-            .await?;
+        let user = self.user_provider.get_user_by_email(&params.email).await?;
         let user = user.ok_or(ServiceError::NotFound)?;
 
-        
         let token = self.jwt_provider.issue_user_token(
             user.id,
             Some(&user.full_name),
@@ -77,10 +69,16 @@ impl AuthProvider for AuthProviderService {
             false,
         )?;
 
-        Ok(LoginResult { user: Self::map_user(user), token })
+        Ok(LoginResult {
+            user: Self::map_user(user),
+            token,
+        })
     }
 
-    async fn register(&self, params: RegisterUserParams) -> Result<RegisterUserResult, ServiceError> {
+    async fn register(
+        &self,
+        params: RegisterUserParams,
+    ) -> Result<RegisterUserResult, ServiceError> {
         info!(email = %params.email, "register requested");
 
         let created = self
@@ -94,7 +92,9 @@ impl AuthProvider for AuthProviderService {
             })
             .await?;
 
-        let verification_token = self.jwt_provider.issue_verification_token(created.user.id)?;
+        let verification_token = self
+            .jwt_provider
+            .issue_verification_token(created.user.id)?;
         let body = format!(
             "Verify your email with this token:\n\n{verification_token}\n\nExpires in 24 hours."
         );
@@ -149,7 +149,10 @@ impl AuthProvider for AuthProviderService {
     async fn resend_verification(&self, email: String) -> Result<(), ServiceError> {
         info!(email = %email, "resend verification requested");
 
-        let user = self.user_provider.get_user_by_email(&email).await?
+        let user = self
+            .user_provider
+            .get_user_by_email(&email)
+            .await?
             .ok_or(ServiceError::NotFound)?;
 
         if user.is_verified {
@@ -158,30 +161,49 @@ impl AuthProvider for AuthProviderService {
 
         let token = self.jwt_provider.issue_verification_token(user.id)?;
         let body = format!("Verify your email:\n\n{token}\n\nExpires in 24 hours.");
-        self.email_sender.send_email(&user.email, "Verify your email", &body).await?;
+        self.email_sender
+            .send_email(&user.email, "Verify your email", &body)
+            .await?;
 
         Ok(())
     }
 
-    async fn invite_user(&self, params: InviteUserParams) -> Result<InviteUserResult, ServiceError> {
+    async fn invite_user(
+        &self,
+        params: InviteUserParams,
+    ) -> Result<InviteUserResult, ServiceError> {
         info!(email = %params.email, workspace_id = %params.workspace_id, role = %params.role, "invite requested");
 
         // Issue token with invitee email — user does not need to exist yet
-        let token = self.jwt_provider.issue_invite_token(&params.email, params.workspace_id, &params.role.to_string())?;
+        let token = self.jwt_provider.issue_invite_token(
+            &params.email,
+            params.workspace_id,
+            &params.role.to_string(),
+        )?;
 
-        let frontend_url = std::env::var("FRONTEND_URL").unwrap_or_else(|_| "http://localhost:5173".to_string());
+        let frontend_url =
+            std::env::var("FRONTEND_URL").unwrap_or_else(|_| "http://localhost:5173".to_string());
         let accept_link = format!("{frontend_url}/accept-invite?token={token}");
         let body = format!(
             "You've been invited to a workspace.\n\nAccept your invitation here:\n\n{accept_link}\n\nExpires in 7 days."
         );
-        if let Err(e) = self.email_sender.send_email(&params.email, "Workspace invitation", &body).await {
+        if let Err(e) = self
+            .email_sender
+            .send_email(&params.email, "Workspace invitation", &body)
+            .await
+        {
             error!(error = %e, "failed to send invite email");
         }
 
-        Ok(InviteUserResult { invitee_email: params.email })
+        Ok(InviteUserResult {
+            invitee_email: params.email,
+        })
     }
 
-    async fn accept_invite(&self, params: AcceptInviteParams) -> Result<AcceptInviteResult, ServiceError> {
+    async fn accept_invite(
+        &self,
+        params: AcceptInviteParams,
+    ) -> Result<AcceptInviteResult, ServiceError> {
         info!(caller_user_id = %params.caller_user_id, "accept-invite requested");
 
         let claims = self.jwt_provider.verify(&params.invite_token)?;
@@ -190,11 +212,14 @@ impl AuthProvider for AuthProviderService {
             return Err(ServiceError::Internal("invalid token purpose".to_string()));
         }
 
-        let invitee_email = claims.email
+        let invitee_email = claims
+            .email
             .ok_or_else(|| ServiceError::Internal("missing email in invite token".to_string()))?;
-        let workspace_id = claims.workspace_id
+        let workspace_id = claims
+            .workspace_id
             .ok_or_else(|| ServiceError::Internal("missing workspace_id in token".to_string()))?;
-        let role_str = claims.role
+        let role_str = claims
+            .role
             .ok_or_else(|| ServiceError::Internal("missing role in token".to_string()))?;
         let role = WorkspaceRole::from_str(&role_str)
             .ok_or_else(|| ServiceError::Internal(format!("unknown role: {role_str}")))?;
@@ -210,11 +235,13 @@ impl AuthProvider for AuthProviderService {
             return Err(ServiceError::Forbidden);
         }
 
-        self.memberships_provider.create_membership(CreateMembershipParams {
-            user_id: caller.id,
-            workspace_id,
-            role: role.clone(),
-        }).await?;
+        self.memberships_provider
+            .create_membership(CreateMembershipParams {
+                user_id: caller.id,
+                workspace_id,
+                role: role.clone(),
+            })
+            .await?;
 
         Ok(AcceptInviteResult {
             user_id: caller.id,

@@ -1,6 +1,5 @@
 use crate::db::{DbRegionSet, TrackId};
 
-
 pub struct CreateRegionSet {
     pub track_id: TrackId,
     pub name: Option<String>,

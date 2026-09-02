@@ -2,10 +2,7 @@ use async_trait::async_trait;
 use domain::domain_user::UserId;
 
 use crate::{
-    domain::{
-        data_error::DataError,
-        db::db_user::{DbUser},
-    },
+    domain::{data_error::DataError, db::db_user::DbUser},
     users::{create_user_params::CreateUserParams, update_user_params::UpdateUserParams},
 };
 

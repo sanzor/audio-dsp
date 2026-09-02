@@ -16,7 +16,12 @@ export function useLogin() {
       setSession(result.user, result.token);
       clearProject();
 
-      const { projects } = await bootstrap();
+      const { workspaces } = await bootstrap();
+      const projects = workspaces.map((workspace) => ({
+        project_id: workspace.workspace_id,
+        name: workspace.name,
+        role: workspace.role,
+      }));
 
       setProjects(projects);
 

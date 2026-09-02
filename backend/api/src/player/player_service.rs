@@ -1,10 +1,8 @@
 use std::{collections::HashMap, sync::Arc};
 
 use actors::audio_player_actor::{
-    attach_sink::AttachSink,
-    create_audio_player_actor_params::CreateAudioPlayerActorParams,
-    player_track_payload::PlayerTrackPayload,
-    registry::AudioPlayerRegistry,
+    attach_sink::AttachSink, create_audio_player_actor_params::CreateAudioPlayerActorParams,
+    player_track_payload::PlayerTrackPayload, registry::AudioPlayerRegistry,
 };
 use audiolib::utils::decode_canonical_audio;
 use domain::{
@@ -30,8 +28,14 @@ pub struct PlayerService {
 }
 
 impl PlayerService {
-    pub fn new(registry: Arc<AudioPlayerRegistry>, tracks_provider: Arc<dyn TracksProvider>) -> Self {
-        Self { registry, tracks_provider }
+    pub fn new(
+        registry: Arc<AudioPlayerRegistry>,
+        tracks_provider: Arc<dyn TracksProvider>,
+    ) -> Self {
+        Self {
+            registry,
+            tracks_provider,
+        }
     }
 
     fn player_key(user_id: domain::domain_user::UserId, track_id: TrackId) -> String {
@@ -41,7 +45,11 @@ impl PlayerService {
 
 #[async_trait::async_trait]
 impl PlayerProvider for PlayerService {
-    async fn play(&self, user_id: domain::domain_user::UserId, track_id: TrackId) -> Result<(), String> {
+    async fn play(
+        &self,
+        user_id: domain::domain_user::UserId,
+        track_id: TrackId,
+    ) -> Result<(), String> {
         let player = self
             .registry
             .get(&Self::player_key(user_id, track_id))
@@ -51,7 +59,11 @@ impl PlayerProvider for PlayerService {
         Ok(())
     }
 
-    async fn pause(&self, user_id: domain::domain_user::UserId, track_id: TrackId) -> Result<(), String> {
+    async fn pause(
+        &self,
+        user_id: domain::domain_user::UserId,
+        track_id: TrackId,
+    ) -> Result<(), String> {
         let player = self
             .registry
             .get(&Self::player_key(user_id, track_id))
@@ -61,17 +73,29 @@ impl PlayerProvider for PlayerService {
         Ok(())
     }
 
-    async fn seek(&self, user_id: domain::domain_user::UserId, track_id: TrackId, position: u32) -> Result<(), String> {
+    async fn seek(
+        &self,
+        user_id: domain::domain_user::UserId,
+        track_id: TrackId,
+        position: u32,
+    ) -> Result<(), String> {
         let player = self
             .registry
             .get(&Self::player_key(user_id, track_id))
             .await
             .ok_or("Player not found")?;
-        player.tell(Seek { position }).await.map_err(|e| e.to_string())?;
+        player
+            .tell(Seek { position })
+            .await
+            .map_err(|e| e.to_string())?;
         Ok(())
     }
 
-    async fn stop(&self, user_id: domain::domain_user::UserId, track_id: TrackId) -> Result<(), String> {
+    async fn stop(
+        &self,
+        user_id: domain::domain_user::UserId,
+        track_id: TrackId,
+    ) -> Result<(), String> {
         let key = Self::player_key(user_id, track_id);
         let player = self.registry.get(&key).await.ok_or("Player not found")?;
         player.tell(Stop {}).await.map_err(|e| e.to_string())?;
@@ -107,7 +131,10 @@ impl PlayerProvider for PlayerService {
             .insert(
                 key,
                 CreateAudioPlayerActorParams {
-                    track_payload: PlayerTrackPayload { audio: decoded, meta: track.meta },
+                    track_payload: PlayerTrackPayload {
+                        audio: decoded,
+                        meta: track.meta,
+                    },
                     cursor: 0,
                     sinks,
                 },
@@ -120,25 +147,39 @@ impl PlayerProvider for PlayerService {
         })
     }
 
-    async fn remove_sink(&self, user_id: domain::domain_user::UserId, track_id: TrackId, sink_id: &str) -> Result<(), String> {
+    async fn remove_sink(
+        &self,
+        user_id: domain::domain_user::UserId,
+        track_id: TrackId,
+        sink_id: &str,
+    ) -> Result<(), String> {
         let player = self
             .registry
             .get(&Self::player_key(user_id, track_id))
             .await
             .ok_or("Player not found")?;
         player
-            .ask(RemoveSink { sink_id: sink_id.to_string() })
+            .ask(RemoveSink {
+                sink_id: sink_id.to_string(),
+            })
             .await
             .map_err(|e| e.to_string())?;
         Ok(())
     }
 
-    async fn get_state(&self, user_id: domain::domain_user::UserId, track_id: TrackId) -> Result<GetPlayerStateResult, String> {
+    async fn get_state(
+        &self,
+        user_id: domain::domain_user::UserId,
+        track_id: TrackId,
+    ) -> Result<GetPlayerStateResult, String> {
         let player = self
             .registry
             .get(&Self::player_key(user_id, track_id))
             .await
             .ok_or("Player not found")?;
-        player.ask(GetPlayerState {}).await.map_err(|e| e.to_string())
+        player
+            .ask(GetPlayerState {})
+            .await
+            .map_err(|e| e.to_string())
     }
 }

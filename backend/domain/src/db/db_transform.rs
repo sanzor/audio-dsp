@@ -9,7 +9,9 @@ use crate::domain_user::UserId;
 /// accident at a call site — even though, today, a draft and its published
 /// transform share the same underlying row id (see `TransformDraftId`'s
 /// doc comment), so converting between them is always exact.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, sqlx::Type)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, sqlx::Type,
+)]
 #[serde(transparent)]
 #[sqlx(transparent)]
 pub struct TransformId(pub i64);
@@ -72,4 +74,3 @@ pub struct DbTransform {
     pub owner_user_id: UserId,
     pub created_at: DateTime<Utc>,
 }
-

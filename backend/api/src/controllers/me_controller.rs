@@ -7,8 +7,7 @@ use utoipa::ToSchema;
 use crate::{
     app_data::AppData,
     auth::{
-        accept_invite_params::AcceptInviteParams,
-        auth_app_data::AuthAppData,
+        accept_invite_params::AcceptInviteParams, auth_app_data::AuthAppData,
         service_error::ServiceError,
     },
     me::me_app_data::MeAppData,
@@ -21,11 +20,12 @@ use crate::{
 #[utoipa::path(get, path = "/v1/me/bootstrap", tag = "Me",
     responses((status = 200, body = MeBootstrapResult), (status = 401), (status = 500)))]
 #[get("/bootstrap")]
-pub async fn bootstrap(
-    auth: JwtContext,
-    app_state: web::Data<MeAppData>,
-) -> HttpResponse {
-    match app_state.me_data_provider.get_bootstrap_data(auth.user_id).await {
+pub async fn bootstrap(auth: JwtContext, app_state: web::Data<MeAppData>) -> HttpResponse {
+    match app_state
+        .me_data_provider
+        .get_bootstrap_data(auth.user_id)
+        .await
+    {
         Ok(data) => HttpResponse::Ok().json(data),
         Err(e) => {
             error!(user_id = %auth.user_id, error = %e, "bootstrap failed");
@@ -63,7 +63,10 @@ pub async fn create_workspace(
 
     let workspace = match app
         .workspaces_service
-        .create_workspace(CreateWorkspaceParams { name: input.name, created_by: auth.user_id })
+        .create_workspace(CreateWorkspaceParams {
+            name: input.name,
+            created_by: auth.user_id,
+        })
         .await
     {
         Ok(w) => w,
@@ -86,7 +89,10 @@ pub async fn create_workspace(
         return HttpResponse::InternalServerError().body("failed to set owner");
     }
 
-    HttpResponse::Created().json(WorkspaceOutput { workspace_id: workspace.workspace_id, name: workspace.name })
+    HttpResponse::Created().json(WorkspaceOutput {
+        workspace_id: workspace.workspace_id,
+        name: workspace.name,
+    })
 }
 
 // ── accept invite ──────────────────────────────────────────────────────────────
@@ -124,9 +130,14 @@ pub async fn accept_invite(
         })
         .await
     {
-        Ok(r) => HttpResponse::Ok().json(AcceptInviteOutput { workspace_id: r.workspace_id, role: r.role }),
+        Ok(r) => HttpResponse::Ok().json(AcceptInviteOutput {
+            workspace_id: r.workspace_id,
+            role: r.role,
+        }),
         Err(ServiceError::NotFound) => HttpResponse::NotFound().body("user not found"),
-        Err(ServiceError::Forbidden) => HttpResponse::Forbidden().body("this invite is not for you"),
+        Err(ServiceError::Forbidden) => {
+            HttpResponse::Forbidden().body("this invite is not for you")
+        }
         Err(e) => {
             error!(error = %e, "accept-invite failed");
             HttpResponse::InternalServerError().body("accept-invite failed")

@@ -1,5 +1,8 @@
 use serde::{Deserialize, Serialize};
-use sqlx::{Type, postgres::{PgTypeInfo, PgValueRef}, Decode, Encode};
+use sqlx::{
+    postgres::{PgTypeInfo, PgValueRef},
+    Decode, Encode, Type,
+};
 use utoipa::ToSchema;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
@@ -44,14 +47,17 @@ impl sqlx::Type<sqlx::Postgres> for Tier {
 impl<'r> sqlx::Decode<'r, sqlx::Postgres> for Tier {
     fn decode(value: PgValueRef<'r>) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         let s = <String as Decode<sqlx::Postgres>>::decode(value)?;
-        s.parse::<Tier>().map_err(|e| Box::new(sqlx::Error::Decode(e.into())) as Box<dyn std::error::Error + Send + Sync>)
+        s.parse::<Tier>().map_err(|e| {
+            Box::new(sqlx::Error::Decode(e.into())) as Box<dyn std::error::Error + Send + Sync>
+        })
     }
 }
 
 impl<'q> sqlx::Encode<'q, sqlx::Postgres> for Tier {
-    fn encode_by_ref(&self, buf: &mut <sqlx::Postgres as sqlx::database::HasArguments<'q>>::ArgumentBuffer) -> sqlx::encode::IsNull {
+    fn encode_by_ref(
+        &self,
+        buf: &mut <sqlx::Postgres as sqlx::database::HasArguments<'q>>::ArgumentBuffer,
+    ) -> sqlx::encode::IsNull {
         <String as Encode<sqlx::Postgres>>::encode_by_ref(&self.to_string(), buf)
     }
 }
-
-

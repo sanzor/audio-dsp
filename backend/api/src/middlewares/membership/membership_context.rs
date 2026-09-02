@@ -1,5 +1,8 @@
-use actix_web::{Error, FromRequest, HttpMessage, HttpRequest, dev::Payload};
-use std::{future::{ready, Ready}, ops::Deref};
+use actix_web::{dev::Payload, Error, FromRequest, HttpMessage, HttpRequest};
+use std::{
+    future::{ready, Ready},
+    ops::Deref,
+};
 
 use domain::workspace_role::WorkspaceRole;
 
@@ -36,7 +39,9 @@ impl FromRequest for WorkspaceContext {
     fn from_request(req: &HttpRequest, _: &mut Payload) -> Self::Future {
         match req.extensions().get::<WorkspaceContext>() {
             Some(ctx) => ready(Ok(*ctx)),
-            None => ready(Err(actix_web::error::ErrorBadRequest("No workspace context"))),
+            None => ready(Err(actix_web::error::ErrorBadRequest(
+                "No workspace context",
+            ))),
         }
     }
 }

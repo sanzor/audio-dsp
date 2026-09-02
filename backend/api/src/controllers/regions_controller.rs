@@ -3,7 +3,9 @@ use std::marker::PhantomData;
 use actix_web::{delete, patch, post, web, HttpResponse};
 use chrono::{DateTime, Utc};
 use domain::db::{DbRegion, RegionId, RegionSetId, TrackId};
-use domain::{region_set::region_set_subtree::RegionSetSubtree, regions::region_subtree::RegionSubtree};
+use domain::{
+    region_set::region_set_subtree::RegionSetSubtree, regions::region_subtree::RegionSubtree,
+};
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 
@@ -11,7 +13,9 @@ use crate::{
     middlewares::membership::membership_context::RoleContext,
     regions::{
         regions_app_data::RegionsAppData,
-        regions_provider::{AddRegionParams, CopyRegionParams, DeleteRegionParams, EditRegionParams, EndTimePolicy},
+        regions_provider::{
+            AddRegionParams, CopyRegionParams, DeleteRegionParams, EditRegionParams, EndTimePolicy,
+        },
     },
 };
 
@@ -148,7 +152,9 @@ pub async fn edit_region(
         return HttpResponse::Forbidden().body("Forbidden");
     }
     let request = request.into_inner();
-    match app_state.regions_service.edit_region(EditRegionParams {
+    match app_state
+        .regions_service
+        .edit_region(EditRegionParams {
             name: request.name,
             region_id: request.region_id,
             start_time: request.start_time,
@@ -255,10 +261,8 @@ pub async fn copy_region(
         .await
     {
         Ok(r) => HttpResponse::Ok().json(CopyRegionResult::from(r)),
-        Err(e) => {
-            HttpResponse::InternalServerError()
-                .body(format!("Could not copy region with reason {e}"))
-        }
+        Err(e) => HttpResponse::InternalServerError()
+            .body(format!("Could not copy region with reason {e}")),
     }
 }
 

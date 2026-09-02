@@ -5,26 +5,37 @@ use utoipa::ToSchema;
 
 use crate::{
     auth::{
-        auth_app_data::AuthAppData,
-        login_params::LoginParams,
-        register_user_params::RegisterUserParams,
-        service_error::ServiceError,
-        user::AuthUser,
+        auth_app_data::AuthAppData, login_params::LoginParams,
+        register_user_params::RegisterUserParams, service_error::ServiceError, user::AuthUser,
         verify_user_params::VerifyUserParams,
     },
     token::token_utils::{create_access_token, create_refresh_token, verify_token},
 };
 
 fn cookie_settings() -> &'static str {
-    if cfg!(debug_assertions) { "SameSite=Lax; Path=/" } else { "SameSite=None; Secure; Path=/" }
+    if cfg!(debug_assertions) {
+        "SameSite=Lax; Path=/"
+    } else {
+        "SameSite=None; Secure; Path=/"
+    }
 }
 
 fn set_auth_cookie(token: &str) -> String {
-    format!("auth_token={}; HttpOnly; {}; Max-Age={}", token, cookie_settings(), 60 * 60 * 8)
+    format!(
+        "auth_token={}; HttpOnly; {}; Max-Age={}",
+        token,
+        cookie_settings(),
+        60 * 60 * 8
+    )
 }
 
 fn set_refresh_cookie(token: &str) -> String {
-    format!("refresh_token={}; HttpOnly; {}; Max-Age={}", token, cookie_settings(), 60 * 60 * 24 * 7)
+    format!(
+        "refresh_token={}; HttpOnly; {}; Max-Age={}",
+        token,
+        cookie_settings(),
+        60 * 60 * 24 * 7
+    )
 }
 
 fn clear_auth_cookie() -> &'static str {
@@ -59,19 +70,41 @@ pub async fn login(
 ) -> HttpResponse {
     info!("auth login");
     let input = payload.into_inner();
-    if input.email.trim().is_empty() { return HttpResponse::BadRequest().body("email required"); }
-    if input.password_hash.trim().is_empty() { return HttpResponse::BadRequest().body("password_hash required"); }
+    if input.email.trim().is_empty() {
+        return HttpResponse::BadRequest().body("email required");
+    }
+    if input.password_hash.trim().is_empty() {
+        return HttpResponse::BadRequest().body("password_hash required");
+    }
 
-    match app_state.auth_provider.login(LoginParams { email: input.email, password_hash: input.password_hash }).await {
+    match app_state
+        .auth_provider
+        .login(LoginParams {
+            email: input.email,
+            password_hash: input.password_hash,
+        })
+        .await
+    {
         Ok(r) => {
-            let refresh_tok = create_refresh_token(r.user.id, Some(&r.user.name), Some(&r.user.email), r.user.is_admin);
+            let refresh_tok = create_refresh_token(
+                r.user.id,
+                Some(&r.user.name),
+                Some(&r.user.email),
+                r.user.is_admin,
+            );
             HttpResponse::Ok()
                 .append_header(("Set-Cookie", set_auth_cookie(&r.token)))
                 .append_header(("Set-Cookie", set_refresh_cookie(&refresh_tok)))
-                .json(LoginOutput { user: r.user, token: r.token })
-        },
+                .json(LoginOutput {
+                    user: r.user,
+                    token: r.token,
+                })
+        }
         Err(ServiceError::NotFound) => HttpResponse::Unauthorized().body("invalid credentials"),
-        Err(e) => { error!(error = %e, "login failed"); HttpResponse::InternalServerError().body("login failed") }
+        Err(e) => {
+            error!(error = %e, "login failed");
+            HttpResponse::InternalServerError().body("login failed")
+        }
     }
 }
 
@@ -100,32 +133,59 @@ pub async fn register(
 ) -> HttpResponse {
     info!("auth register");
     let input = payload.into_inner();
-    if input.email.trim().is_empty() { return HttpResponse::BadRequest().body("email required"); }
-    if input.password_hash.trim().is_empty() { return HttpResponse::BadRequest().body("password_hash required"); }
-    if input.name.trim().is_empty() { return HttpResponse::BadRequest().body("name required"); }
+    if input.email.trim().is_empty() {
+        return HttpResponse::BadRequest().body("email required");
+    }
+    if input.password_hash.trim().is_empty() {
+        return HttpResponse::BadRequest().body("password_hash required");
+    }
+    if input.name.trim().is_empty() {
+        return HttpResponse::BadRequest().body("name required");
+    }
 
-    match app_state.auth_provider.register(RegisterUserParams {
-        email: input.email, password_hash: input.password_hash, name: input.name,
-    }).await {
+    match app_state
+        .auth_provider
+        .register(RegisterUserParams {
+            email: input.email,
+            password_hash: input.password_hash,
+            name: input.name,
+        })
+        .await
+    {
         Ok(r) => {
-            let refresh_tok = create_refresh_token(r.user.id, Some(&r.user.name), Some(&r.user.email), r.user.is_admin);
+            let refresh_tok = create_refresh_token(
+                r.user.id,
+                Some(&r.user.name),
+                Some(&r.user.email),
+                r.user.is_admin,
+            );
             HttpResponse::Created()
                 .append_header(("Set-Cookie", set_auth_cookie(&r.token)))
                 .append_header(("Set-Cookie", set_refresh_cookie(&refresh_tok)))
-                .json(RegisterOutput { user: r.user, token: r.token })
-        },
+                .json(RegisterOutput {
+                    user: r.user,
+                    token: r.token,
+                })
+        }
         Err(ServiceError::Conflict(msg)) => HttpResponse::Conflict().body(msg),
-        Err(e) => { error!(error = %e, "register failed"); HttpResponse::InternalServerError().body("register failed") }
+        Err(e) => {
+            error!(error = %e, "register failed");
+            HttpResponse::InternalServerError().body("register failed")
+        }
     }
 }
 
 // ── verify ────────────────────────────────────────────────────────────────────
 
 #[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
-pub struct VerifyInput { pub token: String }
+pub struct VerifyInput {
+    pub token: String,
+}
 
 #[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
-pub struct VerifyOutput { pub user: AuthUser }
+pub struct VerifyOutput {
+    pub user: AuthUser,
+}
 
 #[utoipa::path(post, path = "/auth/verify", tag = "Auth",
     request_body = VerifyInput,
@@ -137,27 +197,43 @@ pub async fn verify(
 ) -> HttpResponse {
     info!("auth verify");
     let input = payload.into_inner();
-    if input.token.trim().is_empty() { return HttpResponse::BadRequest().body("token required"); }
+    if input.token.trim().is_empty() {
+        return HttpResponse::BadRequest().body("token required");
+    }
 
     let claims = match app_state.jwt_provider.verify(&input.token) {
         Ok(c) => c,
-        Err(e) => { warn!(error = %e, "invalid verify token"); return HttpResponse::BadRequest().body("invalid or expired token"); }
+        Err(e) => {
+            warn!(error = %e, "invalid verify token");
+            return HttpResponse::BadRequest().body("invalid or expired token");
+        }
     };
 
     if claims.purpose.as_deref() != Some("verification") {
         return HttpResponse::BadRequest().body("invalid token purpose");
     }
 
-    match app_state.auth_provider.verify(VerifyUserParams { user_id: claims.user_id }).await {
+    match app_state
+        .auth_provider
+        .verify(VerifyUserParams {
+            user_id: claims.user_id,
+        })
+        .await
+    {
         Ok(r) => HttpResponse::Ok().json(VerifyOutput { user: r.user }),
-        Err(e) => { error!(error = %e, "verify failed"); HttpResponse::InternalServerError().body("verify failed") }
+        Err(e) => {
+            error!(error = %e, "verify failed");
+            HttpResponse::InternalServerError().body("verify failed")
+        }
     }
 }
 
 // ── resend-verification ───────────────────────────────────────────────────────
 
 #[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
-pub struct ResendInput { pub email: String }
+pub struct ResendInput {
+    pub email: String,
+}
 
 #[utoipa::path(post, path = "/auth/resend-verification", tag = "Auth",
     request_body = ResendInput,
@@ -169,11 +245,20 @@ pub async fn resend_verification(
 ) -> HttpResponse {
     info!("resend verification");
     let input = payload.into_inner();
-    if input.email.trim().is_empty() { return HttpResponse::BadRequest().body("email required"); }
+    if input.email.trim().is_empty() {
+        return HttpResponse::BadRequest().body("email required");
+    }
 
-    match app_state.auth_provider.resend_verification(input.email).await {
+    match app_state
+        .auth_provider
+        .resend_verification(input.email)
+        .await
+    {
         Ok(()) => HttpResponse::Ok().body("verification email sent"),
-        Err(e) => { error!(error = %e, "resend failed"); HttpResponse::InternalServerError().body("resend failed") }
+        Err(e) => {
+            error!(error = %e, "resend failed");
+            HttpResponse::InternalServerError().body("resend failed")
+        }
     }
 }
 

@@ -1,5 +1,5 @@
 use crate::{
-    middlewares::membership::membership_context::{WorkspaceContext, RoleContext},
+    middlewares::membership::membership_context::{RoleContext, WorkspaceContext},
     sources::sources_app_data::SourcesAppData,
 };
 use actix_multipart::Multipart;
@@ -66,7 +66,11 @@ pub async fn add_source(
         Err(_) => return HttpResponse::BadRequest().body("Invalid payload"),
     };
 
-    match app_state.sources_service.insert_source(request.source, workspace.0).await {
+    match app_state
+        .sources_service
+        .insert_source(request.source, workspace.0)
+        .await
+    {
         Ok(source) => HttpResponse::Ok().json(AddSourceResult {
             source_id: source.meta.source_id,
             source_info: source.meta.source_info,
@@ -100,7 +104,11 @@ pub async fn add_source_multi(
     if !role.can_edit() {
         return HttpResponse::Forbidden().body("Forbidden");
     }
-    let raw_source = match app_state.multipart_parser.try_parse_multipart(payload).await {
+    let raw_source = match app_state
+        .multipart_parser
+        .try_parse_multipart(payload)
+        .await
+    {
         Ok(r) => r,
         Err(err) => {
             error!(error = %err, "add-source-multi rejected: invalid payload");
@@ -108,7 +116,11 @@ pub async fn add_source_multi(
         }
     };
 
-    match app_state.sources_service.insert_source(raw_source, workspace.0).await {
+    match app_state
+        .sources_service
+        .insert_source(raw_source, workspace.0)
+        .await
+    {
         Ok(source) => {
             info!(source_id = %source.meta.source_id, "add-source-multi insert complete");
             HttpResponse::Ok().json(AddSourceResult {
@@ -173,7 +185,9 @@ pub async fn rename_source(
         .sources_service
         .update_source_info(
             &request.source_id,
-            UpdateSourceInfoParams { source_name: request.source_name },
+            UpdateSourceInfoParams {
+                source_name: request.source_name,
+            },
         )
         .await
     {
@@ -207,7 +221,11 @@ pub async fn delete_source(
         return HttpResponse::Forbidden().body("Forbidden");
     }
     let request = path.into_inner();
-    match app_state.sources_service.delete_source(&request.source_id).await {
+    match app_state
+        .sources_service
+        .delete_source(&request.source_id)
+        .await
+    {
         Ok(_) => HttpResponse::Ok().json("source removed"),
         Err(_e) => HttpResponse::InternalServerError().body("Could not remove source"),
     }
@@ -243,17 +261,27 @@ pub async fn get_source_audio(
         return HttpResponse::Forbidden().body("Forbidden");
     }
     let request = query.into_inner();
-    let source = match app_state.sources_service.get_source(&request.source_id).await {
+    let source = match app_state
+        .sources_service
+        .get_source(&request.source_id)
+        .await
+    {
         Ok(s) => s,
         Err(_) => return HttpResponse::NotFound().body("Could not find source"),
     };
     let ext = source.meta.source_info.extension.to_lowercase();
-    let mime_type = from_ext(&ext).first_or_octet_stream().essence_str().to_owned();
+    let mime_type = from_ext(&ext)
+        .first_or_octet_stream()
+        .essence_str()
+        .to_owned();
     HttpResponse::Ok()
         .insert_header(("Content-Type", mime_type))
         .insert_header((
             "Content-Disposition",
-            format!("inline; filename=\"{}.{}\"", source.meta.source_info.name, ext),
+            format!(
+                "inline; filename=\"{}.{}\"",
+                source.meta.source_info.name, ext
+            ),
         ))
         .body(source.payload.canonical_audio)
 }

@@ -80,7 +80,8 @@ impl From<DbTransformRow> for DbTransform {
 }
 
 const TRANSFORM_ROW_COLUMNS_BARE: &str = "transform_id, name, description, icon, kind, source_code, wasm_bytecode, metadata, owner_user_id, created_at";
-const DRAFT_ROW_COLUMNS: &str = "transform_id, source_code, wasm_bytecode, wasm_source_code, name, description, kind, metadata";
+const DRAFT_ROW_COLUMNS: &str =
+    "transform_id, source_code, wasm_bytecode, wasm_source_code, name, description, kind, metadata";
 
 #[async_trait::async_trait]
 impl TransformDraftsDataProvider for PostgresTransformDraftsDataProvider {
@@ -126,7 +127,10 @@ impl TransformDraftsDataProvider for PostgresTransformDraftsDataProvider {
         Ok(row.into())
     }
 
-    async fn get_transform_draft(&self, id: TransformDraftId) -> Result<DbTransformDraft, DataError> {
+    async fn get_transform_draft(
+        &self,
+        id: TransformDraftId,
+    ) -> Result<DbTransformDraft, DataError> {
         let row = sqlx::query_as::<_, DbTransformDraftRow>(&format!(
             r#"SELECT {DRAFT_ROW_COLUMNS} FROM transform_draft WHERE transform_id = $1"#,
         ))
@@ -137,7 +141,10 @@ impl TransformDraftsDataProvider for PostgresTransformDraftsDataProvider {
         Ok(row.into())
     }
 
-    async fn get_transform_drafts(&self, ids: &[TransformDraftId]) -> Result<Vec<DbTransformDraft>, DataError> {
+    async fn get_transform_drafts(
+        &self,
+        ids: &[TransformDraftId],
+    ) -> Result<Vec<DbTransformDraft>, DataError> {
         if ids.is_empty() {
             return Ok(Vec::new());
         }
@@ -153,11 +160,13 @@ impl TransformDraftsDataProvider for PostgresTransformDraftsDataProvider {
     }
 
     async fn get_transform_owner(&self, id: TransformDraftId) -> Result<UserId, DataError> {
-        sqlx::query_scalar::<_, UserId>("SELECT owner_user_id FROM transform WHERE transform_id = $1")
-            .bind(id)
-            .fetch_one(&self.pool)
-            .await
-            .map_err(DataError::from)
+        sqlx::query_scalar::<_, UserId>(
+            "SELECT owner_user_id FROM transform WHERE transform_id = $1",
+        )
+        .bind(id)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(DataError::from)
     }
 
     async fn delete_transform_draft(&self, id: TransformDraftId) -> Result<(), DataError> {
@@ -194,7 +203,10 @@ impl TransformDraftsDataProvider for PostgresTransformDraftsDataProvider {
         Ok(())
     }
 
-    async fn get_published_transforms(&self, ids: &[TransformId]) -> Result<Vec<DbTransform>, DataError> {
+    async fn get_published_transforms(
+        &self,
+        ids: &[TransformId],
+    ) -> Result<Vec<DbTransform>, DataError> {
         if ids.is_empty() {
             return Ok(Vec::new());
         }

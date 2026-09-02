@@ -2,103 +2,126 @@ use actix_web::{
     web::{self},
     App, HttpServer,
 };
-use rand::Rng;
-use actors::{
-    audio_player_actor::registry::AudioPlayerRegistry,
-};
+use actors::audio_player_actor::registry::AudioPlayerRegistry;
 use api::{
-    app_data::AppData, auth::{
-        auth_app_data::AuthAppData,
-        auth_provider_service::AuthProviderService,
-        jwt_provider_service::JwtProviderService,
-        mock_email_sender::MockEmailSender,
-    }, controllers::{self, ws_controller}, graphs::{
+    app_data::AppData,
+    auth::{
+        auth_app_data::AuthAppData, auth_provider_service::AuthProviderService,
+        jwt_provider_service::JwtProviderService, mock_email_sender::MockEmailSender,
+    },
+    controllers::{self, ws_controller},
+    graphs::{
         data_provider::graphs_data_provider_service::PostgresGraphsDataProvider,
-        graphs_app_data::GraphsAppData,
-        graphs_provider_service::GraphsProviderService,
-    }, infra::producer::channel_producer::ChannelProducer, invoices::{
+        graphs_app_data::GraphsAppData, graphs_provider_service::GraphsProviderService,
+    },
+    infra::producer::channel_producer::ChannelProducer,
+    invoices::{
         data_provider::invoices_data_provider_service::InvoicesDataProviderService,
-        invoices_app_data::InvoicesAppData,
-        invoices_provider_service::InvoicesProviderService,
-    }, me::{me_app_data::MeAppData, me_provider_service::MeProviderService}, memberships::{
+        invoices_app_data::InvoicesAppData, invoices_provider_service::InvoicesProviderService,
+    },
+    me::{me_app_data::MeAppData, me_provider_service::MeProviderService},
+    memberships::{
         data_provider::memberships_data_provider_service::PostgresMembershipsDataProvider,
-        memberships_app_data::MembershipsAppData,
-        memberships_provider::MembershipsProvider,
+        memberships_app_data::MembershipsAppData, memberships_provider::MembershipsProvider,
         memberships_provider_service::MembershipsProviderService,
-    }, middlewares::{
-        authz::transform_access_middleware::TransformAccessMiddleware,
-        jwt::JwtAuthMiddleware,
+    },
+    middlewares::{
+        authz::transform_access_middleware::TransformAccessMiddleware, jwt::JwtAuthMiddleware,
         membership::MembershipMiddleware,
         permissions_context::permissions_context_middleware::PermissionsContextMiddleware,
-    }, player::{player_app_data::PlayerAppData, player_service::PlayerService}, products::{
+    },
+    player::{player_app_data::PlayerAppData, player_service::PlayerService},
+    products::{
         data_provider::products_data_provider_service::ProductsDataProviderService,
-        products_app_data::ProductsAppData,
-        products_provider_service::ProductsProviderService,
-    }, purchased_products::{
+        products_app_data::ProductsAppData, products_provider_service::ProductsProviderService,
+    },
+    purchased_products::{
         data_provider::purchased_products_data_provider_service::PurchasedProductsDataProviderService,
         purchased_products_app_data::PurchasedProductsAppData,
         purchased_products_provider_service::PurchasedProductsProviderService,
-    }, region_sets::{
+    },
+    region_sets::{
         data_provider::region_sets_data_provider_service::PostgresRegionSetsDataProvider,
         region_sets_app_data::RegionSetsAppData,
         region_sets_provider_service::RegionSetsProviderService,
-    }, regions::{
+    },
+    regions::{
         data_provider::regions_data_provider_service::PostgresRegionsDataProvider,
-        regions_app_data::RegionsAppData,
-        regions_provider_service::RegionsProviderService,
-    }, sources::{
+        regions_app_data::RegionsAppData, regions_provider_service::RegionsProviderService,
+    },
+    sources::{
         data_provider::sources_data_provider_service::PostgresSourcesDataProvider,
         multipart_audio_parser::multipart_audio_parser_service::SourceMultipartAudioParserService,
-        sources_app_data::SourcesAppData,
-        sources_provider_service::SourcesProviderService,
+        sources_app_data::SourcesAppData, sources_provider_service::SourcesProviderService,
         storage_provider::source_storage_provider_service::SourceStorageProviderService,
-    }, stored_tracks::{
+    },
+    stored_tracks::{
         data_provider::stored_tracks_data_provider_service::PostgresStoredTracksDataProvider,
         stored_tracks_app_data::StoredTracksAppData,
-    }, subscriptions::{
+    },
+    subscriptions::{
         data_provider::subscriptions_data_provider_service::SubscriptionsDataProviderService,
         subscriptions_app_data::SubscriptionsAppData,
         subscriptions_provider_service::SubscriptionsProviderService,
-    }, ticket_worker::{
-        consumer::channel_consumer::ChannelConsumer, events::ticket_created_event::TicketCreatedEvent, processor::{build_job_config::BuildJobConfig, processor::Processor, processor_params::ProcessorParams}, worker::Worker, worker_config::WorkerConfig, worker_params::WorkerParams,
-    }, tickets::{tickets_app_data::TicketsAppData, tickets_provider_service::TicketsProviderService}, transform_grants::{
-        data_provider::transform_grants_data_provider_service::PostgresTransformGrantsDataProvider,
-        transform_grants_app_data::TransformGrantsAppData,
-        transform_grants_provider_service::TransformGrantsProviderService,
-    }, tier_configs::{
+    },
+    ticket_worker::{
+        consumer::channel_consumer::ChannelConsumer,
+        events::ticket_created_event::TicketCreatedEvent,
+        processor::{
+            build_job_config::BuildJobConfig, processor::Processor,
+            processor_params::ProcessorParams,
+        },
+        worker::Worker,
+        worker_config::WorkerConfig,
+        worker_params::WorkerParams,
+    },
+    tickets::{tickets_app_data::TicketsAppData, tickets_provider_service::TicketsProviderService},
+    tier_configs::{
         data_provider::tier_configs_data_provider_service::TierConfigsDataProviderService,
         tier_configs_app_data::TierConfigsAppData,
         tier_configs_provider_service::TierConfigsProviderService,
-    }, tracks::{
-        data_provider::tracks_data_provider_service::PostgresTracksDataProvider, multipart_audio_parser::multipart_audio_parser_service::MultipartAudioParserService, storage_provider::track_storage_provider_service::TrackStorageProviderService, tracks_app_data::TracksAppData, tracks_provider_service::TracksProviderService,
-    }, transform_drafts::{
+    },
+    tracks::{
+        data_provider::tracks_data_provider_service::PostgresTracksDataProvider,
+        multipart_audio_parser::multipart_audio_parser_service::MultipartAudioParserService,
+        storage_provider::track_storage_provider_service::TrackStorageProviderService,
+        tracks_app_data::TracksAppData, tracks_provider_service::TracksProviderService,
+    },
+    transform_drafts::{
         data_provider::transform_drafts_data_provider_service::PostgresTransformDraftsDataProvider,
         transform_drafts_app_data::TransformDraftsAppData,
         transform_drafts_provider_service::TransformDraftsProviderService,
-    }, transforms::{
+    },
+    transform_grants::{
+        data_provider::transform_grants_data_provider_service::PostgresTransformGrantsDataProvider,
+        transform_grants_app_data::TransformGrantsAppData,
+        transform_grants_provider_service::TransformGrantsProviderService,
+    },
+    transforms::{
         data_provider::transforms_data_provider_service::PostgresTransformsDataProvider,
         transforms_app_data::TransformsAppData,
         transforms_provider_service::TransformsProviderService,
-    }, usage::{
+    },
+    usage::{
         data_provider::usage_data_provider_service::UsageDataProviderService,
-        usage_app_data::UsageAppData,
-        usage_provider_service::UsageProviderService,
-    }, users::{
+        usage_app_data::UsageAppData, usage_provider_service::UsageProviderService,
+    },
+    users::{
         data_provider::user_data_provider_service::UserDataProviderService,
-        user_provider::UserProvider,
-        user_provider_service::UserProviderService,
+        user_provider::UserProvider, user_provider_service::UserProviderService,
         users_app_data::UsersAppData,
-    }, workspace::{
+    },
+    workspace::{
         data_provider::workspace_data_provider_service::PostgresWorkspaceDataProvider,
-        workspace_app_data::WorkspaceAppData,
-        workspace_provider_service::WorkspaceProviderService,
-    }, workspaces::{
+        workspace_app_data::WorkspaceAppData, workspace_provider_service::WorkspaceProviderService,
+    },
+    workspaces::{
         data_provider::workspaces_data_provider_service::PostgresWorkspacesDataProvider,
-        workspaces_app_data::WorkspacesAppData,
-        workspaces_provider::WorkspacesProvider,
+        workspaces_app_data::WorkspacesAppData, workspaces_provider::WorkspacesProvider,
         workspaces_provider_service::WorkspacesProviderService,
     },
 };
+use rand::Rng;
 use tokio_util::sync::CancellationToken;
 use tracing_actix_web::TracingLogger;
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
@@ -111,8 +134,7 @@ fn main() -> std::io::Result<()> {
     load_env_files();
     init_tracing("api");
 
-    let app_config = api::config::load_app_config()
-        .expect("Failed to load app config");
+    let app_config = api::config::load_app_config().expect("Failed to load app config");
 
     actix_web::rt::System::new().block_on(async { start_server(app_config).await })
 }
@@ -191,7 +213,11 @@ fn load_env_files() {
     let repo_root = manifest_dir.join("../..");
 
     // Defaults (committed)
-    load_layered_env_file(&manifest_dir.join("dev.env"), &preexisting_keys, &mut loaded_keys);
+    load_layered_env_file(
+        &manifest_dir.join("dev.env"),
+        &preexisting_keys,
+        &mut loaded_keys,
+    );
 
     // Root env (gitignored) + env-specific root override (gitignored)
     let root_env = repo_root.join(".env");
@@ -205,7 +231,11 @@ fn load_env_files() {
     );
 
     // Service overrides (gitignored)
-    load_layered_env_file(&manifest_dir.join(".env"), &preexisting_keys, &mut loaded_keys);
+    load_layered_env_file(
+        &manifest_dir.join(".env"),
+        &preexisting_keys,
+        &mut loaded_keys,
+    );
 }
 
 async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()> {
@@ -237,7 +267,9 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
     let sources_service = Arc::new(SourcesProviderService::new(
         Arc::new(PostgresSourcesDataProvider::new(pool.clone())),
         Arc::new(SourceStorageProviderService::new(pool.clone()))
-            as Arc<dyn api::sources::storage_provider::source_storage_provider::SourceStorageProvider>,
+            as Arc<
+                dyn api::sources::storage_provider::source_storage_provider::SourceStorageProvider,
+            >,
     ));
     let player_service = Arc::new(PlayerService::new(
         Arc::new(AudioPlayerRegistry::new()),
@@ -358,8 +390,9 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
     let producer: Arc<dyn api::infra::producer::producer::Producer<TicketCreatedEvent>> =
         Arc::new(ChannelProducer::new(tx));
 
-    let transforms_data_provider: Arc<dyn api::transforms::data_provider::transforms_data_provider::TransformsDataProvider> =
-        Arc::new(PostgresTransformsDataProvider::new(pool.clone()));
+    let transforms_data_provider: Arc<
+        dyn api::transforms::data_provider::transforms_data_provider::TransformsDataProvider,
+    > = Arc::new(PostgresTransformsDataProvider::new(pool.clone()));
     let transform_drafts_data_provider: Arc<dyn api::transform_drafts::data_provider::transform_drafts_data_provider::TransformDraftsDataProvider> =
         Arc::new(PostgresTransformDraftsDataProvider::new(pool.clone()));
     let tickets_app_data = TicketsAppData {
@@ -379,7 +412,9 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
     // overridden to /opt/transform-sdk in the container image (see Dockerfile).
     let transform_sdk_path = std::env::var("TRANSFORM_SDK_PATH")
         .map(std::path::PathBuf::from)
-        .unwrap_or_else(|_| std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../transform-sdk"));
+        .unwrap_or_else(|_| {
+            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../transform-sdk")
+        });
     let transform_build_workdir = std::env::var("TRANSFORM_BUILD_WORKDIR")
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|_| std::env::temp_dir().join("audio-dsp-builds"));
@@ -388,7 +423,10 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
         .unwrap_or_else(|_| std::env::temp_dir().join("audio-dsp-cargo-target"));
     let transform_cargo_home = std::env::var("CARGO_HOME")
         .map(std::path::PathBuf::from)
-        .unwrap_or_else(|_| std::path::PathBuf::from(std::env::var("HOME").unwrap_or_else(|_| "/root".to_string())).join(".cargo"));
+        .unwrap_or_else(|_| {
+            std::path::PathBuf::from(std::env::var("HOME").unwrap_or_else(|_| "/root".to_string()))
+                .join(".cargo")
+        });
     let transform_compile_timeout_secs: u64 = std::env::var("TRANSFORM_COMPILE_TIMEOUT_SECS")
         .ok()
         .and_then(|v| v.parse().ok())
@@ -412,7 +450,9 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
     };
 
     let transforms_app_data = TransformsAppData {
-        transforms_service: Arc::new(TransformsProviderService::new(Arc::clone(&transforms_data_provider))),
+        transforms_service: Arc::new(TransformsProviderService::new(Arc::clone(
+            &transforms_data_provider,
+        ))),
     };
 
     // build_job_config is also used synchronously by
@@ -561,10 +601,7 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
                     .wrap(jwt_middleware.clone())
                     .configure(controllers::invoices_controller::init),
             )
-            .service(
-                web::scope("/v1/products")
-                    .configure(controllers::products_controller::init),
-            )
+            .service(web::scope("/v1/products").configure(controllers::products_controller::init))
             .service(
                 web::scope("/v1/tier-configs")
                     .configure(controllers::tier_configs_controller::init),

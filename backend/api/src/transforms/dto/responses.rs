@@ -85,7 +85,10 @@ impl From<DbTransform> for TransformBinaryDto {
     fn from(value: DbTransform) -> Self {
         Self {
             transform_id: value.transform_id,
-            wasm_base64: value.wasm_bytecode.map(|b| BASE64_STANDARD.encode(b)).unwrap_or_default(),
+            wasm_base64: value
+                .wasm_bytecode
+                .map(|b| BASE64_STANDARD.encode(b))
+                .unwrap_or_default(),
         }
     }
 }

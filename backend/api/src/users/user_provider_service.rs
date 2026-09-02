@@ -59,7 +59,10 @@ impl UserProvider for UserProviderService {
 
     async fn get_user_by_email(&self, email: &str) -> Result<Option<UserResult>, ServiceError> {
         info!(email = %email, "get user by email requested");
-        let record = self.data_provider.get_user_by_email(email.to_string()).await?;
+        let record = self
+            .data_provider
+            .get_user_by_email(email.to_string())
+            .await?;
         Ok(record.map(UserResult::from))
     }
 

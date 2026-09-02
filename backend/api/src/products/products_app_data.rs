@@ -1,5 +1,5 @@
-use std::sync::Arc;
 use crate::products::products_provider::ProductsProvider;
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct ProductsAppData {

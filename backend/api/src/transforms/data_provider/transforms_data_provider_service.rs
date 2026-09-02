@@ -126,7 +126,10 @@ const TRANSFORM_ROW_COLUMNS: &str = "t.transform_id, t.name, t.description, t.ic
 
 #[async_trait::async_trait]
 impl TransformsDataProvider for PostgresTransformsDataProvider {
-    async fn create_transform_ticket(&self, ticket: CreateTicketParams) -> Result<DbTicket, DataError> {
+    async fn create_transform_ticket(
+        &self,
+        ticket: CreateTicketParams,
+    ) -> Result<DbTicket, DataError> {
         let row = sqlx::query_as::<_, DbTicketRow>(
             r#"
             INSERT INTO transform_ticket (transform_id, issued_by, source_code, status)
@@ -181,7 +184,10 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
         .map_err(DataError::from)
     }
 
-    async fn get_resource_transform_id(&self, resource_id: ResourceId) -> Result<TransformId, DataError> {
+    async fn get_resource_transform_id(
+        &self,
+        resource_id: ResourceId,
+    ) -> Result<TransformId, DataError> {
         sqlx::query_scalar::<_, TransformId>(
             r#"
             SELECT tt.transform_id
@@ -261,7 +267,10 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
         Ok(row.into())
     }
 
-    async fn get_compiled_transform(&self, resource_id: ResourceId) -> Result<DbResource, DataError> {
+    async fn get_compiled_transform(
+        &self,
+        resource_id: ResourceId,
+    ) -> Result<DbResource, DataError> {
         let row = sqlx::query_as::<_, DbResourceRow>(
             r#"
             SELECT tr.resource_id AS id, tr.ticket_id, tt.source_code, tr.wasm_bytecode, tr.name, tr.description
@@ -277,7 +286,11 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
         Ok(row.into())
     }
 
-    async fn list_transform_summaries(&self, offset: i64, limit: i64) -> Result<(Vec<DbTransform>, i64), DataError> {
+    async fn list_transform_summaries(
+        &self,
+        offset: i64,
+        limit: i64,
+    ) -> Result<(Vec<DbTransform>, i64), DataError> {
         #[derive(sqlx::FromRow)]
         struct Row {
             transform_id: TransformId,
@@ -327,12 +340,17 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
         Ok((transforms, total))
     }
 
-    async fn get_transforms_for_workspace_and_user(&self, user_id: UserId, workspace_id: domain::db::WorkspaceId) -> Result<Vec<DbTransform>, DataError> {
+    async fn get_transforms_for_workspace_and_user(
+        &self,
+        user_id: UserId,
+        workspace_id: domain::db::WorkspaceId,
+    ) -> Result<Vec<DbTransform>, DataError> {
         let rows = sqlx::query_as::<_, DbTransformRow>(&format!(
             r#"
             SELECT DISTINCT {TRANSFORM_ROW_COLUMNS}
             FROM transform t
-            WHERE t.owner_user_id = $1
+            WHERE t.is_default
+               OR t.owner_user_id = $1
                OR EXISTS (SELECT 1 FROM transform_grants g WHERE g.transform_id = t.transform_id AND g.grantee_user_id = $1)
                OR EXISTS (SELECT 1 FROM transform_grants g WHERE g.transform_id = t.transform_id AND g.grantee_workspace_id = $2)
             ORDER BY t.created_at DESC
@@ -377,19 +395,25 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
     }
 
     async fn get_transform_owner(&self, id: TransformId) -> Result<UserId, DataError> {
-        sqlx::query_scalar::<_, UserId>("SELECT owner_user_id FROM transform WHERE transform_id = $1")
-            .bind(id)
-            .fetch_one(&self.pool)
-            .await
-            .map_err(DataError::from)
+        sqlx::query_scalar::<_, UserId>(
+            "SELECT owner_user_id FROM transform WHERE transform_id = $1",
+        )
+        .bind(id)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(DataError::from)
     }
 
-    async fn list_accessible_transform_ids(&self, user_id: UserId) -> Result<Vec<TransformId>, DataError> {
+    async fn list_accessible_transform_ids(
+        &self,
+        user_id: UserId,
+    ) -> Result<Vec<TransformId>, DataError> {
         sqlx::query_scalar::<_, TransformId>(
             r#"
             SELECT t.transform_id
             FROM transform t
-            WHERE t.owner_user_id = $1
+            WHERE t.is_default
+               OR t.owner_user_id = $1
                OR EXISTS (SELECT 1 FROM transform_grants g WHERE g.transform_id = t.transform_id AND g.grantee_user_id = $1)
                OR EXISTS (
                     SELECT 1 FROM transform_grants g

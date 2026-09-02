@@ -1,24 +1,37 @@
+use super::jwt_provider::JwtProvider;
 use crate::{
     dtos::claims::Claims,
     token::token_utils::{
-        create_access_token, create_invite_token,
-        create_verification_token, verify_token,
+        create_access_token, create_invite_token, create_verification_token, verify_token,
     },
 };
-use super::jwt_provider::JwtProvider;
 
 pub struct JwtProviderService;
 
 impl JwtProvider for JwtProviderService {
-    fn issue_user_token(&self, user_id: domain::domain_user::UserId, name: Option<&str>, email: Option<&str>, is_admin: bool) -> Result<String, String> {
+    fn issue_user_token(
+        &self,
+        user_id: domain::domain_user::UserId,
+        name: Option<&str>,
+        email: Option<&str>,
+        is_admin: bool,
+    ) -> Result<String, String> {
         Ok(create_access_token(user_id, name, email, is_admin))
     }
 
-    fn issue_verification_token(&self, user_id: domain::domain_user::UserId) -> Result<String, String> {
+    fn issue_verification_token(
+        &self,
+        user_id: domain::domain_user::UserId,
+    ) -> Result<String, String> {
         Ok(create_verification_token(user_id))
     }
 
-    fn issue_invite_token(&self, invitee_email: &str, workspace_id: i32, role: &str) -> Result<String, String> {
+    fn issue_invite_token(
+        &self,
+        invitee_email: &str,
+        workspace_id: i32,
+        role: &str,
+    ) -> Result<String, String> {
         Ok(create_invite_token(invitee_email, workspace_id, role))
     }
 

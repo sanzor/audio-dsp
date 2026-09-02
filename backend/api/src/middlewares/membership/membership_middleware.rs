@@ -2,7 +2,10 @@ use actix_web::{
     body::EitherBody,
     dev::{Service, ServiceRequest, ServiceResponse, Transform},
 };
-use std::{future::{ready, Ready}, sync::Arc};
+use std::{
+    future::{ready, Ready},
+    sync::Arc,
+};
 
 use crate::memberships::memberships_provider::MembershipsProvider;
 

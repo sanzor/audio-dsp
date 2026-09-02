@@ -1,4 +1,3 @@
-
 pub mod sink;
 
 pub type AudioFrame = Vec<f32>;

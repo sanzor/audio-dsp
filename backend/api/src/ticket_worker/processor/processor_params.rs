@@ -1,7 +1,9 @@
 use std::sync::Arc;
 
-use crate::{ticket_worker::processor::build_job_config::BuildJobConfig, transforms::data_provider::transforms_data_provider::TransformsDataProvider};
-
+use crate::{
+    ticket_worker::processor::build_job_config::BuildJobConfig,
+    transforms::data_provider::transforms_data_provider::TransformsDataProvider,
+};
 
 pub struct ProcessorParams {
     pub data_provider: Arc<dyn TransformsDataProvider>,

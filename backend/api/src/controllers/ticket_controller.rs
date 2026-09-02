@@ -7,20 +7,23 @@ use crate::{
         },
         jwt::jwt_context::JwtContext,
     },
-    tickets::{compile_params::RequestCompileParams, compile_result::CompileResult},
     tickets::tickets_app_data::TicketsAppData,
+    tickets::{compile_params::RequestCompileParams, compile_result::CompileResult},
     transforms::transforms_app_data::TransformsAppData,
 };
 use actix_web::{get, post, web, HttpResponse};
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine};
-use domain::{db::{
-    db_transform::TransformId,
-    ticket::{
-        db_resource::ResourceId,
-        db_ticket::{DbTicket, TicketId},
-        ticket_status::TicketStatus,
-    }
-}, domain_user::UserId};
+use domain::{
+    db::{
+        db_transform::TransformId,
+        ticket::{
+            db_resource::ResourceId,
+            db_ticket::{DbTicket, TicketId},
+            ticket_status::TicketStatus,
+        },
+    },
+    domain_user::UserId,
+};
 use serde::{Deserialize, Serialize};
 use tracing::error;
 use utoipa::{IntoParams, ToSchema};
@@ -205,7 +208,11 @@ pub async fn get_compile_resource(
 ) -> HttpResponse {
     let resource_id = path.into_inner().resource_id;
 
-    let transform_id = match app.tickets_service.get_compiled_transform_id(resource_id).await {
+    let transform_id = match app
+        .tickets_service
+        .get_compiled_transform_id(resource_id)
+        .await
+    {
         Ok(id) => id,
         Err(e) => return map_service_error(e),
     };
@@ -213,11 +220,7 @@ pub async fn get_compile_resource(
         return resp;
     }
 
-    match app
-        .tickets_service
-        .get_ticket_result(resource_id)
-        .await
-    {
+    match app.tickets_service.get_ticket_result(resource_id).await {
         Ok(resource) => HttpResponse::Ok().json(CompileResultDto::from(resource)),
         Err(e) => map_service_error(e),
     }

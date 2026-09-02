@@ -1,7 +1,6 @@
 use async_trait::async_trait;
 use domain::domain_user::UserId;
 
-
 use crate::domain::service_error::ServiceError;
 use crate::users::{
     create_user_params::CreateUserParams, create_user_result::CreateUserResult,
@@ -11,10 +10,8 @@ use crate::users::{
 
 #[async_trait]
 pub trait UserProvider: Send + Sync {
-    async fn create_user(
-        &self,
-        params: CreateUserParams,
-    ) -> Result<CreateUserResult, ServiceError>;
+    async fn create_user(&self, params: CreateUserParams)
+        -> Result<CreateUserResult, ServiceError>;
     async fn update_user(
         &self,
         user_id: UserId,

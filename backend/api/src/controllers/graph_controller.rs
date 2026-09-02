@@ -1,12 +1,13 @@
-use actix_web::{HttpResponse, cookie::time::format_description::Component::Period, delete, get, patch, post, put, web};
+use actix_web::{
+    cookie::time::format_description::Component::Period, delete, get, patch, post, put, web,
+    HttpResponse,
+};
 use chrono::{DateTime, Utc};
 use domain::{
     db::{db_graph::DbGraph, GraphId, RegionId},
     graphs::{
-        add_graph_params::AddGraphParams,
-        copy_graph_params::CopyGraphParams,
-        delete_graph_params::DeleteGraphParams,
-        edit_graph_params::EditGraphParams,
+        add_graph_params::AddGraphParams, copy_graph_params::CopyGraphParams,
+        delete_graph_params::DeleteGraphParams, edit_graph_params::EditGraphParams,
         save_graph_state_params::SaveGraphStateParams,
     },
 };
@@ -15,8 +16,7 @@ use serde_json::Value;
 use utoipa::{IntoParams, ToSchema};
 
 use crate::{
-    domain::service_error::ServiceError,
-    graphs::graphs_app_data::GraphsAppData,
+    domain::service_error::ServiceError, graphs::graphs_app_data::GraphsAppData,
     middlewares::membership::membership_context::RoleContext,
 };
 

@@ -52,9 +52,16 @@ pub async fn list_transform_summaries(
     }
     let offset = query.offset.unwrap_or(0);
     let limit = query.limit.unwrap_or(20).clamp(1, 100);
-    match app.transforms_service.list_transform_summaries(offset, limit).await {
+    match app
+        .transforms_service
+        .list_transform_summaries(offset, limit)
+        .await
+    {
         Ok((transforms, total)) => HttpResponse::Ok().json(TransformSummaryListResponse {
-            transforms: transforms.into_iter().map(TransformSummaryDto::from).collect(),
+            transforms: transforms
+                .into_iter()
+                .map(TransformSummaryDto::from)
+                .collect(),
             total,
         }),
         Err(e) => map_service_error(e),
@@ -123,7 +130,10 @@ pub async fn get_transform_binaries(
     }
     match app.transforms_service.get_transforms(&request.ids).await {
         Ok(transforms) => HttpResponse::Ok().json(TransformBinariesResponse {
-            binaries: transforms.into_iter().map(TransformBinaryDto::from).collect(),
+            binaries: transforms
+                .into_iter()
+                .map(TransformBinaryDto::from)
+                .collect(),
         }),
         Err(e) => map_service_error(e),
     }

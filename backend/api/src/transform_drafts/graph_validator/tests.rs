@@ -2,31 +2,54 @@ use std::collections::HashMap;
 
 use domain::db::db_transform::TransformId;
 
-use crate::ticket_worker::processor::transform_metadata::{DirectionJson, PortCardinalityJson, PortKindJson, PortMetadataJson};
+use crate::ticket_worker::processor::transform_metadata::{
+    DirectionJson, PortCardinalityJson, PortKindJson, PortMetadataJson,
+};
 use crate::transform_drafts::graph_validator::{
     composite::Composite,
     edge::Edge,
     graph_definition::GraphDefinition,
     input::Input,
-    transform_info::TransformInfo,
     node::Node,
     node_position::NodePosition,
     output::Output,
     primitive::Primitive,
+    transform_info::TransformInfo,
     validator::{Validator, ValidatorInput},
 };
 
-
-fn port(name: &str, direction: DirectionJson, kind: PortKindJson, cardinality: PortCardinalityJson) -> PortMetadataJson {
-    PortMetadataJson { name: name.to_string(), direction, order: 0, description: None, kind, cardinality }
+fn port(
+    name: &str,
+    direction: DirectionJson,
+    kind: PortKindJson,
+    cardinality: PortCardinalityJson,
+) -> PortMetadataJson {
+    PortMetadataJson {
+        name: name.to_string(),
+        direction,
+        order: 0,
+        description: None,
+        kind,
+        cardinality,
+    }
 }
 
 fn gain_leaf() -> TransformInfo {
     TransformInfo {
         kind: "primitive".to_string(),
         ports: vec![
-            port("in", DirectionJson::Input, PortKindJson::Program, PortCardinalityJson::Single),
-            port("out", DirectionJson::Output, PortKindJson::Program, PortCardinalityJson::Single),
+            port(
+                "in",
+                DirectionJson::Input,
+                PortKindJson::Program,
+                PortCardinalityJson::Single,
+            ),
+            port(
+                "out",
+                DirectionJson::Output,
+                PortKindJson::Program,
+                PortCardinalityJson::Single,
+            ),
         ],
     }
 }
@@ -35,44 +58,84 @@ fn nested_composite_leaf() -> TransformInfo {
     TransformInfo {
         kind: "composite".to_string(),
         ports: vec![
-            port("in", DirectionJson::Input, PortKindJson::Program, PortCardinalityJson::Single),
-            port("out", DirectionJson::Output, PortKindJson::Program, PortCardinalityJson::Single),
+            port(
+                "in",
+                DirectionJson::Input,
+                PortKindJson::Program,
+                PortCardinalityJson::Single,
+            ),
+            port(
+                "out",
+                DirectionJson::Output,
+                PortKindJson::Program,
+                PortCardinalityJson::Single,
+            ),
         ],
     }
 }
 
 fn primitive(node_id: i64, transform_id: i64) -> Node {
-    Node::Primitive(Primitive { node_id, transform_id: TransformId(transform_id), position: NodePosition::default() })
+    Node::Primitive(Primitive {
+        node_id,
+        transform_id: TransformId(transform_id),
+        position: NodePosition::default(),
+    })
 }
 
 fn composite(node_id: i64, transform_id: i64) -> Node {
-    Node::Composite(Composite { node_id, transform_id: TransformId(transform_id), position: NodePosition::default() })
+    Node::Composite(Composite {
+        node_id,
+        transform_id: TransformId(transform_id),
+        position: NodePosition::default(),
+    })
 }
 
 fn input(node_id: i64, name: &str) -> Node {
-    Node::Input(Input { node_id, name: name.to_string(), position: NodePosition::default() })
+    Node::Input(Input {
+        node_id,
+        name: name.to_string(),
+        position: NodePosition::default(),
+    })
 }
 
 fn output(node_id: i64, name: &str) -> Node {
-    Node::Output(Output { node_id, name: name.to_string(), position: NodePosition::default() })
+    Node::Output(Output {
+        node_id,
+        name: name.to_string(),
+        position: NodePosition::default(),
+    })
 }
 
 fn edge(from_node_id: i64, from_port: &str, to_node_id: i64, to_port: &str) -> Edge {
-    Edge { from_node_id, from_port: from_port.to_string(), to_node_id, to_port: to_port.to_string() }
+    Edge {
+        from_node_id,
+        from_port: from_port.to_string(),
+        to_node_id,
+        to_port: to_port.to_string(),
+    }
 }
 
 /// Serializes `graph` to JSON and runs it through `Validator::validate` —
 /// exercises the real JSON entry point instead of poking at internals, so
 /// these tests double as coverage of `Node`/`Edge`/`GraphDefinition`'s wire
 /// format.
-fn validate(graph: GraphDefinition, leaf_defs: HashMap<TransformId, TransformInfo>) -> Result<Vec<PortMetadataJson>, String> {
+fn validate(
+    graph: GraphDefinition,
+    leaf_defs: HashMap<TransformId, TransformInfo>,
+) -> Result<Vec<PortMetadataJson>, String> {
     let metadata_json = serde_json::to_string(&graph).expect("test graph should serialize");
-    Validator::new().validate(ValidatorInput { metadata_json, leaf_defs })
+    Validator::new().validate(ValidatorInput {
+        metadata_json,
+        leaf_defs,
+    })
 }
 
 #[test]
 fn rejects_empty_graph() {
-    let graph = GraphDefinition { nodes: vec![], edges: vec![] };
+    let graph = GraphDefinition {
+        nodes: vec![],
+        edges: vec![],
+    };
     let result = validate(graph, HashMap::new());
     assert!(result.is_err());
 }
@@ -82,7 +145,10 @@ fn rejects_unknown_leaf_transform() {
     // No leaf_defs entry at all — stands in for "does not exist or was
     // never published", since existence in the caller-built map is the only
     // signal this module has for either condition now.
-    let graph = GraphDefinition { nodes: vec![primitive(1, 1)], edges: vec![] };
+    let graph = GraphDefinition {
+        nodes: vec![primitive(1, 1)],
+        edges: vec![],
+    };
     let result = validate(graph, HashMap::new());
     assert!(result.is_err());
 }
@@ -90,7 +156,10 @@ fn rejects_unknown_leaf_transform() {
 #[test]
 fn rejects_primitive_node_pointing_at_a_composite_transform() {
     let leaves = HashMap::from([(TransformId(1), nested_composite_leaf())]);
-    let graph = GraphDefinition { nodes: vec![primitive(1, 1)], edges: vec![] };
+    let graph = GraphDefinition {
+        nodes: vec![primitive(1, 1)],
+        edges: vec![],
+    };
     let result = validate(graph, leaves);
     assert!(result.is_err());
 }
@@ -98,7 +167,10 @@ fn rejects_primitive_node_pointing_at_a_composite_transform() {
 #[test]
 fn rejects_composite_node_pointing_at_a_primitive_transform() {
     let leaves = HashMap::from([(TransformId(1), gain_leaf())]);
-    let graph = GraphDefinition { nodes: vec![composite(1, 1)], edges: vec![] };
+    let graph = GraphDefinition {
+        nodes: vec![composite(1, 1)],
+        edges: vec![],
+    };
     let result = validate(graph, leaves);
     assert!(result.is_err());
 }
@@ -119,14 +191,27 @@ fn accepts_a_composite_node_referencing_a_published_composite() {
 fn accepts_a_simple_chain_and_derives_io_ports() {
     let leaves = HashMap::from([(TransformId(1), gain_leaf())]);
     let graph = GraphDefinition {
-        nodes: vec![primitive(1, 1), primitive(2, 1), input(3, "in"), output(4, "out")],
-        edges: vec![edge(1, "out", 2, "in"), edge(3, "signal", 1, "in"), edge(2, "out", 4, "signal")],
+        nodes: vec![
+            primitive(1, 1),
+            primitive(2, 1),
+            input(3, "in"),
+            output(4, "out"),
+        ],
+        edges: vec![
+            edge(1, "out", 2, "in"),
+            edge(3, "signal", 1, "in"),
+            edge(2, "out", 4, "signal"),
+        ],
     };
     let result = validate(graph, leaves);
     let ports = result.expect("expected a valid chain to validate");
     assert_eq!(ports.len(), 2);
-    assert!(ports.iter().any(|p| p.name == "in" && p.direction == DirectionJson::Input));
-    assert!(ports.iter().any(|p| p.name == "out" && p.direction == DirectionJson::Output));
+    assert!(ports
+        .iter()
+        .any(|p| p.name == "in" && p.direction == DirectionJson::Input));
+    assert!(ports
+        .iter()
+        .any(|p| p.name == "out" && p.direction == DirectionJson::Output));
 }
 
 #[test]
@@ -135,7 +220,10 @@ fn rejects_unconnected_program_input() {
     // no edge at all. Isolates the dangling-input check from every
     // Input/Output-node check below (none are exercised by this graph).
     let leaves = HashMap::from([(TransformId(1), gain_leaf())]);
-    let graph = GraphDefinition { nodes: vec![primitive(1, 1)], edges: vec![] };
+    let graph = GraphDefinition {
+        nodes: vec![primitive(1, 1)],
+        edges: vec![],
+    };
     let result = validate(graph, leaves);
     assert!(result.is_err());
 }
@@ -158,7 +246,10 @@ fn requires_at_least_one_output_node() {
     // the "must have at least one Output node" rule from the "Output node
     // present but disconnected" case covered separately below.
     let leaves = HashMap::from([(TransformId(1), gain_leaf())]);
-    let graph = GraphDefinition { nodes: vec![primitive(1, 1), input(2, "in")], edges: vec![edge(2, "signal", 1, "in")] };
+    let graph = GraphDefinition {
+        nodes: vec![primitive(1, 1), input(2, "in")],
+        edges: vec![edge(2, "signal", 1, "in")],
+    };
     let result = validate(graph, leaves);
     assert!(result.is_err());
 }
@@ -195,7 +286,13 @@ fn rejects_output_node_with_no_incoming_edge() {
 fn rejects_output_node_with_two_incoming_edges() {
     let leaves = HashMap::from([(TransformId(1), gain_leaf())]);
     let graph = GraphDefinition {
-        nodes: vec![primitive(1, 1), primitive(2, 1), input(3, "in1"), input(4, "in2"), output(5, "out")],
+        nodes: vec![
+            primitive(1, 1),
+            primitive(2, 1),
+            input(3, "in1"),
+            input(4, "in2"),
+            output(5, "out"),
+        ],
         edges: vec![
             edge(3, "signal", 1, "in"),
             edge(4, "signal", 2, "in"),
@@ -233,7 +330,13 @@ fn rejects_duplicate_io_node_names() {
 fn input_node_may_fan_out_to_multiple_leaf_inputs() {
     let leaves = HashMap::from([(TransformId(1), gain_leaf())]);
     let graph = GraphDefinition {
-        nodes: vec![primitive(1, 1), primitive(2, 1), input(3, "in"), output(4, "out1"), output(5, "out2")],
+        nodes: vec![
+            primitive(1, 1),
+            primitive(2, 1),
+            input(3, "in"),
+            output(4, "out1"),
+            output(5, "out2"),
+        ],
         edges: vec![
             edge(3, "signal", 1, "in"),
             edge(3, "signal", 2, "in"),
@@ -248,7 +351,10 @@ fn input_node_may_fan_out_to_multiple_leaf_inputs() {
 
 #[test]
 fn rejects_malformed_json() {
-    let result = Validator::new().validate(ValidatorInput { metadata_json: "not json".to_string(), leaf_defs: HashMap::new() });
+    let result = Validator::new().validate(ValidatorInput {
+        metadata_json: "not json".to_string(),
+        leaf_defs: HashMap::new(),
+    });
     assert!(result.is_err());
 }
 
@@ -268,7 +374,10 @@ fn validates_hand_written_json_directly() {
     })
     .to_string();
 
-    let result = Validator::new().validate(ValidatorInput { metadata_json, leaf_defs: leaves });
+    let result = Validator::new().validate(ValidatorInput {
+        metadata_json,
+        leaf_defs: leaves,
+    });
     let ports = result.expect("expected a valid hand-written JSON graph to validate");
     assert_eq!(ports.len(), 2);
 }

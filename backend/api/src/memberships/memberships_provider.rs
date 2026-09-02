@@ -1,5 +1,5 @@
-use domain::{db::DbMembership, domain_user::UserId};
 pub use domain::workspace_role::WorkspaceRole;
+use domain::{db::DbMembership, domain_user::UserId};
 
 pub struct CreateMembershipParams {
     pub workspace_id: i32,

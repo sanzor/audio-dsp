@@ -85,7 +85,11 @@ impl TracksProvider for StubTracksProvider {
         Ok(db_track)
     }
 
-    async fn copy_track(&self, source_track_id: &ProviderTrackId, new_name: &str) -> Result<DbTrack, String> {
+    async fn copy_track(
+        &self,
+        source_track_id: &ProviderTrackId,
+        new_name: &str,
+    ) -> Result<DbTrack, String> {
         let original = self.get_track(source_track_id).await?;
         let new_track_id = self.next_track_id.fetch_add(1, Ordering::Relaxed);
 
@@ -139,7 +143,10 @@ impl StubRegionSetsProvider {
 
 #[async_trait::async_trait]
 impl RegionSetsProvider for StubRegionSetsProvider {
-    async fn create_region_set(&self, params: CreateRegionSetParams) -> Result<DbRegionSet, String> {
+    async fn create_region_set(
+        &self,
+        params: CreateRegionSetParams,
+    ) -> Result<DbRegionSet, String> {
         let id = self.next_region_set_id.fetch_add(1, Ordering::Relaxed);
         let set = DbRegionSet {
             region_set_id: id,
@@ -161,7 +168,10 @@ impl RegionSetsProvider for StubRegionSetsProvider {
             .ok_or_else(|| "Could not find region set".to_string())
     }
 
-    async fn get_region_sets_for_track(&self, track_id: &DbTrackId) -> Result<Vec<DbRegionSet>, String> {
+    async fn get_region_sets_for_track(
+        &self,
+        track_id: &DbTrackId,
+    ) -> Result<Vec<DbRegionSet>, String> {
         let guard = self.sets.lock().await;
         Ok(guard
             .values()
@@ -207,7 +217,10 @@ impl RegionSetsProvider for StubRegionSetsProvider {
         Ok(set)
     }
 
-    async fn get_regions_for_region_set(&self, set_id: &RegionSetId) -> Result<Vec<DbRegion>, String> {
+    async fn get_regions_for_region_set(
+        &self,
+        set_id: &RegionSetId,
+    ) -> Result<Vec<DbRegion>, String> {
         let guard = self.regions.lock().await;
         Ok(guard.get(set_id).cloned().unwrap_or_default())
     }

@@ -24,14 +24,23 @@ impl TransformGrantsProvider for TransformGrantsProviderService {
     }
 
     async fn delete_grant(&self, transform_id: TransformId, grant_id: i64) -> Result<bool, String> {
-        self.data_provider.delete_grant(transform_id, grant_id).await
+        self.data_provider
+            .delete_grant(transform_id, grant_id)
+            .await
     }
 
-    async fn list_grants(&self, transform_id: TransformId) -> Result<Vec<DbTransformGrant>, String> {
+    async fn list_grants(
+        &self,
+        transform_id: TransformId,
+    ) -> Result<Vec<DbTransformGrant>, String> {
         self.data_provider.list_grants(transform_id).await
     }
 
-    async fn has_access(&self, transform_id: TransformId, user_id: domain::domain_user::UserId) -> Result<bool, String> {
+    async fn has_access(
+        &self,
+        transform_id: TransformId,
+        user_id: domain::domain_user::UserId,
+    ) -> Result<bool, String> {
         self.data_provider.has_access(transform_id, user_id).await
     }
 }

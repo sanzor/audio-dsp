@@ -1,5 +1,5 @@
-use tracing::info;
 use super::email_sender::EmailSender;
+use tracing::info;
 
 pub struct MockEmailSender;
 

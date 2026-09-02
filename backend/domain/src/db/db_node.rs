@@ -11,4 +11,3 @@ pub struct DbNode {
     pub graph_id: GraphId,
     pub created_at: DateTime<Utc>,
 }
-

@@ -143,6 +143,6 @@ const mapWorkspaceTrack = (track: ApiWorkspaceTrack): TrackMeta => ({
 });
 
 export async function apiGetWorkspace(projectId: number): Promise<TrackMeta[]> {
-  const response = await http.get<ApiWorkspaceTrack[]>(`/v1/projects/${projectId}/workspace`);
+  const response = await http.get<ApiWorkspaceTrack[]>(`/v1/workspaces/${projectId}/tracks`);
   return response.map(mapWorkspaceTrack);
 }

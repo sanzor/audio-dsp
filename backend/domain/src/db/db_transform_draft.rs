@@ -8,7 +8,9 @@ use crate::db::db_transform::TransformId;
 /// same underlying row id (a draft row is created together with its
 /// transform row, see `TransformsDataProvider::insert_transform_draft`),
 /// so converting between them is always exact.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, sqlx::Type)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, sqlx::Type,
+)]
 #[serde(transparent)]
 #[sqlx(transparent)]
 pub struct TransformDraftId(pub i64);

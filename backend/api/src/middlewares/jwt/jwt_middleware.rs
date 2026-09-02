@@ -1,4 +1,7 @@
-use actix_web::{body::EitherBody, dev::{Service, ServiceRequest, ServiceResponse, Transform}};
+use actix_web::{
+    body::EitherBody,
+    dev::{Service, ServiceRequest, ServiceResponse, Transform},
+};
 use std::future::{ready, Ready};
 
 use super::jwt_middleware_service::JwtAuthMiddlewareService;

@@ -1,7 +1,7 @@
 use actix_web::{
-    Error, HttpMessage,
     body::EitherBody,
     dev::{Service, ServiceRequest, ServiceResponse},
+    Error, HttpMessage,
 };
 use std::{future::Future, pin::Pin, rc::Rc};
 
@@ -43,13 +43,17 @@ where
 
             let claims = match token {
                 None => {
-                    let res = req.into_response(actix_web::HttpResponse::Unauthorized().body("Missing auth token"));
+                    let res = req.into_response(
+                        actix_web::HttpResponse::Unauthorized().body("Missing auth token"),
+                    );
                     return Ok(res.map_into_right_body());
                 }
                 Some(t) => match verify_token(&t) {
                     Ok(c) => c,
                     Err(_) => {
-                        let res = req.into_response(actix_web::HttpResponse::Unauthorized().body("Invalid token"));
+                        let res = req.into_response(
+                            actix_web::HttpResponse::Unauthorized().body("Invalid token"),
+                        );
                         return Ok(res.map_into_right_body());
                     }
                 },

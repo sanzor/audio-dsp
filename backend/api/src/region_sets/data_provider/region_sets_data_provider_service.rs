@@ -40,7 +40,10 @@ impl RegionSetsDataProvider for PostgresRegionSetsDataProvider {
         .map_err(|e| e.to_string())
     }
 
-    async fn create_region_set(&self, params: CreateRegionSetParams) -> Result<DbRegionSet, String> {
+    async fn create_region_set(
+        &self,
+        params: CreateRegionSetParams,
+    ) -> Result<DbRegionSet, String> {
         let name = params.name.unwrap_or_else(|| "New Region Set".to_string());
 
         sqlx::query_as::<_, DbRegionSet>(

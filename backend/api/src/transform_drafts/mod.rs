@@ -1,6 +1,6 @@
 pub mod data_provider;
 pub mod dto;
+pub mod graph_validator;
 pub mod transform_drafts_app_data;
 pub mod transform_drafts_provider;
 pub mod transform_drafts_provider_service;
-pub mod graph_validator;

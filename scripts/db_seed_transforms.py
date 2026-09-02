@@ -93,11 +93,19 @@ DO $seed$
 DECLARE
     t_id BIGINT;
 BEGIN
-    INSERT INTO transform (name, description, icon, kind)
-    VALUES ({sql_text(transform['name'])}, {sql_text(transform.get('description'))}, {sql_text(transform.get('icon'))}, 'primitive')
+    INSERT INTO transform (name, description, icon, kind, owner_user_id, is_default)
+    VALUES (
+        {sql_text(transform['name'])},
+        {sql_text(transform.get('description'))},
+        {sql_text(transform.get('icon'))},
+        'primitive',
+        (SELECT user_id FROM users WHERE email = 'admin@gmail.com'),
+        true
+    )
     ON CONFLICT (name) DO UPDATE
     SET description = EXCLUDED.description,
-        icon = EXCLUDED.icon
+        icon = EXCLUDED.icon,
+        is_default = true
     RETURNING transform_id INTO t_id;
 
     DELETE FROM transform_port WHERE transform_id = t_id;
@@ -278,11 +286,19 @@ DO $seed$
 DECLARE
     t_id BIGINT;
 BEGIN
-    INSERT INTO transform (name, description, icon, kind)
-    VALUES ({sql_text(composite['name'])}, {sql_text(composite.get('description'))}, {sql_text(composite.get('icon'))}, 'composite')
+    INSERT INTO transform (name, description, icon, kind, owner_user_id, is_default)
+    VALUES (
+        {sql_text(composite['name'])},
+        {sql_text(composite.get('description'))},
+        {sql_text(composite.get('icon'))},
+        'composite',
+        (SELECT user_id FROM users WHERE email = 'admin@gmail.com'),
+        true
+    )
     ON CONFLICT (name) DO UPDATE
     SET description = EXCLUDED.description,
-        icon = EXCLUDED.icon
+        icon = EXCLUDED.icon,
+        is_default = true
     RETURNING transform_id INTO t_id;
 
     INSERT INTO transform_draft (transform_id) VALUES (t_id) ON CONFLICT (transform_id) DO NOTHING;

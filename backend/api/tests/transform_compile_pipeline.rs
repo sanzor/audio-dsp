@@ -6,7 +6,7 @@
 use std::path::PathBuf;
 use std::time::Duration;
 
-use api::ticket_worker::processor::build_job::{compile_transform_source};
+use api::ticket_worker::processor::build_job::compile_transform_source;
 use api::ticket_worker::processor::build_job_config::BuildJobConfig;
 use api::ticket_worker::processor::metadata_introspector::introspect_metadata;
 
@@ -88,7 +88,8 @@ async fn known_good_source_compiles_and_exposes_declared_metadata() {
         .await
         .expect("known-good source should compile");
 
-    let metadata = introspect_metadata(&bytes, 10_000_000).expect("metadata should introspect cleanly");
+    let metadata =
+        introspect_metadata(&bytes, 10_000_000).expect("metadata should introspect cleanly");
 
     assert_eq!(metadata.name, "RMS Detector");
     assert_eq!(metadata.ports.len(), 2);
@@ -115,6 +116,8 @@ async fn valid_rust_missing_export_macro_fails_introspection_not_silently() {
         .expect("this source is valid Rust and should compile");
 
     let result = introspect_metadata(&bytes, 10_000_000);
-    let err = result.expect_err("compiled module without export_transform! must fail introspection, not silently succeed");
+    let err = result.expect_err(
+        "compiled module without export_transform! must fail introspection, not silently succeed",
+    );
     assert!(err.contains("transform_metadata_ptr"));
 }

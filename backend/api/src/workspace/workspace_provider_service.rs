@@ -19,7 +19,10 @@ impl WorkspaceProviderService {
 
 #[async_trait::async_trait]
 impl WorkspaceProvider for WorkspaceProviderService {
-    async fn get_workspace_tracks(&self, workspace_id: WorkspaceId) -> Result<Vec<TrackSubtree>, String> {
+    async fn get_workspace_tracks(
+        &self,
+        workspace_id: WorkspaceId,
+    ) -> Result<Vec<TrackSubtree>, String> {
         self.data_provider.get_workspace_tracks(workspace_id).await
     }
 }

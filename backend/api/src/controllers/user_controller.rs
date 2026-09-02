@@ -271,8 +271,7 @@ pub async fn get_all_users(
                 .into_iter()
                 .filter(|u| {
                     search.as_deref().map_or(true, |s| {
-                        u.email.to_lowercase().contains(s)
-                            || u.full_name.to_lowercase().contains(s)
+                        u.email.to_lowercase().contains(s) || u.full_name.to_lowercase().contains(s)
                     })
                 })
                 .collect();

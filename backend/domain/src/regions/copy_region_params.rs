@@ -1,4 +1,7 @@
-use crate::{db::{RegionId, RegionSetId, TrackId}, regions::region_subtree::RegionSubtree};
+use crate::{
+    db::{RegionId, RegionSetId, TrackId},
+    regions::region_subtree::RegionSubtree,
+};
 
 pub struct CopyRegionParams {
     pub source_region_id: RegionId,

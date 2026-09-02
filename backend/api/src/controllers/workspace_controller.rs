@@ -5,7 +5,10 @@ use tracing::{error, info};
 use utoipa::ToSchema;
 
 use crate::{
-    auth::{auth_app_data::AuthAppData, invite_user_params::InviteUserParams, service_error::ServiceError},
+    auth::{
+        auth_app_data::AuthAppData, invite_user_params::InviteUserParams,
+        service_error::ServiceError,
+    },
     middlewares::{jwt::jwt_context::JwtContext, membership::membership_context::RoleContext},
     transforms::transforms_app_data::TransformsAppData,
     workspaces::workspaces_app_data::WorkspacesAppData,
@@ -36,11 +39,18 @@ pub async fn list_members(
 
     info!(user_id = %jwt.user_id, workspace_id = %workspace_id, "list members");
 
-    match app.memberships_service.list_memberships(Some(workspace_id), None).await {
+    match app
+        .memberships_service
+        .list_memberships(Some(workspace_id), None)
+        .await
+    {
         Ok(members) => HttpResponse::Ok().json(
             members
                 .into_iter()
-                .map(|m| MemberOutput { user_id: m.user_id, role: m.role })
+                .map(|m| MemberOutput {
+                    user_id: m.user_id,
+                    role: m.role,
+                })
                 .collect::<Vec<_>>(),
         ),
         Err(e) => {
@@ -88,10 +98,16 @@ pub async fn invite_member(
 
     match auth
         .auth_provider
-        .invite_user(InviteUserParams { email: input.email, workspace_id, role: input.role })
+        .invite_user(InviteUserParams {
+            email: input.email,
+            workspace_id,
+            role: input.role,
+        })
         .await
     {
-        Ok(r) => HttpResponse::Ok().json(InviteOutput { invitee_email: r.invitee_email }),
+        Ok(r) => HttpResponse::Ok().json(InviteOutput {
+            invitee_email: r.invitee_email,
+        }),
         Err(ServiceError::NotFound) => HttpResponse::NotFound().body("not found"),
         Err(e) => {
             error!(error = %e, "invite failed");
@@ -151,7 +167,11 @@ pub async fn remove_member(
 
     info!(user_id = %jwt.user_id, workspace_id = %workspace_id, target = %target_user_id, "remove member");
 
-    match app.memberships_service.delete_membership(workspace_id, target_user_id).await {
+    match app
+        .memberships_service
+        .delete_membership(workspace_id, target_user_id)
+        .await
+    {
         Ok(true) => HttpResponse::NoContent().finish(),
         Ok(false) => HttpResponse::NotFound().body("member not found"),
         Err(e) => {
@@ -191,8 +211,15 @@ pub async fn change_role(
 
     info!(user_id = %jwt.user_id, workspace_id = %workspace_id, target = %target_user_id, "change role");
 
-    match app.memberships_service.update_role(workspace_id, target_user_id, input.role).await {
-        Ok(Some(m)) => HttpResponse::Ok().json(MemberOutput { user_id: m.user_id, role: m.role }),
+    match app
+        .memberships_service
+        .update_role(workspace_id, target_user_id, input.role)
+        .await
+    {
+        Ok(Some(m)) => HttpResponse::Ok().json(MemberOutput {
+            user_id: m.user_id,
+            role: m.role,
+        }),
         Ok(None) => HttpResponse::NotFound().body("member not found"),
         Err(e) => {
             error!(error = %e, "change role failed");
@@ -247,11 +274,17 @@ pub async fn list_workspace_transforms(
 
     match transforms_app
         .transforms_service
-        .get_transforms_for_workspace_and_user(domain::domain_user::UserId::from(jwt.user_id), workspace_id)
+        .get_transforms_for_workspace_and_user(
+            domain::domain_user::UserId::from(jwt.user_id),
+            workspace_id,
+        )
         .await
     {
         Ok(transforms) => HttpResponse::Ok().json(WorkspaceTransformsResponse {
-            transforms: transforms.into_iter().map(WorkspaceTransformSummaryDto::from).collect(),
+            transforms: transforms
+                .into_iter()
+                .map(WorkspaceTransformSummaryDto::from)
+                .collect(),
         }),
         Err(e) => {
             error!(error = %e, "list workspace transforms failed");

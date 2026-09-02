@@ -1,10 +1,10 @@
-use async_trait::async_trait;
-use sqlx::PgPool;
-use tracing::error;
 use crate::domain::data_error::DataError;
 use crate::domain::db::db_invoice::{DbInvoice, InvoiceId};
 use crate::invoices::create_invoice_params::CreateInvoiceParams;
 use crate::invoices::data_provider::invoices_data_provider::InvoicesDataProvider;
+use async_trait::async_trait;
+use sqlx::PgPool;
+use tracing::error;
 
 const SELECT: &str = "SELECT id, user_id, stripe_invoice_id, amount, currency, status, hosted_url, created_at::text FROM invoices";
 
@@ -13,7 +13,9 @@ pub struct InvoicesDataProviderService {
 }
 
 impl InvoicesDataProviderService {
-    pub fn new(pool: PgPool) -> Self { Self { pool } }
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool }
+    }
 }
 
 #[async_trait]
@@ -40,7 +42,10 @@ impl InvoicesDataProvider for InvoicesDataProviderService {
             .bind(id)
             .fetch_optional(&self.pool)
             .await
-            .map_err(|e| { error!(id, error = %e, "get invoice failed"); DataError::from(e) })
+            .map_err(|e| {
+                error!(id, error = %e, "get invoice failed");
+                DataError::from(e)
+            })
     }
 
     async fn delete_invoice(&self, id: InvoiceId) -> Result<bool, DataError> {
@@ -49,33 +54,57 @@ impl InvoicesDataProvider for InvoicesDataProviderService {
             .execute(&self.pool)
             .await
             .map(|r| r.rows_affected() > 0)
-            .map_err(|e| { error!(id, error = %e, "delete invoice failed"); DataError::from(e) })
+            .map_err(|e| {
+                error!(id, error = %e, "delete invoice failed");
+                DataError::from(e)
+            })
     }
 
-    async fn list_by_user_paginated(&self, user_id: domain::domain_user::UserId, offset: i64, limit: i64) -> Result<(Vec<DbInvoice>, i64), DataError> {
+    async fn list_by_user_paginated(
+        &self,
+        user_id: domain::domain_user::UserId,
+        offset: i64,
+        limit: i64,
+    ) -> Result<(Vec<DbInvoice>, i64), DataError> {
         let total: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM invoices WHERE user_id = $1")
             .bind(user_id)
             .fetch_one(&self.pool)
             .await
-            .map_err(|e| { error!(error = %e, "count invoices by user failed"); DataError::from(e) })?;
+            .map_err(|e| {
+                error!(error = %e, "count invoices by user failed");
+                DataError::from(e)
+            })?;
         let records = sqlx::query_as::<_, DbInvoice>(&format!(
             "{SELECT} WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3"
         ))
-        .bind(user_id).bind(limit).bind(offset)
+        .bind(user_id)
+        .bind(limit)
+        .bind(offset)
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| { error!(error = %e, "list invoices by user failed"); DataError::from(e) })?;
+        .map_err(|e| {
+            error!(error = %e, "list invoices by user failed");
+            DataError::from(e)
+        })?;
         Ok((records, total))
     }
 
-    async fn list_all_paginated(&self, user_id: Option<domain::domain_user::UserId>, offset: i64, limit: i64) -> Result<(Vec<DbInvoice>, i64), DataError> {
+    async fn list_all_paginated(
+        &self,
+        user_id: Option<domain::domain_user::UserId>,
+        offset: i64,
+        limit: i64,
+    ) -> Result<(Vec<DbInvoice>, i64), DataError> {
         let total: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM invoices WHERE ($1::bigint IS NULL OR user_id = $1)"
+            "SELECT COUNT(*) FROM invoices WHERE ($1::bigint IS NULL OR user_id = $1)",
         )
         .bind(user_id)
         .fetch_one(&self.pool)
         .await
-        .map_err(|e| { error!(error = %e, "count all invoices failed"); DataError::from(e) })?;
+        .map_err(|e| {
+            error!(error = %e, "count all invoices failed");
+            DataError::from(e)
+        })?;
         let records = sqlx::query_as::<_, DbInvoice>(&format!(
             "{SELECT} WHERE ($1::bigint IS NULL OR user_id = $1) ORDER BY created_at DESC LIMIT $2 OFFSET $3"
         ))

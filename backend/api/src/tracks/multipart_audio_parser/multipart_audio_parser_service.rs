@@ -1,8 +1,8 @@
 use audiolib::{audio_buffer::AudioBuffer, utils::decode_canonical_audio, Channels};
 use domain::raw_track::{RawTrack, TrackInfo};
-use tracing::{error, info, warn};
-use std::str::FromStr;
 use futures_util::StreamExt;
+use std::str::FromStr;
+use tracing::{error, info, warn};
 
 pub struct MultipartAudioParserService {}
 
@@ -25,8 +25,12 @@ impl MultipartAudioParserService {
             match field_name.as_str() {
                 "name" => name = Some(String::from_utf8_lossy(&field_data).to_string()),
                 "extension" => extension = Some(String::from_utf8_lossy(&field_data).to_string()),
-                "sample_rate" => sample_rate = String::from_utf8_lossy(&field_data).parse::<f32>().ok(),
-                "channels" => channels = Channels::from_str(&String::from_utf8_lossy(&field_data)).ok(),
+                "sample_rate" => {
+                    sample_rate = String::from_utf8_lossy(&field_data).parse::<f32>().ok()
+                }
+                "channels" => {
+                    channels = Channels::from_str(&String::from_utf8_lossy(&field_data)).ok()
+                }
                 "samples" => samples_bytes = field_data,
                 _ => {}
             }
@@ -81,12 +85,16 @@ impl MultipartAudioParserService {
             "add-track-multi payload parsed"
         );
         let raw_track = RawTrack {
-            info: TrackInfo { name, extension, length },
+            info: TrackInfo {
+                name,
+                extension,
+                length,
+            },
             data: audio_buffer,
         };
         Ok(raw_track)
     }
- 
+
     async fn next_multipart_field(field: &mut actix_multipart::Field) -> Vec<u8> {
         let mut data = Vec::new();
         while let Some(chunk) = field.next().await {
@@ -109,12 +117,10 @@ impl MultipartAudioParserService {
         out
     }
 
-
     fn channel_count(channels: Channels) -> usize {
         match channels {
             Channels::Mono => 1,
             Channels::Stereo => 2,
         }
     }
-
 }

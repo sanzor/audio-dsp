@@ -158,13 +158,13 @@ def ensure_seed_users_exist() -> None:
             raise RuntimeError(f"Seed user '{email}' was not found. Run users.sql first.")
 
 
-def project_id_for(name: str) -> int:
-    project_id = scalar(
-        f"SELECT project_id::text FROM projects WHERE name = '{name}' ORDER BY project_id LIMIT 1;"
+def workspace_id_for(name: str) -> int:
+    workspace_id = scalar(
+        f"SELECT workspace_id::text FROM workspaces WHERE name = '{name}' ORDER BY workspace_id LIMIT 1;"
     )
-    if not project_id:
-        raise RuntimeError(f"Seed project '{name}' was not found. Run projects.sql first.")
-    return int(project_id)
+    if not workspace_id:
+        raise RuntimeError(f"Seed workspace '{name}' was not found. Run the workspace seed first.")
+    return int(workspace_id)
 
 
 def has_track_storage_table() -> bool:
@@ -183,11 +183,11 @@ def default_graph_state_json() -> str:
     middle_nodes: list[dict[str, object]] = []
     edges: list[dict[str, object]] = []
 
-    if table_exists("transforms") and table_exists("transform_ports"):
+    if table_exists("transform") and table_exists("transform_port"):
         gain_id = scalar(
             """
 SELECT transform_id::text
-FROM transforms
+FROM transform
 WHERE name = 'Gain'
 ORDER BY transform_id
 LIMIT 1;
@@ -196,7 +196,7 @@ LIMIT 1;
         low_pass_id = scalar(
             """
 SELECT transform_id::text
-FROM transforms
+FROM transform
 WHERE name = 'Low-Pass Filter'
 ORDER BY transform_id
 LIMIT 1;
@@ -205,8 +205,8 @@ LIMIT 1;
         gain_out_port_id = scalar(
             """
 SELECT tp.port_id::text
-FROM transform_ports tp
-JOIN transforms t ON t.transform_id = tp.transform_id
+FROM transform_port tp
+JOIN transform t ON t.transform_id = tp.transform_id
 WHERE t.name = 'Gain'
   AND tp.direction = 'output'
 ORDER BY tp.port_order
@@ -216,8 +216,8 @@ LIMIT 1;
         low_pass_in_port_id = scalar(
             """
 SELECT tp.port_id::text
-FROM transform_ports tp
-JOIN transforms t ON t.transform_id = tp.transform_id
+FROM transform_port tp
+JOIN transform t ON t.transform_id = tp.transform_id
 WHERE t.name = 'Low-Pass Filter'
   AND tp.direction = 'input'
 ORDER BY tp.port_order
@@ -401,7 +401,7 @@ def track_payload_for_seed(seed: dict[str, object]) -> tuple[bytes, str, float]:
 
 
 def upsert_track(seed: dict[str, object], use_track_storage: bool) -> None:
-    project_id = project_id_for(str(seed["project_name"]))
+    workspace_id = workspace_id_for(str(seed["project_name"]))
     audio_bytes, extension, duration_seconds = track_payload_for_seed(seed)
     audio_hex = audio_bytes.hex()
     track_name_sql = sql_literal(str(seed["name"]))
@@ -409,19 +409,19 @@ def upsert_track(seed: dict[str, object], use_track_storage: bool) -> None:
 
     if use_track_storage:
         track_insert_sql = f"""
-INSERT INTO tracks (name, extension, length_seconds, project_id)
+INSERT INTO tracks (name, extension, length_seconds, workspace_id)
 SELECT
   {track_name_sql},
   {extension_sql},
   {duration_seconds:.2f},
-  {project_id}
+  {workspace_id}
 WHERE NOT EXISTS (
-  SELECT 1 FROM tracks WHERE name = {track_name_sql} AND project_id = {project_id}
+  SELECT 1 FROM tracks WHERE name = {track_name_sql} AND workspace_id = {workspace_id}
 );
 """
         run_psql("-v", "ON_ERROR_STOP=1", "-c", track_insert_sql)
         track_id = scalar(
-            f"SELECT track_id::text FROM tracks WHERE name = {track_name_sql} AND project_id = {project_id} LIMIT 1;"
+            f"SELECT track_id::text FROM tracks WHERE name = {track_name_sql} AND workspace_id = {workspace_id} LIMIT 1;"
         )
         if not track_id:
             raise RuntimeError(
@@ -437,20 +437,20 @@ ON CONFLICT (track_id) DO UPDATE SET data = EXCLUDED.data;
     else:
         # Legacy schema: canonical_audio lives directly on tracks
         legacy_track_sql = f"""
-INSERT INTO tracks (name, extension, length_seconds, canonical_audio, project_id)
+INSERT INTO tracks (name, extension, length_seconds, canonical_audio, workspace_id)
 SELECT
   {track_name_sql},
   {extension_sql},
   {duration_seconds:.2f},
   decode('{audio_hex}', 'hex'),
-  {project_id}
+  {workspace_id}
 WHERE NOT EXISTS (
-  SELECT 1 FROM tracks WHERE name = {track_name_sql} AND project_id = {project_id}
+  SELECT 1 FROM tracks WHERE name = {track_name_sql} AND workspace_id = {workspace_id}
 );
 """
         run_psql("-v", "ON_ERROR_STOP=1", stdin=legacy_track_sql)
         track_id = scalar(
-            f"SELECT track_id::text FROM tracks WHERE name = {track_name_sql} AND project_id = {project_id} LIMIT 1;"
+            f"SELECT track_id::text FROM tracks WHERE name = {track_name_sql} AND workspace_id = {workspace_id} LIMIT 1;"
         )
         if not track_id:
             raise RuntimeError(
@@ -470,7 +470,7 @@ def main() -> None:
     use_track_storage = has_track_storage_table()
     for track_seed in TRACK_SEEDS:
         upsert_track(track_seed, use_track_storage)
-    print(f"Seeded {len(TRACK_SEEDS)} canonical tracks across all seed projects.")
+    print(f"Seeded {len(TRACK_SEEDS)} canonical tracks across all seed workspaces.")
 
 
 if __name__ == "__main__":

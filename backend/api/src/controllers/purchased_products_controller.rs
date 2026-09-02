@@ -1,10 +1,10 @@
-use actix_web::{delete, get, post, web, HttpResponse};
-use serde::Deserialize;
-use utoipa::{IntoParams, ToSchema};
 use crate::domain::db::db_purchased_product::PurchasedProductId;
 use crate::middlewares::jwt::jwt_context::JwtContext;
 use crate::purchased_products::create_purchased_product_params::CreatePurchasedProductParams;
 use crate::purchased_products::purchased_products_app_data::PurchasedProductsAppData;
+use actix_web::{delete, get, post, web, HttpResponse};
+use serde::Deserialize;
+use utoipa::{IntoParams, ToSchema};
 
 #[derive(Deserialize, ToSchema)]
 pub struct CreatePurchasedProductInput {
@@ -30,7 +30,11 @@ pub async fn create_purchased_product(
         user_id: auth.user_id,
         product_id: input.product_id,
     };
-    match app.purchased_products_provider.create_purchased_product(params).await {
+    match app
+        .purchased_products_provider
+        .create_purchased_product(params)
+        .await
+    {
         Ok(pp) => HttpResponse::Created().json(pp),
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
     }
@@ -43,7 +47,11 @@ pub async fn list_my_purchased_products(
     auth: JwtContext,
     app: web::Data<PurchasedProductsAppData>,
 ) -> HttpResponse {
-    match app.purchased_products_provider.list_by_user(auth.user_id).await {
+    match app
+        .purchased_products_provider
+        .list_by_user(auth.user_id)
+        .await
+    {
         Ok(items) => HttpResponse::Ok().json(items),
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
     }
@@ -62,7 +70,11 @@ pub async fn delete_purchased_product(
         return HttpResponse::Forbidden().finish();
     }
     let id = path.into_inner().id;
-    match app.purchased_products_provider.delete_purchased_product(id).await {
+    match app
+        .purchased_products_provider
+        .delete_purchased_product(id)
+        .await
+    {
         Ok(true) => HttpResponse::NoContent().finish(),
         Ok(false) => HttpResponse::NotFound().finish(),
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),

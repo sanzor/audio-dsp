@@ -1,11 +1,11 @@
-use async_trait::async_trait;
-use sqlx::PgPool;
-use tracing::error;
 use crate::domain::data_error::DataError;
 use crate::domain::db::db_product::{DbProduct, ProductId};
 use crate::products::create_product_params::CreateProductParams;
 use crate::products::data_provider::products_data_provider::ProductsDataProvider;
 use crate::products::update_product_params::UpdateProductParams;
+use async_trait::async_trait;
+use sqlx::PgPool;
+use tracing::error;
 
 const SELECT: &str = "SELECT id, name, description, tier, price_cents, currency, is_active, created_at::text FROM products";
 
@@ -13,7 +13,9 @@ pub struct ProductsDataProviderService {
     pool: PgPool,
 }
 impl ProductsDataProviderService {
-    pub fn new(pool: PgPool) -> Self { Self { pool } }
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool }
+    }
 }
 
 #[async_trait]
@@ -39,12 +41,21 @@ impl ProductsDataProvider for ProductsDataProviderService {
             .bind(id)
             .fetch_optional(&self.pool)
             .await
-            .map_err(|e| { error!(id, error = %e, "get product failed"); DataError::from(e) })
+            .map_err(|e| {
+                error!(id, error = %e, "get product failed");
+                DataError::from(e)
+            })
     }
 
-    async fn update_product(&self, id: ProductId, params: UpdateProductParams) -> Result<Option<DbProduct>, DataError> {
+    async fn update_product(
+        &self,
+        id: ProductId,
+        params: UpdateProductParams,
+    ) -> Result<Option<DbProduct>, DataError> {
         let existing = self.get_product(id).await?;
-        if existing.is_none() { return Ok(None); }
+        if existing.is_none() {
+            return Ok(None);
+        }
         let existing = existing.unwrap();
         let name = params.name.unwrap_or(existing.name);
         let description = params.description.unwrap_or(existing.description);
@@ -68,7 +79,10 @@ impl ProductsDataProvider for ProductsDataProviderService {
             .execute(&self.pool)
             .await
             .map(|r| r.rows_affected() > 0)
-            .map_err(|e| { error!(id, error = %e, "delete product failed"); DataError::from(e) })
+            .map_err(|e| {
+                error!(id, error = %e, "delete product failed");
+                DataError::from(e)
+            })
     }
 
     async fn list_products(&self, active_only: bool) -> Result<Vec<DbProduct>, DataError> {
@@ -80,6 +94,9 @@ impl ProductsDataProvider for ProductsDataProviderService {
         sqlx::query_as::<_, DbProduct>(&query)
             .fetch_all(&self.pool)
             .await
-            .map_err(|e| { error!(error = %e, "list products failed"); DataError::from(e) })
+            .map_err(|e| {
+                error!(error = %e, "list products failed");
+                DataError::from(e)
+            })
     }
 }

@@ -28,7 +28,10 @@ impl WorkspacesDataProvider for PostgresWorkspacesDataProvider {
         .map_err(|e| e.to_string())
     }
 
-    async fn get_workspace(&self, workspace_id: &WorkspaceId) -> Result<Option<DbWorkspace>, String> {
+    async fn get_workspace(
+        &self,
+        workspace_id: &WorkspaceId,
+    ) -> Result<Option<DbWorkspace>, String> {
         sqlx::query_as::<_, DbWorkspace>("SELECT * FROM workspaces WHERE workspace_id = $1")
             .bind(workspace_id)
             .fetch_optional(&self.pool)
@@ -60,7 +63,10 @@ impl WorkspacesDataProvider for PostgresWorkspacesDataProvider {
         Ok(result.rows_affected() > 0)
     }
 
-    async fn list_workspaces_for_user(&self, user_id: domain::domain_user::UserId) -> Result<Vec<DbWorkspace>, String> {
+    async fn list_workspaces_for_user(
+        &self,
+        user_id: domain::domain_user::UserId,
+    ) -> Result<Vec<DbWorkspace>, String> {
         sqlx::query_as::<_, DbWorkspace>(
             r#"
             SELECT w.* FROM workspaces w

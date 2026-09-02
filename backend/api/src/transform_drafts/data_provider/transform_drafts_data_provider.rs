@@ -32,8 +32,14 @@ pub trait TransformDraftsDataProvider: Send + Sync {
         kind: String,
         owner_user_id: UserId,
     ) -> Result<DbTransformDraft, DataError>;
-    async fn get_transform_draft(&self, id: TransformDraftId) -> Result<DbTransformDraft, DataError>;
-    async fn get_transform_drafts(&self, ids: &[TransformDraftId]) -> Result<Vec<DbTransformDraft>, DataError>;
+    async fn get_transform_draft(
+        &self,
+        id: TransformDraftId,
+    ) -> Result<DbTransformDraft, DataError>;
+    async fn get_transform_drafts(
+        &self,
+        ids: &[TransformDraftId],
+    ) -> Result<Vec<DbTransformDraft>, DataError>;
     /// Cheap point-lookup for ownership checks — owner_user_id lives on the
     /// `transform` row, which a draft shares 1:1 with (see `TransformDraftId`'s
     /// doc comment), so this is its own query rather than a call into
@@ -50,7 +56,10 @@ pub trait TransformDraftsDataProvider: Send + Sync {
     /// as leaves, and validating (or publishing) that graph needs their
     /// kind/ports. Silently omits any id that doesn't exist or was never
     /// published — see `TransformDraftsProviderService::fetch_leaf_defs`.
-    async fn get_published_transforms(&self, ids: &[TransformId]) -> Result<Vec<DbTransform>, DataError>;
+    async fn get_published_transforms(
+        &self,
+        ids: &[TransformId],
+    ) -> Result<Vec<DbTransform>, DataError>;
 
     /// Bucket 2 — "save", primitive only. A supplied compiled artifact is
     /// saved atomically with its source snapshot; a source-only save keeps

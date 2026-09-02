@@ -3,7 +3,8 @@ use std::collections::HashSet;
 use wasmtime::{Config, Engine, Linker, Module, Store};
 
 pub use super::transform_metadata::{
-    DirectionJson, ParamMetadataJson, PortCardinalityJson, PortKindJson, PortMetadataJson, TransformMetadataJson,
+    DirectionJson, ParamMetadataJson, PortCardinalityJson, PortKindJson, PortMetadataJson,
+    TransformMetadataJson,
 };
 
 /// Instantiates the compiled wasm module with zero host imports (mirroring
@@ -11,11 +12,15 @@ pub use super::transform_metadata::{
 /// — this also validates the module will actually link in the browser) and
 /// calls its metadata export. Fuel-limited since this briefly executes
 /// attacker-controlled wasm server-side.
-pub fn introspect_metadata(wasm_bytes: &[u8], fuel_limit: u64) -> Result<TransformMetadataJson, String> {
+pub fn introspect_metadata(
+    wasm_bytes: &[u8],
+    fuel_limit: u64,
+) -> Result<TransformMetadataJson, String> {
     let mut config = Config::new();
     config.consume_fuel(true);
     let engine = Engine::new(&config).map_err(|e| e.to_string())?;
-    let module = Module::new(&engine, wasm_bytes).map_err(|e| format!("invalid wasm module: {e}"))?;
+    let module =
+        Module::new(&engine, wasm_bytes).map_err(|e| format!("invalid wasm module: {e}"))?;
 
     let linker: Linker<()> = Linker::new(&engine);
     let mut store = Store::new(&engine, ());
@@ -44,7 +49,9 @@ pub fn introspect_metadata(wasm_bytes: &[u8], fuel_limit: u64) -> Result<Transfo
     // still speaking the old in-place single-buffer `process(ptr, len,
     // params_ptr, params_len)` signature (no return value). See
     // `agents/transforms.md`'s ABI contract section.
-    let has_abi_version = instance.get_export(&mut store, "transform_abi_version").is_some();
+    let has_abi_version = instance
+        .get_export(&mut store, "transform_abi_version")
+        .is_some();
 
     let ptr = ptr_fn
         .call(&mut store, ())
@@ -75,7 +82,10 @@ pub fn introspect_metadata(wasm_bytes: &[u8], fuel_limit: u64) -> Result<Transfo
 /// constraint across directions (a transform legitimately has an input and
 /// an output both named the same or both at order 0), but names must now be
 /// unique *within* a direction, since `.port("name")`-style lookups exist.
-fn validate_metadata(metadata: &TransformMetadataJson, has_abi_version: bool) -> Result<(), String> {
+fn validate_metadata(
+    metadata: &TransformMetadataJson,
+    has_abi_version: bool,
+) -> Result<(), String> {
     if metadata.name.trim().is_empty() {
         return Err("metadata.name must not be empty".to_string());
     }

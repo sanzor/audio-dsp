@@ -1,5 +1,5 @@
-use std::sync::Arc;
 use crate::invoices::invoices_provider::InvoicesProvider;
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct InvoicesAppData {

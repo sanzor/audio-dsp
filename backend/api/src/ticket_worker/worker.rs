@@ -16,7 +16,6 @@ pub struct Worker {
     token: CancellationToken,
 }
 
-
 impl Worker {
     pub fn new(params: WorkerParams, config: WorkerConfig, token: CancellationToken) -> Self {
         Self {

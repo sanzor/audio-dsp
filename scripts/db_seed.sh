@@ -7,7 +7,7 @@ DB_PSQL="${ROOT_DIR}/scripts/db_psql.sh"
 
 required_seeds=(
   "users.sql:users"
-  "projects.sql:projects"
+  "projects.sql:workspaces"
 )
 
 optional_seeds=(

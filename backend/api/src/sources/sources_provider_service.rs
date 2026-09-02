@@ -12,8 +12,7 @@ use domain::{
 };
 
 use super::{
-    data_provider::sources_data_provider::SourcesDataProvider,
-    sources_provider::SourcesProvider,
+    data_provider::sources_data_provider::SourcesDataProvider, sources_provider::SourcesProvider,
     storage_provider::source_storage_provider::SourceStorageProvider,
 };
 
@@ -23,7 +22,10 @@ pub struct SourcesProviderService {
 }
 
 impl SourcesProviderService {
-    pub fn new(data: Arc<dyn SourcesDataProvider>, storage: Arc<dyn SourceStorageProvider>) -> Self {
+    pub fn new(
+        data: Arc<dyn SourcesDataProvider>,
+        storage: Arc<dyn SourceStorageProvider>,
+    ) -> Self {
         Self { data, storage }
     }
 
@@ -69,7 +71,11 @@ impl SourcesProvider for SourcesProviderService {
         Ok(sources.into_iter().map(Self::meta_from_db).collect())
     }
 
-    async fn insert_source(&self, source: RawSource, workspace_id: i32) -> Result<SourceBundle, String> {
+    async fn insert_source(
+        &self,
+        source: RawSource,
+        workspace_id: i32,
+    ) -> Result<SourceBundle, String> {
         let canonical_audio = encode_audio_buffer_as_wav(&source.data)
             .map_err(|_| "Could not encode source as wav".to_string())?;
 

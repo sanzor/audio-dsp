@@ -13,4 +13,3 @@ pub struct DbRegionSet {
     pub track_length_seconds: f32,
     pub created_at: DateTime<Utc>,
 }
-

@@ -1,4 +1,4 @@
-use domain::db::{TransformId, ticket::db_ticket::TicketId};
+use domain::db::{ticket::db_ticket::TicketId, TransformId};
 
 pub struct TicketCreatedEvent {
     pub ticket_id: TicketId,

@@ -190,7 +190,11 @@ pub async fn get_region_set(
         return HttpResponse::Forbidden().body("Forbidden");
     }
     let request = request.into_inner();
-    match app_state.region_sets_service.get_region_set(&request.region_set_id).await {
+    match app_state
+        .region_sets_service
+        .get_region_set(&request.region_set_id)
+        .await
+    {
         Ok(r) => HttpResponse::Ok().json(GetRegionSetResult::from(r)),
         Err(_e) => HttpResponse::InternalServerError().body("Could not find region set"),
     }
@@ -261,7 +265,11 @@ pub async fn get_region_sets_for_track(
         return HttpResponse::Forbidden().body("Forbidden");
     }
     let request = request.into_inner();
-    match app_state.region_sets_service.get_region_sets_for_track(&request.track_id).await {
+    match app_state
+        .region_sets_service
+        .get_region_sets_for_track(&request.track_id)
+        .await
+    {
         Ok(sets) => HttpResponse::Ok().json(GetRegionSetsForTrackResult {
             track_id: request.track_id,
             region_sets: sets.into_iter().map(GetRegionSetResult::from).collect(),
@@ -295,7 +303,11 @@ pub async fn delete_region_set(
         return HttpResponse::Forbidden().body("Forbidden");
     }
     let request = request.into_inner();
-    match app_state.region_sets_service.delete_region_set(&request.region_set_id).await {
+    match app_state
+        .region_sets_service
+        .delete_region_set(&request.region_set_id)
+        .await
+    {
         Ok(_) => HttpResponse::Ok().body("Region set deleted"),
         Err(_e) => HttpResponse::InternalServerError().body("Could not delete region set"),
     }

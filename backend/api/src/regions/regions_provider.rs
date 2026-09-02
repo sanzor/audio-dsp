@@ -1,8 +1,4 @@
-use domain::db::{
-    db_region::RegionId,
-    db_region_set::RegionSetId,
-    db_track::TrackId,
-};
+use domain::db::{db_region::RegionId, db_region_set::RegionSetId, db_track::TrackId};
 use domain::{db::DbRegion, region_set::region_set_subtree::RegionSetSubtree};
 
 pub enum EndTimePolicy {

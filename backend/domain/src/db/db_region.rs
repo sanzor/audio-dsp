@@ -14,4 +14,3 @@ pub struct DbRegion {
     pub end_time_seconds: f32,
     pub created_at: DateTime<Utc>,
 }
-

@@ -1,14 +1,16 @@
 use actix_web::{
-    Error, HttpMessage,
     body::EitherBody,
     dev::{Service, ServiceRequest, ServiceResponse},
+    Error, HttpMessage,
 };
 use std::{future::Future, pin::Pin, rc::Rc, sync::Arc};
 
 use domain::domain_user::UserId;
 use tracing::warn;
 
-use crate::{middlewares::jwt::jwt_context::JwtContext, transforms::transforms_provider::TransformsProvider};
+use crate::{
+    middlewares::jwt::jwt_context::JwtContext, transforms::transforms_provider::TransformsProvider,
+};
 
 use super::transform_access_context::TransformAccessContext;
 
@@ -42,7 +44,9 @@ where
             let jwt_ctx = match jwt_ctx {
                 Some(ctx) => ctx,
                 None => {
-                    let res = req.into_response(actix_web::HttpResponse::Unauthorized().body("Unauthorized"));
+                    let res = req.into_response(
+                        actix_web::HttpResponse::Unauthorized().body("Unauthorized"),
+                    );
                     return Ok(res.map_into_right_body());
                 }
             };
@@ -50,12 +54,16 @@ where
             let access_ctx = if jwt_ctx.is_admin {
                 TransformAccessContext::default()
             } else {
-                match transforms_service.list_accessible_transform_ids(jwt_ctx.user_id).await {
+                match transforms_service
+                    .list_accessible_transform_ids(jwt_ctx.user_id)
+                    .await
+                {
                     Ok(ids) => TransformAccessContext::new(ids.into_iter().collect()),
                     Err(error) => {
                         warn!(path = %req.path(), user_id = jwt_ctx.user_id, %error, "failed to resolve transform access set");
                         let res = req.into_response(
-                            actix_web::HttpResponse::InternalServerError().body("failed to resolve transform access"),
+                            actix_web::HttpResponse::InternalServerError()
+                                .body("failed to resolve transform access"),
                         );
                         return Ok(res.map_into_right_body());
                     }

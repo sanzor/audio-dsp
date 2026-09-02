@@ -1,5 +1,5 @@
-use crate::db::TrackId;
 use crate::actors::player_state::AudioPlayerState;
+use crate::db::TrackId;
 
 pub struct UserGetPlayerState {
     pub track_id: TrackId,

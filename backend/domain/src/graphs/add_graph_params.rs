@@ -1,5 +1,5 @@
-use crate::graphs::graph::Graph;
 use crate::db::RegionId;
+use crate::graphs::graph::Graph;
 
 pub struct AddGraphParams {
     pub region_id: RegionId,

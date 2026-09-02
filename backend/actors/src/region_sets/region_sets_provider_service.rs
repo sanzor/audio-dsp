@@ -11,10 +11,8 @@ use domain::{
         edit_region_set_params::EditRegionSetParams,
     },
     regions::{
-        add_region_params::AddRegionParams,
-        copy_region_params::CopyRegionParams,
-        delete_region_params::DeleteRegionParams,
-        edit_region_params::EditRegionParams,
+        add_region_params::AddRegionParams, copy_region_params::CopyRegionParams,
+        delete_region_params::DeleteRegionParams, edit_region_params::EditRegionParams,
     },
 };
 use sqlx::PgPool;
@@ -34,12 +32,15 @@ impl PostgresRegionSetsProvider {
 
 #[async_trait]
 impl RegionSetsProvider for PostgresRegionSetsProvider {
-    async fn create_region_set(&self, params: CreateRegionSetParams) -> Result<DbRegionSet, String> {
+    async fn create_region_set(
+        &self,
+        params: CreateRegionSetParams,
+    ) -> Result<DbRegionSet, String> {
         let id = Ulid::new().to_string();
         sqlx::query_as::<_, DbRegionSet>(
             "INSERT INTO region_sets (region_set_id, track_id, name, track_length_seconds)
              VALUES ($1, $2, $3, $4)
-             RETURNING region_set_id, track_id, name, track_length_seconds, created_at"
+             RETURNING region_set_id, track_id, name, track_length_seconds, created_at",
         )
         .bind(&id)
         .bind(&params.track_id)
@@ -60,7 +61,10 @@ impl RegionSetsProvider for PostgresRegionSetsProvider {
         .map_err(|e| e.to_string())
     }
 
-    async fn get_region_sets_for_track(&self, track_id: &TrackId) -> Result<Vec<DbRegionSet>, String> {
+    async fn get_region_sets_for_track(
+        &self,
+        track_id: &TrackId,
+    ) -> Result<Vec<DbRegionSet>, String> {
         sqlx::query_as::<_, DbRegionSet>(
             "SELECT region_set_id, track_id, name, track_length_seconds, created_at FROM region_sets WHERE track_id = $1"
         )
@@ -83,7 +87,7 @@ impl RegionSetsProvider for PostgresRegionSetsProvider {
         sqlx::query_as::<_, DbRegionSet>(
             "UPDATE region_sets SET name = COALESCE($1, name)
              WHERE region_set_id = $2
-             RETURNING region_set_id, track_id, name, track_length_seconds, created_at"
+             RETURNING region_set_id, track_id, name, track_length_seconds, created_at",
         )
         .bind(params.name)
         .bind(&params.region_set_id)
@@ -106,7 +110,7 @@ impl RegionSetsProvider for PostgresRegionSetsProvider {
         sqlx::query_as::<_, DbRegionSet>(
             "INSERT INTO region_sets (region_set_id, track_id, name, track_length_seconds)
              SELECT $1, track_id, $2, track_length_seconds FROM region_sets WHERE region_set_id = $3
-             RETURNING region_set_id, track_id, name, track_length_seconds, created_at"
+             RETURNING region_set_id, track_id, name, track_length_seconds, created_at",
         )
         .bind(&new_id)
         .bind(&params.region_set_name)
@@ -116,7 +120,10 @@ impl RegionSetsProvider for PostgresRegionSetsProvider {
         .map_err(|e| e.to_string())
     }
 
-    async fn get_regions_for_region_set(&self, set_id: &RegionSetId) -> Result<Vec<DbRegion>, String> {
+    async fn get_regions_for_region_set(
+        &self,
+        set_id: &RegionSetId,
+    ) -> Result<Vec<DbRegion>, String> {
         sqlx::query_as::<_, DbRegion>(
             "SELECT region_id, region_set_id, name, start_time_seconds, end_time_seconds, created_at FROM regions WHERE region_set_id = $1"
         )

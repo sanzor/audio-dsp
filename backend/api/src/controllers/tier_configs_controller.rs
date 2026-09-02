@@ -1,10 +1,10 @@
-use actix_web::{get, put, web, HttpResponse};
-use serde::Deserialize;
-use utoipa::{IntoParams, ToSchema};
 use crate::domain::tier::Tier;
 use crate::middlewares::jwt::jwt_context::JwtContext;
 use crate::tier_configs::tier_configs_app_data::TierConfigsAppData;
 use crate::tier_configs::update_tier_config_params::UpdateTierConfigParams;
+use actix_web::{get, put, web, HttpResponse};
+use serde::Deserialize;
+use utoipa::{IntoParams, ToSchema};
 
 #[derive(Deserialize, IntoParams)]
 pub struct TierPath {
@@ -65,7 +65,11 @@ pub async fn update_tier_config(
         max_tracks_per_project: input.max_tracks_per_project,
         max_storage_bytes: input.max_storage_bytes,
     };
-    match app.tier_configs_provider.update_tier_config(&tier, params).await {
+    match app
+        .tier_configs_provider
+        .update_tier_config(&tier, params)
+        .await
+    {
         Ok(Some(cfg)) => HttpResponse::Ok().json(cfg),
         Ok(None) => HttpResponse::NotFound().finish(),
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),

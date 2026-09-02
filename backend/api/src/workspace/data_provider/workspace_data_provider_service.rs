@@ -1,5 +1,5 @@
 use domain::{
-    db::{db_workspace::WorkspaceId, db_track::TrackId},
+    db::{db_track::TrackId, db_workspace::WorkspaceId},
     region_set::region_set_subtree::RegionSetSubtree,
     tracks::track_subtree::TrackSubtree,
 };
@@ -29,7 +29,10 @@ struct TrackWorkspaceRow {
 
 #[async_trait::async_trait]
 impl WorkspaceDataProvider for PostgresWorkspaceDataProvider {
-    async fn get_workspace_tracks(&self, workspace_id: WorkspaceId) -> Result<Vec<TrackSubtree>, String> {
+    async fn get_workspace_tracks(
+        &self,
+        workspace_id: WorkspaceId,
+    ) -> Result<Vec<TrackSubtree>, String> {
         let rows = sqlx::query_as::<_, TrackWorkspaceRow>(
             "SELECT track_id, name, extension, length_seconds, region_sets \
              FROM get_workspace_tracks($1)",

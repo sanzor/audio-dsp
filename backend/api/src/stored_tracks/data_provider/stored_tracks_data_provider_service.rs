@@ -1,8 +1,4 @@
-use domain::{
-    db::db_track::TrackId,
-    raw_track::TrackInfo,
-    tracks::stored_track::StoredTrack,
-};
+use domain::{db::db_track::TrackId, raw_track::TrackInfo, tracks::stored_track::StoredTrack};
 use sqlx::PgPool;
 
 use super::stored_tracks_data_provider::StoredTracksDataProvider;
@@ -51,7 +47,11 @@ impl StoredTracksDataProvider for PostgresStoredTracksDataProvider {
         })
     }
 
-    async fn insert_track_to_storage(&self, track_id: &TrackId, canonical_audio: Vec<u8>) -> Result<(), String> {
+    async fn insert_track_to_storage(
+        &self,
+        track_id: &TrackId,
+        canonical_audio: Vec<u8>,
+    ) -> Result<(), String> {
         sqlx::query("INSERT INTO track_storage (track_id, data) VALUES ($1, $2)")
             .bind(track_id)
             .bind(canonical_audio)

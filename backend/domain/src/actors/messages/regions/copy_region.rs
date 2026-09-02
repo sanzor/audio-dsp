@@ -10,5 +10,5 @@ pub struct CopyRegion {
 }
 
 pub struct CopyRegionResult {
-    pub region_set: DbRegionSet
+    pub region_set: DbRegionSet,
 }

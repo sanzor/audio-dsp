@@ -27,7 +27,9 @@ impl MembershipsProvider for MembershipsProviderService {
     }
 
     async fn delete_membership(&self, workspace_id: i32, user_id: UserId) -> Result<bool, String> {
-        self.data_provider.delete_membership(workspace_id, user_id).await
+        self.data_provider
+            .delete_membership(workspace_id, user_id)
+            .await
     }
 
     async fn get_membership(
@@ -35,7 +37,9 @@ impl MembershipsProvider for MembershipsProviderService {
         workspace_id: i32,
         user_id: UserId,
     ) -> Result<Option<DbMembership>, String> {
-        self.data_provider.get_membership(workspace_id, user_id).await
+        self.data_provider
+            .get_membership(workspace_id, user_id)
+            .await
     }
 
     async fn list_memberships(
@@ -43,7 +47,9 @@ impl MembershipsProvider for MembershipsProviderService {
         workspace_id: Option<i32>,
         user_id: Option<UserId>,
     ) -> Result<Vec<DbMembership>, String> {
-        self.data_provider.list_memberships(workspace_id, user_id).await
+        self.data_provider
+            .list_memberships(workspace_id, user_id)
+            .await
     }
 
     async fn get_role(
@@ -60,6 +66,8 @@ impl MembershipsProvider for MembershipsProviderService {
         user_id: UserId,
         role: WorkspaceRole,
     ) -> Result<Option<DbMembership>, String> {
-        self.data_provider.update_role(workspace_id, user_id, role).await
+        self.data_provider
+            .update_role(workspace_id, user_id, role)
+            .await
     }
 }

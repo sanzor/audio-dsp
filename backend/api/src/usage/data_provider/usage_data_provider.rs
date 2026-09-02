@@ -1,9 +1,15 @@
-use async_trait::async_trait;
 use crate::domain::data_error::DataError;
 use crate::domain::db::db_usage::DbUsage;
+use async_trait::async_trait;
 
 #[async_trait]
 pub trait UsageDataProvider: Send + Sync {
-    async fn get_usage(&self, user_id: domain::domain_user::UserId) -> Result<Option<DbUsage>, DataError>;
-    async fn refresh_usage(&self, user_id: domain::domain_user::UserId) -> Result<DbUsage, DataError>;
+    async fn get_usage(
+        &self,
+        user_id: domain::domain_user::UserId,
+    ) -> Result<Option<DbUsage>, DataError>;
+    async fn refresh_usage(
+        &self,
+        user_id: domain::domain_user::UserId,
+    ) -> Result<DbUsage, DataError>;
 }

@@ -34,7 +34,10 @@ impl RegionsProviderService {
         set_id: &domain::db::db_region_set::RegionSetId,
     ) -> Result<RegionSetSubtree, String> {
         let set = self.data.get_region_set(set_id).await?;
-        let regions = self.data.get_regions_for_region_set(&set.region_set_id).await?;
+        let regions = self
+            .data
+            .get_regions_for_region_set(&set.region_set_id)
+            .await?;
 
         Ok(RegionSetSubtree {
             track_id: set.track_id,
@@ -86,7 +89,10 @@ impl RegionsProviderService {
 impl RegionsProvider for RegionsProviderService {
     async fn add_region(&self, params: AddRegionParams) -> Result<RegionSetSubtree, String> {
         let set = self.data.get_region_set(&params.region_set_id).await?;
-        let regions = self.data.get_regions_for_region_set(&params.region_set_id).await?;
+        let regions = self
+            .data
+            .get_regions_for_region_set(&params.region_set_id)
+            .await?;
         let end_time = Self::resolve_end_time(
             &regions,
             set.track_length_seconds,

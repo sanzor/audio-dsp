@@ -1,6 +1,6 @@
 import type { TransformDefinition } from "@/domain/Transform/TransformDefinition";
 import type { CompositeGraphDefinition } from "@/domain/Transform/CompositeGraphDefinition";
-import { http, API_BASE_URL } from "@/Services/http";
+import { http, API_BASE_URL, projectApiPath } from "@/Services/http";
 import { useAuthStore } from "@/Stores/authStore";
 import { useProjectStore } from "@/Stores/projectStore";
 import type { TransformSummary } from "@/domain/Transform/TransformSummary";
@@ -45,6 +45,21 @@ export interface TransformBinariesResponse {
   binaries: TransformBinaryEnvelope[];
 }
 
+type TransformDefinitionResponse = Omit<TransformDefinition, "ports" | "params" | "is_validated"> & {
+  ports?: TransformDefinition["ports"];
+  params?: TransformDefinition["params"];
+  is_validated?: boolean;
+};
+
+function normalizeTransformDefinition(response: TransformDefinitionResponse): TransformDefinition {
+  return {
+    ...response,
+    ports: Array.isArray(response.ports) ? response.ports : [],
+    params: Array.isArray(response.params) ? response.params : [],
+    is_validated: response.is_validated ?? false,
+  };
+}
+
 // Exported for reuse by the creator surface's "Try it" preview flow, which
 // decodes a compile ticket/resource's wasm_base64 the same way this file
 // already decodes published TransformBinaryDto payloads — see
@@ -68,11 +83,17 @@ export function mapTransformBinariesResponse(response: TransformBinariesResponse
 }
 
 export async function apiGetTransformSummaries(offset = 0, limit = 20): Promise<TransformPage> {
-  return http.get<TransformPage>(`/transforms?offset=${offset}&limit=${limit}`);
+  const response = await http.get<{ transforms: TransformSummary[] }>(projectApiPath("/transforms"));
+
+  return {
+    transforms: response.transforms.slice(offset, offset + limit),
+    total: response.transforms.length,
+  };
 }
 
 export async function apiGetTransformDefinition(transform_id: number): Promise<TransformDefinition> {
-  return http.get<TransformDefinition>(`/transforms/${transform_id}`);
+  const response = await http.get<TransformDefinitionResponse>(`/transforms/${transform_id}`);
+  return normalizeTransformDefinition(response);
 }
 
 export async function apiResolveTransformDefinitions(transform_ids: number[]): Promise<TransformDefinition[]> {
@@ -80,7 +101,7 @@ export async function apiResolveTransformDefinitions(transform_ids: number[]): P
     `/transforms/resolve`,
     { ids: transform_ids }
   );
-  return response.transforms;
+  return response.transforms.map(normalizeTransformDefinition);
 }
 
 export async function apiCreateTransform(params: CreateTransformParams): Promise<TransformDefinition> {
@@ -98,7 +119,7 @@ export async function apiSaveTransform(
   params: SaveTransformParams
 ): Promise<TransformDefinition> {
   return http.put<TransformDefinition, SaveTransformParams>(
-    `/draft_transforms/${transform_id}/save-primitive`,
+    `/draft_transforms/${transform_id}/save`,
     params
   );
 }
@@ -109,9 +130,9 @@ export async function apiPublishTransform(transform_id: number): Promise<Transfo
   return http.post<TransformDefinition, undefined>(`/transforms/${transform_id}/publish`, undefined);
 }
 
-// Composite counterpart to apiSaveTransform — writes the working wiring
-// graph instead of source_code; validates and derives the composite's own
-// exposed ports server-side (see composite_validator::validate_composite_graph).
+// Composite counterpart to apiSaveTransform. Both draft kinds use the same
+// save endpoint; the persisted draft kind selects the accepted payload.
+// Save only persists the working graph — validation remains explicit.
 export interface SaveCompositeGraphParams {
   graph_definition: CompositeGraphDefinition;
 }
@@ -121,7 +142,7 @@ export async function apiSaveCompositeTransform(
   graph_definition: CompositeGraphDefinition
 ): Promise<TransformDefinition> {
   return http.put<TransformDefinition, SaveCompositeGraphParams>(
-    `/transforms/${transform_id}/save-composite`,
+    `/draft_transforms/${transform_id}/save`,
     { graph_definition }
   );
 }

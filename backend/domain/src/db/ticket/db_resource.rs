@@ -1,8 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::db::{
-    ticket::db_ticket::TicketId
-};
+use crate::db::ticket::db_ticket::TicketId;
 
 pub type ResourceId = i64;
 
@@ -19,5 +17,5 @@ pub struct DbResource {
     pub source_code: Option<String>,
     pub wasm_bytecode: Vec<u8>,
     pub name: String,
-    pub description: Option<String>
+    pub description: Option<String>,
 }

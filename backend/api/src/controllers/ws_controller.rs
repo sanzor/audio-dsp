@@ -18,7 +18,10 @@ use utoipa::IntoParams;
 
 use crate::{
     middlewares::{jwt::jwt_context::JwtContext, membership::membership_context::WorkspaceContext},
-    player::{player_app_data::PlayerAppData, player_provider::{AttachSinkParams, PlayerProvider}},
+    player::{
+        player_app_data::PlayerAppData,
+        player_provider::{AttachSinkParams, PlayerProvider},
+    },
 };
 
 #[derive(Serialize, Debug, Clone, Deserialize)]
@@ -62,7 +65,9 @@ pub async fn run_player(
 
     // Create sink/source pair
     let queue = Arc::new(Mutex::new(VecDeque::new()));
-    let sink = QueueSink { queue: Arc::clone(&queue) };
+    let sink = QueueSink {
+        queue: Arc::clone(&queue),
+    };
     let mut source = QueueSource { queue };
 
     // Attach sink to the player (spawns actor if needed)
@@ -128,7 +133,9 @@ pub async fn run_player(
         }
 
         // Clean up sink on disconnect
-        let _ = player_service.remove_sink(user_id, track_id, &sink_id).await;
+        let _ = player_service
+            .remove_sink(user_id, track_id, &sink_id)
+            .await;
     });
 
     Ok(response)

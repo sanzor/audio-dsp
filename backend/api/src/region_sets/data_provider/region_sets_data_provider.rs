@@ -14,7 +14,8 @@ use domain::{
 #[async_trait::async_trait]
 pub trait RegionSetsDataProvider: Send + Sync {
     async fn get_track(&self, track_id: &TrackId) -> Result<DbTrack, String>;
-    async fn create_region_set(&self, params: CreateRegionSetParams) -> Result<DbRegionSet, String>;
+    async fn create_region_set(&self, params: CreateRegionSetParams)
+        -> Result<DbRegionSet, String>;
     async fn get_region_set(&self, set_id: &RegionSetId) -> Result<DbRegionSet, String>;
     async fn get_region_sets_for_track(
         &self,

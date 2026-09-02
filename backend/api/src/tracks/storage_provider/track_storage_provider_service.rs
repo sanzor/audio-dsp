@@ -1,9 +1,6 @@
 use std::sync::Arc;
 
-use domain::{
-    db::db_track::TrackId,
-    tracks::track_bundle::TrackPayload,
-};
+use domain::{db::db_track::TrackId, tracks::track_bundle::TrackPayload};
 
 use crate::stored_tracks::data_provider::stored_tracks_data_provider::StoredTracksDataProvider;
 
@@ -28,7 +25,13 @@ impl TrackStorageProvider for TrackStorageProviderService {
         })
     }
 
-    async fn insert_track_payload(&self, track_id: &TrackId, payload: TrackPayload) -> Result<(), String> {
-        self.data.insert_track_to_storage(track_id, payload.canonical_audio).await
+    async fn insert_track_payload(
+        &self,
+        track_id: &TrackId,
+        payload: TrackPayload,
+    ) -> Result<(), String> {
+        self.data
+            .insert_track_to_storage(track_id, payload.canonical_audio)
+            .await
     }
 }

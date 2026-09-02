@@ -1,4 +1,4 @@
-use actix_web::{Error, FromRequest, HttpMessage as _, HttpRequest, dev::Payload};
+use actix_web::{dev::Payload, Error, FromRequest, HttpMessage as _, HttpRequest};
 use domain::domain_user::UserId;
 use std::future::{ready, Ready};
 

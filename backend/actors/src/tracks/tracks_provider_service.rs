@@ -1,9 +1,7 @@
 use async_trait::async_trait;
 use audiolib::utils::encode_audio_buffer_as_wav;
 use domain::{
-    db::db_track::DbTrack,
-    raw_track::RawTrack,
-    update_track_info_params::UpdateTrackInfoParams,
+    db::db_track::DbTrack, raw_track::RawTrack, update_track_info_params::UpdateTrackInfoParams,
 };
 use sqlx::PgPool;
 use ulid::Ulid;
@@ -34,7 +32,7 @@ impl TracksProvider for PostgresTracksProvider {
 
     async fn get_all_tracks(&self) -> Result<Vec<DbTrack>, String> {
         sqlx::query_as::<_, DbTrack>(
-            "SELECT track_id, name, extension, length_seconds, created_at FROM tracks"
+            "SELECT track_id, name, extension, length_seconds, created_at FROM tracks",
         )
         .fetch_all(&self.pool)
         .await
@@ -63,7 +61,7 @@ impl TracksProvider for PostgresTracksProvider {
              ON CONFLICT (track_id) DO UPDATE
              SET name = EXCLUDED.name, extension = EXCLUDED.extension,
                  length_seconds = EXCLUDED.length_seconds
-             RETURNING track_id, name, extension, length_seconds, created_at"
+             RETURNING track_id, name, extension, length_seconds, created_at",
         )
         .bind(&track_id)
         .bind(&track.info.name)
@@ -75,7 +73,7 @@ impl TracksProvider for PostgresTracksProvider {
 
         sqlx::query(
             "INSERT INTO track_storage (track_id, data) VALUES ($1, $2)
-             ON CONFLICT (track_id) DO UPDATE SET data = EXCLUDED.data"
+             ON CONFLICT (track_id) DO UPDATE SET data = EXCLUDED.data",
         )
         .bind(db_track.track_id)
         .bind(&canonical_audio)
@@ -88,7 +86,11 @@ impl TracksProvider for PostgresTracksProvider {
         Ok(db_track)
     }
 
-    async fn copy_track(&self, source_track_id: &TrackId, new_name: &str) -> Result<DbTrack, String> {
+    async fn copy_track(
+        &self,
+        source_track_id: &TrackId,
+        new_name: &str,
+    ) -> Result<DbTrack, String> {
         let new_track_id = Ulid::new().to_string();
 
         let mut tx = self.pool.begin().await.map_err(|e| e.to_string())?;
@@ -96,7 +98,7 @@ impl TracksProvider for PostgresTracksProvider {
         let db_track = sqlx::query_as::<_, DbTrack>(
             "INSERT INTO tracks (track_id, name, extension, length_seconds)
              SELECT $1, $2, extension, length_seconds FROM tracks WHERE track_id = $3
-             RETURNING track_id, name, extension, length_seconds, created_at"
+             RETURNING track_id, name, extension, length_seconds, created_at",
         )
         .bind(&new_track_id)
         .bind(new_name)
@@ -107,7 +109,7 @@ impl TracksProvider for PostgresTracksProvider {
 
         sqlx::query(
             "INSERT INTO track_storage (track_id, data)
-             SELECT $1, data FROM track_storage WHERE track_id = $2"
+             SELECT $1, data FROM track_storage WHERE track_id = $2",
         )
         .bind(&new_track_id)
         .bind(source_track_id)
@@ -120,10 +122,14 @@ impl TracksProvider for PostgresTracksProvider {
         Ok(db_track)
     }
 
-    async fn update_track_info(&self, track_id: &TrackId, params: UpdateTrackInfoParams) -> Result<DbTrack, String> {
+    async fn update_track_info(
+        &self,
+        track_id: &TrackId,
+        params: UpdateTrackInfoParams,
+    ) -> Result<DbTrack, String> {
         sqlx::query_as::<_, DbTrack>(
             "UPDATE tracks SET name = $1 WHERE track_id = $2
-             RETURNING track_id, name, extension, length_seconds, created_at"
+             RETURNING track_id, name, extension, length_seconds, created_at",
         )
         .bind(&params.track_name)
         .bind(track_id)

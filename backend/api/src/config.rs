@@ -36,9 +36,7 @@ pub fn load_app_config() -> Result<AppConfig, config::ConfigError> {
             config::File::with_name(&format!("{base_path}/config/{env_name}/settings"))
                 .required(true),
         )
-        .add_source(
-            config::File::with_name(&format!("{base_path}/config/local")).required(false),
-        )
+        .add_source(config::File::with_name(&format!("{base_path}/config/local")).required(false))
         .add_source(config::Environment::with_prefix("APP").separator("__"))
         .build()?;
 

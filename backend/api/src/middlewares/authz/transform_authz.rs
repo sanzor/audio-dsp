@@ -2,7 +2,9 @@ use actix_web::HttpResponse;
 use domain::db::TransformId;
 
 use crate::{
-    middlewares::{authz::transform_access_context::TransformAccessContext, jwt::jwt_context::JwtContext},
+    middlewares::{
+        authz::transform_access_context::TransformAccessContext, jwt::jwt_context::JwtContext,
+    },
     transforms::transforms_app_data::TransformsAppData,
 };
 
@@ -17,13 +19,19 @@ pub async fn require_owner(
         return Ok(());
     }
 
-    match app.transforms_service.get_transform_owner(transform_id).await {
+    match app
+        .transforms_service
+        .get_transform_owner(transform_id)
+        .await
+    {
         Ok(owner_id) if owner_id == domain::domain_user::UserId::from(jwt.user_id) => Ok(()),
         Ok(_) => Err(HttpResponse::Forbidden().body("not the transform owner")),
         Err(crate::domain::service_error::ServiceError::NotFound) => {
             Err(HttpResponse::NotFound().body("not found"))
         }
-        Err(_) => Err(HttpResponse::InternalServerError().body("failed to resolve transform owner")),
+        Err(_) => {
+            Err(HttpResponse::InternalServerError().body("failed to resolve transform owner"))
+        }
     }
 }
 
@@ -42,11 +50,17 @@ pub async fn require_access(
         return Ok(());
     }
 
-    match app.transforms_service.get_transform_owner(transform_id).await {
+    match app
+        .transforms_service
+        .get_transform_owner(transform_id)
+        .await
+    {
         Ok(_) => Err(HttpResponse::Forbidden().body("access denied to this transform")),
         Err(crate::domain::service_error::ServiceError::NotFound) => {
             Err(HttpResponse::NotFound().body("not found"))
         }
-        Err(_) => Err(HttpResponse::InternalServerError().body("failed to resolve transform access")),
+        Err(_) => {
+            Err(HttpResponse::InternalServerError().body("failed to resolve transform access"))
+        }
     }
 }

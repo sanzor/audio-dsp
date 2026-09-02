@@ -3,7 +3,6 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use domain::domain_user::UserId;
 
-
 use crate::me::me_bootstrap_result::{MeBootstrapResult, MeUserResult};
 use crate::me::me_data_provider::MeProvider;
 use crate::me::me_workspace_result::MeWorkspaceResult;
@@ -48,7 +47,11 @@ impl MeProvider for MeProviderService {
 
         let mut workspaces = Vec::new();
         for m in memberships {
-            match self.workspaces_provider.get_workspace(&m.workspace_id).await {
+            match self
+                .workspaces_provider
+                .get_workspace(&m.workspace_id)
+                .await
+            {
                 Ok(Some(workspace)) => workspaces.push(MeWorkspaceResult {
                     workspace_id: workspace.workspace_id,
                     name: workspace.name,

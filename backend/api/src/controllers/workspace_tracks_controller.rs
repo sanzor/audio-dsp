@@ -23,7 +23,11 @@ pub async fn get_workspace_tracks(
 
     info!(user_id = %jwt.user_id, workspace_id = %workspace_id, "get workspace tracks");
 
-    match app.workspace_service.get_workspace_tracks(workspace_id).await {
+    match app
+        .workspace_service
+        .get_workspace_tracks(workspace_id)
+        .await
+    {
         Ok(tracks) => HttpResponse::Ok().json(tracks),
         Err(e) => {
             error!(error = %e, workspace_id = %workspace_id, "get workspace tracks failed");

@@ -26,20 +26,15 @@ pub struct CopyRegionSetParams {
 
 #[async_trait::async_trait]
 pub trait RegionSetsProvider: Send + Sync {
-    async fn create_region_set(
-        &self,
-        params: CreateRegionSetParams,
-    ) -> Result<DbRegionSet, String>;
+    async fn create_region_set(&self, params: CreateRegionSetParams)
+        -> Result<DbRegionSet, String>;
     async fn get_region_set(&self, set_id: &RegionSetId) -> Result<DbRegionSet, String>;
     async fn get_region_sets(&self) -> Result<HashMap<TrackId, Vec<DbRegionSet>>, String>;
     async fn get_region_sets_for_track(
         &self,
         track_id: &TrackId,
     ) -> Result<Vec<DbRegionSet>, String>;
-    async fn edit_region_set(
-        &self,
-        params: EditRegionSetParams,
-    ) -> Result<DbRegionSet, String>;
+    async fn edit_region_set(&self, params: EditRegionSetParams) -> Result<DbRegionSet, String>;
     async fn delete_region_set(&self, set_id: &RegionSetId) -> Result<(), String>;
     async fn copy_region_set(
         &self,

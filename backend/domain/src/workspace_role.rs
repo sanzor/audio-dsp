@@ -1,5 +1,5 @@
-use std::fmt;
 use serde::{Deserialize, Serialize};
+use std::fmt;
 use utoipa::ToSchema;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, sqlx::Type, ToSchema)]
@@ -19,7 +19,10 @@ impl WorkspaceRole {
     }
 
     pub fn can_edit(&self) -> bool {
-        matches!(self, WorkspaceRole::SuperAdmin | WorkspaceRole::Owner | WorkspaceRole::Editor)
+        matches!(
+            self,
+            WorkspaceRole::SuperAdmin | WorkspaceRole::Owner | WorkspaceRole::Editor
+        )
     }
 
     pub fn is_owner(&self) -> bool {

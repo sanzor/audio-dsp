@@ -118,7 +118,11 @@ pub async fn delete_grant(
         return resp;
     }
 
-    match grants.transform_grants_service.delete_grant(path.transform_id, path.grant_id).await {
+    match grants
+        .transform_grants_service
+        .delete_grant(path.transform_id, path.grant_id)
+        .await
+    {
         Ok(true) => HttpResponse::NoContent().finish(),
         Ok(false) => HttpResponse::NotFound().body("grant not found"),
         Err(e) => {
@@ -143,7 +147,11 @@ pub async fn list_grants(
         return resp;
     }
 
-    match grants.transform_grants_service.list_grants(transform_id).await {
+    match grants
+        .transform_grants_service
+        .list_grants(transform_id)
+        .await
+    {
         Ok(list) => HttpResponse::Ok().json(GrantsListResponse {
             grants: list.into_iter().map(GrantDto::from).collect(),
         }),
@@ -155,5 +163,7 @@ pub async fn list_grants(
 }
 
 pub fn init(cfg: &mut web::ServiceConfig) {
-    cfg.service(create_grant).service(delete_grant).service(list_grants);
+    cfg.service(create_grant)
+        .service(delete_grant)
+        .service(list_grants);
 }

@@ -1,11 +1,11 @@
-use actix_web::{get, post, web, HttpResponse};
-use serde::Deserialize;
-use utoipa::{IntoParams, ToSchema};
 use crate::domain::db::db_subscription::SubscriptionId;
 use crate::domain::tier::Tier;
 use crate::middlewares::jwt::jwt_context::JwtContext;
 use crate::subscriptions::create_subscription_params::CreateSubscriptionParams;
 use crate::subscriptions::subscriptions_app_data::SubscriptionsAppData;
+use actix_web::{get, post, web, HttpResponse};
+use serde::Deserialize;
+use utoipa::{IntoParams, ToSchema};
 
 #[derive(Deserialize, ToSchema)]
 pub struct CreateSubscriptionInput {
@@ -59,7 +59,11 @@ pub async fn get_my_active_subscription(
     auth: JwtContext,
     app: web::Data<SubscriptionsAppData>,
 ) -> HttpResponse {
-    match app.subscriptions_provider.get_active_subscription_for_user(auth.user_id).await {
+    match app
+        .subscriptions_provider
+        .get_active_subscription_for_user(auth.user_id)
+        .await
+    {
         Ok(Some(sub)) => HttpResponse::Ok().json(sub),
         Ok(None) => HttpResponse::NotFound().finish(),
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),

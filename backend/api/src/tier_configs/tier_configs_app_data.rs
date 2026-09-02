@@ -1,5 +1,5 @@
-use std::sync::Arc;
 use crate::tier_configs::tier_configs_provider::TierConfigsProvider;
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct TierConfigsAppData {

@@ -35,7 +35,10 @@ impl RegionSetsProviderService {
         set_id: &RegionSetId,
     ) -> Result<RegionSetSubtree, String> {
         let set = self.data.get_region_set(set_id).await?;
-        let regions = self.data.get_regions_for_region_set(&set.region_set_id).await?;
+        let regions = self
+            .data
+            .get_regions_for_region_set(&set.region_set_id)
+            .await?;
 
         Ok(RegionSetSubtree {
             track_id: set.track_id,
@@ -93,10 +96,7 @@ impl RegionSetsProvider for RegionSetsProviderService {
         self.data.get_region_sets_for_track(track_id).await
     }
 
-    async fn edit_region_set(
-        &self,
-        params: EditRegionSetParams,
-    ) -> Result<DbRegionSet, String> {
+    async fn edit_region_set(&self, params: EditRegionSetParams) -> Result<DbRegionSet, String> {
         self.data
             .edit_region_set(DbEditRegionSetParams {
                 name: params.name,

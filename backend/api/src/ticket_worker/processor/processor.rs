@@ -2,7 +2,10 @@ use std::sync::Arc;
 
 use domain::db::ticket::{ticket_status::TicketStatus, update_ticket_params::UpdateTicketParams};
 
-use crate::{ticket_worker::processor::build_job_config::BuildJobConfig, transforms::data_provider::transforms_data_provider::TransformsDataProvider};
+use crate::{
+    ticket_worker::processor::build_job_config::BuildJobConfig,
+    transforms::data_provider::transforms_data_provider::TransformsDataProvider,
+};
 
 use super::{
     build_job::{self},
@@ -32,8 +35,16 @@ impl Processor {
         let event = &params.event;
 
         // 1 — verify ticket exists
-        if self.data_provider.get_ticket(event.ticket_id).await.is_err() {
-            return Err(ProcessorError::DataError(format!("Could not find ticket with id {:?}", event.ticket_id)));
+        if self
+            .data_provider
+            .get_ticket(event.ticket_id)
+            .await
+            .is_err()
+        {
+            return Err(ProcessorError::DataError(format!(
+                "Could not find ticket with id {:?}",
+                event.ticket_id
+            )));
         }
 
         // 2 — compile the submitted Rust source to wasm32-unknown-unknown
@@ -55,13 +66,17 @@ impl Processor {
         // A module that compiles but whose metadata is missing/malformed
         // must still fail the ticket — the DB definition must never drift
         // from the binary.
-        let metadata: metadata_introspector::TransformMetadataJson = match metadata_introspector::introspect_metadata(&wasm_bytecode, self.metadata_fuel_limit) {
-            Ok(metadata) => metadata,
-            Err(e) => {
-                self.mark_failed(event.ticket_id, e.clone()).await;
-                return Err(ProcessorError::MetadataError(e));
-            }
-        };
+        let metadata: metadata_introspector::TransformMetadataJson =
+            match metadata_introspector::introspect_metadata(
+                &wasm_bytecode,
+                self.metadata_fuel_limit,
+            ) {
+                Ok(metadata) => metadata,
+                Err(e) => {
+                    self.mark_failed(event.ticket_id, e.clone()).await;
+                    return Err(ProcessorError::MetadataError(e));
+                }
+            };
 
         let metadata_payload = match serde_json::to_string(&metadata) {
             Ok(payload) => payload,
@@ -79,7 +94,13 @@ impl Processor {
         // becoming the published transform is a separate, explicit action.
         let resource = self
             .data_provider
-            .create_resource(event.ticket_id, wasm_bytecode, name, description, metadata_payload)
+            .create_resource(
+                event.ticket_id,
+                wasm_bytecode,
+                name,
+                description,
+                metadata_payload,
+            )
             .await
             .map_err(|e| ProcessorError::DataError(e.to_string()))?;
 
@@ -87,7 +108,9 @@ impl Processor {
             .data_provider
             .update_ticket(UpdateTicketParams {
                 ticket_id: event.ticket_id,
-                status: TicketStatus::Successful { resource_id: resource.id },
+                status: TicketStatus::Successful {
+                    resource_id: resource.id,
+                },
             })
             .await
             .map_err(|e| ProcessorError::DataError(e.to_string()))?;
@@ -97,7 +120,11 @@ impl Processor {
 
     /// Best-effort: update ticket to Failed. Errors here are logged but not
     /// propagated so the original error is preserved for the caller.
-    async fn mark_failed(&self, ticket_id: domain::db::ticket::db_ticket::TicketId, message: String) {
+    async fn mark_failed(
+        &self,
+        ticket_id: domain::db::ticket::db_ticket::TicketId,
+        message: String,
+    ) {
         if let Err(e) = self
             .data_provider
             .update_ticket(UpdateTicketParams {

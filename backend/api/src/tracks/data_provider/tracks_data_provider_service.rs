@@ -50,7 +50,11 @@ impl TracksDataProvider for PostgresTracksDataProvider {
             .map_err(|e| e.to_string())
     }
 
-    async fn insert_track(&self, track_info: TrackInfo, workspace_id: i32) -> Result<DbTrack, String> {
+    async fn insert_track(
+        &self,
+        track_info: TrackInfo,
+        workspace_id: i32,
+    ) -> Result<DbTrack, String> {
         sqlx::query_as::<_, DbTrack>(
             "INSERT INTO tracks (name, extension, length_seconds, workspace_id)
              VALUES ($1, $2, $3, $4)
@@ -65,7 +69,12 @@ impl TracksDataProvider for PostgresTracksDataProvider {
         .map_err(|e| e.to_string())
     }
 
-    async fn copy_track(&self, source_track_id: &TrackId, new_name: &str, workspace_id: i32) -> Result<DbTrack, String> {
+    async fn copy_track(
+        &self,
+        source_track_id: &TrackId,
+        new_name: &str,
+        workspace_id: i32,
+    ) -> Result<DbTrack, String> {
         sqlx::query_as::<_, DbTrack>(
             "INSERT INTO tracks (name, extension, length_seconds, workspace_id)
              SELECT $1, extension, length_seconds, workspace_id FROM tracks WHERE track_id = $2 AND workspace_id = $3
@@ -79,7 +88,12 @@ impl TracksDataProvider for PostgresTracksDataProvider {
         .map_err(|e| e.to_string())
     }
 
-    async fn update_track_info(&self, track_id: &TrackId, params: UpdateTrackInfoParams, workspace_id: i32) -> Result<DbTrack, String> {
+    async fn update_track_info(
+        &self,
+        track_id: &TrackId,
+        params: UpdateTrackInfoParams,
+        workspace_id: i32,
+    ) -> Result<DbTrack, String> {
         sqlx::query_as::<_, DbTrack>(
             "UPDATE tracks SET name = $2 WHERE track_id = $1 AND workspace_id = $3
              RETURNING track_id, name, extension, length_seconds, created_at",

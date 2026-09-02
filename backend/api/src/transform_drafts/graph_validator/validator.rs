@@ -26,9 +26,13 @@ use std::collections::{HashMap, HashSet};
 
 use domain::db::db_transform::TransformId;
 
-use crate::ticket_worker::processor::transform_metadata::{DirectionJson, PortCardinalityJson, PortKindJson, PortMetadataJson};
+use crate::ticket_worker::processor::transform_metadata::{
+    DirectionJson, PortCardinalityJson, PortKindJson, PortMetadataJson,
+};
 
-use super::{edge::Edge, graph_definition::GraphDefinition, transform_info::TransformInfo, node::Node};
+use super::{
+    edge::Edge, graph_definition::GraphDefinition, node::Node, transform_info::TransformInfo,
+};
 
 /// Fixed pseudo-port name used on the single implicit handle every
 /// Input/Output node exposes (an Input node's one output handle, an Output
@@ -77,8 +81,7 @@ impl Validator {
     /// Parses `input.metadata_json` as a `GraphDefinition` and validates
     /// it, returning the composite's derived port list on success.
     pub fn validate(&self, input: ValidatorInput) -> Result<Vec<PortMetadataJson>, String> {
-        let graph: GraphDefinition =
-            serde_json::from_str(&input.metadata_json)
+        let graph: GraphDefinition = serde_json::from_str(&input.metadata_json)
             .map_err(|e| format!("composite graph metadata is malformed JSON: {e}"))?;
 
         if graph.nodes.is_empty() {
@@ -97,7 +100,10 @@ impl Validator {
 /// declares. `Node::Input`/`Node::Output` have no transform to resolve;
 /// they get a bare `NodeRef` marker instead. On success, returns node_id ->
 /// what the rest of validation needs to look up ports by name.
-fn build_node_ports<'a>(nodes: &[Node], leaf_defs: &'a HashMap<TransformId, TransformInfo>) -> Result<NodePorts<'a>, String> {
+fn build_node_ports<'a>(
+    nodes: &[Node],
+    leaf_defs: &'a HashMap<TransformId, TransformInfo>,
+) -> Result<NodePorts<'a>, String> {
     let mut node_ports = NodePorts::new();
 
     for node in nodes {
@@ -151,20 +157,34 @@ fn io_pseudo_port(direction: DirectionJson) -> PortMetadataJson {
         order: 0,
         description: None,
         kind: PortKindJson::Program,
-        cardinality: if direction == DirectionJson::Input { PortCardinalityJson::Single } else { PortCardinalityJson::Many },
+        cardinality: if direction == DirectionJson::Input {
+            PortCardinalityJson::Single
+        } else {
+            PortCardinalityJson::Many
+        },
     }
 }
 
 /// Looks up a real (or pseudo) port by name and direction on a node already
 /// known to `node_ports` (i.e. already validated by `build_node_ports`).
-fn find_port(node_ports: &NodePorts, node_id: i64, port_name: &str, want_direction: DirectionJson) -> Result<PortMetadataJson, String> {
+fn find_port(
+    node_ports: &NodePorts,
+    node_id: i64,
+    port_name: &str,
+    want_direction: DirectionJson,
+) -> Result<PortMetadataJson, String> {
     match node_ports.get(&node_id) {
         None => Err(format!("edge references unknown node {node_id}")),
         Some(NodeRef::Reference(ports)) => ports
             .iter()
             .find(|p| p.name == port_name && p.direction == want_direction)
             .cloned()
-            .ok_or_else(|| format!("node {node_id} has no {} port named '{port_name}'", want_direction.as_db_str())),
+            .ok_or_else(|| {
+                format!(
+                    "node {node_id} has no {} port named '{port_name}'",
+                    want_direction.as_db_str()
+                )
+            }),
         Some(NodeRef::Input) => {
             if want_direction == DirectionJson::Output && port_name == IO_PORT_NAME {
                 Ok(io_pseudo_port(DirectionJson::Output))
@@ -199,13 +219,25 @@ fn validate_edges(edges: &[Edge], node_ports: &NodePorts) -> Result<TouchedPorts
     let mut touched = TouchedPorts::new();
 
     for edge in edges {
-        find_port(node_ports, edge.from_node_id, &edge.from_port, DirectionJson::Output)?;
-        let to_port = find_port(node_ports, edge.to_node_id, &edge.to_port, DirectionJson::Input)?;
+        find_port(
+            node_ports,
+            edge.from_node_id,
+            &edge.from_port,
+            DirectionJson::Output,
+        )?;
+        let to_port = find_port(
+            node_ports,
+            edge.to_node_id,
+            &edge.to_port,
+            DirectionJson::Input,
+        )?;
 
         touched.insert((edge.from_node_id, edge.from_port.clone()));
         touched.insert((edge.to_node_id, edge.to_port.clone()));
 
-        let count = incoming_count.entry((edge.to_node_id, edge.to_port.clone())).or_insert(0);
+        let count = incoming_count
+            .entry((edge.to_node_id, edge.to_port.clone()))
+            .or_insert(0);
         *count += 1;
         if *count > 1 && to_port.cardinality == PortCardinalityJson::Single {
             return Err(format!(
@@ -229,7 +261,11 @@ fn validate_edges(edges: &[Edge], node_ports: &NodePorts) -> Result<TouchedPorts
 /// which needs a stronger rule ("at least one edge" for Input, "exactly
 /// one" for Output) than the generic "touched at all" this function
 /// applies.
-fn validate_no_dangling_program_inputs(nodes: &[Node], node_ports: &NodePorts, touched: &TouchedPorts) -> Result<(), String> {
+fn validate_no_dangling_program_inputs(
+    nodes: &[Node],
+    node_ports: &NodePorts,
+    touched: &TouchedPorts,
+) -> Result<(), String> {
     for node in nodes {
         let node_id = match node {
             Node::Primitive(p) => p.node_id,
@@ -245,7 +281,10 @@ fn validate_no_dangling_program_inputs(nodes: &[Node], node_ports: &NodePorts, t
                 continue;
             }
             if port.kind == PortKindJson::Program {
-                return Err(format!("node {node_id} input port '{}' is a Program-kind input left unconnected", port.name));
+                return Err(format!(
+                    "node {node_id} input port '{}' is a Program-kind input left unconnected",
+                    port.name
+                ));
             }
         }
     }
@@ -272,7 +311,11 @@ fn validate_no_dangling_program_inputs(nodes: &[Node], node_ports: &NodePorts, t
 /// node (zero outgoing edges) or dangling Output node (zero incoming
 /// edges), and requires at least one Output node with a valid connection —
 /// a composite with no output would be unusable.
-fn derive_io_ports(nodes: &[Node], edges: &[Edge], node_ports: &NodePorts) -> Result<Vec<PortMetadataJson>, String> {
+fn derive_io_ports(
+    nodes: &[Node],
+    edges: &[Edge],
+    node_ports: &NodePorts,
+) -> Result<Vec<PortMetadataJson>, String> {
     let mut derived_ports = Vec::new();
     let mut has_exposed_output = false;
     let mut order = 0i32;
@@ -282,13 +325,26 @@ fn derive_io_ports(nodes: &[Node], edges: &[Edge], node_ports: &NodePorts) -> Re
             Node::Primitive(_) | Node::Composite(_) => continue,
             Node::Input(i) => {
                 if i.name.trim().is_empty() {
-                    return Err(format!("Input node {} cannot have an empty name", i.node_id));
+                    return Err(format!(
+                        "Input node {} cannot have an empty name",
+                        i.node_id
+                    ));
                 }
                 let edge = edges
                     .iter()
                     .find(|e| e.from_node_id == i.node_id)
-                    .ok_or_else(|| format!("Input node {} has no outgoing edge and is unusable", i.node_id))?;
-                let downstream_port = find_port(node_ports, edge.to_node_id, &edge.to_port, DirectionJson::Input)?;
+                    .ok_or_else(|| {
+                        format!(
+                            "Input node {} has no outgoing edge and is unusable",
+                            i.node_id
+                        )
+                    })?;
+                let downstream_port = find_port(
+                    node_ports,
+                    edge.to_node_id,
+                    &edge.to_port,
+                    DirectionJson::Input,
+                )?;
                 derived_ports.push(PortMetadataJson {
                     name: i.name.clone(),
                     direction: DirectionJson::Input,
@@ -301,13 +357,26 @@ fn derive_io_ports(nodes: &[Node], edges: &[Edge], node_ports: &NodePorts) -> Re
             }
             Node::Output(o) => {
                 if o.name.trim().is_empty() {
-                    return Err(format!("Output node {} cannot have an empty name", o.node_id));
+                    return Err(format!(
+                        "Output node {} cannot have an empty name",
+                        o.node_id
+                    ));
                 }
                 let edge = edges
                     .iter()
                     .find(|e| e.to_node_id == o.node_id)
-                    .ok_or_else(|| format!("Output node {} has no incoming edge and is unusable", o.node_id))?;
-                let upstream_port = find_port(node_ports, edge.from_node_id, &edge.from_port, DirectionJson::Output)?;
+                    .ok_or_else(|| {
+                        format!(
+                            "Output node {} has no incoming edge and is unusable",
+                            o.node_id
+                        )
+                    })?;
+                let upstream_port = find_port(
+                    node_ports,
+                    edge.from_node_id,
+                    &edge.from_port,
+                    DirectionJson::Output,
+                )?;
                 has_exposed_output = true;
                 derived_ports.push(PortMetadataJson {
                     name: o.name.clone(),
@@ -325,12 +394,17 @@ fn derive_io_ports(nodes: &[Node], edges: &[Edge], node_ports: &NodePorts) -> Re
     let mut seen_names: HashSet<&str> = HashSet::new();
     for port in &derived_ports {
         if !seen_names.insert(port.name.as_str()) {
-            return Err(format!("Input/Output node name '{}' is used more than once", port.name));
+            return Err(format!(
+                "Input/Output node name '{}' is used more than once",
+                port.name
+            ));
         }
     }
 
     if !has_exposed_output {
-        return Err("a composite must have at least one Output node with a valid connection".to_string());
+        return Err(
+            "a composite must have at least one Output node with a valid connection".to_string(),
+        );
     }
 
     Ok(derived_ports)

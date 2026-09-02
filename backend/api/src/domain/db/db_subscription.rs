@@ -1,7 +1,7 @@
+use crate::domain::tier::Tier;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use utoipa::ToSchema;
-use crate::domain::tier::Tier;
 
 pub type SubscriptionId = i32;
 

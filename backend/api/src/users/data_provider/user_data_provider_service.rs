@@ -3,7 +3,7 @@ use domain::domain_user::UserId;
 use sqlx::PgPool;
 
 use crate::domain::data_error::DataError;
-use crate::domain::db::db_user::{DbUser};
+use crate::domain::db::db_user::DbUser;
 use crate::users::create_user_params::CreateUserParams;
 use crate::users::data_provider::user_data_provider::UserDataProvider;
 use crate::users::update_user_params::UpdateUserParams;
@@ -18,8 +18,7 @@ impl UserDataProviderService {
     }
 }
 
-const USER_SELECT_COLUMNS: &str =
-    "user_id AS id, email, name AS full_name, is_active, is_verified";
+const USER_SELECT_COLUMNS: &str = "user_id AS id, email, name AS full_name, is_active, is_verified";
 
 #[async_trait]
 impl UserDataProvider for UserDataProviderService {
@@ -31,13 +30,13 @@ impl UserDataProvider for UserDataProviderService {
         );
 
         let record = sqlx::query_as::<_, DbUser>(&query)
-        .bind(params.email)
-        .bind(params.password_hash)
-        .bind(params.full_name)
-        .bind(params.is_active)
-        .bind(params.is_verified)
-        .fetch_one(&self.pool)
-        .await?;
+            .bind(params.email)
+            .bind(params.password_hash)
+            .bind(params.full_name)
+            .bind(params.is_active)
+            .bind(params.is_verified)
+            .fetch_one(&self.pool)
+            .await?;
 
         Ok(record)
     }
@@ -59,14 +58,14 @@ impl UserDataProvider for UserDataProviderService {
         );
 
         let record = sqlx::query_as::<_, DbUser>(&query)
-        .bind(user_id)
-        .bind(params.email)
-        .bind(params.password_hash)
-        .bind(params.full_name)
-        .bind(params.is_active)
-        .bind(params.is_verified)
-        .fetch_optional(&self.pool)
-        .await?;
+            .bind(user_id)
+            .bind(params.email)
+            .bind(params.password_hash)
+            .bind(params.full_name)
+            .bind(params.is_active)
+            .bind(params.is_verified)
+            .fetch_optional(&self.pool)
+            .await?;
 
         Ok(record)
     }
@@ -84,9 +83,9 @@ impl UserDataProvider for UserDataProviderService {
         let query = format!("SELECT {USER_SELECT_COLUMNS} FROM users WHERE user_id = $1");
 
         let record = sqlx::query_as::<_, DbUser>(&query)
-        .bind(user_id)
-        .fetch_optional(&self.pool)
-        .await?;
+            .bind(user_id)
+            .fetch_optional(&self.pool)
+            .await?;
 
         Ok(record)
     }
@@ -95,9 +94,9 @@ impl UserDataProvider for UserDataProviderService {
         let query = format!("SELECT {USER_SELECT_COLUMNS} FROM users WHERE email = $1");
 
         let record = sqlx::query_as::<_, DbUser>(&query)
-        .bind(email)
-        .fetch_optional(&self.pool)
-        .await?;
+            .bind(email)
+            .fetch_optional(&self.pool)
+            .await?;
 
         Ok(record)
     }
@@ -106,8 +105,8 @@ impl UserDataProvider for UserDataProviderService {
         let query = format!("SELECT {USER_SELECT_COLUMNS} FROM users ORDER BY user_id");
 
         let records = sqlx::query_as::<_, DbUser>(&query)
-        .fetch_all(&self.pool)
-        .await?;
+            .fetch_all(&self.pool)
+            .await?;
 
         Ok(records)
     }

@@ -21,18 +21,21 @@ impl SourceStorageProviderService {
 #[async_trait::async_trait]
 impl SourceStorageProvider for SourceStorageProviderService {
     async fn get_source_payload(&self, source_id: &SourceId) -> Result<SourcePayload, String> {
-        let canonical_audio: Vec<u8> = sqlx::query_scalar(
-            "SELECT data FROM source_storage WHERE source_id = $1",
-        )
-        .bind(source_id)
-        .fetch_one(&self.pool)
-        .await
-        .map_err(|e| e.to_string())?;
+        let canonical_audio: Vec<u8> =
+            sqlx::query_scalar("SELECT data FROM source_storage WHERE source_id = $1")
+                .bind(source_id)
+                .fetch_one(&self.pool)
+                .await
+                .map_err(|e| e.to_string())?;
 
         Ok(SourcePayload { canonical_audio })
     }
 
-    async fn insert_source_payload(&self, source_id: &SourceId, payload: SourcePayload) -> Result<(), String> {
+    async fn insert_source_payload(
+        &self,
+        source_id: &SourceId,
+        payload: SourcePayload,
+    ) -> Result<(), String> {
         sqlx::query("INSERT INTO source_storage (source_id, data) VALUES ($1, $2)")
             .bind(source_id)
             .bind(payload.canonical_audio)

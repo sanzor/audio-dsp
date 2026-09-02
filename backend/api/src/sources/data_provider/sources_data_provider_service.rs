@@ -47,7 +47,11 @@ impl SourcesDataProvider for PostgresSourcesDataProvider {
             .map_err(|e| e.to_string())
     }
 
-    async fn insert_source(&self, source_info: SourceInfo, workspace_id: i32) -> Result<DbSource, String> {
+    async fn insert_source(
+        &self,
+        source_info: SourceInfo,
+        workspace_id: i32,
+    ) -> Result<DbSource, String> {
         sqlx::query_as::<_, DbSource>(
             "INSERT INTO sources (name, extension, length_seconds, workspace_id)
              VALUES ($1, $2, $3, $4)

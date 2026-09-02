@@ -1,8 +1,8 @@
 use audiolib::{audio_buffer::AudioBuffer, utils::decode_canonical_audio, Channels};
 use domain::sources::raw_source::{RawSource, SourceInfo};
-use tracing::{error, info, warn};
-use std::str::FromStr;
 use futures_util::StreamExt;
+use std::str::FromStr;
+use tracing::{error, info, warn};
 
 /// Forked from `tracks::multipart_audio_parser` rather than shared directly: sharing would
 /// make the sources module depend on the Track domain via `RawTrack`/`TrackInfo` as its
@@ -30,8 +30,12 @@ impl SourceMultipartAudioParserService {
             match field_name.as_str() {
                 "name" => name = Some(String::from_utf8_lossy(&field_data).to_string()),
                 "extension" => extension = Some(String::from_utf8_lossy(&field_data).to_string()),
-                "sample_rate" => sample_rate = String::from_utf8_lossy(&field_data).parse::<f32>().ok(),
-                "channels" => channels = Channels::from_str(&String::from_utf8_lossy(&field_data)).ok(),
+                "sample_rate" => {
+                    sample_rate = String::from_utf8_lossy(&field_data).parse::<f32>().ok()
+                }
+                "channels" => {
+                    channels = Channels::from_str(&String::from_utf8_lossy(&field_data)).ok()
+                }
                 "samples" => samples_bytes = field_data,
                 _ => {}
             }
@@ -86,7 +90,11 @@ impl SourceMultipartAudioParserService {
             "add-source-multi payload parsed"
         );
         let raw_source = RawSource {
-            info: SourceInfo { name, extension, length },
+            info: SourceInfo {
+                name,
+                extension,
+                length,
+            },
             data: audio_buffer,
         };
         Ok(raw_source)

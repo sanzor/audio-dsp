@@ -1,10 +1,10 @@
-use actix_web::{delete, get, post, web, HttpResponse};
-use serde::{Deserialize, Serialize};
-use utoipa::{IntoParams, ToSchema};
 use crate::domain::db::db_invoice::InvoiceId;
 use crate::invoices::create_invoice_params::CreateInvoiceParams;
 use crate::invoices::invoices_app_data::InvoicesAppData;
 use crate::middlewares::jwt::jwt_context::JwtContext;
+use actix_web::{delete, get, post, web, HttpResponse};
+use serde::{Deserialize, Serialize};
+use utoipa::{IntoParams, ToSchema};
 
 #[derive(Deserialize, ToSchema)]
 pub struct CreateInvoiceInput {
@@ -67,7 +67,11 @@ pub async fn list_my_invoices(
 ) -> HttpResponse {
     let offset = query.offset.unwrap_or(0);
     let limit = query.limit.unwrap_or(20).clamp(1, 100);
-    match app.invoices_provider.list_by_user_paginated(auth.user_id, offset, limit).await {
+    match app
+        .invoices_provider
+        .list_by_user_paginated(auth.user_id, offset, limit)
+        .await
+    {
         Ok((invoices, total)) => HttpResponse::Ok().json(InvoiceListResponse { invoices, total }),
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
     }
@@ -84,7 +88,9 @@ pub async fn get_invoice(
 ) -> HttpResponse {
     let id = path.into_inner().id;
     match app.invoices_provider.get_invoice(id).await {
-        Ok(Some(inv)) if inv.user_id == auth.user_id || auth.is_admin => HttpResponse::Ok().json(inv),
+        Ok(Some(inv)) if inv.user_id == auth.user_id || auth.is_admin => {
+            HttpResponse::Ok().json(inv)
+        }
         Ok(Some(_)) => HttpResponse::Forbidden().finish(),
         Ok(None) => HttpResponse::NotFound().finish(),
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
@@ -105,7 +111,11 @@ pub async fn list_all_invoices(
     }
     let offset = query.offset.unwrap_or(0);
     let limit = query.limit.unwrap_or(20).clamp(1, 100);
-    match app.invoices_provider.list_all_paginated(None, offset, limit).await {
+    match app
+        .invoices_provider
+        .list_all_paginated(None, offset, limit)
+        .await
+    {
         Ok((invoices, total)) => HttpResponse::Ok().json(InvoiceListResponse { invoices, total }),
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
     }

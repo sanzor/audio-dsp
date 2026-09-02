@@ -1,7 +1,7 @@
 use actix_web::{
-    Error, HttpMessage,
     body::EitherBody,
     dev::{Service, ServiceRequest, ServiceResponse},
+    Error, HttpMessage,
 };
 use std::{future::Future, pin::Pin, rc::Rc, sync::Arc};
 
@@ -12,7 +12,7 @@ use crate::{
     memberships::memberships_provider::MembershipsProvider,
     middlewares::{
         jwt::jwt_context::JwtContext,
-        membership::membership_context::{WorkspaceContext, RoleContext},
+        membership::membership_context::{RoleContext, WorkspaceContext},
     },
 };
 
@@ -49,7 +49,9 @@ where
             let jwt_ctx = match jwt_ctx {
                 Some(ctx) => ctx,
                 None => {
-                    let res = req.into_response(actix_web::HttpResponse::Unauthorized().body("Unauthorized"));
+                    let res = req.into_response(
+                        actix_web::HttpResponse::Unauthorized().body("Unauthorized"),
+                    );
                     return Ok(res.map_into_right_body());
                 }
             };
@@ -75,7 +77,10 @@ where
                 match workspace_id {
                     None => {
                         warn!(path = %req.path(), "request rejected: missing workspace_id (path or X-Project-ID header)");
-                        let res = req.into_response(actix_web::HttpResponse::BadRequest().body("Missing X-Project-ID header"));
+                        let res = req.into_response(
+                            actix_web::HttpResponse::BadRequest()
+                                .body("Missing X-Project-ID header"),
+                        );
                         return Ok(res.map_into_right_body());
                     }
                     Some(wid) => {
@@ -99,7 +104,10 @@ where
                         match role {
                             None => {
                                 warn!(path = %req.path(), workspace_id = wid, user_id = jwt_ctx.user_id, "request rejected: access denied to workspace");
-                                let res = req.into_response(actix_web::HttpResponse::Forbidden().body("Access denied to this workspace"));
+                                let res = req.into_response(
+                                    actix_web::HttpResponse::Forbidden()
+                                        .body("Access denied to this workspace"),
+                                );
                                 return Ok(res.map_into_right_body());
                             }
                             Some(r) => RoleContext(r),

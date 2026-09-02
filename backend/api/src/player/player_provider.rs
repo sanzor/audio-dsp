@@ -15,11 +15,37 @@ pub struct AttachSinkResult {
 
 #[async_trait::async_trait]
 pub trait PlayerProvider: Send + Sync {
-    async fn play(&self, user_id: domain::domain_user::UserId, track_id: TrackId) -> Result<(), String>;
-    async fn pause(&self, user_id: domain::domain_user::UserId, track_id: TrackId) -> Result<(), String>;
-    async fn seek(&self, user_id: domain::domain_user::UserId, track_id: TrackId, position: u32) -> Result<(), String>;
-    async fn stop(&self, user_id: domain::domain_user::UserId, track_id: TrackId) -> Result<(), String>;
+    async fn play(
+        &self,
+        user_id: domain::domain_user::UserId,
+        track_id: TrackId,
+    ) -> Result<(), String>;
+    async fn pause(
+        &self,
+        user_id: domain::domain_user::UserId,
+        track_id: TrackId,
+    ) -> Result<(), String>;
+    async fn seek(
+        &self,
+        user_id: domain::domain_user::UserId,
+        track_id: TrackId,
+        position: u32,
+    ) -> Result<(), String>;
+    async fn stop(
+        &self,
+        user_id: domain::domain_user::UserId,
+        track_id: TrackId,
+    ) -> Result<(), String>;
     async fn attach_sink(&self, params: AttachSinkParams) -> Result<AttachSinkResult, String>;
-    async fn remove_sink(&self, user_id: domain::domain_user::UserId, track_id: TrackId, sink_id: &str) -> Result<(), String>;
-    async fn get_state(&self, user_id: domain::domain_user::UserId, track_id: TrackId) -> Result<GetPlayerStateResult, String>;
+    async fn remove_sink(
+        &self,
+        user_id: domain::domain_user::UserId,
+        track_id: TrackId,
+        sink_id: &str,
+    ) -> Result<(), String>;
+    async fn get_state(
+        &self,
+        user_id: domain::domain_user::UserId,
+        track_id: TrackId,
+    ) -> Result<GetPlayerStateResult, String>;
 }

@@ -1,12 +1,12 @@
-use actix_web::{delete, get, post, put, web, HttpResponse};
-use serde::Deserialize;
-use utoipa::{IntoParams, ToSchema};
 use crate::domain::db::db_product::ProductId;
 use crate::domain::tier::Tier;
 use crate::middlewares::jwt::jwt_context::JwtContext;
 use crate::products::create_product_params::CreateProductParams;
 use crate::products::products_app_data::ProductsAppData;
 use crate::products::update_product_params::UpdateProductParams;
+use actix_web::{delete, get, post, put, web, HttpResponse};
+use serde::Deserialize;
+use utoipa::{IntoParams, ToSchema};
 
 #[derive(Deserialize, ToSchema)]
 pub struct CreateProductInput {

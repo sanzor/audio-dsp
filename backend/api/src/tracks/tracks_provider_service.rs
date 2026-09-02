@@ -4,8 +4,8 @@ use audiolib::utils::encode_audio_buffer_as_wav;
 use domain::{
     db::db_track::{DbTrack, TrackId},
     raw_track::{RawTrack, TrackInfo},
-    tracks::track_bundle::{TrackBundle, TrackPayload},
     track_meta::TrackMeta,
+    tracks::track_bundle::{TrackBundle, TrackPayload},
     update_track_info_params::UpdateTrackInfoParams,
 };
 
@@ -46,22 +46,28 @@ impl TracksProviderService {
             track_id: track.track_id,
         }
     }
-
-
 }
 
 #[async_trait::async_trait]
 impl TracksProvider for TracksProviderService {
-    async fn get_track_meta(&self, track_id: &TrackId, workspace_id: i32) -> Result<TrackMeta, String> {
+    async fn get_track_meta(
+        &self,
+        track_id: &TrackId,
+        workspace_id: i32,
+    ) -> Result<TrackMeta, String> {
         let track = self.data.get_track(track_id, workspace_id).await?;
         Ok(Self::to_meta(&track))
     }
 
-    async fn get_track(&self, track_id: &TrackId, workspace_id: i32) -> Result<TrackBundle, String> {
-        let meta=self.data.get_track(track_id, workspace_id).await?;
-        let payload=self.storage.get_track_payload(track_id).await?;
-        let meta=Self::to_meta(&meta);
-        Ok(TrackBundle{payload,meta})
+    async fn get_track(
+        &self,
+        track_id: &TrackId,
+        workspace_id: i32,
+    ) -> Result<TrackBundle, String> {
+        let meta = self.data.get_track(track_id, workspace_id).await?;
+        let payload = self.storage.get_track_payload(track_id).await?;
+        let meta = Self::to_meta(&meta);
+        Ok(TrackBundle { payload, meta })
     }
 
     async fn get_tracks(&self, workspace_id: i32) -> Result<Vec<TrackBundle>, String> {
@@ -81,7 +87,11 @@ impl TracksProvider for TracksProviderService {
         Ok(tracks.into_iter().map(Self::meta_from_db).collect())
     }
 
-    async fn insert_track(&self, track: RawTrack, workspace_id: i32) -> Result<TrackBundle, String> {
+    async fn insert_track(
+        &self,
+        track: RawTrack,
+        workspace_id: i32,
+    ) -> Result<TrackBundle, String> {
         let canonical_audio = encode_audio_buffer_as_wav(&track.data)
             .map_err(|_| "Could not encode track as wav".to_string())?;
 
@@ -105,10 +115,18 @@ impl TracksProvider for TracksProviderService {
         self.data.delete_track(track_id, workspace_id).await
     }
 
-    async fn copy_track(&self, track_id: &TrackId, copy_name: String, workspace_id: i32) -> Result<TrackMeta, String> {
+    async fn copy_track(
+        &self,
+        track_id: &TrackId,
+        copy_name: String,
+        workspace_id: i32,
+    ) -> Result<TrackMeta, String> {
         self.data.get_track(track_id, workspace_id).await?;
         let source_payload = self.storage.get_track_payload(track_id).await?;
-        let db_track = self.data.copy_track(track_id, &copy_name, workspace_id).await?;
+        let db_track = self
+            .data
+            .copy_track(track_id, &copy_name, workspace_id)
+            .await?;
         let meta = Self::to_meta(&db_track);
 
         if let Err(err) = self
@@ -129,7 +147,10 @@ impl TracksProvider for TracksProviderService {
         params: UpdateTrackInfoParams,
         workspace_id: i32,
     ) -> Result<TrackMeta, String> {
-        let db_track = self.data.update_track_info(track_id, params, workspace_id).await?;
+        let db_track = self
+            .data
+            .update_track_info(track_id, params, workspace_id)
+            .await?;
         Ok(Self::to_meta(&db_track))
     }
 }

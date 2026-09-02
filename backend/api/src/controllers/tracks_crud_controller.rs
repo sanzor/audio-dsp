@@ -1,5 +1,5 @@
 use crate::{
-    middlewares::membership::membership_context::{WorkspaceContext, RoleContext},
+    middlewares::membership::membership_context::{RoleContext, WorkspaceContext},
     tracks::tracks_app_data::TracksAppData,
 };
 use actix_multipart::Multipart;
@@ -8,10 +8,7 @@ use actix_web::{
     web::{self},
     HttpResponse,
 };
-use domain::{
-    raw_track::{RawTrack},
-    update_track_info_params::UpdateTrackInfoParams,
-};
+use domain::{raw_track::RawTrack, update_track_info_params::UpdateTrackInfoParams};
 
 use serde::{Deserialize, Serialize};
 use tracing::{error, info};
@@ -66,7 +63,11 @@ pub async fn add_track(
         Err(_) => return HttpResponse::BadRequest().body("Invalid payload"),
     };
 
-    match app_state.tracks_service.insert_track(request.track, workspace.0).await {
+    match app_state
+        .tracks_service
+        .insert_track(request.track, workspace.0)
+        .await
+    {
         Ok(track) => HttpResponse::Ok().json(AddTrackResult {
             track_id: track.meta.track_id,
             track_info: track.meta.track_info,
@@ -101,7 +102,11 @@ pub async fn add_track_multi(
     //     warn!("add-track-multi rejected: role cannot edit");
     //     return HttpResponse::Forbidden().body("Forbidden");
     // }
-    let raw_track = match app_state.multipart_parser.try_parse_multipart(payload).await {
+    let raw_track = match app_state
+        .multipart_parser
+        .try_parse_multipart(payload)
+        .await
+    {
         Ok(r) => r,
         Err(err) => {
             error!(error = %err, "add-track-multi rejected: invalid payload");
@@ -109,7 +114,11 @@ pub async fn add_track_multi(
         }
     };
 
-    match app_state.tracks_service.insert_track(raw_track, workspace.0).await {
+    match app_state
+        .tracks_service
+        .insert_track(raw_track, workspace.0)
+        .await
+    {
         Ok(track) => {
             info!(track_id = %track.meta.track_id, "add-track-multi insert complete");
             HttpResponse::Ok().json(AddTrackResult {
@@ -192,7 +201,9 @@ pub async fn update_track_info(
         .tracks_service
         .update_track_info(
             &request.track_id,
-            UpdateTrackInfoParams { track_name: request.track_name },
+            UpdateTrackInfoParams {
+                track_name: request.track_name,
+            },
             workspace.0,
         )
         .await
@@ -228,7 +239,11 @@ pub async fn remove_track(
         return HttpResponse::Forbidden().body("Forbidden");
     }
     let request = path.into_inner();
-    match app_state.tracks_service.delete_track(&request.track_id, workspace.0).await {
+    match app_state
+        .tracks_service
+        .delete_track(&request.track_id, workspace.0)
+        .await
+    {
         Ok(_) => HttpResponse::Ok().json("track removed"),
         Err(_e) => HttpResponse::InternalServerError().body("Could not remove track"),
     }
@@ -260,7 +275,11 @@ pub async fn get_meta(
         return HttpResponse::Forbidden().body("Forbidden");
     }
     let request = query.into_inner();
-    match app_state.tracks_service.get_track_meta(&request.track_id, workspace.0).await {
+    match app_state
+        .tracks_service
+        .get_track_meta(&request.track_id, workspace.0)
+        .await
+    {
         Ok(meta) => HttpResponse::Ok().json(meta),
         Err(_e) => HttpResponse::InternalServerError().body("Could not get track"),
     }
@@ -284,7 +303,11 @@ pub async fn get_tracks(
     if !role.can_view() {
         return HttpResponse::Forbidden().body("Forbidden");
     }
-    match app_state.tracks_service.get_all_track_metas(workspace.0).await {
+    match app_state
+        .tracks_service
+        .get_all_track_metas(workspace.0)
+        .await
+    {
         Ok(metas) => HttpResponse::Ok().json(metas),
         Err(_e) => HttpResponse::InternalServerError().body("Could not get tracks"),
     }
@@ -316,7 +339,11 @@ pub async fn get_track_info(
         return HttpResponse::Forbidden().body("Forbidden");
     }
     let request = query.into_inner();
-    match app_state.tracks_service.get_track_meta(&request.track_id, workspace.0).await {
+    match app_state
+        .tracks_service
+        .get_track_meta(&request.track_id, workspace.0)
+        .await
+    {
         Ok(meta) => HttpResponse::Ok().json(meta),
         Err(_e) => HttpResponse::InternalServerError().body("Could not get track info"),
     }

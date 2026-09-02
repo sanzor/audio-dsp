@@ -1,5 +1,5 @@
-use std::sync::Arc;
 use crate::subscriptions::subscriptions_provider::SubscriptionsProvider;
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct SubscriptionsAppData {

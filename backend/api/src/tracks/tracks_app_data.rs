@@ -7,5 +7,5 @@ use super::tracks_provider::TracksProvider;
 #[derive(Clone)]
 pub struct TracksAppData {
     pub tracks_service: Arc<dyn TracksProvider>,
-    pub multipart_parser: Arc<MultipartAudioParserService>
+    pub multipart_parser: Arc<MultipartAudioParserService>,
 }

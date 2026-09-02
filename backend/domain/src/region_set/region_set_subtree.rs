@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{db::{RegionSetId, TrackId}, regions::region_subtree::RegionSubtree};
+use crate::{
+    db::{RegionSetId, TrackId},
+    regions::region_subtree::RegionSubtree,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RegionSetSubtree {

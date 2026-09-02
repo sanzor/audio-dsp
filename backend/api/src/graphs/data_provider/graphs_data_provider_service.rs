@@ -4,10 +4,8 @@ use domain::{
         db_region::RegionId,
     },
     graphs::{
-        add_graph_params::AddGraphParams,
-        copy_graph_params::CopyGraphParams,
-        delete_graph_params::DeleteGraphParams,
-        edit_graph_params::EditGraphParams,
+        add_graph_params::AddGraphParams, copy_graph_params::CopyGraphParams,
+        delete_graph_params::DeleteGraphParams, edit_graph_params::EditGraphParams,
         save_graph_state_params::SaveGraphStateParams,
     },
 };
@@ -124,10 +122,7 @@ impl GraphsDataProvider for PostgresGraphsDataProvider {
         .map_err(|e| e.to_string())
     }
 
-    async fn get_graph_for_region(
-        &self,
-        region_id: &RegionId,
-    ) -> Result<Option<DbGraph>, String> {
+    async fn get_graph_for_region(&self, region_id: &RegionId) -> Result<Option<DbGraph>, String> {
         sqlx::query_as::<_, DbGraph>(
             r#"
             SELECT graph_id, region_id, name, graph_state, version, created_at, updated_at
