@@ -1,11 +1,11 @@
 use std::collections::HashSet;
 
-use wasmtime::{Config, Engine, Linker, Module, Store};
-
 pub use super::transform_metadata::{
     DirectionJson, ParamMetadataJson, PortCardinalityJson, PortKindJson, PortMetadataJson,
     TransformMetadataJson,
 };
+
+use super::wasm::wasm_parser::{parse_wasm, PrimitiveMetadataJson, WasmInput};
 
 /// Instantiates the compiled wasm module with zero host imports (mirroring
 /// `WebAssembly.instantiate(binary)` in the editor's graph-worklet.js exactly
@@ -16,62 +16,30 @@ pub fn introspect_metadata(
     wasm_bytes: &[u8],
     fuel_limit: u64,
 ) -> Result<TransformMetadataJson, String> {
-    let mut config = Config::new();
-    config.consume_fuel(true);
-    let engine = Engine::new(&config).map_err(|e| e.to_string())?;
-    let module =
-        Module::new(&engine, wasm_bytes).map_err(|e| format!("invalid wasm module: {e}"))?;
-
-    let linker: Linker<()> = Linker::new(&engine);
-    let mut store = Store::new(&engine, ());
-    store
-        .set_fuel(fuel_limit)
-        .map_err(|e| format!("failed to set fuel budget: {e}"))?;
-
-    let instance = linker.instantiate(&mut store, &module).map_err(|e| {
-        format!("wasm module failed to instantiate (it must declare zero imports, matching how the editor loads it): {e}")
+    let parsed = parse_wasm(WasmInput {
+        wasm_bytes,
+        fuel_limit,
     })?;
 
-    let ptr_fn = instance
-        .get_typed_func::<(), i32>(&mut store, "transform_metadata_ptr")
-        .map_err(|_| {
-            "missing export `transform_metadata_ptr` — did you call transform_sdk::export_transform!(...)?".to_string()
-        })?;
-    let len_fn = instance
-        .get_typed_func::<(), i32>(&mut store, "transform_metadata_len")
-        .map_err(|_| "missing export `transform_metadata_len`".to_string())?;
-    let memory = instance
-        .get_memory(&mut store, "memory")
-        .ok_or_else(|| "wasm module does not export linear memory".to_string())?;
+    validate_primitive_metadata_contract(&parsed.metadata, parsed.has_abi_version)?;
 
-    // Feature-detection only — presence, not value, is what matters here.
-    // Its absence means a module built against a pre-multi-input-ports SDK,
-    // still speaking the old in-place single-buffer `process(ptr, len,
-    // params_ptr, params_len)` signature (no return value). See
-    // `agents/transforms.md`'s ABI contract section.
-    let has_abi_version = instance
-        .get_export(&mut store, "transform_abi_version")
-        .is_some();
+    let PrimitiveMetadataJson {
+        name,
+        description,
+        ports,
+        params,
+    } = parsed.metadata;
 
-    let ptr = ptr_fn
-        .call(&mut store, ())
-        .map_err(|e| format!("metadata call trapped: {e}"))? as usize;
-    let len = len_fn
-        .call(&mut store, ())
-        .map_err(|e| format!("metadata call trapped: {e}"))? as usize;
-
-    let mut buf = vec![0u8; len];
-    memory
-        .read(&store, ptr, &mut buf)
-        .map_err(|e| format!("metadata read out of bounds: {e}"))?;
-
-    let json = String::from_utf8(buf).map_err(|_| "metadata is not valid UTF-8".to_string())?;
-    let metadata: TransformMetadataJson =
-        serde_json::from_str(&json).map_err(|e| format!("metadata JSON is malformed: {e}"))?;
-
-    validate_metadata(&metadata, has_abi_version)?;
-
-    Ok(metadata)
+    // The wider type is used by persisted/API metadata and also represents
+    // composites. Primitive WASM is parsed above with the narrower type, so a
+    // graph cannot originate from this path.
+    Ok(TransformMetadataJson {
+        name,
+        description,
+        ports,
+        params,
+        graph: None,
+    })
 }
 
 /// Catches shape problems that would otherwise surface as an opaque Postgres
@@ -82,8 +50,8 @@ pub fn introspect_metadata(
 /// constraint across directions (a transform legitimately has an input and
 /// an output both named the same or both at order 0), but names must now be
 /// unique *within* a direction, since `.port("name")`-style lookups exist.
-fn validate_metadata(
-    metadata: &TransformMetadataJson,
+fn validate_primitive_metadata_contract(
+    metadata: &PrimitiveMetadataJson,
     has_abi_version: bool,
 ) -> Result<(), String> {
     if metadata.name.trim().is_empty() {

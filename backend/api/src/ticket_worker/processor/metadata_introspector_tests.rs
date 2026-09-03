@@ -11,13 +11,12 @@ fn program_port(name: &str, direction: DirectionJson, order: i32) -> PortMetadat
     }
 }
 
-fn base_metadata(ports: Vec<PortMetadataJson>) -> TransformMetadataJson {
-    TransformMetadataJson {
+fn base_metadata(ports: Vec<PortMetadataJson>) -> PrimitiveMetadataJson {
+    PrimitiveMetadataJson {
         name: "Test".to_string(),
         description: None,
         ports,
         params: vec![],
-        graph: None,
     }
 }
 
@@ -27,7 +26,7 @@ fn accepts_a_single_input_single_output_transform_with_abi_version() {
         program_port("in", DirectionJson::Input, 0),
         program_port("out", DirectionJson::Output, 0),
     ]);
-    assert!(validate_metadata(&metadata, true).is_ok());
+    assert!(validate_primitive_metadata_contract(&metadata, true).is_ok());
 }
 
 #[test]
@@ -37,7 +36,7 @@ fn accepts_multi_input_when_abi_version_is_present() {
         program_port("b", DirectionJson::Input, 1),
         program_port("out", DirectionJson::Output, 0),
     ]);
-    assert!(validate_metadata(&metadata, true).is_ok());
+    assert!(validate_primitive_metadata_contract(&metadata, true).is_ok());
 }
 
 #[test]
@@ -47,14 +46,14 @@ fn rejects_multi_input_without_abi_version() {
         program_port("b", DirectionJson::Input, 1),
         program_port("out", DirectionJson::Output, 0),
     ]);
-    let err = validate_metadata(&metadata, false).unwrap_err();
+    let err = validate_primitive_metadata_contract(&metadata, false).unwrap_err();
     assert!(err.contains("legacy"), "unexpected error: {err}");
 }
 
 #[test]
 fn rejects_zero_output_ports() {
     let metadata = base_metadata(vec![program_port("in", DirectionJson::Input, 0)]);
-    let err = validate_metadata(&metadata, true).unwrap_err();
+    let err = validate_primitive_metadata_contract(&metadata, true).unwrap_err();
     assert!(
         err.contains("exactly one output port"),
         "unexpected error: {err}"
@@ -68,7 +67,7 @@ fn rejects_two_output_ports() {
         program_port("out1", DirectionJson::Output, 0),
         program_port("out2", DirectionJson::Output, 1),
     ]);
-    let err = validate_metadata(&metadata, true).unwrap_err();
+    let err = validate_primitive_metadata_contract(&metadata, true).unwrap_err();
     assert!(
         err.contains("exactly one output port"),
         "unexpected error: {err}"
@@ -80,7 +79,7 @@ fn rejects_sidechain_output_port() {
     let mut output = program_port("out", DirectionJson::Output, 0);
     output.kind = PortKindJson::Sidechain;
     let metadata = base_metadata(vec![program_port("in", DirectionJson::Input, 0), output]);
-    let err = validate_metadata(&metadata, true).unwrap_err();
+    let err = validate_primitive_metadata_contract(&metadata, true).unwrap_err();
     assert!(err.contains("kind=program"), "unexpected error: {err}");
 }
 
@@ -89,7 +88,7 @@ fn rejects_many_cardinality_output_port() {
     let mut output = program_port("out", DirectionJson::Output, 0);
     output.cardinality = PortCardinalityJson::Many;
     let metadata = base_metadata(vec![program_port("in", DirectionJson::Input, 0), output]);
-    let err = validate_metadata(&metadata, true).unwrap_err();
+    let err = validate_primitive_metadata_contract(&metadata, true).unwrap_err();
     assert!(
         err.contains("cardinality=single"),
         "unexpected error: {err}"
@@ -103,7 +102,7 @@ fn rejects_duplicate_port_names_within_a_direction() {
         program_port("in", DirectionJson::Input, 1),
         program_port("out", DirectionJson::Output, 0),
     ]);
-    let err = validate_metadata(&metadata, true).unwrap_err();
+    let err = validate_primitive_metadata_contract(&metadata, true).unwrap_err();
     assert!(
         err.contains("duplicate input port name"),
         "unexpected error: {err}"
@@ -116,7 +115,7 @@ fn allows_same_name_across_directions() {
         program_port("main", DirectionJson::Input, 0),
         program_port("main", DirectionJson::Output, 0),
     ]);
-    assert!(validate_metadata(&metadata, true).is_ok());
+    assert!(validate_primitive_metadata_contract(&metadata, true).is_ok());
 }
 
 #[test]
@@ -128,5 +127,5 @@ fn accepts_sidechain_input_port_alongside_one_program_input() {
         sidechain,
         program_port("out", DirectionJson::Output, 0),
     ]);
-    assert!(validate_metadata(&metadata, true).is_ok());
+    assert!(validate_primitive_metadata_contract(&metadata, true).is_ok());
 }

@@ -7,3 +7,4 @@ pub mod processor;
 pub mod processor_error;
 pub mod processor_params;
 pub mod transform_metadata;
+pub mod wasm;
