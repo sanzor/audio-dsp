@@ -1,45 +1,18 @@
 use std::collections::HashSet;
 
-pub use super::transform_metadata::{
-    DirectionJson, ParamMetadataJson, PortCardinalityJson, PortKindJson, PortMetadataJson,
-    TransformMetadataJson,
-};
+use serde::{Deserialize, Serialize};
 
-use super::wasm::wasm_parser::{parse_wasm, PrimitiveMetadataJson, WasmInput};
+use crate::ticket_worker::processor::{transform_metadata::{DirectionJson, ParamMetadataJson, PortCardinalityJson, PortKindJson, PortMetadataJson}, wasm::wasm_parser::ParsedPrimitiveWasm};
 
-/// Instantiates the compiled wasm module with zero host imports (mirroring
-/// `WebAssembly.instantiate(binary)` in the editor's graph-worklet.js exactly
-/// — this also validates the module will actually link in the browser) and
-/// calls its metadata export. Fuel-limited since this briefly executes
-/// attacker-controlled wasm server-side.
-pub fn introspect_metadata(
-    wasm_bytes: &[u8],
-    fuel_limit: u64,
-) -> Result<TransformMetadataJson, String> {
-    let parsed = parse_wasm(WasmInput {
-        wasm_bytes,
-        fuel_limit,
-    })?;
-
-    validate_primitive_metadata_contract(&parsed.metadata, parsed.has_abi_version)?;
-
-    let PrimitiveMetadataJson {
-        name,
-        description,
-        ports,
-        params,
-    } = parsed.metadata;
-
-    // The wider type is used by persisted/API metadata and also represents
-    // composites. Primitive WASM is parsed above with the narrower type, so a
-    // graph cannot originate from this path.
-    Ok(TransformMetadataJson {
-        name,
-        description,
-        ports,
-        params,
-        graph: None,
-    })
+/// A `PrimitiveMetadataJson` that has passed `validate_primitive_metadata_contract`.
+/// Only reachable through validation, so a caller can't build a
+/// `TransformMetadataJson` from metadata that skipped the contract check.
+#[derive(Debug,Serialize,Deserialize)]
+pub struct ValidatedPrimitiveMetadata {
+    pub name: String,
+    pub description: Option<String>,
+    pub ports: Vec<PortMetadataJson>,
+    pub params: Vec<ParamMetadataJson>,
 }
 
 /// Catches shape problems that would otherwise surface as an opaque Postgres
@@ -50,10 +23,10 @@ pub fn introspect_metadata(
 /// constraint across directions (a transform legitimately has an input and
 /// an output both named the same or both at order 0), but names must now be
 /// unique *within* a direction, since `.port("name")`-style lookups exist.
-fn validate_primitive_metadata_contract(
-    metadata: &PrimitiveMetadataJson,
-    has_abi_version: bool,
-) -> Result<(), String> {
+pub(crate) fn validate_primitive(
+    data: ParsedPrimitiveWasm,
+) -> Result<ValidatedPrimitiveMetadata, String> {
+    let ParsedPrimitiveWasm { metadata, has_abi_version } = data;
     if metadata.name.trim().is_empty() {
         return Err("metadata.name must not be empty".to_string());
     }
@@ -129,9 +102,14 @@ fn validate_primitive_metadata_contract(
         }
     }
 
-    Ok(())
+    Ok(ValidatedPrimitiveMetadata {
+        name: metadata.name,
+        description: metadata.description,
+        ports: metadata.ports,
+        params: metadata.params,
+    })
 }
 
 #[cfg(test)]
-#[path = "metadata_introspector_tests.rs"]
+#[path = "validator_tests.rs"]
 mod tests;

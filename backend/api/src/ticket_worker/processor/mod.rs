@@ -1,6 +1,5 @@
 pub mod build_job;
 pub mod build_job_config;
-pub mod metadata_introspector;
 pub mod process_params;
 pub mod process_result;
 pub mod processor;
@@ -8,3 +7,4 @@ pub mod processor_error;
 pub mod processor_params;
 pub mod transform_metadata;
 pub mod wasm;
+pub mod validator;

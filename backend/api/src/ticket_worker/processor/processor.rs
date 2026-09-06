@@ -3,13 +3,11 @@ use std::sync::Arc;
 use domain::db::ticket::{ticket_status::TicketStatus, update_ticket_params::UpdateTicketParams};
 
 use crate::{
-    ticket_worker::processor::build_job_config::BuildJobConfig,
-    transforms::data_provider::transforms_data_provider::TransformsDataProvider,
+    ticket_worker::processor::{build_job_config::BuildJobConfig, validator, wasm::wasm_parser::{self, WasmInput}}, transforms::data_provider::transforms_data_provider::TransformsDataProvider,
 };
 
 use super::{
     build_job::{self},
-    metadata_introspector,
     process_params::ProcessParams,
     process_result::ProcessResult,
     processor_error::ProcessorError,
@@ -61,24 +59,21 @@ impl Processor {
                 return Err(ProcessorError::CompileError(e));
             }
         };
+        let metadata=wasm_parser::parse_wasm(WasmInput{
+            fuel_limit:self.metadata_fuel_limit,
+            wasm_bytes:&wasm_bytecode
+        }).map_err(ProcessorError::MetadataError)?;
 
+        let validated_metadata=
+            validator::validator::validate_primitive(metadata)
+            .map_err(ProcessorError::MetadataError)?;
         // 3 — introspect the compiled module for its declared ports/params.
         // A module that compiles but whose metadata is missing/malformed
         // must still fail the ticket — the DB definition must never drift
         // from the binary.
-        let metadata: metadata_introspector::TransformMetadataJson =
-            match metadata_introspector::introspect_metadata(
-                &wasm_bytecode,
-                self.metadata_fuel_limit,
-            ) {
-                Ok(metadata) => metadata,
-                Err(e) => {
-                    self.mark_failed(event.ticket_id, e.clone()).await;
-                    return Err(ProcessorError::MetadataError(e));
-                }
-            };
+       
 
-        let metadata_payload = match serde_json::to_string(&metadata) {
+        let metadata_payload = match serde_json::to_string(&validated_metadata) {
             Ok(payload) => payload,
             Err(e) => {
                 let message = format!("failed to serialize compiled metadata: {e}");
@@ -86,8 +81,8 @@ impl Processor {
                 return Err(ProcessorError::MetadataError(message));
             }
         };
-        let name = metadata.name;
-        let description = metadata.description;
+        let name = validated_metadata.name;
+        let description = validated_metadata.description;
 
         // 4 — store the artifact as a resource (bucket 1: compile check).
         // This never touches live state — a compile ticket is purely a check;
