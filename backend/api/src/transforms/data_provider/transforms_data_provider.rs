@@ -2,10 +2,9 @@ use domain::{
     db::{
         db_transform::{DbTransform, TransformId},
         ticket::{
-            create_ticket_params::CreateTicketParams,
+            create_ticket_params::CreateTransformDraftParams,
             db_resource::{DbResource, ResourceId},
             db_ticket::{DbTicket, TicketId},
-            update_ticket_params::UpdateTicketParams,
         },
         WorkspaceId,
     },
@@ -16,42 +15,7 @@ use crate::domain::data_error::DataError;
 
 #[async_trait::async_trait]
 pub trait TransformsDataProvider: Send + Sync {
-    // ── Bucket 1 — compile tickets / resources ──────────────────────────
 
-    async fn create_transform_ticket(
-        &self,
-        ticket: CreateTicketParams,
-    ) -> Result<DbTicket, DataError>;
-    async fn get_ticket(&self, ticket_id: TicketId) -> Result<DbTicket, DataError>;
-    /// Point-lookup used for authorization — resolves which transform a
-    /// ticket belongs to without fetching the full ticket.
-    async fn get_ticket_transform_id(&self, ticket_id: TicketId) -> Result<TransformId, DataError>;
-    /// Point-lookup used for authorization — resolves which transform a
-    /// resource belongs to without fetching the full resource.
-    async fn get_resource_transform_id(
-        &self,
-        resource_id: ResourceId,
-    ) -> Result<TransformId, DataError>;
-    async fn update_ticket(&self, ticket: UpdateTicketParams) -> Result<DbTicket, DataError>;
-
-    /// Stores the full artifact a successful compile ticket produced —
-    /// bucket 1. Immutable history; never touches bucket 2 (save) or
-    /// bucket 3 (published) state. `metadata` is the raw JSON the compiled
-    /// module's `metadata()` export produced (name/description/ports/params),
-    /// already validated by `metadata_introspector`.
-    async fn create_resource(
-        &self,
-        ticket_id: TicketId,
-        wasm_bytecode: Vec<u8>,
-        name: String,
-        description: Option<String>,
-        metadata: String,
-    ) -> Result<DbResource, DataError>;
-    async fn get_compiled_transform(
-        &self,
-        resource_id: ResourceId,
-    ) -> Result<DbResource, DataError>;
-    // ── Published transforms (bucket 3) ─────────────────────────────────
 
     async fn list_transform_summaries(
         &self,

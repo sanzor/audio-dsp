@@ -42,7 +42,7 @@ pub trait TransformDraftsProvider: Send + Sync {
         id: TransformDraftId,
         params: SaveDraftParams,
     ) -> Result<DbTransformDraft, ServiceError>;
-    async fn check_source(&self, source_code: String) -> Result<(), ServiceError>;
+    async fn check_source_code(&self, source_code: String) -> Result<(), ServiceError>;
     async fn validate_graph_draft(
         &self,
         id: TransformDraftId,

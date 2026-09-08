@@ -3,7 +3,10 @@ use std::sync::Arc;
 use domain::db::ticket::{ticket_status::TicketStatus, update_ticket_params::UpdateTicketParams};
 
 use crate::{
-    ticket_worker::processor::{build_job_config::BuildJobConfig, validator, wasm::wasm_parser::{self, WasmInput}}, transforms::data_provider::transforms_data_provider::TransformsDataProvider,
+    ticket_worker::processor::{
+        build_job_config::BuildJobConfig, validator, wasm::wasm_parser::{self, WasmInput}}, 
+        transform_drafts::data_provider::transform_drafts_data_provider::CompiledPrimitiveDraft,
+         transforms::data_provider::transforms_data_provider::TransformsDataProvider,
 };
 
 use super::{
@@ -32,20 +35,6 @@ impl Processor {
     pub async fn process(&self, params: ProcessParams) -> Result<ProcessResult, ProcessorError> {
         let event = &params.event;
 
-        // 1 — verify ticket exists
-        if self
-            .data_provider
-            .get_ticket(event.ticket_id)
-            .await
-            .is_err()
-        {
-            return Err(ProcessorError::DataError(format!(
-                "Could not find ticket with id {:?}",
-                event.ticket_id
-            )));
-        }
-
-        // 2 — compile the submitted Rust source to wasm32-unknown-unknown
         let wasm_bytecode = match build_job::compile_transform_source(
             &self.build_job_config,
             event.ticket_id,
@@ -67,10 +56,6 @@ impl Processor {
         let validated_metadata=
             validator::validator::validate_primitive(metadata)
             .map_err(ProcessorError::MetadataError)?;
-        // 3 — introspect the compiled module for its declared ports/params.
-        // A module that compiles but whose metadata is missing/malformed
-        // must still fail the ticket — the DB definition must never drift
-        // from the binary.
        
 
         let metadata_payload = match serde_json::to_string(&validated_metadata) {
@@ -84,33 +69,15 @@ impl Processor {
         let name = validated_metadata.name;
         let description = validated_metadata.description;
 
-        // 4 — store the artifact as a resource (bucket 1: compile check).
-        // This never touches live state — a compile ticket is purely a check;
-        // becoming the published transform is a separate, explicit action.
-        let resource = self
-            .data_provider
-            .create_resource(
-                event.ticket_id,
-                wasm_bytecode,
-                name,
-                description,
-                metadata_payload,
-            )
-            .await
-            .map_err(|e| ProcessorError::DataError(e.to_string()))?;
+     
 
-        let ticket = self
-            .data_provider
-            .update_ticket(UpdateTicketParams {
-                ticket_id: event.ticket_id,
-                status: TicketStatus::Successful {
-                    resource_id: resource.id,
-                },
-            })
-            .await
-            .map_err(|e| ProcessorError::DataError(e.to_string()))?;
-
-        Ok(ProcessResult { ticket })
+        
+        Ok(ProcessResult { data:CompiledPrimitiveDraft{
+            description,
+            metadata:metadata_payload,
+            name,
+            wasm_bytecode
+        } })
     }
 
     /// Best-effort: update ticket to Failed. Errors here are logged but not

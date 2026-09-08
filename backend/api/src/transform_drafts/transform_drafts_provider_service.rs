@@ -2,9 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::ticket_worker::processor::{
-    build_job::check_transform_source,
-    build_job_config::BuildJobConfig,
-    transform_metadata::{PortMetadataJson, TransformMetadataJson},
+    self, build_job::check_draft_source_code, build_job_config::BuildJobConfig, processor_params::ProcessorParams, transform_metadata::{PortMetadataJson, TransformMetadataJson},
 };
 use crate::{
     domain::service_error::ServiceError,
@@ -173,8 +171,8 @@ impl TransformDraftsProvider for TransformDraftsProviderService {
         }
     }
 
-    async fn check_source(&self, source_code: String) -> Result<(), ServiceError> {
-        check_transform_source(&self.build_job_config, &source_code)
+    async fn check_source_code(&self, source_code: String) -> Result<(), ServiceError> {
+        check_draft_source_code(&self.build_job_config, &source_code)
             .await
             .map_err(ServiceError::Validation)
     }
@@ -210,6 +208,7 @@ impl TransformDraftsProviderService {
         &self,
         id: TransformDraftId,
         params: SavePrimitiveParams,
+
     ) -> Result<DbTransformDraft, ServiceError> {
         require_kind(&self.data.get_transform_draft(id).await?, "primitive")?;
         let wasm_bytecode = params
@@ -219,13 +218,13 @@ impl TransformDraftsProviderService {
             .map_err(|_| {
                 ServiceError::Validation("wasm_base64 must be valid base64".to_string())
             })?;
-
+        let primitive_draft=self.build_compiled_draft(wasm_bytecode).await?;
         self.data
-            .save_primitive_draft(id, params.source_code, compiled)
+            .save_primitive_draft(id, params.source_code, primitive_draft)
             .await
             .map_err(ServiceError::from)
     }
-    async fn process_bytecode(
+    async fn build_compiled_draft(
         &self,
         wasm_bytecode: Option<Vec<u8>>,
     ) -> Result<Option<CompiledPrimitiveDraft>, ServiceError> {
@@ -239,16 +238,8 @@ impl TransformDraftsProviderService {
                 self.build_job_config.max_wasm_bytes
             )));
         }
-
-        let metadata = crate::ticket_worker::processor::metadata_introspector::introspect_metadata(
-            &wasm_bytecode,
-            self.metadata_fuel_limit,
-        )
-        .map_err(ServiceError::Validation)?;
-
-        let metadata_json = serde_json::to_string(&metadata).map_err(|e| {
-            ServiceError::Internal(format!("failed to serialize compiled metadata: {e}"))
-        })?;
+      
+     
 
         Ok(Some(CompiledPrimitiveDraft {
             wasm_bytecode,
@@ -257,6 +248,8 @@ impl TransformDraftsProviderService {
             metadata: metadata_json,
         }))
     }
+
+
     async fn save_composite_draft(
         &self,
         id: TransformDraftId,
@@ -271,6 +264,8 @@ impl TransformDraftsProviderService {
             .await
             .map_err(ServiceError::from)
     }
+
+
     async fn publish_composite(&self, id: TransformDraftId) -> Result<DbTransform, ServiceError> {
         let draft = self.data.get_transform_draft(id).await?;
         require_kind(&draft, "composite")?;

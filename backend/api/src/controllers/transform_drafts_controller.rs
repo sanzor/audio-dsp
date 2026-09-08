@@ -10,7 +10,7 @@ use crate::{
     transform_drafts::{
         dto::{
             requests::{
-                CheckSourceParams, CreateTransformParams, SaveDraftParams, TransformDraftIdPath,
+                CheckSourceCodeParams, CreateTransformParams, SaveDraftParams, TransformDraftIdPath,
                 TransformDraftIdsRequest,
             },
             responses::{TransformDraftDto, TransformDraftsResponse, ValidateGraphResponse},
@@ -146,15 +146,15 @@ pub async fn save_draft(
     }
 }
 
-#[utoipa::path(post, path = "/draft_transforms/{transform_id}/validate-source", tag = "draft_transforms",
+#[utoipa::path(post, path = "/draft_transforms/{transform_id}/validate-source-code", tag = "draft_transforms",
     params(TransformDraftIdPath),
-    request_body = CheckSourceParams,
-    responses((status = 200, description = "Source compiles cleanly"), (status = 400, description = "Compiler diagnostics")))]
+    request_body = CheckSourceCodeParams,
+    responses((status = 200, description = "Source code compiles cleanly"), (status = 400, description = "Compiler diagnostics")))]
 #[post("/{transform_id}/validate-source")]
-pub async fn validate_source(
+pub async fn validate_transform_draft_source_code(
     jwt: JwtContext,
     path: web::Path<TransformDraftIdPath>,
-    body: web::Json<CheckSourceParams>,
+    body: web::Json<CheckSourceCodeParams>,
     app: web::Data<TransformDraftsAppData>,
 ) -> HttpResponse {
     let transform_id = path.into_inner().transform_id;
@@ -163,7 +163,7 @@ pub async fn validate_source(
     }
     match app
         .transform_drafts_service
-        .check_source(body.into_inner().source_code)
+        .check_source_code(body.into_inner().source_code)
         .await
     {
         Ok(()) => HttpResponse::Ok().finish(),
@@ -272,7 +272,7 @@ pub fn init(cfg: &mut web::ServiceConfig) {
         .service(get_transform_draft)
         .service(get_transform_drafts)
         .service(save_draft)
-        .service(validate_source)
+        .service(validate_transform_draft_source_code)
         .service(validate_graph_draft)
         .service(publish_primitive)
         .service(publish_composite)

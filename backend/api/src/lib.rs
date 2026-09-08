@@ -20,7 +20,6 @@ pub mod sources;
 pub mod stored_tracks;
 pub mod subscriptions;
 pub mod ticket_worker;
-pub mod tickets;
 pub mod tier_configs;
 pub mod token;
 pub mod tracks;

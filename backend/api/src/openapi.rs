@@ -59,10 +59,6 @@ use utoipa::OpenApi;
         crate::controllers::transform_drafts_controller::publish_primitive,
         crate::controllers::transform_drafts_controller::publish_composite,
         crate::controllers::transform_drafts_controller::delete_transform_draft,
-        // Tickets
-        crate::controllers::ticket_controller::create_compile_ticket,
-        crate::controllers::ticket_controller::get_compile_ticket_status,
-        crate::controllers::ticket_controller::get_compile_resource,
         // Regions
         crate::controllers::regions_controller::add_region,
         crate::controllers::regions_controller::edit_region,

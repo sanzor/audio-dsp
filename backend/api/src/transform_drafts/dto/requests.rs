@@ -22,7 +22,7 @@ pub struct CreateTransformParams {
 }
 
 #[derive(Deserialize, Serialize, ToSchema)]
-pub struct CheckSourceParams {
+pub struct CheckSourceCodeParams {
     /// Not necessarily what's saved — callers may check live edits first.
     pub source_code: String,
 }

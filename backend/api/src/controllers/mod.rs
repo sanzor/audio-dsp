@@ -10,7 +10,6 @@ pub mod region_set_controller;
 pub mod regions_controller;
 pub mod sources_controller;
 pub mod subscriptions_controller;
-pub mod ticket_controller;
 pub mod tier_configs_controller;
 pub mod track_payload_controller;
 pub mod tracks_crud_controller;

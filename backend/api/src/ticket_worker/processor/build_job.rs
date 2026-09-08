@@ -76,7 +76,7 @@ pub async fn compile_transform_source(
 /// so it's meaningfully cheaper than `compile_transform_source` and meant to
 /// be called synchronously for quick editor feedback, not through a ticket.
 /// `Ok(())` means it compiles cleanly; no wasm artifact is produced or kept.
-pub async fn check_transform_source(
+pub async fn check_draft_source_code(
     config: &BuildJobConfig,
     source_code: &str,
 ) -> Result<(), String> {
