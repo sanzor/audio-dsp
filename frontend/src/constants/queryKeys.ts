@@ -45,9 +45,6 @@ export const QUERY_KEYS = {
     wasmBatch: (ids: number[]) => ['transform', 'wasm', 'batch', ids.slice().sort((a, b) => a - b).join(',')] as const,
     resolve: (ids: number[]) => ['transform', 'resolve', ids.slice().sort((a, b) => a - b).join(',')] as const,
   },
-  tickets: {
-    byId: (ticketId: number) => ['ticket', ticketId] as const,
-  },
   storedAudio: {
     byTrackId: (trackId: number) => ['stored-audio', trackId] as const,
   },

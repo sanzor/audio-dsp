@@ -7,7 +7,8 @@ use domain::{
 };
 
 use crate::{
-    domain::service_error::ServiceError, transform_drafts::dto::requests::SaveDraftParams,
+    domain::service_error::ServiceError,
+    transform_drafts::dto::requests::{PublishDraftParams, SaveDraftParams},
     transform_drafts::processor::transform_metadata::PortMetadataJson,
 };
 
@@ -41,14 +42,21 @@ pub trait TransformDraftsProvider: Send + Sync {
         id: TransformDraftId,
         params: SaveDraftParams,
     ) -> Result<DbTransformDraft, ServiceError>;
-    async fn check_source_code(&self, source_code: String) -> Result<(), ServiceError>;
+    async fn validate_source_code(&self, source_code: String) -> Result<(), ServiceError>;
     async fn validate_graph_draft(
         &self,
         id: TransformDraftId,
         graph_json: String,
     ) -> Result<Vec<PortMetadataJson>, ServiceError>;
 
-    async fn publish(&self, id: TransformDraftId) -> Result<DbTransform, ServiceError>;
+    /// Bucket 3 — publish. `params` declares which kind the caller thinks
+    /// it's publishing; rejects with a validation error if that doesn't
+    /// match the draft's actual persisted kind.
+    async fn publish(
+        &self,
+        id: TransformDraftId,
+        params: PublishDraftParams,
+    ) -> Result<DbTransform, ServiceError>;
 
     async fn delete_transform_draft(&self, id: TransformDraftId) -> Result<(), ServiceError>;
 }

@@ -3,18 +3,22 @@ import Editor from "@monaco-editor/react";
 import { useCreatorStore } from "@/Stores/CreatorStore";
 import { useCreatorPlaybackStore } from "@/Stores/CreatorPlaybackStore";
 import { useGetTransformDefinition } from "@/hooks/transforms/queries";
-import { useCompileTicketStatus } from "@/hooks/tickets/queries";
-import { useRequestCompileTransform } from "@/hooks/tickets/mutations";
-import { useSaveTransform, usePublishTransform } from "@/hooks/transforms/mutations";
-import { apiGetCompileResource } from "@/Services/TicketService";
+import {
+  useSaveTransform,
+  useValidateTransformSourceCode,
+  usePublishTransform,
+} from "@/hooks/transforms/mutations";
 import { validateTransformSource } from "./validateTransformSource";
-import { usePublishWithPortShapeDiff } from "./usePublishWithPortShapeDiff";
 import { ToolbarButton } from "./toolbar-button";
 
-// The "Try it" client-side playback (creatorTransformPlayback.ts) runs a
-// just-compiled binary through CreatorPlaybackStore, fed by the wasm_base64/
-// params fields on the compile ticket status DTO — see
-// agents/decisions/0003-transform-preview-flow.md.
+// Save (PUT /draft_transforms/{id}/save) compiles source_code synchronously
+// and rejects the whole save with compiler diagnostics if it doesn't build
+// — there is no separate compile-ticket stage anymore (see
+// agents/decisions/0011-transform-draft-api-reshape.md, superseding
+// agents/decisions/0010-remove-ticket-based-compile.md's frontend
+// follow-up). "Check" below (POST /draft_transforms/{id}/validate-source)
+// is a lightweight, non-persisting way to see those same diagnostics
+// without committing a save.
 
 const DEFAULT_CODE = `use transform_sdk::{Transform, TransformMetadata, PortMetadata, ParamMetadata, Direction, PortKind, PortCardinality, Params};
 
@@ -57,12 +61,12 @@ interface FileTab {
 
 const OUTPUT_TAB: FileTab = { id: "output", name: "output", language: "text" };
 
+function errorMessage(error: unknown): string | null {
+  return error instanceof Error ? error.message : null;
+}
+
 export function CreatorCodeEditor() {
   const selectedId = useCreatorStore((s) => s.selectedTransformId);
-  const activeTicketByTransform = useCreatorStore((s) => s.activeTicketByTransform);
-  const setActiveTicket = useCreatorStore((s) => s.setActiveTicket);
-  const compiledDraftByTransform = useCreatorStore((s) => s.compiledDraftByTransform);
-  const setCompiledDraft = useCreatorStore((s) => s.setCompiledDraft);
   const editing = useCreatorStore((s) => s.editingTransformSource);
   const beginEditingTransformSource = useCreatorStore((s) => s.beginEditingTransformSource);
   const updateEditingTransformSource = useCreatorStore((s) => s.updateEditingTransformSource);
@@ -88,33 +92,21 @@ export function CreatorCodeEditor() {
   const code = editingForSelected?.source ?? "";
   const isDirty = editingForSelected != null && editingForSelected.source !== editingForSelected.originalSource;
 
-  const activeTicket = selectedId != null ? activeTicketByTransform[selectedId] ?? null : null;
-  const compileMutation = useRequestCompileTransform();
   const saveMutation = useSaveTransform(selectedId ?? -1);
+  const checkMutation = useValidateTransformSourceCode(selectedId ?? -1);
   const publishMutation = usePublishTransform(selectedId ?? -1);
-  const ticketStatus = useCompileTicketStatus(activeTicket?.ticketId ?? null, selectedId);
-
-  const buildState = ticketStatus.data?.status.state ?? null;
-  const buildMessage = ticketStatus.data?.status.message ?? null;
-  const isCompiling = compileMutation.isPending || buildState === "processing";
-  const resourceId = ticketStatus.data?.status.resource_id ?? null;
-
-  // Once a compile ticket succeeds, retrieve one source/WASM package from
-  // the resource endpoint. The package remains frontend-owned until Save.
-  useEffect(() => {
-    if (selectedId == null || resourceId == null) return;
-    if (compiledDraftByTransform[selectedId]?.resourceId === resourceId) return;
-    void apiGetCompileResource(resourceId).then((resource) => {
-      setCompiledDraft(selectedId, resource.resource_id, resource.source_code, resource.wasm_base64);
-    });
-  }, [selectedId, resourceId, compiledDraftByTransform, setCompiledDraft]);
-
-  const attachableCompiledDraft =
-    selectedId != null && compiledDraftByTransform[selectedId]?.sourceCode === code
-      ? compiledDraftByTransform[selectedId]
-      : undefined;
 
   const validation = useMemo(() => validateTransformSource(code), [code]);
+
+  const isChecking = checkMutation.isPending;
+  // Compiler diagnostics can come from either the lightweight Check action
+  // or a rejected Save (Save compiles too, and rejects outright on failure)
+  // — whichever ran most recently and failed is what the output tab shows.
+  const diagnosticsMessage = checkMutation.isError
+    ? errorMessage(checkMutation.error)
+    : saveMutation.isError
+      ? errorMessage(saveMutation.error)
+      : null;
 
   // Tear down any live playback session whenever the selected transform
   // changes (or this editor unmounts) — switching transforms must never
@@ -141,27 +133,26 @@ export function CreatorCodeEditor() {
   // needs it, and that's a trivial store-only read.
 
   function handleSave() {
-    if (selectedId == null || (!isDirty && attachableCompiledDraft == null)) return;
+    if (selectedId == null || !isDirty) return;
     const source = code;
     saveMutation.mutate(
-      { source_code: source, wasm_base64: attachableCompiledDraft?.wasmBase64 },
+      { source_code: source },
       { onSuccess: () => markTransformSourceSaved(selectedId, source) }
     );
   }
 
-  function handleCompile() {
-    if (selectedId == null || !validation.ok || isCompiling) return;
-    compileMutation.mutate(
-      { transform_id: selectedId, source_code: code },
-      { onSuccess: (ticket) => setActiveTicket(selectedId, ticket.ticket_id, code) }
-    );
+  function handleCheck() {
+    if (selectedId == null || !validation.ok || isChecking) return;
+    checkMutation.mutate(code, { onSuccess: () => setActiveTab("impl"), onError: () => setActiveTab("output") });
   }
 
-  const { handlePublish } = usePublishWithPortShapeDiff(selectedId, publishMutation);
+  function handlePublish() {
+    publishMutation.mutate({ kind: "primitive" });
+  }
 
   const tabs: FileTab[] = [
     { id: "impl", name: definition ? `${definition.name}.rs` : "untitled.rs", language: "rust" },
-    ...(buildState === "failed" ? [OUTPUT_TAB] : []),
+    ...(diagnosticsMessage != null ? [OUTPUT_TAB] : []),
   ];
 
   return (
@@ -195,7 +186,7 @@ export function CreatorCodeEditor() {
           ))}
         </div>
         <div className="flex items-center gap-2">
-          {!validation.ok && !isCompiling && buildState !== "failed" && (
+          {!validation.ok && !isChecking && (
             <span
               className="font-mono text-[10px] max-w-[280px] truncate"
               title={validation.issues.join(" ")}
@@ -204,17 +195,17 @@ export function CreatorCodeEditor() {
               {validation.issues[0]}
             </span>
           )}
-          {buildState === "processing" && (
+          {isChecking && (
             <span className="font-mono text-[10px]" style={{ color: "#ffd166" }}>
-              Compiling…
+              Checking…
             </span>
           )}
-          {buildState === "successful" && (
+          {checkMutation.isSuccess && !isChecking && (
             <span className="font-mono text-[10px]" style={{ color: "#4ae176" }}>
-              Compiled ✓{ticketStatus.data?.status.resource_id != null ? ` (resource #${ticketStatus.data.status.resource_id})` : ""}
+              Compiles ✓
             </span>
           )}
-          {buildState === "successful" && isPlayingThis && (
+          {isPlayingThis && (
             <ToolbarButton
               variant="bypass"
               onClick={() => setPlaybackBypass(!playbackBypassed)}
@@ -223,30 +214,30 @@ export function CreatorCodeEditor() {
               {playbackBypassed ? "Bypassed" : "Bypass"}
             </ToolbarButton>
           )}
-          {buildState === "failed" && (
+          {diagnosticsMessage != null && (
             <button
               onClick={() => setActiveTab("output")}
               className="font-mono text-[10px] max-w-[280px] truncate"
               title="View full compiler output"
               style={{ color: "#ff6b6b", background: "none", border: "none", padding: 0, cursor: "pointer" }}
             >
-              Failed{buildMessage ? `: ${buildMessage}` : ""}
+              Failed: {diagnosticsMessage}
             </button>
           )}
           <ToolbarButton
             variant="save"
             onClick={handleSave}
-            disabled={selectedId == null || (!isDirty && attachableCompiledDraft == null) || saveMutation.isPending}
+            disabled={selectedId == null || !isDirty || saveMutation.isPending}
           >
             {saveMutation.isPending ? "Saving…" : "Save Draft"}
           </ToolbarButton>
           <ToolbarButton
             variant="compile"
-            onClick={handleCompile}
-            disabled={selectedId == null || !validation.ok || isCompiling}
+            onClick={handleCheck}
+            disabled={selectedId == null || !validation.ok || isChecking}
             title={!validation.ok ? validation.issues.join(" ") : undefined}
           >
-            Compile
+            {isChecking ? "Checking…" : "Check"}
           </ToolbarButton>
           <ToolbarButton
             variant="publish"
@@ -281,7 +272,7 @@ export function CreatorCodeEditor() {
             className="w-full h-full overflow-auto m-0 p-3 text-[11px] font-mono whitespace-pre-wrap"
             style={{ color: "#ff8a8a" }}
           >
-            {buildMessage ?? "No output."}
+            {diagnosticsMessage ?? "No output."}
           </pre>
         ) : (
           <Editor

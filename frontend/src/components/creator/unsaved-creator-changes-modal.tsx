@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Button } from "@/components/ui/button";
 import { useCreatorStore, isSourceDirty } from "@/Stores/CreatorStore";
 import { useCompositeCanvasStore } from "@/Stores/CompositeCanvasStore";
-import { useSaveTransform, useSaveCompositeTransform } from "@/hooks/transforms/mutations";
+import { useSaveTransform } from "@/hooks/transforms/mutations";
 
 // Guards a select/create action blocked by unsaved creator work. There are
 // two independent flavors of "unsaved" that can trigger `pendingTransformAction`
@@ -24,7 +24,6 @@ export function UnsavedCreatorChangesModal() {
   const [isSaving, setIsSaving] = useState(false);
   const pending = useCreatorStore((s) => s.pendingTransformAction);
   const editing = useCreatorStore((s) => s.editingTransformSource);
-  const compiledDraftByTransform = useCreatorStore((s) => s.compiledDraftByTransform);
   const resolvePendingTransformAction = useCreatorStore((s) => s.resolvePendingTransformAction);
   const cancelPendingTransformAction = useCreatorStore((s) => s.cancelPendingTransformAction);
   const markTransformSourceSaved = useCreatorStore((s) => s.markTransformSourceSaved);
@@ -37,18 +36,16 @@ export function UnsavedCreatorChangesModal() {
   const sourceDirty = isSourceDirty(editing);
   const isCompositeCase = !sourceDirty && compositeDirty && compositeGraph != null;
 
-  const saveMutation = useSaveTransform(editing?.transformId ?? -1);
-  // Save target here is the composite currently open on the canvas (the one
-  // being navigated AWAY from), not pending.transformId (the target being
-  // navigated TO) - mirrors composite-canvas.tsx's own handleSave.
-  const saveCompositeMutation = useSaveCompositeTransform(compositeGraph?.transformId ?? -1);
+  // Save target is whichever transform is actually open (the one being
+  // navigated AWAY from), not pending.transformId (the target being
+  // navigated TO) - mirrors composite-canvas.tsx's own handleSave for the
+  // composite case. One unified mutation instance now that useSaveTransform
+  // takes a SaveDraftParams variant instead of two separate hooks.
+  const saveMutation = useSaveTransform(
+    isCompositeCase ? compositeGraph?.transformId ?? -1 : editing?.transformId ?? -1
+  );
 
   if (!pending || (!sourceDirty && !isCompositeCase)) return null;
-
-  // Whichever branch is actually active for this open (mirrors the same
-  // isCompositeCase switch used in handleSave) - used to surface that
-  // mutation's rejected error inline, same as composite-canvas.tsx's toolbar.
-  const activeMutation = isCompositeCase ? saveCompositeMutation : saveMutation;
 
   const handleDiscard = () => {
     resolvePendingTransformAction();
@@ -58,14 +55,10 @@ export function UnsavedCreatorChangesModal() {
     setIsSaving(true);
     try {
       if (isCompositeCase && compositeGraph) {
-        await saveCompositeMutation.mutateAsync(toGraphDefinition());
+        await saveMutation.mutateAsync({ graph_definition: toGraphDefinition() });
         markCompositeSaved();
       } else if (editing) {
-        const compiledDraft = compiledDraftByTransform[editing.transformId];
-        await saveMutation.mutateAsync({
-          source_code: editing.source,
-          wasm_base64: compiledDraft?.sourceCode === editing.source ? compiledDraft.wasmBase64 : undefined,
-        });
+        await saveMutation.mutateAsync({ source_code: editing.source });
         markTransformSourceSaved(editing.transformId, editing.source);
       }
       resolvePendingTransformAction();
@@ -93,9 +86,9 @@ export function UnsavedCreatorChangesModal() {
             : "You have unsaved changes to this transform's source. Save them before switching, or discard them."}
         </p>
 
-        {activeMutation.isError && (
+        {saveMutation.isError && (
           <span className="font-mono text-[10px]" style={{ color: "#ff6b6b" }}>
-            {(activeMutation.error as Error | null)?.message}
+            {(saveMutation.error as Error | null)?.message}
           </span>
         )}
 

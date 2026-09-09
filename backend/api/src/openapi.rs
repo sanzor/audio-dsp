@@ -56,8 +56,7 @@ use utoipa::OpenApi;
         crate::controllers::transform_drafts_controller::save_draft,
         crate::controllers::transform_drafts_controller::validate_transform_draft_source_code,
         crate::controllers::transform_drafts_controller::validate_graph_draft,
-        crate::controllers::transform_drafts_controller::publish_primitive,
-        crate::controllers::transform_drafts_controller::publish_composite,
+        crate::controllers::transform_drafts_controller::publish_draft,
         crate::controllers::transform_drafts_controller::delete_transform_draft,
         // Regions
         crate::controllers::regions_controller::add_region,

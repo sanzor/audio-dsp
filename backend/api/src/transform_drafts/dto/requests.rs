@@ -4,7 +4,7 @@ use utoipa::{IntoParams, ToSchema};
 
 #[derive(Deserialize, IntoParams)]
 pub struct TransformDraftIdPath {
-    pub transform_id: TransformDraftId,
+    pub draft_transform_id: TransformDraftId,
 }
 
 #[derive(Debug, Deserialize, Serialize, ToSchema)]
@@ -49,6 +49,19 @@ pub struct SaveCompositeParams {
 pub enum SaveDraftParams {
     Primitive(SavePrimitiveParams),
     Composite(SaveCompositeParams),
+}
+
+/// The one Bucket-3 publish payload. Unlike `SaveDraftParams`, both
+/// variants carry no data — the caller just declares which kind it thinks
+/// it's publishing, and the service rejects the request (400) if that
+/// doesn't match the draft's actual persisted `kind`. Tagged (not
+/// untagged, unlike `SaveDraftParams`) because fieldless variants have no
+/// structural shape of their own to disambiguate on.
+#[derive(Debug, Deserialize, Serialize, ToSchema)]
+#[serde(tag = "kind", rename_all = "lowercase")]
+pub enum PublishDraftParams {
+    Primitive,
+    Composite,
 }
 
 #[derive(Debug, Deserialize, Serialize, ToSchema)]

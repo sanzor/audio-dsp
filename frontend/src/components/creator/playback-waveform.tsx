@@ -47,11 +47,14 @@ interface PlaybackWaveformProps {
   /** True when the currently active surface can't be started right now (not
    * compiled / empty composite graph / nothing selected). */
   playDisabled: boolean;
+  /** Tooltip explaining why, when playDisabled is set for a specific reason
+   * rather than just transient loading. */
+  playDisabledTitle?: string;
   onPlay: () => void;
   onStop: () => void;
 }
 
-export function PlaybackWaveform({ isPlaying, playDisabled, onPlay, onStop }: PlaybackWaveformProps) {
+export function PlaybackWaveform({ isPlaying, playDisabled, playDisabledTitle, onPlay, onStop }: PlaybackWaveformProps) {
   const playbackInputMode = useCreatorPlaybackStore((s) => s.playbackInputMode);
   const playbackSourceId = useCreatorPlaybackStore((s) => s.playbackSourceId);
   const playbackSourceOffsetSeconds = useCreatorPlaybackStore((s) => s.playbackSourceOffsetSeconds);
@@ -143,6 +146,7 @@ export function PlaybackWaveform({ isPlaying, playDisabled, onPlay, onStop }: Pl
         onPause={onStop}
         onStop={onStop}
         disabled={playDisabled}
+        disabledTitle={playDisabledTitle}
       />
       <div
         ref={waveformRef}

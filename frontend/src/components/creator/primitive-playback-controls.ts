@@ -1,52 +1,45 @@
-import { useCreatorStore } from "@/Stores/CreatorStore";
 import { useCreatorPlaybackStore } from "@/Stores/CreatorPlaybackStore";
-import { decodeBase64Binary } from "@/Services/TransformService";
-import { buildPrimitivePlaybackGraph, PRIMITIVE_PLAYBACK_NODE_ID } from "./creatorTransformPlayback";
 
 // Extracted from code-editor.tsx's original inline play/stop toggle closure so
 // the always-visible bottom playback stripe (playback-stripe.tsx) can drive
-// the same "Try it" playback session for a primitive transform, without
-// duplicating the resource-attach / wasm-decode logic. code-editor.tsx no
-// longer starts playback itself (its own inline Play/Stop button was
-// removed in favor of the stripe) -- it still computes `isPlayingThis`
-// locally (trivial, store-only) for its Bypass toggle, which doesn't need
-// this hook. Sibling of composite/composite-playback-controls.ts's
-// useCompositePlaybackControls, same "compile/resolve inputs, then hand off
-// to CreatorPlaybackStore.play" shape, but for a single already-compiled
-// primitive resource instead of a graph.
+// the same "Try it" playback session for a primitive transform.
+//
+// As of the transform-draft API reshape (see
+// agents/decisions/0011-transform-draft-api-reshape.md), there is no data
+// source left for this: the ticket-compiled wasm this used to run
+// (compiledDraftByTransform) no longer exists, Save's response carries no
+// wasm bytes (TransformDraftDto only has `has_binary: bool`), and there is
+// no backend route to fetch a draft's own not-yet-published wasm either.
+// "Try it" for a primitive is disabled outright rather than silently
+// broken — see this pass's final report for the backend gap this implies
+// (a route to fetch a draft's own compiled-but-unpublished binary would be
+// needed to bring this back). Composite "Try it" is unaffected — it runs
+// entirely client-side via GraphCompiler, not this hook (see
+// composite/composite-playback-controls.ts).
 export function usePrimitivePlaybackControls(transformId: number | null) {
-  const editing = useCreatorStore((s) => s.editingTransformSource);
-  const compiledDraftByTransform = useCreatorStore((s) => s.compiledDraftByTransform);
-
   const playbackStatus = useCreatorPlaybackStore((s) => s.status);
   const playbackTransformId = useCreatorPlaybackStore((s) => s.playbackTransformId);
-  const startPlayback = useCreatorPlaybackStore((s) => s.play);
   const stopPlayback = useCreatorPlaybackStore((s) => s.stop);
-
-  const code = editing?.transformId === transformId ? editing.source : "";
-  const attachableCompiledDraft =
-    transformId != null && compiledDraftByTransform[transformId]?.sourceCode === code
-      ? compiledDraftByTransform[transformId]
-      : undefined;
 
   const isPlayingThis =
     transformId != null && playbackTransformId === transformId && playbackStatus !== "idle" && playbackStatus !== "error";
   const isLoading = transformId != null && playbackTransformId === transformId && playbackStatus === "loading";
-  const canStartPlayback = attachableCompiledDraft != null;
 
   function togglePlayback() {
     if (transformId == null) return;
     if (isPlayingThis) {
       stopPlayback();
-      return;
     }
-    if (attachableCompiledDraft == null) return;
-    const wasmBytes = decodeBase64Binary(attachableCompiledDraft.wasmBase64);
-    const params: number[] = [];
-    const resourceKey = `${transformId}:${code}`;
-    const graph = buildPrimitivePlaybackGraph(params);
-    void startPlayback(transformId, resourceKey, graph, { [PRIMITIVE_PLAYBACK_NODE_ID]: wasmBytes }, params);
+    // No else branch: starting playback has no data source anymore (see
+    // module comment above) — canStartPlayback is always false, so
+    // playback-stripe.tsx never calls this to start, only to stop.
   }
 
-  return { togglePlayback, isPlayingThis, isLoading, canStartPlayback };
+  return {
+    togglePlayback,
+    isPlayingThis,
+    isLoading,
+    canStartPlayback: false,
+    disabledReason: "Preview isn't available for unpublished/unsaved-since-publish primitives yet — there's no way to fetch a draft's compiled binary before it's published.",
+  };
 }

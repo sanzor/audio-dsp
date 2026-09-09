@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import ReactFlow, {
   Background,
   BackgroundVariant,
@@ -13,9 +13,12 @@ import "reactflow/dist/style.css";
 import { useCreatorStore } from "@/Stores/CreatorStore";
 import { useCompositeCanvasStore, type CanvasNode, type EditingCompositeGraph } from "@/Stores/CompositeCanvasStore";
 import { useGetTransformDefinition } from "@/hooks/transforms/queries";
-import { useSaveCompositeTransform, useValidateCompositeTransform, usePublishTransform } from "@/hooks/transforms/mutations";
+import {
+  useSaveTransform,
+  useValidateCompositeGraph,
+  usePublishTransform,
+} from "@/hooks/transforms/mutations";
 import { useTransformStore } from "@/Stores/TransformStore";
-import { usePublishWithPortShapeDiff } from "../usePublishWithPortShapeDiff";
 import { ToolbarButton } from "../toolbar-button";
 import { CompositePalette } from "./composite-palette";
 import { NODE_TYPES } from "./composite-canvas-node";
@@ -94,10 +97,14 @@ function CompositeCanvasInner() {
   const selectedNodeId = useCompositeCanvasStore((s) => s.selectedNodeId);
   const selectNode = useCompositeCanvasStore((s) => s.selectNode);
 
-  const saveMutation = useSaveCompositeTransform(selectedId ?? -1);
-  const validateMutation = useValidateCompositeTransform(selectedId ?? -1);
+  const saveMutation = useSaveTransform(selectedId ?? -1);
+  const validateMutation = useValidateCompositeGraph(selectedId ?? -1);
   const publishMutation = usePublishTransform(selectedId ?? -1);
-  const { handlePublish } = usePublishWithPortShapeDiff(selectedId, publishMutation);
+
+  // Last validate-graph result, shown transiently next to the button —
+  // never persisted, never gates Publish. Resets whenever a different
+  // composite is opened.
+  const [validateResult, setValidateResult] = useState<{ transformId: number; portCount: number } | null>(null);
 
   // (Re)initialize the editing graph whenever a different composite is
   // selected — seed each node's position from the loaded definition (now
@@ -199,31 +206,25 @@ function CompositeCanvasInner() {
   }
 
   function handleSave() {
-    saveMutation.mutate(toGraphDefinition(), { onSuccess: () => markSaved() });
+    saveMutation.mutate({ graph_definition: toGraphDefinition() }, { onSuccess: () => markSaved() });
   }
 
-  // Validates whatever graph_definition is currently persisted (the last
-  // Save) — not uncommitted canvas edits, hence disabled while isDirty below
-  // so the result can't be misread as covering changes it never saw.
+  // Validates the live in-progress canvas graph (including uncommitted
+  // edits) via POST /draft_transforms/{id}/validate-graph — not whatever's
+  // currently persisted. Doesn't save or persist anything; the returned
+  // ports are shown transiently below and never gate Publish (Publish
+  // independently re-validates from the saved graph itself server-side).
   function handleValidate() {
-    validateMutation.mutate();
+    if (selectedId == null) return;
+    validateMutation.mutate(toGraphDefinition(), {
+      onSuccess: (result) => setValidateResult({ transformId: selectedId, portCount: result.ports.length }),
+      onError: () => setValidateResult(null),
+    });
   }
 
-  // Three states, mirroring the "stale until re-verified" pattern
-  // attachableResourceId uses for primitives in code-editor.tsx, just
-  // sourced from the backend-owned is_validated flag instead of a
-  // client-derived source-text comparison:
-  //  - unsaved local edits not yet persisted (isDirty) — Validate would only
-  //    check the older persisted graph, so it's disabled and called out here
-  //  - is_validated: true on the persisted draft — last Validate succeeded
-  //  - is_validated: false — either never validated, or invalidated by a
-  //    save since the last successful validate (the backend doesn't
-  //    distinguish the two; neither does this indicator)
-  const validationStatus: { label: string; color: string } = isDirty
-    ? { label: "Unsaved changes", color: "var(--text-muted)" }
-    : definition.is_validated
-      ? { label: "Validated", color: "#4ae176" }
-      : { label: "Not validated", color: "#ff6b6b" };
+  function handlePublish() {
+    publishMutation.mutate({ kind: "composite" });
+  }
 
   return (
     <div className="flex h-full min-h-0">
@@ -239,15 +240,16 @@ function CompositeCanvasInner() {
           <ToolbarButton
             variant="validate"
             onClick={handleValidate}
-            disabled={isDirty || validateMutation.isPending || definition.graph_definition == null}
-            title={isDirty ? "Save first — Validate checks the last saved graph" : validateMutation.error?.message}
+            disabled={validateMutation.isPending}
+            title={validateMutation.error?.message}
           >
             {validateMutation.isPending ? "Validating…" : "Validate"}
           </ToolbarButton>
-          <span className="flex items-center gap-1 font-mono text-[10px]" style={{ color: validationStatus.color }} title="Composite draft validation status">
-            <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ backgroundColor: validationStatus.color }} />
-            {validationStatus.label}
-          </span>
+          {validateResult != null && validateResult.transformId === selectedId && validateMutation.isSuccess && (
+            <span className="font-mono text-[10px]" style={{ color: "#4ae176" }}>
+              Valid — {validateResult.portCount} port{validateResult.portCount === 1 ? "" : "s"}
+            </span>
+          )}
           <ToolbarButton
             variant="publish"
             onClick={handlePublish}

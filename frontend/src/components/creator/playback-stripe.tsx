@@ -52,6 +52,8 @@ export function PlaybackStripe() {
         ? primitiveControls.canStartPlayback
         : false;
 
+  const playDisabledTitle = !canPlay && activeKind === "primitive" ? primitiveControls.disabledReason : undefined;
+
   function handlePlay() {
     if (activeKind === "composite") compositeControls.togglePlayback();
     else if (activeKind === "primitive") primitiveControls.togglePlayback();
@@ -66,7 +68,13 @@ export function PlaybackStripe() {
       className="flex items-center h-12 flex-shrink-0"
       style={{ backgroundColor: "var(--bg-darker)", borderTop: "1px solid rgba(255,255,255,0.06)" }}
     >
-      <PlaybackWaveform isPlaying={isPlaying} playDisabled={!canPlay} onPlay={handlePlay} onStop={handleStop} />
+      <PlaybackWaveform
+        isPlaying={isPlaying}
+        playDisabled={!canPlay}
+        playDisabledTitle={playDisabledTitle}
+        onPlay={handlePlay}
+        onStop={handleStop}
+      />
     </div>
   );
 }

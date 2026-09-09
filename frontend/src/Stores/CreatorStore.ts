@@ -1,5 +1,4 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
 import { useUIStore } from "@/Stores/UIStore";
 import { useCompositeCanvasStore } from "@/Stores/CompositeCanvasStore";
 
@@ -18,18 +17,6 @@ interface CreatorState {
   // Unguarded — only for cases that are known not to conflict with an
   // in-progress edit (e.g. right after creating a brand new transform).
   setSelectedTransformId: (id: number | null) => void;
-  // Last compile ticket issued per transform, so reopening/refreshing resumes
-  // polling that ticket instead of losing track of an in-flight compile.
-  // sourceCode is what was actually submitted for that ticket, so once it
-  // resolves we know exactly what text the resulting resource was built from.
-  activeTicketByTransform: Record<number, { ticketId: number; sourceCode: string }>;
-  setActiveTicket: (transformId: number, ticketId: number, sourceCode: string) => void;
-
-  // Temporary Creator-side compile handoff. This is intentionally not
-  // persisted: refresh before Save means the creator must retrieve/recompile
-  // again. Source and binary stay paired so Save never combines builds.
-  compiledDraftByTransform: Record<number, { resourceId: number; sourceCode: string; wasmBase64: string }>;
-  setCompiledDraft: (transformId: number, resourceId: number, sourceCode: string, wasmBase64: string) => void;
 
   // The live (possibly unsaved) source buffer for whichever transform is
   // currently open in the code editor. Lives here rather than as local
@@ -56,40 +43,24 @@ interface CreatorState {
 export const isSourceDirty = (editing: EditingTransformSource | null) =>
   editing != null && editing.source !== editing.originalSource;
 
-export const useCreatorStore = create<CreatorState>()(
-  persist(
-    (set, get) => {
-      const applyTransformAction = (action: PendingTransformAction) => {
-        useCompositeCanvasStore.getState().reset();
-        if (action.kind === "select") {
-          set({
-            selectedTransformId: action.transformId,
-            editingTransformSource: null,
-            pendingTransformAction: null,
-          });
-        } else {
-          set({ editingTransformSource: null, pendingTransformAction: null });
-          useUIStore.getState().openModal({ type: "createTransform" });
-        }
-      };
+export const useCreatorStore = create<CreatorState>()((set, get) => {
+  const applyTransformAction = (action: PendingTransformAction) => {
+    useCompositeCanvasStore.getState().reset();
+    if (action.kind === "select") {
+      set({
+        selectedTransformId: action.transformId,
+        editingTransformSource: null,
+        pendingTransformAction: null,
+      });
+    } else {
+      set({ editingTransformSource: null, pendingTransformAction: null });
+      useUIStore.getState().openModal({ type: "createTransform" });
+    }
+  };
 
-      return {
+  return {
         selectedTransformId: null,
         setSelectedTransformId: (id) => set({ selectedTransformId: id }),
-        activeTicketByTransform: {},
-        setActiveTicket: (transformId, ticketId, sourceCode) =>
-          set((state) => ({
-            activeTicketByTransform: { ...state.activeTicketByTransform, [transformId]: { ticketId, sourceCode } },
-          })),
-
-        compiledDraftByTransform: {},
-        setCompiledDraft: (transformId, resourceId, sourceCode, wasmBase64) =>
-          set((state) => ({
-            compiledDraftByTransform: {
-              ...state.compiledDraftByTransform,
-              [transformId]: { resourceId, sourceCode, wasmBase64 },
-            },
-          })),
 
         editingTransformSource: null,
         beginEditingTransformSource: (transformId, initialSource) =>
@@ -141,11 +112,5 @@ export const useCreatorStore = create<CreatorState>()(
         },
 
         cancelPendingTransformAction: () => set({ pendingTransformAction: null }),
-      };
-    },
-    {
-      name: "audio-dsp-creator",
-      partialize: (state) => ({ activeTicketByTransform: state.activeTicketByTransform }),
-    }
-  )
-);
+  };
+});

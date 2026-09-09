@@ -17,22 +17,34 @@
 // marking a leaf's own (name, exposed_name) pair in a separate
 // CompositeExposedPort[] list with no participation in `edges` at all.
 
-// Mirrors backend/api/src/controllers/transforms_controller.rs's
-// `CompositeNodeDto` exactly (same `node_kind` tag field, same tag values,
-// same per-variant field names, including `position`) — save/publish
+// Mirrors backend/api/src/transform_drafts/graph_validator/node.rs's `Node`
+// exactly (same `node_kind` tag field, same tag values, same per-variant
+// field names, including `position`) — save/validate-graph/publish
 // deserialize this directly from what this client sends, with no
-// translation layer, so the two must stay in lockstep. Named `node_kind`
+// translation layer, so the two must stay in lockstep. Tag values are
+// "primitive" | "composite" | "input" | "output" — a leaf's tag must match
+// the *referenced transform's own* kind (validated server-side; a
+// primitive leaf tagged "composite" or vice versa fails validation), not a
+// generic "leaf" tag like the pre-reshape backend used. Named `node_kind`
 // (not `kind`) to avoid colliding with the unrelated "primitive" |
 // "composite" `kind` field that already means something else at the
 // transform-definition level elsewhere in this domain folder (see
-// TransformDefinition.ts).
+// TransformDefinition.ts) — that collision in naming is coincidental with
+// this reshape now also making the *values* line up 1:1 with that same
+// field for a leaf node specifically.
 export type CompositeNode = CompositeLeafNode | CompositeIoNode;
 
 export interface CompositeLeafNode {
   // Canvas-local instance id — distinct from transform_id since one leaf
   // transform can be placed as multiple instances in the same composite.
   node_id: number;
-  node_kind: "leaf";
+  // Must equal the referenced transform's own kind — see this file's note
+  // above. Stores/CompositeCanvasStore.ts's toGraphDefinition() derives
+  // this from useTransformStore at serialize time; the canvas's own
+  // internal CanvasLeafNode representation stays a single "leaf" tag
+  // regardless (Editor/Creator-style internal-model-vs-wire-format split,
+  // not a backend concept).
+  node_kind: "primitive" | "composite";
   transform_id: number;
   // Canvas position, persisted server-side. Old saved composites predating
   // this field deserialize it as `{x:0, y:0}` (backend `serde(default)`).

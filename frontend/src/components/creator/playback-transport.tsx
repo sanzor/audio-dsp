@@ -25,6 +25,10 @@ interface PlaybackTransportProps {
    * compiled, or an empty composite graph). Only affects the Play/Pause
    * buttons; Stop stays gated on isPlaying alone. */
   disabled?: boolean;
+  /** Tooltip surfaced on the Play button when `disabled` is set for a
+   * specific, explainable reason (e.g. primitive preview having no data
+   * source post-reshape) rather than just transient loading. */
+  disabledTitle?: string;
 }
 
 export function PlaybackTransport({
@@ -37,6 +41,7 @@ export function PlaybackTransport({
   onPause,
   onStop,
   disabled,
+  disabledTitle,
 }: PlaybackTransportProps) {
   const controlsDisabled = !hasWaveform || isLoading;
 
@@ -71,6 +76,7 @@ export function PlaybackTransport({
           size="icon"
           onClick={onPlay}
           disabled={controlsDisabled || Boolean(disabled)}
+          title={disabled ? disabledTitle : undefined}
           aria-label="Play waveform"
           className="h-6 w-6 bg-[var(--accent-blue)] text-white shadow-none hover:bg-[var(--accent-blue)]/90"
         >

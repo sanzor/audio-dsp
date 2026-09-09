@@ -3,7 +3,9 @@ use std::sync::Arc;
 
 use crate::{
     domain::service_error::ServiceError,
-    transform_drafts::dto::requests::{SaveCompositeParams, SaveDraftParams, SavePrimitiveParams},
+    transform_drafts::dto::requests::{
+        PublishDraftParams, SaveCompositeParams, SaveDraftParams, SavePrimitiveParams,
+    },
 };
 use domain::db::{
     db_transform::{DbTransform, TransformId},
@@ -151,18 +153,18 @@ impl TransformDraftsProvider for TransformDraftsProviderService {
             SaveDraftParams::Composite(params) => self.save_composite_draft(id, params).await,
         }
     }
-    async fn publish(&self, id: TransformDraftId) -> Result<DbTransform, ServiceError> {
-        let draft = self.data.get_transform_draft(id).await?;
-        match draft.kind.as_str() {
-            "primitive" => self.publish_primitive(id).await,
-            "composite" => self.publish_composite(id).await,
-            kind => Err(ServiceError::Validation(format!(
-                "transform {id} has unsupported kind '{kind}'"
-            ))),
+    async fn publish(
+        &self,
+        id: TransformDraftId,
+        params: PublishDraftParams,
+    ) -> Result<DbTransform, ServiceError> {
+        match params {
+            PublishDraftParams::Primitive => self.publish_primitive(id).await,
+            PublishDraftParams::Composite => self.publish_composite(id).await,
         }
     }
 
-    async fn check_source_code(&self, source_code: String) -> Result<(), ServiceError> {
+    async fn validate_source_code(&self, source_code: String) -> Result<(), ServiceError> {
         self.processor
             .check(&source_code)
             .await

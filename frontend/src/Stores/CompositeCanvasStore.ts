@@ -4,6 +4,7 @@ import type {
   CompositeGraphDefinition,
   CompositeNode,
 } from "@/domain/Transform/CompositeGraphDefinition";
+import { useTransformStore } from "@/Stores/TransformStore";
 
 // The in-progress composite-transform wiring graph being authored on the
 // Creator's composite canvas. Kept as its own store rather than folded into
@@ -115,7 +116,14 @@ export const useCompositeCanvasStore = create<CompositeCanvasState>()((set, get)
     let maxNodeId = 0;
     for (const n of initial?.nodes ?? []) {
       const position = positions.get(n.node_id) ?? { x: 0, y: 0 };
-      if (n.node_kind === "leaf") {
+      // Wire tag is "primitive" | "composite" (the referenced transform's
+      // own kind, see CompositeGraphDefinition.ts) — the canvas's internal
+      // model collapses both into one "leaf" tag, since nothing on the
+      // canvas side cares which it is. Narrowing via `"transform_id" in n`
+      // rather than an node_kind equality check against two literals — the
+      // latter doesn't narrow the else branch to CompositeIoNode reliably
+      // since CompositeLeafNode.node_kind is itself a two-value union.
+      if ("transform_id" in n) {
         nodes.set(n.node_id, { node_id: n.node_id, node_kind: "leaf", transform_id: n.transform_id, position });
       } else {
         nodes.set(n.node_id, { node_id: n.node_id, node_kind: n.node_kind, name: n.name, position });
@@ -262,7 +270,20 @@ export const useCompositeCanvasStore = create<CompositeCanvasState>()((set, get)
     const enabledIds = new Set(enabledNodes.map((n) => n.node_id));
     const nodes: CompositeNode[] = enabledNodes.map((n) =>
       n.node_kind === "leaf"
-        ? { node_id: n.node_id, node_kind: "leaf", transform_id: n.transform_id, position: n.position }
+        ? {
+            node_id: n.node_id,
+            // The wire tag must be the referenced transform's own kind
+            // (see CompositeGraphDefinition.ts) — falls back to
+            // "primitive" if its definition hasn't been resolved into
+            // useTransformStore yet (shouldn't happen in practice: the
+            // canvas resolves every referenced leaf's definition to render
+            // its ports in the first place), rather than failing save
+            // outright; a wrong guess surfaces as a clear validate/publish
+            // error server-side instead of a silent save failure.
+            node_kind: useTransformStore.getState().definitions.get(n.transform_id)?.kind ?? "primitive",
+            transform_id: n.transform_id,
+            position: n.position,
+          }
         : { node_id: n.node_id, node_kind: n.node_kind, name: n.name, position: n.position }
     );
     return {
