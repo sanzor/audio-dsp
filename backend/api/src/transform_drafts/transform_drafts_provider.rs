@@ -7,9 +7,8 @@ use domain::{
 };
 
 use crate::{
-    domain::service_error::ServiceError,
-    ticket_worker::processor::transform_metadata::PortMetadataJson,
-    transform_drafts::dto::requests::SaveDraftParams,
+    domain::service_error::ServiceError, transform_drafts::dto::requests::SaveDraftParams,
+    transform_drafts::processor::transform_metadata::PortMetadataJson,
 };
 
 #[async_trait::async_trait]

@@ -31,5 +31,3 @@ pub use db_region_set::RegionSetId;
 pub use db_source::SourceId;
 pub use db_track::TrackId;
 pub use db_transform::{TransformId, TransformPortId};
-
-pub mod ticket;

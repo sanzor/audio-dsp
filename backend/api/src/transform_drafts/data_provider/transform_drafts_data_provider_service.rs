@@ -225,27 +225,17 @@ impl TransformDraftsDataProvider for PostgresTransformDraftsDataProvider {
         &self,
         id: TransformDraftId,
         source_code: String,
-        compiled: Option<CompiledPrimitiveDraft>,
+        compiled: CompiledPrimitiveDraft,
     ) -> Result<DbTransformDraft, DataError> {
-        let (wasm_bytecode, name, description, metadata) = match compiled {
-            Some(compiled) => (
-                Some(compiled.wasm_bytecode),
-                Some(compiled.name),
-                Some(compiled.description),
-                Some(compiled.metadata),
-            ),
-            None => (None, None, None, None),
-        };
-
         let row = sqlx::query_as::<_, DbTransformDraftRow>(&format!(
             r#"
             UPDATE transform_draft
             SET source_code = $2,
-                wasm_bytecode = CASE WHEN $3::BYTEA IS NULL THEN wasm_bytecode ELSE $3 END,
-                wasm_source_code = CASE WHEN $3::BYTEA IS NULL THEN wasm_source_code ELSE $2 END,
-                name = CASE WHEN $3::BYTEA IS NULL THEN name ELSE $4 END,
-                description = CASE WHEN $3::BYTEA IS NULL THEN description ELSE $5 END,
-                metadata = CASE WHEN $3::BYTEA IS NULL THEN metadata ELSE $6 END,
+                wasm_bytecode = $3,
+                wasm_source_code = $2,
+                name = $4,
+                description = $5,
+                metadata = $6,
                 updated_at = now()
             WHERE transform_id = $1
             RETURNING {DRAFT_ROW_COLUMNS}
@@ -253,10 +243,10 @@ impl TransformDraftsDataProvider for PostgresTransformDraftsDataProvider {
         ))
         .bind(id)
         .bind(&source_code)
-        .bind(wasm_bytecode)
-        .bind(name)
-        .bind(description)
-        .bind(metadata)
+        .bind(compiled.wasm_bytecode)
+        .bind(compiled.name)
+        .bind(compiled.description)
+        .bind(compiled.metadata)
         .fetch_one(&self.pool)
         .await?;
 

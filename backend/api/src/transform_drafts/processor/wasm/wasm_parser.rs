@@ -1,7 +1,7 @@
 use serde::Deserialize;
 use wasmtime::{Config, Engine, Linker, Module, Store};
 
-use crate::ticket_worker::processor::transform_metadata::{ParamMetadataJson, PortMetadataJson};
+use crate::transform_drafts::processor::transform_metadata::{ParamMetadataJson, PortMetadataJson};
 
 pub struct WasmInput<'a> {
     pub wasm_bytes: &'a [u8],
@@ -73,7 +73,8 @@ pub fn parse_wasm(input: WasmInput<'_>) -> Result<ParsedPrimitiveWasm, String> {
         .read(&store, ptr, &mut buf)
         .map_err(|e| format!("metadata read out of bounds: {e}"))?;
 
-    let json = String::from_utf8(buf.to_owned()).map_err(|_| "metadata is not valid UTF-8".to_string())?;
+    let json =
+        String::from_utf8(buf.to_owned()).map_err(|_| "metadata is not valid UTF-8".to_string())?;
     let metadata = serde_json::from_str(&json)
         .map_err(|e| format!("primitive metadata JSON is malformed: {e}"))?;
 
@@ -82,4 +83,3 @@ pub fn parse_wasm(input: WasmInput<'_>) -> Result<ParsedPrimitiveWasm, String> {
         has_abi_version,
     })
 }
-

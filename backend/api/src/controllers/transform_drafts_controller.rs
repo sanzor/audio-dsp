@@ -10,8 +10,8 @@ use crate::{
     transform_drafts::{
         dto::{
             requests::{
-                CheckSourceCodeParams, CreateTransformParams, SaveDraftParams, TransformDraftIdPath,
-                TransformDraftIdsRequest,
+                CheckSourceCodeParams, CreateTransformParams, SaveDraftParams,
+                TransformDraftIdPath, TransformDraftIdsRequest,
             },
             responses::{TransformDraftDto, TransformDraftsResponse, ValidateGraphResponse},
         },
@@ -230,11 +230,11 @@ pub async fn publish_composite(
     path: web::Path<TransformDraftIdPath>,
     app: web::Data<TransformDraftsAppData>,
 ) -> HttpResponse {
-    let transform_id = path.into_inner().transform_id;
-    if let Err(resp) = require_owner(&app, transform_id, &jwt).await {
+    let transform_draft_id = path.into_inner().transform_id;
+    if let Err(resp) = require_owner(&app, transform_draft_id, &jwt).await {
         return resp;
     }
-    match app.transform_drafts_service.publish(transform_id).await {
+    match app.transform_drafts_service.publish(transform_draft_id).await {
         Ok(t) => HttpResponse::Ok().json(TransformDto::from(t)),
         Err(e) => map_service_error(e),
     }

@@ -2,12 +2,17 @@ use std::collections::HashSet;
 
 use serde::{Deserialize, Serialize};
 
-use crate::ticket_worker::processor::{transform_metadata::{DirectionJson, ParamMetadataJson, PortCardinalityJson, PortKindJson, PortMetadataJson}, wasm::wasm_parser::ParsedPrimitiveWasm};
+use crate::transform_drafts::processor::{
+    transform_metadata::{
+        DirectionJson, ParamMetadataJson, PortCardinalityJson, PortKindJson, PortMetadataJson,
+    },
+    wasm::wasm_parser::ParsedPrimitiveWasm,
+};
 
 /// A `PrimitiveMetadataJson` that has passed `validate_primitive_metadata_contract`.
 /// Only reachable through validation, so a caller can't build a
 /// `TransformMetadataJson` from metadata that skipped the contract check.
-#[derive(Debug,Serialize,Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ValidatedPrimitiveMetadata {
     pub name: String,
     pub description: Option<String>,
@@ -26,7 +31,10 @@ pub struct ValidatedPrimitiveMetadata {
 pub(crate) fn validate_primitive(
     data: ParsedPrimitiveWasm,
 ) -> Result<ValidatedPrimitiveMetadata, String> {
-    let ParsedPrimitiveWasm { metadata, has_abi_version } = data;
+    let ParsedPrimitiveWasm {
+        metadata,
+        has_abi_version,
+    } = data;
     if metadata.name.trim().is_empty() {
         return Err("metadata.name must not be empty".to_string());
     }

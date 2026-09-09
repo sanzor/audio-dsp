@@ -9,8 +9,8 @@ use domain::{
 use crate::domain::data_error::DataError;
 
 /// Compile-derived data that Save persists as one primitive-draft snapshot.
-/// This is intentionally produced from the frontend's submitted WASM during
-/// Save, not loaded from a ticket resource.
+/// Produced by compiling `source_code` synchronously on the Save hot path —
+/// there is no separate ticket/resource step.
 pub struct CompiledPrimitiveDraft {
     pub wasm_bytecode: Vec<u8>,
     pub name: String,
@@ -61,14 +61,14 @@ pub trait TransformDraftsDataProvider: Send + Sync {
         ids: &[TransformId],
     ) -> Result<Vec<DbTransform>, DataError>;
 
-    /// Bucket 2 — "save", primitive only. A supplied compiled artifact is
-    /// saved atomically with its source snapshot; a source-only save keeps
-    /// the previous artifact intact for Publish's stale-source guard.
+    /// Bucket 2 — "save", primitive only. `source_code` must have already
+    /// compiled successfully (the caller compiles before calling this); the
+    /// resulting artifact is saved atomically with its source snapshot.
     async fn save_primitive_draft(
         &self,
         id: TransformDraftId,
         source_code: String,
-        compiled: Option<CompiledPrimitiveDraft>,
+        compiled: CompiledPrimitiveDraft,
     ) -> Result<DbTransformDraft, DataError>;
     /// Bucket 2 — "save", composite only. `graph_json` (the wiring graph)
     /// overwrites `transform_draft.metadata` wholesale — a composite draft

@@ -1,14 +1,10 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::ticket_worker::processor::{
-    self, build_job::check_draft_source_code, build_job_config::BuildJobConfig, processor_params::ProcessorParams, transform_metadata::{PortMetadataJson, TransformMetadataJson},
-};
 use crate::{
     domain::service_error::ServiceError,
     transform_drafts::dto::requests::{SaveCompositeParams, SaveDraftParams, SavePrimitiveParams},
 };
-use base64::{prelude::BASE64_STANDARD, Engine};
 use domain::db::{
     db_transform::{DbTransform, TransformId},
     db_transform_draft::{DbTransformDraft, TransformDraftId},
@@ -23,6 +19,10 @@ use super::{
         graph_definition::GraphDefinition,
         transform_info::TransformInfo,
         validator::{Validator, ValidatorInput},
+    },
+    processor::{
+        processor::Processor,
+        transform_metadata::{PortMetadataJson, TransformMetadataJson},
     },
     transform_drafts_provider::TransformDraftsProvider,
 };
@@ -44,21 +44,12 @@ fn require_kind(draft: &DbTransformDraft, expected: &str) -> Result<(), ServiceE
 
 pub struct TransformDraftsProviderService {
     data: Arc<dyn TransformDraftsDataProvider>,
-    build_job_config: BuildJobConfig,
-    metadata_fuel_limit: u64,
+    processor: Processor,
 }
 
 impl TransformDraftsProviderService {
-    pub fn new(
-        data: Arc<dyn TransformDraftsDataProvider>,
-        build_job_config: BuildJobConfig,
-        metadata_fuel_limit: u64,
-    ) -> Self {
-        Self {
-            data,
-            build_job_config,
-            metadata_fuel_limit,
-        }
+    pub fn new(data: Arc<dyn TransformDraftsDataProvider>, processor: Processor) -> Self {
+        Self { data, processor }
     }
 
     async fn fetch_leaf_defs(
@@ -172,7 +163,8 @@ impl TransformDraftsProvider for TransformDraftsProviderService {
     }
 
     async fn check_source_code(&self, source_code: String) -> Result<(), ServiceError> {
-        check_draft_source_code(&self.build_job_config, &source_code)
+        self.processor
+            .check(&source_code)
             .await
             .map_err(ServiceError::Validation)
     }
@@ -204,51 +196,25 @@ impl TransformDraftsProvider for TransformDraftsProviderService {
 }
 
 impl TransformDraftsProviderService {
+    /// Save always compiles `source_code` synchronously and rejects the
+    /// whole save (nothing persisted) if it doesn't produce a valid
+    /// transform — there is no source-only save path anymore.
     async fn save_primitive_draft(
         &self,
         id: TransformDraftId,
         params: SavePrimitiveParams,
-
     ) -> Result<DbTransformDraft, ServiceError> {
         require_kind(&self.data.get_transform_draft(id).await?, "primitive")?;
-        let wasm_bytecode = params
-            .wasm_base64
-            .map(|encoded| BASE64_STANDARD.decode(encoded))
-            .transpose()
-            .map_err(|_| {
-                ServiceError::Validation("wasm_base64 must be valid base64".to_string())
-            })?;
-        let primitive_draft=self.build_compiled_draft(wasm_bytecode).await?;
+        let primitive_draft = self
+            .processor
+            .compile_primitive(&params.source_code)
+            .await
+            .map_err(ServiceError::Validation)?;
         self.data
             .save_primitive_draft(id, params.source_code, primitive_draft)
             .await
             .map_err(ServiceError::from)
     }
-    async fn build_compiled_draft(
-        &self,
-        wasm_bytecode: Option<Vec<u8>>,
-    ) -> Result<Option<CompiledPrimitiveDraft>, ServiceError> {
-        let Some(wasm_bytecode) = wasm_bytecode else {
-            return Ok(None);
-        };
-
-        if wasm_bytecode.len() as u64 > self.build_job_config.max_wasm_bytes {
-            return Err(ServiceError::Validation(format!(
-                "compiled wasm exceeds the {} byte limit",
-                self.build_job_config.max_wasm_bytes
-            )));
-        }
-      
-     
-
-        Ok(Some(CompiledPrimitiveDraft {
-            wasm_bytecode,
-            name: metadata.name,
-            description: metadata.description,
-            metadata: metadata_json,
-        }))
-    }
-
 
     async fn save_composite_draft(
         &self,
@@ -265,14 +231,18 @@ impl TransformDraftsProviderService {
             .map_err(ServiceError::from)
     }
 
-
     async fn publish_composite(&self, id: TransformDraftId) -> Result<DbTransform, ServiceError> {
         let draft = self.data.get_transform_draft(id).await?;
         require_kind(&draft, "composite")?;
 
-        let graph_json = draft
-            .metadata
-            .ok_or_else(|| ServiceError::Validation("nothing has been saved yet".to_string()))?;
+        let graph_json = match draft.metadata {
+            Some(metadata) => metadata,
+            None => {
+                return Err(ServiceError::Validation(
+                    "nothing has been saved yet".to_string(),
+                ))
+            }
+        };
 
         let referenced_ids = serde_json::from_str::<GraphDefinition>(&graph_json)
             .map(|g| g.referenced_transform_ids())
@@ -313,13 +283,15 @@ impl TransformDraftsProviderService {
         let draft = self.data.get_transform_draft(id).await?;
         require_kind(&draft, "primitive")?;
 
-        let Some(wasm_bytecode) = draft.wasm_bytecode else {
-            return Err(ServiceError::Validation(
-                "nothing has been saved with a successful build yet".to_string(),
-            ));
+        let wasm_bytecode = match draft.wasm_bytecode {
+            Some(bytes) => bytes,
+            None => {
+                return Err(ServiceError::Validation(
+                    "nothing has been saved with a successful build yet".to_string(),
+                ))
+            }
         };
 
-        
         if draft.wasm_source_code.as_deref() != draft.source_code.as_deref() {
             return Err(ServiceError::Validation(
                 "saved binary no longer corresponds to the saved source; recompile and re-attach before publishing".to_string(),

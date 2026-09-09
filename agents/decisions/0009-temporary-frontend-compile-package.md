@@ -1,6 +1,6 @@
 # 0009: Temporary frontend compile package
 
-- **Status:** Accepted
+- **Status:** Superseded by 0010
 - **Date:** 2026-08-30
 
 ## Context

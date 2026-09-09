@@ -1,15 +1,26 @@
 use std::process::Stdio;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use domain::db::ticket::db_ticket::TicketId;
 use tokio::process::Command;
 
-use crate::ticket_worker::processor::build_job_config::BuildJobConfig;
+use crate::transform_drafts::processor::build_job_config::BuildJobConfig;
 
 /// Compiler output (stdout+stderr combined) is capped before being stored as
-/// a ticket's failure message — rustc diagnostics can be enormous, and this
+/// a save's rejection message — rustc diagnostics can be enormous, and this
 /// is meant to be genuinely readable, not a raw dump.
 const MAX_ERROR_MESSAGE_BYTES: usize = 64 * 1024;
+
+static NEXT_JOB_ID: AtomicU64 = AtomicU64::new(0);
+
+/// Scratch-dir name for one build/check job — unique per process run, not
+/// tied to any persisted id (there's no more ticket to name it after).
+fn next_job_id(prefix: &str) -> String {
+    format!(
+        "{prefix}-{}-{}",
+        std::process::id(),
+        NEXT_JOB_ID.fetch_add(1, Ordering::Relaxed)
+    )
+}
 
 /// Config for the subprocess Rust->wasm32 build. All paths/limits are backend
 /// operator settings, never user-controlled.
@@ -54,18 +65,19 @@ async fn with_job_dir<T>(
 }
 
 /// Compiles `source_code` as a creator transform's `src/lib.rs` against the
-/// pinned transform-sdk contract, targeting wasm32-unknown-unknown.
+/// pinned transform-sdk contract, targeting wasm32-unknown-unknown. Called
+/// synchronously on the Save hot path — there is no async ticket/worker
+/// indirection.
 ///
 /// User source is written byte-for-byte (no wrapping) so compiler error line
 /// numbers match what the user actually wrote.
 pub async fn compile_transform_source(
     config: &BuildJobConfig,
-    ticket_id: TicketId,
     source_code: &str,
 ) -> Result<Vec<u8>, String> {
     with_job_dir(
         config,
-        &ticket_id.to_string(),
+        &next_job_id("build"),
         source_code,
         async |config, job_dir| run_build(config, job_dir).await,
     )
@@ -74,22 +86,18 @@ pub async fn compile_transform_source(
 
 /// A fast `cargo check` — type/borrow-checks `source_code` without codegen,
 /// so it's meaningfully cheaper than `compile_transform_source` and meant to
-/// be called synchronously for quick editor feedback, not through a ticket.
+/// be called synchronously for quick editor feedback before Save.
 /// `Ok(())` means it compiles cleanly; no wasm artifact is produced or kept.
 pub async fn check_draft_source_code(
     config: &BuildJobConfig,
     source_code: &str,
 ) -> Result<(), String> {
-    static NEXT_JOB_ID: AtomicU64 = AtomicU64::new(0);
-    let job_id = format!(
-        "check-{}-{}",
-        std::process::id(),
-        NEXT_JOB_ID.fetch_add(1, Ordering::Relaxed)
-    );
-
-    with_job_dir(config, &job_id, source_code, async |config, job_dir| {
-        run_check(config, job_dir).await
-    })
+    with_job_dir(
+        config,
+        &next_job_id("check"),
+        source_code,
+        async |config, job_dir| run_check(config, job_dir).await,
+    )
     .await
 }
 

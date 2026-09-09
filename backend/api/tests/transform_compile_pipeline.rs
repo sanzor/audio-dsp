@@ -6,9 +6,9 @@
 use std::path::PathBuf;
 use std::time::Duration;
 
-use api::ticket_worker::processor::build_job::compile_transform_source;
-use api::ticket_worker::processor::build_job_config::BuildJobConfig;
-use api::ticket_worker::processor::metadata_introspector::introspect_metadata;
+use api::transform_drafts::processor::build_job::compile_transform_source;
+use api::transform_drafts::processor::build_job_config::BuildJobConfig;
+use api::transform_drafts::processor::wasm::wasm_parser::{parse_wasm, WasmInput};
 
 const KNOWN_GOOD_SOURCE: &str = r#"
 use transform_sdk::{Transform, TransformMetadata, PortMetadata, ParamMetadata, Direction, PortKind, PortCardinality, Params};
@@ -84,24 +84,27 @@ fn test_config() -> BuildJobConfig {
 #[ignore]
 async fn known_good_source_compiles_and_exposes_declared_metadata() {
     let config = test_config();
-    let bytes = compile_transform_source(&config, 900_000_001, KNOWN_GOOD_SOURCE)
+    let bytes = compile_transform_source(&config, KNOWN_GOOD_SOURCE)
         .await
         .expect("known-good source should compile");
 
-    let metadata =
-        introspect_metadata(&bytes, 10_000_000).expect("metadata should introspect cleanly");
+    let parsed = parse_wasm(WasmInput {
+        wasm_bytes: &bytes,
+        fuel_limit: 10_000_000,
+    })
+    .expect("metadata should introspect cleanly");
 
-    assert_eq!(metadata.name, "RMS Detector");
-    assert_eq!(metadata.ports.len(), 2);
-    assert_eq!(metadata.params.len(), 1);
-    assert_eq!(metadata.params[0].name, "window");
+    assert_eq!(parsed.metadata.name, "RMS Detector");
+    assert_eq!(parsed.metadata.ports.len(), 2);
+    assert_eq!(parsed.metadata.params.len(), 1);
+    assert_eq!(parsed.metadata.params[0].name, "window");
 }
 
 #[tokio::test]
 #[ignore]
 async fn syntax_error_fails_with_a_useful_message() {
     let config = test_config();
-    let result = compile_transform_source(&config, 900_000_002, SYNTAX_ERROR_SOURCE).await;
+    let result = compile_transform_source(&config, SYNTAX_ERROR_SOURCE).await;
 
     let err = result.expect_err("syntax error should not compile");
     assert!(!err.is_empty());
@@ -111,11 +114,14 @@ async fn syntax_error_fails_with_a_useful_message() {
 #[ignore]
 async fn valid_rust_missing_export_macro_fails_introspection_not_silently() {
     let config = test_config();
-    let bytes = compile_transform_source(&config, 900_000_003, MISSING_EXPORT_MACRO_SOURCE)
+    let bytes = compile_transform_source(&config, MISSING_EXPORT_MACRO_SOURCE)
         .await
         .expect("this source is valid Rust and should compile");
 
-    let result = introspect_metadata(&bytes, 10_000_000);
+    let result = parse_wasm(WasmInput {
+        wasm_bytes: &bytes,
+        fuel_limit: 10_000_000,
+    });
     let err = result.expect_err(
         "compiled module without export_transform! must fail introspection, not silently succeed",
     );

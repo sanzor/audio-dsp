@@ -1,11 +1,6 @@
 use domain::{
     db::{
         db_transform::{DbTransform, TransformId},
-        ticket::{
-            create_ticket_params::CreateTransformDraftParams,
-            db_resource::{DbResource, ResourceId},
-            db_ticket::{DbTicket, TicketId},
-        },
         WorkspaceId,
     },
     domain_user::UserId,
@@ -15,8 +10,6 @@ use crate::domain::data_error::DataError;
 
 #[async_trait::async_trait]
 pub trait TransformsDataProvider: Send + Sync {
-
-
     async fn list_transform_summaries(
         &self,
         offset: i64,

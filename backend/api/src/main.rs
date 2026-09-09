@@ -14,7 +14,6 @@ use api::{
         data_provider::graphs_data_provider_service::PostgresGraphsDataProvider,
         graphs_app_data::GraphsAppData, graphs_provider_service::GraphsProviderService,
     },
-    infra::producer::channel_producer::ChannelProducer,
     invoices::{
         data_provider::invoices_data_provider_service::InvoicesDataProviderService,
         invoices_app_data::InvoicesAppData, invoices_provider_service::InvoicesProviderService,
@@ -64,18 +63,6 @@ use api::{
         subscriptions_app_data::SubscriptionsAppData,
         subscriptions_provider_service::SubscriptionsProviderService,
     },
-    ticket_worker::{
-        consumer::channel_consumer::ChannelConsumer,
-        events::ticket_created_event::TicketCreatedEvent,
-        processor::{
-            build_job_config::BuildJobConfig, processor::Processor,
-            processor_params::ProcessorParams,
-        },
-        worker::Worker,
-        worker_config::WorkerConfig,
-        worker_params::WorkerParams,
-    },
-    tickets::{tickets_app_data::TicketsAppData, tickets_provider_service::TicketsProviderService},
     tier_configs::{
         data_provider::tier_configs_data_provider_service::TierConfigsDataProviderService,
         tier_configs_app_data::TierConfigsAppData,
@@ -89,6 +76,7 @@ use api::{
     },
     transform_drafts::{
         data_provider::transform_drafts_data_provider_service::PostgresTransformDraftsDataProvider,
+        processor::{build_job_config::BuildJobConfig, processor::Processor},
         transform_drafts_app_data::TransformDraftsAppData,
         transform_drafts_provider_service::TransformDraftsProviderService,
     },
@@ -122,7 +110,6 @@ use api::{
     },
 };
 use rand::Rng;
-use tokio_util::sync::CancellationToken;
 use tracing_actix_web::TracingLogger;
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
@@ -386,21 +373,11 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
             UsageDataProviderService::new(pool.clone()),
         ))),
     };
-    let (tx, rx) = tokio::sync::mpsc::channel::<TicketCreatedEvent>(256);
-    let producer: Arc<dyn api::infra::producer::producer::Producer<TicketCreatedEvent>> =
-        Arc::new(ChannelProducer::new(tx));
-
     let transforms_data_provider: Arc<
         dyn api::transforms::data_provider::transforms_data_provider::TransformsDataProvider,
     > = Arc::new(PostgresTransformsDataProvider::new(pool.clone()));
     let transform_drafts_data_provider: Arc<dyn api::transform_drafts::data_provider::transform_drafts_data_provider::TransformDraftsDataProvider> =
         Arc::new(PostgresTransformDraftsDataProvider::new(pool.clone()));
-    let tickets_app_data = TicketsAppData {
-        tickets_service: Arc::new(TicketsProviderService::new(
-            Arc::clone(&transforms_data_provider),
-            Arc::clone(&producer),
-        )),
-    };
     let transform_grants_app_data = TransformGrantsAppData {
         transform_grants_service: Arc::new(TransformGrantsProviderService::new(Arc::new(
             PostgresTransformGrantsDataProvider::new(pool.clone()),
@@ -455,31 +432,17 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
         ))),
     };
 
-    // build_job_config is also used synchronously by
-    // TransformDraftsProviderService::check_source (a fast `cargo check`,
-    // not a ticket) — the worker only ever needs it for the async
-    // `cargo build --release` ticket pipeline.
+    // Processor is used synchronously by TransformDraftsProviderService for
+    // both check_source (a fast `cargo check`) and save_primitive_draft (a
+    // full `cargo build --release`, run inline on the Save hot path).
+    let processor = Processor::new(build_job_config, transform_metadata_fuel_limit);
     let transform_drafts_app_data = TransformDraftsAppData {
         transform_drafts_service: Arc::new(TransformDraftsProviderService::new(
             Arc::clone(&transform_drafts_data_provider),
-            build_job_config.clone(),
-            transform_metadata_fuel_limit,
+            processor,
         )),
     };
 
-    let token = CancellationToken::new();
-    let worker_handle = Worker::spawn(
-        WorkerParams {
-            consumer: Box::new(ChannelConsumer::new(rx)),
-            processor: Processor::new(ProcessorParams {
-                data_provider: Arc::clone(&transforms_data_provider),
-                build_job_config,
-                metadata_fuel_limit: transform_metadata_fuel_limit,
-            }),
-        },
-        WorkerConfig::default(),
-        token.clone(),
-    );
     let stored_tracks_app_data = StoredTracksAppData {
         tracks_service: Arc::clone(&tracks_service)
             as Arc<dyn api::tracks::tracks_provider::TracksProvider>,
@@ -539,7 +502,6 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
             .app_data(web::Data::new(usage_app_data.clone()))
             .app_data(web::Data::new(transforms_app_data.clone()))
             .app_data(web::Data::new(transform_drafts_app_data.clone()))
-            .app_data(web::Data::new(tickets_app_data.clone()))
             .app_data(web::Data::new(transform_grants_app_data.clone()))
             .app_data(web::Data::new(stored_tracks_app_data.clone()))
             .app_data(web::Data::new(workspace_app_data.clone()))
@@ -626,7 +588,6 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
                     .wrap(transform_access_middleware.clone())
                     .wrap(jwt_middleware.clone())
                     .configure(controllers::transforms_controller::init)
-                    .configure(controllers::ticket_controller::init)
                     .configure(controllers::transform_grants_controller::init),
             )
             .service(
@@ -642,17 +603,9 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
     let server_handle = server.handle();
     tokio::spawn(server);
 
-    tokio::select! {
-        _ = tokio::signal::ctrl_c() => {
-            tracing::info!("received ctrl+c, shutting down");
-            token.cancel();
-            server_handle.stop(true).await;
-        }
-        result = worker_handle => {
-            tracing::error!("worker exited unexpectedly: {:?}", result);
-            server_handle.stop(true).await;
-        }
-    }
+    tokio::signal::ctrl_c().await.ok();
+    tracing::info!("received ctrl+c, shutting down");
+    server_handle.stop(true).await;
 
     Ok(())
 }

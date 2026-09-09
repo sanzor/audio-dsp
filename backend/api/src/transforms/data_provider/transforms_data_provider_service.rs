@@ -1,14 +1,5 @@
 use domain::{
-    db::{
-        db_transform::{DbTransform, TransformId},
-        ticket::{
-            create_ticket_params::CreateTransformDraftParams,
-            db_resource::{DbResource, ResourceId},
-            db_ticket::{DbTicket, TicketId},
-            ticket_status::TicketStatus,
-            update_ticket_params::UpdateTicketParams,
-        },
-    },
+    db::db_transform::{DbTransform, TransformId},
     domain_user::UserId,
 };
 use sqlx::PgPool;
@@ -24,70 +15,6 @@ pub struct PostgresTransformsDataProvider {
 impl PostgresTransformsDataProvider {
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
-    }
-}
-
-#[derive(sqlx::FromRow)]
-struct DbTicketRow {
-    id: TicketId,
-    issued_by: i64,
-    status: String,
-    resource_id: Option<i64>,
-    error_message: Option<String>,
-    timestamp: i64,
-}
-
-impl TryFrom<DbTicketRow> for DbTicket {
-    type Error = DataError;
-
-    fn try_from(value: DbTicketRow) -> Result<Self, Self::Error> {
-        let status = match value.status.as_str() {
-            "processing" => TicketStatus::Processing,
-            "failed" => TicketStatus::Failed {
-                message: value.error_message.unwrap_or_default(),
-            },
-            "successful" => {
-                let resource_id = value.resource_id.ok_or_else(|| {
-                    DataError::Internal("successful ticket is missing its resource".to_string())
-                })?;
-                TicketStatus::Successful { resource_id }
-            }
-            other => {
-                return Err(DataError::Internal(format!(
-                    "unsupported transform ticket status: {other}"
-                )))
-            }
-        };
-
-        Ok(DbTicket {
-            id: value.id,
-            issued_by: value.issued_by,
-            status,
-            timestamp: value.timestamp,
-        })
-    }
-}
-
-#[derive(sqlx::FromRow)]
-struct DbResourceRow {
-    id: ResourceId,
-    ticket_id: TicketId,
-    source_code: Option<String>,
-    wasm_bytecode: Vec<u8>,
-    name: String,
-    description: Option<String>,
-}
-
-impl From<DbResourceRow> for DbResource {
-    fn from(row: DbResourceRow) -> Self {
-        Self {
-            id: row.id,
-            ticket_id: row.ticket_id,
-            source_code: row.source_code,
-            wasm_bytecode: row.wasm_bytecode,
-            name: row.name,
-            description: row.description,
-        }
     }
 }
 
@@ -126,7 +53,6 @@ const TRANSFORM_ROW_COLUMNS: &str = "t.transform_id, t.name, t.description, t.ic
 
 #[async_trait::async_trait]
 impl TransformsDataProvider for PostgresTransformsDataProvider {
-
     async fn list_transform_summaries(
         &self,
         offset: i64,

@@ -2,7 +2,7 @@ use domain::db::db_transform_draft::{DbTransformDraft, TransformDraftId};
 use serde::Serialize;
 use utoipa::ToSchema;
 
-use crate::ticket_worker::processor::transform_metadata::PortMetadataJson;
+use crate::transform_drafts::processor::transform_metadata::PortMetadataJson;
 
 /// A transform's in-progress (bucket 2) draft state.
 #[derive(Debug, Serialize, ToSchema)]

@@ -2,9 +2,6 @@ use std::collections::HashMap;
 
 use domain::db::db_transform::TransformId;
 
-use crate::ticket_worker::processor::transform_metadata::{
-    DirectionJson, PortCardinalityJson, PortKindJson, PortMetadataJson,
-};
 use crate::transform_drafts::graph_validator::{
     composite::Composite,
     edge::Edge,
@@ -16,6 +13,9 @@ use crate::transform_drafts::graph_validator::{
     primitive::Primitive,
     transform_info::TransformInfo,
     validator::{Validator, ValidatorInput},
+};
+use crate::transform_drafts::processor::transform_metadata::{
+    DirectionJson, PortCardinalityJson, PortKindJson, PortMetadataJson,
 };
 
 fn port(

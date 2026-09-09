@@ -6,15 +6,15 @@
 //! fetching that info (via `ValidatorInput`) and deciding what (if
 //! anything) to persist with the result.
 //!
-//! Mirrors `ticket_worker::processor::metadata_introspector`'s role for
-//! primitives: `Validator::validate` (parse JSON, then validate) is the
-//! composite-side analog of `introspect_metadata` (call the wasm export,
-//! then validate).
+//! Mirrors `transform_drafts::processor::Processor`'s role for primitives:
+//! `Validator::validate` (parse JSON, then validate) is the composite-side
+//! analog of `Processor::compile_primitive` (call the wasm export, then
+//! validate).
 //!
 //! A composite has no source code and no compiled binary; "compiling" one is
-//! just this. There's no cargo build or wasmtime introspection step to make
-//! async, so this deliberately doesn't go through the ticket_worker/
-//! ticket-polling machinery primitives use.
+//! just this. There's no cargo build or wasmtime introspection step, so
+//! this deliberately doesn't go through `Processor` — it's a plain
+//! synchronous function call either way.
 //!
 //! A composite's own externally-visible ports aren't a separate list —
 //! they're derived from literal `Node::Input`/`Node::Output` nodes wired
@@ -26,7 +26,7 @@ use std::collections::{HashMap, HashSet};
 
 use domain::db::db_transform::TransformId;
 
-use crate::ticket_worker::processor::transform_metadata::{
+use crate::transform_drafts::processor::transform_metadata::{
     DirectionJson, PortCardinalityJson, PortKindJson, PortMetadataJson,
 };
 

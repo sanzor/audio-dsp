@@ -7,6 +7,7 @@ This repository uses a root entrypoint plus a dedicated top-level `agents/` fold
 - `agents/mission.md`: what this product is, who it's for, and why the creator/editor split exists — read this first
 - `agents/architecture.md`: current system shape, boundaries, and unresolved architecture questions
 - `agents/invariants.md`: rules that changes must not violate
+- `agents/rust-conventions.md`: Rust code style/structure rules (error handling, imports, file organization, DTO conventions)
 - `agents/ownership.md`: directory and subsystem ownership, and how the two agent layers below relate to each other
 - `agents/testing-matrix.md`: what to test for each change category
 - `agents/skills/*.md`: repeatable workflows and checklists
@@ -62,6 +63,7 @@ Not to be confused with `editor-agent`/`creator-agent` above — those build and
 ## Working rules
 
 - Read `agents/invariants.md` before changing audio, graph, playback, or persistence behavior.
+- Follow `agents/rust-conventions.md` for any Rust code in `backend/`.
 - Use `agents/testing-matrix.md` to choose the smallest test slice that still covers the change.
 - Treat `agents/skills/` as command-palette workflows for recurring tasks.
 - Update the relevant file in `agents/` when architecture or workflow assumptions change.
