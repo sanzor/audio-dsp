@@ -47,6 +47,36 @@ def sql_jsonb(value: object) -> str:
     return sql_text(json.dumps(value)) + "::jsonb"
 
 
+def primitive_metadata(transform: dict) -> dict:
+    """Normalize the legacy manifest fields to TransformMetadataJson."""
+    return {
+        "name": transform["name"],
+        "description": transform.get("description"),
+        "ports": [
+            {
+                "name": port["name"],
+                "direction": port["direction"],
+                "order": port["port_order"],
+                "description": port.get("description"),
+                "kind": port.get("kind", DEFAULT_PORT_KIND),
+                "cardinality": port.get("cardinality", DEFAULT_PORT_CARDINALITY),
+            }
+            for port in transform["ports"]
+        ],
+        "params": [
+            {
+                "name": param["name"],
+                "order": param["param_order"],
+                "default": param["default_value"],
+                "min": param.get("min_value"),
+                "max": param.get("max_value"),
+                "description": param.get("description"),
+            }
+            for param in transform["params"]
+        ],
+    }
+
+
 def resolve_wasm(binary_name: str) -> Path:
     binary_path = SOURCE_DIR / binary_name
     if not binary_path.exists():
@@ -68,6 +98,7 @@ def resolve_source(binary_name: str) -> Path:
 def build_sql(transform: dict, wasm_path: Path, source_path: Path) -> str:
     wasm_hex = wasm_path.read_bytes().hex()
     source_code = source_path.read_text()
+    metadata = primitive_metadata(transform)
 
     port_rows = []
     for port in transform["ports"]:
@@ -93,19 +124,28 @@ DO $seed$
 DECLARE
     t_id BIGINT;
 BEGIN
-    INSERT INTO transform (name, description, icon, kind, owner_user_id, is_default)
+    INSERT INTO transform (
+        name, description, icon, kind, owner_user_id, is_default,
+        source_code, wasm_bytecode, metadata
+    )
     VALUES (
         {sql_text(transform['name'])},
         {sql_text(transform.get('description'))},
         {sql_text(transform.get('icon'))},
         'primitive',
         (SELECT user_id FROM users WHERE email = 'admin@gmail.com'),
-        true
+        true,
+        {sql_text(source_code)},
+        decode('{wasm_hex}', 'hex'),
+        {sql_text(json.dumps(metadata))}
     )
     ON CONFLICT (name) DO UPDATE
     SET description = EXCLUDED.description,
         icon = EXCLUDED.icon,
-        is_default = true
+        is_default = true,
+        source_code = EXCLUDED.source_code,
+        wasm_bytecode = EXCLUDED.wasm_bytecode,
+        metadata = EXCLUDED.metadata
     RETURNING transform_id INTO t_id;
 
     DELETE FROM transform_port WHERE transform_id = t_id;
@@ -123,21 +163,28 @@ BEGIN
         source = EXCLUDED.source,
         updated_at = now();
 
-    INSERT INTO transform_draft (transform_id, source_code, name, description, ports, params)
+    INSERT INTO transform_draft (
+        transform_id, source_code, wasm_bytecode, wasm_source_code,
+        name, description, kind, metadata
+    )
     VALUES (
         t_id,
         {sql_text(source_code)},
+        decode('{wasm_hex}', 'hex'),
+        {sql_text(source_code)},
         {sql_text(transform['name'])},
         {sql_text(transform.get('description'))},
-        {sql_jsonb(transform['ports'])},
-        {sql_jsonb(transform['params'])}
+        'primitive',
+        {sql_text(json.dumps(metadata))}
     )
     ON CONFLICT (transform_id) DO UPDATE
     SET source_code = EXCLUDED.source_code,
+        wasm_bytecode = EXCLUDED.wasm_bytecode,
+        wasm_source_code = EXCLUDED.wasm_source_code,
         name = EXCLUDED.name,
         description = EXCLUDED.description,
-        ports = EXCLUDED.ports,
-        params = EXCLUDED.params,
+        kind = EXCLUDED.kind,
+        metadata = EXCLUDED.metadata,
         updated_at = now();
 END
 $seed$;
@@ -162,12 +209,11 @@ def seed_transforms() -> None:
 # primitive transforms (see CompositeGraphDefinition in
 # domain/db/transform_snapshot.rs and composite_validator.rs). Seeding one
 # means writing the same rows the real save-draft/publish flow would:
-# transform (kind='composite'), transform_draft.graph_definition (what the
-# Creator's composite canvas loads), transform_port (the exposed ports other
-# graphs wire against), and transform_composite (the published graph the
-# Editor/runtime resolves). Node transform_ids aren't known until the leaf
-# primitives above are actually seeded, so they're resolved by name here
-# rather than hardcoded.
+# transform (the published metadata), transform_draft.metadata (the Creator
+# graph before publish), transform_port (the exposed ports other graphs wire
+# against), and transform_composite (the legacy normalized graph). Node
+# transform_ids aren't known until the leaf primitives above are actually
+# seeded, so they're resolved by name here rather than hardcoded.
 
 
 def table_exists(table_name: str) -> bool:
@@ -278,45 +324,73 @@ def build_composite_sql(composite: dict, primitives_by_name: dict[str, dict], le
             f"{sql_text(port['kind'])}, {sql_text(port['cardinality'])})"
         )
 
-    graph_jsonb = sql_jsonb(graph_definition)
-    ports_jsonb = sql_jsonb(exposed_ports)
+    graph_json = json.dumps(graph_definition)
+    composite_metadata = {
+        "name": composite["name"],
+        "description": composite.get("description"),
+        "ports": [
+            {
+                "name": port["name"],
+                "direction": port["direction"],
+                "order": port["port_order"],
+                "description": port["description"],
+                "kind": port["kind"],
+                "cardinality": port["cardinality"],
+            }
+            for port in exposed_ports
+        ],
+        "params": [],
+        "graph": graph_definition,
+    }
 
     return f"""
 DO $seed$
 DECLARE
     t_id BIGINT;
 BEGIN
-    INSERT INTO transform (name, description, icon, kind, owner_user_id, is_default)
+    INSERT INTO transform (
+        name, description, icon, kind, owner_user_id, is_default,
+        source_code, wasm_bytecode, metadata
+    )
     VALUES (
         {sql_text(composite['name'])},
         {sql_text(composite.get('description'))},
         {sql_text(composite.get('icon'))},
         'composite',
         (SELECT user_id FROM users WHERE email = 'admin@gmail.com'),
-        true
+        true,
+        NULL,
+        NULL,
+        {sql_text(json.dumps(composite_metadata))}
     )
     ON CONFLICT (name) DO UPDATE
     SET description = EXCLUDED.description,
         icon = EXCLUDED.icon,
-        is_default = true
+        is_default = true,
+        metadata = EXCLUDED.metadata
     RETURNING transform_id INTO t_id;
 
-    INSERT INTO transform_draft (transform_id) VALUES (t_id) ON CONFLICT (transform_id) DO NOTHING;
-
-    UPDATE transform_draft
-    SET graph_definition = {graph_jsonb},
-        ports = {ports_jsonb},
-        name = {sql_text(composite['name'])},
-        description = {sql_text(composite.get('description'))},
-        updated_at = now()
-    WHERE transform_id = t_id;
+    INSERT INTO transform_draft (transform_id, name, description, kind, metadata)
+    VALUES (
+        t_id,
+        {sql_text(composite['name'])},
+        {sql_text(composite.get('description'))},
+        'composite',
+        {sql_text(graph_json)}
+    )
+    ON CONFLICT (transform_id) DO UPDATE
+    SET name = EXCLUDED.name,
+        description = EXCLUDED.description,
+        kind = EXCLUDED.kind,
+        metadata = EXCLUDED.metadata,
+        updated_at = now();
 
     DELETE FROM transform_port WHERE transform_id = t_id;
     INSERT INTO transform_port (transform_id, name, direction, port_order, description, kind, cardinality)
     VALUES {", ".join(port_rows)};
 
     INSERT INTO transform_composite (transform_id, graph_definition)
-    VALUES (t_id, {graph_jsonb})
+    VALUES (t_id, {sql_jsonb(graph_definition)})
     ON CONFLICT (transform_id) DO UPDATE
     SET graph_definition = EXCLUDED.graph_definition,
         updated_at = now();

@@ -9,15 +9,17 @@ import {
   type CreateTransformParams,
   type SaveDraftParams,
   type PublishDraftParams,
-} from "@/Services/TransformService";
+} from "@/Services/transform-drafts/TransformDraftsService";
 import type { CompositeGraphDefinition } from "@/domain/Transform/CompositeGraphDefinition";
+import { useTransformDraftStore } from "@/Stores/transform-drafts/TransformDraftStore";
 import { QUERY_KEYS } from "@/constants/queryKeys";
 
 export function useCreateTransform() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (params: CreateTransformParams) => apiCreateTransform(params),
-    onSuccess: () => {
+    onSuccess: (draft) => {
+      useTransformDraftStore.getState().upsertDraft(draft);
       qc.invalidateQueries({ queryKey: QUERY_KEYS.transforms.all() });
     },
   });
@@ -31,7 +33,8 @@ export function useSaveTransform(transformId: number) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (params: SaveDraftParams) => apiSaveTransform(transformId, params),
-    onSuccess: () => {
+    onSuccess: (draft) => {
+      useTransformDraftStore.getState().upsertDraft(draft);
       qc.invalidateQueries({ queryKey: QUERY_KEYS.transforms.byId(transformId) });
     },
   });
@@ -56,10 +59,11 @@ export function useValidateCompositeGraph(transformId: number) {
   });
 }
 
-// Bucket 3 — publish. Bundles whatever's currently saved into the live
-// artifact; never compiles. Takes the discriminated union PublishDraftParams
-// — each call site already knows its own kind and passes {kind: "primitive"}
-// or {kind: "composite"}.
+// Bucket 2 — publish (route lives under /draft_transforms/*, despite the
+// name). Bundles whatever's currently saved into the live artifact; never
+// compiles. Takes the discriminated union PublishDraftParams — each call
+// site already knows its own kind and passes {kind: "primitive"} or
+// {kind: "composite"}.
 export function usePublishTransform(transformId: number) {
   const qc = useQueryClient();
   return useMutation({

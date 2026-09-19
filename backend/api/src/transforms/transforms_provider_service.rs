@@ -46,6 +46,17 @@ impl TransformsProvider for TransformsProviderService {
             .map_err(ServiceError::from)
     }
 
+    async fn get_published_transforms_for_workspace_and_user(
+        &self,
+        user_id: UserId,
+        workspace_id: WorkspaceId,
+    ) -> Result<Vec<DbTransform>, ServiceError> {
+        self.data
+            .get_published_transforms_for_workspace_and_user(user_id, workspace_id)
+            .await
+            .map_err(ServiceError::from)
+    }
+
     async fn get_transform(&self, id: TransformId) -> Result<DbTransform, ServiceError> {
         self.data
             .get_transform(id)

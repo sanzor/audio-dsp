@@ -25,7 +25,6 @@ function singleIoDefinition(transformId: number): TransformDefinition {
     transform_id: transformId,
     name: `transform-${transformId}`,
     kind: "primitive",
-    published: true,
     ports: [
       { port_id: transformId * 10 + 1, name: "in", direction: "input", port_order: 0, kind: "program", cardinality: "single" },
       { port_id: transformId * 10 + 2, name: "out", direction: "output", port_order: 0, kind: "program", cardinality: "single" },

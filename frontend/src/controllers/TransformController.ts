@@ -1,54 +1,18 @@
-// hooks/useTransformController.ts
-import { useUIStore } from "@/Stores/UIStore";
-import { useCreatorStore } from "@/Stores/CreatorStore";
-import { useCreateTransform, useDeleteTransform } from "@/hooks/transforms/mutations";
-import type { CreateTransformParams } from "@/Services/TransformService";
-
-export function useTransformController() {
-  // Zustand selectors
-  const closeModal = useUIStore((state) => state.closeModal);
-  const openModal = useUIStore((state) => state.openModal);
-  const setSelectedTransformId = useCreatorStore((state) => state.setSelectedTransformId);
-  const selectedTransformId = useCreatorStore((state) => state.selectedTransformId);
-
-  // Data and mutations
-  const createTransformMutation = useCreateTransform();
-  const deleteTransformMutation = useDeleteTransform();
-
-  return {
-    // ============================================
-    // CREATE TRANSFORM
-    // ============================================
-    handleCreateTransform: () => {
-      openModal({ type: "createTransform" });
-    },
-
-    handleSubmitCreateTransform: async (params: CreateTransformParams) => {
-      try {
-        const definition = await createTransformMutation.mutateAsync(params);
-        setSelectedTransformId(definition.transform_id);
-        closeModal(); // ✅ Close modal on success
-        return definition;
-      } catch (error) {
-        console.error("Failed to create transform:", error);
-        // ❌ Don't close modal on error - let user fix/retry
-        throw error;
-      }
-    },
-
-    // ============================================
-    // DELETE TRANSFORM (draft only — never-published transforms)
-    // ============================================
-    // The backend enforces the never-published rule (409 Conflict
-    // otherwise); this just surfaces that error to the caller rather than
-    // silently swallowing it. See
-    // agents/decisions/0002-transform-draft-lifecycle-decisions.md.
-    handleDeleteTransform: async (transformId: number) => {
-      await deleteTransformMutation.mutateAsync(transformId);
-      if (selectedTransformId === transformId) {
-        setSelectedTransformId(null);
-      }
-    },
-    deleteTransformMutation,
-  };
-}
+// controllers/TransformController.ts
+//
+// Bucket 3 (published) controller. Intentionally thin/near-empty: bucket 3
+// is read-only from the frontend today — there are zero frontend-triggered
+// bucket-3 mutations/actions to orchestrate. Reads already go straight
+// through hooks/transforms/queries.ts's hooks, called directly from
+// components (e.g. composite/composite-palette.tsx's usePublishedTransforms(),
+// code-editor.tsx's/composite-canvas.tsx's useGetTransformDefinition()) —
+// there's nothing for a controller to add on top of a plain query hook when
+// there's no imperative action, error-recovery flow, or cross-store
+// side-effect to coordinate.
+//
+// This file exists (rather than being omitted) per explicit product
+// decision to keep bucket 2 (controllers/TransformDraftController.ts) and
+// bucket 3 as two separate controllers regardless of how much either
+// currently does. If/when a frontend-triggered bucket-3 action appears
+// (there is none today — do not invent speculative ones), it belongs here.
+export {};

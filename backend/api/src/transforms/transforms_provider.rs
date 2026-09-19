@@ -21,6 +21,13 @@ pub trait TransformsProvider: Send + Sync {
         user_id: UserId,
         workspace_id: WorkspaceId,
     ) -> Result<Vec<DbTransform>, ServiceError>;
+    /// "The store" — published-only catalog for one workspace. See
+    /// `TransformsDataProvider::get_published_transforms_for_workspace_and_user`.
+    async fn get_published_transforms_for_workspace_and_user(
+        &self,
+        user_id: UserId,
+        workspace_id: WorkspaceId,
+    ) -> Result<Vec<DbTransform>, ServiceError>;
     async fn get_transform(&self, id: TransformId) -> Result<DbTransform, ServiceError>;
     async fn get_transforms(&self, ids: &[TransformId]) -> Result<Vec<DbTransform>, ServiceError>;
     /// Cheap point-lookup for ownership checks.

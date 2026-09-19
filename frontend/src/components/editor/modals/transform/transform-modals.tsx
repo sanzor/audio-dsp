@@ -1,12 +1,12 @@
 import { useUIStore } from "@/Stores/UIStore";
 import { TransformDetailsModal } from "./transform-details-modal";
 import { CreateTransformModal } from "./create-transform-modal";
-import { useTransformController } from "@/controllers/TransformController";
+import { useTransformDraftController } from "@/controllers/TransformDraftController";
 
 export function TransformModals() {
   const modalState = useUIStore((s) => s.modalState);
   const closeModal = useUIStore((s) => s.closeModal);
-  const transformController = useTransformController();
+  const transformController = useTransformDraftController();
 
   if (!modalState) return null;
 

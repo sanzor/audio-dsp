@@ -17,7 +17,22 @@ pub trait TransformsDataProvider: Send + Sync {
     ) -> Result<(Vec<DbTransform>, i64), DataError>;
     /// Catalog for one workspace — default transforms, caller-owned
     /// transforms, and transforms granted directly to the caller or workspace.
+    /// Includes drafts that have never been published (a `transform` row
+    /// exists from the moment its draft is created, `metadata`/
+    /// `wasm_bytecode` NULL until the first publish) — this is the Creator's
+    /// browse/select/edit/delete list, which needs to reach those too.
     async fn get_transforms_for_workspace_and_user(
+        &self,
+        user_id: UserId,
+        workspace_id: WorkspaceId,
+    ) -> Result<Vec<DbTransform>, DataError>;
+    /// Same scoping as `get_transforms_for_workspace_and_user`, restricted to
+    /// transforms that have actually been published at least once (bucket 3 —
+    /// `metadata` is set by both `publish_compiled_transform` and
+    /// `publish_composite_transform`, never by save). This is "the store" —
+    /// the only thing safe to drag onto a composite canvas, since an
+    /// unpublished draft has no resolvable artifact yet.
+    async fn get_published_transforms_for_workspace_and_user(
         &self,
         user_id: UserId,
         workspace_id: WorkspaceId,

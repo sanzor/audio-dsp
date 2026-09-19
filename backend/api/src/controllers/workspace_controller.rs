@@ -293,6 +293,42 @@ pub async fn list_workspace_transforms(
     }
 }
 
+/// "The store" — the subset of `list_workspace_transforms` that has
+/// actually been published at least once. This is what the Creator's
+/// composite canvas offers as draggable leaves; an unpublished draft has no
+/// resolvable artifact to instantiate yet.
+#[utoipa::path(get, path = "/v1/workspaces/{workspace_id}/transforms/published", tag = "Workspaces",
+    responses((status = 200, body = WorkspaceTransformsResponse), (status = 403)))]
+#[get("/{workspace_id}/transforms/published")]
+pub async fn list_published_workspace_transforms(
+    jwt: JwtContext,
+    _role: RoleContext,
+    path: web::Path<i32>,
+    transforms_app: web::Data<TransformsAppData>,
+) -> HttpResponse {
+    let workspace_id = path.into_inner();
+
+    match transforms_app
+        .transforms_service
+        .get_published_transforms_for_workspace_and_user(
+            domain::domain_user::UserId::from(jwt.user_id),
+            workspace_id,
+        )
+        .await
+    {
+        Ok(transforms) => HttpResponse::Ok().json(WorkspaceTransformsResponse {
+            transforms: transforms
+                .into_iter()
+                .map(WorkspaceTransformSummaryDto::from)
+                .collect(),
+        }),
+        Err(e) => {
+            error!(error = %e, "list published workspace transforms failed");
+            HttpResponse::InternalServerError().body("list published workspace transforms failed")
+        }
+    }
+}
+
 // ── init ───────────────────────────────────────────────────────────────────────
 
 pub fn init(cfg: &mut web::ServiceConfig) {
@@ -301,5 +337,6 @@ pub fn init(cfg: &mut web::ServiceConfig) {
         .service(delete_workspace)
         .service(remove_member)
         .service(change_role)
-        .service(list_workspace_transforms);
+        .service(list_workspace_transforms)
+        .service(list_published_workspace_transforms);
 }

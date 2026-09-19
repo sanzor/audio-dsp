@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import type { CreateTransformParams } from "@/Services/TransformService";
+import type { CreateTransformParams } from "@/Services/transform-drafts/TransformDraftsService";
 
 interface CreateTransformModalProps {
   open: boolean;

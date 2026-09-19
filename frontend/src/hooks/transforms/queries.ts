@@ -4,6 +4,7 @@ import {
   apiGetTransformBinaries,
   apiGetTransformDefinition,
   apiGetTransformSummaries,
+  apiGetPublishedTransformSummaries,
   apiResolveTransformDefinitions,
 } from "@/Services/TransformService";
 import { useTransformStore } from "@/Stores/TransformStore";
@@ -78,6 +79,20 @@ export const useListTransforms = () => {
   }, [query.data]);
 
   return query;
+};
+
+// "The store" — the composite canvas's draggable leaf list. Published
+// transforms only (see apiGetPublishedTransformSummaries's doc comment);
+// distinct from useListTransforms, which includes the caller's own
+// unpublished drafts for the general browse/select/edit/delete sidebar.
+export const usePublishedTransforms = () => {
+  const user = useAuthStore((state) => state.user);
+  const activeProjectId = useProjectStore((state) => state.activeProject?.project_id);
+  return useQuery({
+    queryKey: [...QUERY_KEYS.transforms.published(), activeProjectId ?? 0],
+    queryFn: () => apiGetPublishedTransformSummaries(),
+    enabled: Boolean(user && activeProjectId),
+  });
 };
 
 // Batched definition fetch for the composite canvas — resolves every

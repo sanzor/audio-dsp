@@ -10,6 +10,7 @@ import { useCreatorStore } from "@/Stores/CreatorStore";
 import { useCreatorPlaybackStore } from "@/Stores/CreatorPlaybackStore";
 import { useGetTransformDefinition } from "@/hooks/transforms/queries";
 import type { TransformPort } from "@/domain/Transform/TransformPort";
+import { PRIMITIVE_TRANSFORM_TEMPLATE_PORTS } from "./primitive-transform-template";
 
 
 // ─── Live meter bar ───────────────────────────────────────────────────────────
@@ -214,8 +215,14 @@ function CreatorCanvasInner() {
     );
   }
 
-  const inputs = definition.ports.filter((p) => p.direction === "input");
-  const outputs = definition.ports.filter((p) => p.direction === "output");
+  // Mirrors transform-properties-panel.tsx's usingStarterTemplate fallback --
+  // a newly-created primitive has no saved source or compiler metadata yet,
+  // so its canvas node shows the shared starter template's ports until Save
+  // produces the authoritative, compile-derived ones.
+  const usingStarterTemplate = definition.kind === "primitive" && !definition.source_code && definition.ports.length === 0;
+  const ports = usingStarterTemplate ? PRIMITIVE_TRANSFORM_TEMPLATE_PORTS : definition.ports;
+  const inputs = ports.filter((p) => p.direction === "input");
+  const outputs = ports.filter((p) => p.direction === "output");
 
   const node = {
     id: String(definition.transform_id),

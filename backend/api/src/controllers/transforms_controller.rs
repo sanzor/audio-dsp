@@ -141,7 +141,7 @@ pub async fn get_transform_binaries(
 
 #[utoipa::path(delete, path = "/transforms/{transform_id}", tag = "transforms",
     params(TransformIdPath),
-    responses((status = 200, description = "Deleted")))]
+    responses((status = 204, description = "Deleted")))]
 #[delete("/{transform_id}")]
 pub async fn delete_transform(
     jwt: JwtContext,
@@ -153,7 +153,7 @@ pub async fn delete_transform(
         return resp;
     }
     match app.transforms_service.delete_transform(transform_id).await {
-        Ok(_) => HttpResponse::Ok().body("Deleted"),
+        Ok(_) => HttpResponse::NoContent().finish(),
         Err(e) => map_service_error(e),
     }
 }

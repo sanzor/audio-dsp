@@ -131,6 +131,33 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
         Ok(rows.into_iter().map(DbTransform::from).collect())
     }
 
+    async fn get_published_transforms_for_workspace_and_user(
+        &self,
+        user_id: UserId,
+        workspace_id: domain::db::WorkspaceId,
+    ) -> Result<Vec<DbTransform>, DataError> {
+        let rows = sqlx::query_as::<_, DbTransformRow>(&format!(
+            r#"
+            SELECT DISTINCT {TRANSFORM_ROW_COLUMNS}
+            FROM transform t
+            WHERE t.metadata IS NOT NULL
+              AND (
+                t.is_default
+                OR t.owner_user_id = $1
+                OR EXISTS (SELECT 1 FROM transform_grants g WHERE g.transform_id = t.transform_id AND g.grantee_user_id = $1)
+                OR EXISTS (SELECT 1 FROM transform_grants g WHERE g.transform_id = t.transform_id AND g.grantee_workspace_id = $2)
+              )
+            ORDER BY t.created_at DESC
+            "#,
+        ))
+        .bind(user_id)
+        .bind(workspace_id)
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(rows.into_iter().map(DbTransform::from).collect())
+    }
+
     async fn get_transform(&self, id: TransformId) -> Result<DbTransform, DataError> {
         let row = sqlx::query_as::<_, DbTransformRow>(&format!(
             r#"SELECT {TRANSFORM_ROW_COLUMNS} FROM transform t WHERE t.transform_id = $1"#,
@@ -205,7 +232,7 @@ impl TransformsDataProvider for PostgresTransformsDataProvider {
         // check against any more.
         // See agents/decisions/0002-transform-draft-lifecycle-decisions.md.
         let is_published: bool = sqlx::query_scalar(
-            "SELECT octet_length(wasm_bytecode) > 0 FROM transform WHERE transform_id = $1",
+            "SELECT COALESCE(octet_length(wasm_bytecode), 0) > 0 FROM transform WHERE transform_id = $1",
         )
         .bind(id)
         .fetch_one(&self.pool)

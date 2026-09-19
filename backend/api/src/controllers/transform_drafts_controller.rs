@@ -226,7 +226,7 @@ pub async fn publish_draft(
 
 #[utoipa::path(delete, path = "/draft_transforms/{draft_transform_id}", tag = "draft_transforms",
     params(TransformDraftIdPath),
-    responses((status = 200, description = "Deleted")))]
+    responses((status = 204, description = "Deleted")))]
 #[delete("/{draft_transform_id}")]
 pub async fn delete_transform_draft(
     jwt: JwtContext,
@@ -242,7 +242,7 @@ pub async fn delete_transform_draft(
         .delete_transform_draft(draft_transform_id)
         .await
     {
-        Ok(_) => HttpResponse::Ok().body("Deleted"),
+        Ok(_) => HttpResponse::NoContent().finish(),
         Err(e) => map_service_error(e),
     }
 }

@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Button } from "@/components/ui/button";
 import { useCreatorStore, isSourceDirty } from "@/Stores/CreatorStore";
 import { useCompositeCanvasStore } from "@/Stores/CompositeCanvasStore";
-import { useSaveTransform } from "@/hooks/transforms/mutations";
+import { useTransformDraftController } from "@/controllers/TransformDraftController";
 
 // Guards a select/create action blocked by unsaved creator work. There are
 // two independent flavors of "unsaved" that can trigger `pendingTransformAction`
@@ -41,7 +41,7 @@ export function UnsavedCreatorChangesModal() {
   // navigated TO) - mirrors composite-canvas.tsx's own handleSave for the
   // composite case. One unified mutation instance now that useSaveTransform
   // takes a SaveDraftParams variant instead of two separate hooks.
-  const saveMutation = useSaveTransform(
+  const { handleSaveAsync, saveMutation } = useTransformDraftController(
     isCompositeCase ? compositeGraph?.transformId ?? -1 : editing?.transformId ?? -1
   );
 
@@ -55,10 +55,10 @@ export function UnsavedCreatorChangesModal() {
     setIsSaving(true);
     try {
       if (isCompositeCase && compositeGraph) {
-        await saveMutation.mutateAsync({ graph_definition: toGraphDefinition() });
+        await handleSaveAsync({ graph_definition: toGraphDefinition() });
         markCompositeSaved();
       } else if (editing) {
-        await saveMutation.mutateAsync({ source_code: editing.source });
+        await handleSaveAsync({ source_code: editing.source });
         markTransformSourceSaved(editing.transformId, editing.source);
       }
       resolvePendingTransformAction();

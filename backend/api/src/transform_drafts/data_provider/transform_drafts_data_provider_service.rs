@@ -177,7 +177,7 @@ impl TransformDraftsDataProvider for PostgresTransformDraftsDataProvider {
         // provider. See `TransformDraftId`'s doc comment for why a draft
         // and its transform share the same underlying row/guard.
         let is_published: bool = sqlx::query_scalar(
-            "SELECT octet_length(wasm_bytecode) > 0 FROM transform WHERE transform_id = $1",
+            "SELECT COALESCE(octet_length(wasm_bytecode), 0) > 0 FROM transform WHERE transform_id = $1",
         )
         .bind(id)
         .fetch_one(&self.pool)

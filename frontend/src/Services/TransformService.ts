@@ -7,33 +7,6 @@ import { useAuthStore } from "@/Stores/authStore";
 import { useProjectStore } from "@/Stores/projectStore";
 import type { TransformSummary } from "@/domain/Transform/TransformSummary";
 
-// ─── Params ──────────────────────────────────────────────────────────────────
-
-export interface CreateTransformParams {
-  name: string;
-  description?: string;
-  icon?: string;
-  kind: "primitive" | "composite";
-}
-
-// Bucket 2 — save. As of the transform-draft API reshape (see
-// agents/decisions/0011-transform-draft-api-reshape.md), there is no
-// frontend-supplied WASM package anymore — save always compiles
-// source_code synchronously server-side and rejects the whole request if
-// it doesn't build.
-//
-// Discriminated union mirroring the backend's untagged SaveDraftParams
-// (transform_drafts/dto/requests.rs) exactly — no `kind` field; the server
-// picks the variant purely from which field is present.
-export type SaveDraftParams =
-  | { source_code: string }
-  | { graph_definition: CompositeGraphDefinition };
-
-// Bucket 3 — publish. Mirrors the backend's tagged PublishDraftParams
-// (transform_drafts/dto/requests.rs) exactly — wire format is
-// `{"kind": "primitive"}` or `{"kind": "composite"}`.
-export type PublishDraftParams = { kind: "primitive" } | { kind: "composite" };
-
 // ─── API ─────────────────────────────────────────────────────────────────────
 
 export interface TransformPage {
@@ -60,11 +33,12 @@ export interface TransformBinariesResponse {
 
 // ─── metadata_json parsing ────────────────────────────────────────────────────
 //
-// Neither the draft-bucket DTOs (TransformDraftDto) nor the published DTO
-// (TransformDto) carry structured `ports`/`params`/`graph_definition` fields
-// anymore — everything a transform's authored/introspected shape needs is
-// embedded as a JSON string in `metadata_json` (`{name, description, ports,
-// params}`, plus `graph` for a composite). This mirrors
+// Neither the draft-bucket DTOs (Services/transform-drafts/TransformDraftsService.ts's
+// TransformDraftDefinition) nor the published DTO (TransformDto) carry
+// structured `ports`/`params`/`graph_definition` fields anymore — everything
+// a transform's authored/introspected shape needs is embedded as a JSON
+// string in `metadata_json` (`{name, description, ports, params}`, plus
+// `graph` for a composite). This mirrors
 // backend/api/src/transform_drafts/processor/transform_metadata.rs's
 // PortMetadataJson/ParamMetadataJson exactly on the wire (`order` not
 // `port_order`/`param_order`, `default`/`min`/`max` not `default_value`/
@@ -168,6 +142,16 @@ export async function apiGetTransformSummaries(offset = 0, limit = 20): Promise<
   };
 }
 
+// "The store" — transforms that have actually been published at least once
+// (GET /v1/workspaces/{id}/transforms/published), as opposed to every
+// transform the caller can see (drafts included) from apiGetTransformSummaries
+// above. This is what the composite canvas offers as draggable leaves — an
+// unpublished draft has no resolvable artifact yet.
+export async function apiGetPublishedTransformSummaries(): Promise<TransformSummary[]> {
+  const response = await http.get<{ transforms: TransformSummary[] }>(projectApiPath("/transforms/published"));
+  return response.transforms;
+}
+
 export async function apiGetTransformDefinition(transform_id: number): Promise<TransformDefinition> {
   const response = await http.get<TransformDefinitionResponse>(`/transforms/${transform_id}`);
   return normalizeTransformDefinition(response);
@@ -179,130 +163,6 @@ export async function apiResolveTransformDefinitions(transform_ids: number[]): P
     { ids: transform_ids }
   );
   return response.transforms.map(normalizeTransformDefinition);
-}
-
-// A transform's in-progress (bucket 2) draft state — mirrors
-// backend/api/src/transform_drafts/dto/responses.rs's TransformDraftDto.
-// Returned by create/save; nothing currently reads structured
-// ports/params/graph off these responses (Save's mutation callers only use
-// onSuccess to invalidate the query cache and refetch the full definition
-// separately), so this intentionally isn't normalized into TransformDefinition.
-export interface TransformDraftDto {
-  transform_id: number;
-  source_code: string | null;
-  metadata_json: string | null;
-  name: string | null;
-  description: string | null;
-  kind: "primitive" | "composite";
-  has_binary: boolean;
-}
-
-export async function apiCreateTransform(params: CreateTransformParams): Promise<TransformDraftDto> {
-  return http.post<TransformDraftDto, CreateTransformParams>(`/draft_transforms`, params);
-}
-
-// Draft deletion — only ever allowed server-side for a transform that's
-// never been published (409 otherwise). See
-// agents/decisions/0002-transform-draft-lifecycle-decisions.md.
-export async function apiDeleteTransform(transform_id: number): Promise<void> {
-  await http.delete<void>(`/draft_transforms/${transform_id}`);
-}
-
-// Bucket 2 — save. Compiles source_code synchronously for the primitive
-// variant; the composite variant saves the working graph structurally,
-// unconditionally, with no validation (validation is the separate explicit
-// apiValidateCompositeGraph action below). Either way, the whole save is
-// rejected (nothing persisted) if it doesn't compile/isn't well-formed.
-export async function apiSaveTransform(
-  transform_id: number,
-  params: SaveDraftParams
-): Promise<TransformDraftDto> {
-  return http.put<TransformDraftDto, SaveDraftParams>(
-    `/draft_transforms/${transform_id}/save`,
-    params
-  );
-}
-
-// Standalone compile check — doesn't save. 200 if `source_code` compiles
-// cleanly; rejects with the compiler diagnostics text otherwise. Backend
-// returns an empty 200 body (not 204) on success, so this bypasses
-// Services/http.ts's shared `request` helper (which would try to JSON-parse
-// that empty body) rather than changing shared infra for one call site —
-// same manual-fetch pattern apiGetTransformBinary below already uses.
-export async function apiValidateTransformSourceCode(transform_id: number, source_code: string): Promise<void> {
-  const token = useAuthStore.getState().token ?? undefined;
-  const activeProjectId = useProjectStore.getState().activeProject?.project_id;
-  const response = await fetch(`${API_BASE_URL}/draft_transforms/${transform_id}/validate-source`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(activeProjectId != null ? { "X-Project-Id": String(activeProjectId) } : {}),
-    },
-    body: JSON.stringify({ source_code }),
-  });
-  if (!response.ok) {
-    const message = await response.text();
-    throw new Error(message || `Request failed: ${response.status}`);
-  }
-}
-
-// Standalone composite graph validation — validates `graph_json` (which may
-// include unsaved canvas edits, unlike the old is_validated model) without
-// saving or persisting anything. Ports here are transient — for display
-// only, never written back into TransformDefinition.ports.
-export interface ValidateGraphPort {
-  name: string;
-  direction: "input" | "output";
-  order: number;
-  description?: string;
-  kind: "program" | "sidechain";
-  cardinality: "single" | "many";
-}
-
-export interface ValidateGraphResponse {
-  ports: ValidateGraphPort[];
-}
-
-export async function apiValidateCompositeGraph(
-  transform_id: number,
-  graph_definition: CompositeGraphDefinition
-): Promise<ValidateGraphResponse> {
-  return http.post<ValidateGraphResponse, { graph_json: string }>(
-    `/draft_transforms/${transform_id}/validate-graph`,
-    { graph_json: JSON.stringify(graph_definition) }
-  );
-}
-
-// A published (bucket 3) transform — mirrors
-// backend/api/src/transforms/dto/responses.rs's TransformDto. Like
-// TransformDraftDto above, nothing currently reads structured fields off a
-// publish response (callers only use isPending/isError/error.message), so
-// this also isn't normalized into TransformDefinition.
-export interface PublishedTransformDto {
-  transform_id: number;
-  name: string;
-  description: string | null;
-  icon: string | null;
-  kind: "primitive" | "composite";
-  source_code: string | null;
-  metadata_json: string | null;
-  owner_user_id: number;
-  created_at: string;
-}
-
-// Bucket 3 — publish. Bundles whatever's currently saved into the live
-// artifact; never compiles. The server independently re-checks the
-// declared `kind` against the draft's actual persisted kind and rejects
-// with 400 on mismatch (see PublishDraftParams above).
-export async function apiPublishTransform(
-  transform_id: number,
-  params: PublishDraftParams
-): Promise<PublishedTransformDto> {
-  return http.post<PublishedTransformDto, PublishDraftParams>(
-    `/draft_transforms/${transform_id}/publish`,
-    params
-  );
 }
 
 // Fetches the pre-compiled .wasm binary for a transform from the backend.

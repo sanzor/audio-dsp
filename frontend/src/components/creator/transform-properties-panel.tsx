@@ -3,6 +3,7 @@ import { useCreatorPlaybackStore } from "@/Stores/CreatorPlaybackStore";
 import type { TransformPort } from "@/domain/Transform/TransformPort";
 import type { TransformParam } from "@/domain/Transform/TransformParam";
 import { useGetTransformDefinition } from "@/hooks/transforms/queries";
+import { PRIMITIVE_TRANSFORM_TEMPLATE_PORTS } from "./primitive-transform-template";
 
 // Prop-driven (no store reads of its own) so it can be reused by any
 // consumer with its own notion of "current value" / "is this live" / "what
@@ -57,9 +58,10 @@ export function ParamRow({ param, value, liveEnabled, onChange }: ParamRowProps)
 export interface PortsListProps {
   direction: "input" | "output";
   ports: TransformPort[];
+  sourceLabel?: string;
 }
 
-export function PortsList({ direction, ports }: PortsListProps) {
+export function PortsList({ direction, ports, sourceLabel = "from source" }: PortsListProps) {
   const label = direction === "input" ? "INPUTS" : "OUTPUTS";
   const color = direction === "input" ? "#adc6ff" : "#4ae176";
 
@@ -70,7 +72,7 @@ export function PortsList({ direction, ports }: PortsListProps) {
           {label}
         </h3>
         <span className="text-[9px] font-mono" style={{ color: "var(--text-muted)", opacity: 0.6 }}>
-          from source
+          {sourceLabel}
         </span>
       </div>
 
@@ -139,8 +141,13 @@ export function TransformPropertiesPanel() {
     );
   }
 
-  const inputs = definition?.ports.filter((port) => port.direction === "input") ?? [];
-  const outputs = definition?.ports.filter((port) => port.direction === "output") ?? [];
+  // A newly-created primitive has no saved source or compiler metadata yet,
+  // but its editor is initialized from the shared passthrough template. Show
+  // that template's shape until Save produces the authoritative metadata.
+  const usingStarterTemplate = definition?.kind === "primitive" && !definition.source_code && definition.ports.length === 0;
+  const ports = usingStarterTemplate ? PRIMITIVE_TRANSFORM_TEMPLATE_PORTS : definition?.ports ?? [];
+  const inputs = ports.filter((port) => port.direction === "input");
+  const outputs = ports.filter((port) => port.direction === "output");
 
   // Sorted by param_order — this index must match the wasm side's
   // positional param index (see CreatorPlaybackStore.paramValues), which is
@@ -205,8 +212,8 @@ export function TransformPropertiesPanel() {
           </div>
         </section>
 
-        <PortsList direction="input" ports={inputs} />
-        <PortsList direction="output" ports={outputs} />
+        <PortsList direction="input" ports={inputs} sourceLabel={usingStarterTemplate ? "starter template" : undefined} />
+        <PortsList direction="output" ports={outputs} sourceLabel={usingStarterTemplate ? "starter template" : undefined} />
 
         {sortedParams.length > 0 && (
           <section>

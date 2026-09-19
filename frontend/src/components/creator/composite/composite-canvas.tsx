@@ -13,11 +13,7 @@ import "reactflow/dist/style.css";
 import { useCreatorStore } from "@/Stores/CreatorStore";
 import { useCompositeCanvasStore, type CanvasNode, type EditingCompositeGraph } from "@/Stores/CompositeCanvasStore";
 import { useGetTransformDefinition } from "@/hooks/transforms/queries";
-import {
-  useSaveTransform,
-  useValidateCompositeGraph,
-  usePublishTransform,
-} from "@/hooks/transforms/mutations";
+import { useTransformDraftController } from "@/controllers/TransformDraftController";
 import { useTransformStore } from "@/Stores/TransformStore";
 import { ToolbarButton } from "../toolbar-button";
 import { CompositePalette } from "./composite-palette";
@@ -97,9 +93,14 @@ function CompositeCanvasInner() {
   const selectedNodeId = useCompositeCanvasStore((s) => s.selectedNodeId);
   const selectNode = useCompositeCanvasStore((s) => s.selectNode);
 
-  const saveMutation = useSaveTransform(selectedId ?? -1);
-  const validateMutation = useValidateCompositeGraph(selectedId ?? -1);
-  const publishMutation = usePublishTransform(selectedId ?? -1);
+  const {
+    handleSave: saveDraft,
+    saveMutation,
+    handleValidateGraph,
+    validateGraphMutation: validateMutation,
+    handlePublish: publishDraft,
+    publishMutation,
+  } = useTransformDraftController(selectedId ?? -1);
 
   // Last validate-graph result, shown transiently next to the button —
   // never persisted, never gates Publish. Resets whenever a different
@@ -206,7 +207,7 @@ function CompositeCanvasInner() {
   }
 
   function handleSave() {
-    saveMutation.mutate({ graph_definition: toGraphDefinition() }, { onSuccess: () => markSaved() });
+    saveDraft({ graph_definition: toGraphDefinition() }, () => markSaved());
   }
 
   // Validates the live in-progress canvas graph (including uncommitted
@@ -216,14 +217,14 @@ function CompositeCanvasInner() {
   // independently re-validates from the saved graph itself server-side).
   function handleValidate() {
     if (selectedId == null) return;
-    validateMutation.mutate(toGraphDefinition(), {
+    handleValidateGraph(toGraphDefinition(), {
       onSuccess: (result) => setValidateResult({ transformId: selectedId, portCount: result.ports.length }),
       onError: () => setValidateResult(null),
     });
   }
 
   function handlePublish() {
-    publishMutation.mutate({ kind: "composite" });
+    publishDraft({ kind: "composite" });
   }
 
   return (

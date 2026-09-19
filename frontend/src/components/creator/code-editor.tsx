@@ -3,13 +3,10 @@ import Editor from "@monaco-editor/react";
 import { useCreatorStore } from "@/Stores/CreatorStore";
 import { useCreatorPlaybackStore } from "@/Stores/CreatorPlaybackStore";
 import { useGetTransformDefinition } from "@/hooks/transforms/queries";
-import {
-  useSaveTransform,
-  useValidateTransformSourceCode,
-  usePublishTransform,
-} from "@/hooks/transforms/mutations";
+import { useTransformDraftController } from "@/controllers/TransformDraftController";
 import { validateTransformSource } from "./validateTransformSource";
 import { ToolbarButton } from "./toolbar-button";
+import { PRIMITIVE_TRANSFORM_TEMPLATE_SOURCE } from "./primitive-transform-template";
 
 // Save (PUT /draft_transforms/{id}/save) compiles source_code synchronously
 // and rejects the whole save with compiler diagnostics if it doesn't build
@@ -19,39 +16,6 @@ import { ToolbarButton } from "./toolbar-button";
 // follow-up). "Check" below (POST /draft_transforms/{id}/validate-source)
 // is a lightweight, non-persisting way to see those same diagnostics
 // without committing a save.
-
-const DEFAULT_CODE = `use transform_sdk::{Transform, TransformMetadata, PortMetadata, ParamMetadata, Direction, PortKind, PortCardinality, Params};
-
-#[derive(Default)]
-pub struct RmsDetector {
-    window_size: usize,
-}
-
-impl Transform for RmsDetector {
-    // \`samples\` has one entry per declared input port, in order — a
-    // single-input transform like this one reads samples[0], same as always.
-    fn process(&mut self, samples: &[&[f32]], _params: &Params<'_>) -> Vec<f32> {
-        let input = samples[0];
-        let sum_sq: f32 = input.iter().map(|&x| x * x).sum();
-        let rms = (sum_sq / input.len() as f32).sqrt();
-        vec![rms; input.len()]
-    }
-
-    fn metadata() -> TransformMetadata {
-        TransformMetadata {
-            name: "RMS Detector".to_string(),
-            description: Some("Replaces each sample with the block's RMS level.".to_string()),
-            ports: vec![
-                PortMetadata { name: "in".to_string(), direction: Direction::Input, order: 0, description: None, kind: PortKind::Program, cardinality: PortCardinality::Single },
-                PortMetadata { name: "out".to_string(), direction: Direction::Output, order: 0, description: None, kind: PortKind::Program, cardinality: PortCardinality::Single },
-            ],
-            params: vec![],
-        }
-    }
-}
-
-transform_sdk::export_transform!(RmsDetector);
-`;
 
 interface FileTab {
   id: string;
@@ -86,15 +50,14 @@ export function CreatorCodeEditor() {
   useEffect(() => {
     if (selectedId == null || editingForSelected != null) return;
     if (definition == null || definition.transform_id !== selectedId) return;
-    beginEditingTransformSource(selectedId, definition.source_code || DEFAULT_CODE);
+    beginEditingTransformSource(selectedId, definition.source_code || PRIMITIVE_TRANSFORM_TEMPLATE_SOURCE);
   }, [selectedId, definition, editingForSelected, beginEditingTransformSource]);
 
   const code = editingForSelected?.source ?? "";
   const isDirty = editingForSelected != null && editingForSelected.source !== editingForSelected.originalSource;
 
-  const saveMutation = useSaveTransform(selectedId ?? -1);
-  const checkMutation = useValidateTransformSourceCode(selectedId ?? -1);
-  const publishMutation = usePublishTransform(selectedId ?? -1);
+  const { handleSave: saveDraft, saveMutation, handleCheckSource, checkMutation, handlePublish: publishDraft, publishMutation } =
+    useTransformDraftController(selectedId ?? -1);
 
   const validation = useMemo(() => validateTransformSource(code), [code]);
 
@@ -135,19 +98,19 @@ export function CreatorCodeEditor() {
   function handleSave() {
     if (selectedId == null || !isDirty) return;
     const source = code;
-    saveMutation.mutate(
+    saveDraft(
       { source_code: source },
-      { onSuccess: () => markTransformSourceSaved(selectedId, source) }
+      () => markTransformSourceSaved(selectedId, source)
     );
   }
 
   function handleCheck() {
     if (selectedId == null || !validation.ok || isChecking) return;
-    checkMutation.mutate(code, { onSuccess: () => setActiveTab("impl"), onError: () => setActiveTab("output") });
+    handleCheckSource(code, { onSuccess: () => setActiveTab("impl"), onError: () => setActiveTab("output") });
   }
 
   function handlePublish() {
-    publishMutation.mutate({ kind: "primitive" });
+    publishDraft({ kind: "primitive" });
   }
 
   const tabs: FileTab[] = [
@@ -197,7 +160,7 @@ export function CreatorCodeEditor() {
           )}
           {isChecking && (
             <span className="font-mono text-[10px]" style={{ color: "#ffd166" }}>
-              Checking…
+              Validating…
             </span>
           )}
           {checkMutation.isSuccess && !isChecking && (
@@ -237,7 +200,7 @@ export function CreatorCodeEditor() {
             disabled={selectedId == null || !validation.ok || isChecking}
             title={!validation.ok ? validation.issues.join(" ") : undefined}
           >
-            {isChecking ? "Checking…" : "Check"}
+            {isChecking ? "Validating…" : "Validate"}
           </ToolbarButton>
           <ToolbarButton
             variant="publish"
