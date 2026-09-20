@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Editor from "@monaco-editor/react";
-import { useCreatorStore } from "@/Stores/CreatorStore";
+import { useCreatorStore, isMetadataDirty } from "@/Stores/CreatorStore";
 import { useCreatorPlaybackStore } from "@/Stores/CreatorPlaybackStore";
 import { useGetTransformDefinition } from "@/hooks/transforms/queries";
 import { useTransformDraftController } from "@/controllers/TransformDraftController";
@@ -35,6 +35,8 @@ export function CreatorCodeEditor() {
   const beginEditingTransformSource = useCreatorStore((s) => s.beginEditingTransformSource);
   const updateEditingTransformSource = useCreatorStore((s) => s.updateEditingTransformSource);
   const markTransformSourceSaved = useCreatorStore((s) => s.markTransformSourceSaved);
+  const editingMetadata = useCreatorStore((s) => s.editingTransformMetadata);
+  const markTransformMetadataSaved = useCreatorStore((s) => s.markTransformMetadataSaved);
   const { data: definition } = useGetTransformDefinition(selectedId);
   const [activeTab, setActiveTab] = useState("impl");
 
@@ -55,6 +57,14 @@ export function CreatorCodeEditor() {
 
   const code = editingForSelected?.source ?? "";
   const isDirty = editingForSelected != null && editingForSelected.source !== editingForSelected.originalSource;
+
+  // Mirrors editingForSelected/isDirty above, for the properties panel's
+  // name/description buffer — lets Save Draft flush a pending metadata edit
+  // even if the sidebar input never lost focus (see
+  // agents/decisions/0012-draft-name-description-editable.md's Frontend
+  // bullet).
+  const metadataForSelected = editingMetadata?.transformId === selectedId ? editingMetadata : null;
+  const metadataDirty = isMetadataDirty(metadataForSelected);
 
   const { handleSave: saveDraft, saveMutation, handleCheckSource, checkMutation, handlePublish: publishDraft, publishMutation } =
     useTransformDraftController(selectedId ?? -1);
@@ -96,12 +106,29 @@ export function CreatorCodeEditor() {
   // needs it, and that's a trivial store-only read.
 
   function handleSave() {
-    if (selectedId == null || !isDirty) return;
+    if (selectedId == null) return;
+    if (!isDirty && !metadataDirty) return;
+
     const source = code;
-    saveDraft(
-      { source_code: source },
-      () => markTransformSourceSaved(selectedId, source)
-    );
+    // name/description are optional fields folded into this same Save call
+    // (agents/decisions/0012-draft-name-description-editable.md) — only
+    // included when the metadata buffer is actually dirty, so an unrelated
+    // source-only save doesn't uselessly re-send unchanged name/description
+    // for the backend to write again. Skip a blank name rather than send
+    // one Save will reject anyway; the panel's own blur/Enter commit already
+    // surfaces the "Name cannot be empty" error for that case.
+    const includeMetadata =
+      metadataDirty && metadataForSelected != null && metadataForSelected.name.trim().length > 0;
+    const metadataPayload = includeMetadata
+      ? { name: metadataForSelected!.name, description: metadataForSelected!.description }
+      : {};
+
+    saveDraft({ source_code: source, ...metadataPayload }, () => {
+      markTransformSourceSaved(selectedId, source);
+      if (includeMetadata) {
+        markTransformMetadataSaved(selectedId, metadataForSelected!.name, metadataForSelected!.description);
+      }
+    });
   }
 
   function handleCheck() {
@@ -190,7 +217,7 @@ export function CreatorCodeEditor() {
           <ToolbarButton
             variant="save"
             onClick={handleSave}
-            disabled={selectedId == null || !isDirty || saveMutation.isPending}
+            disabled={selectedId == null || (!isDirty && !metadataDirty) || saveMutation.isPending}
           >
             {saveMutation.isPending ? "Saving…" : "Save Draft"}
           </ToolbarButton>

@@ -36,7 +36,11 @@ pub trait TransformDraftsProvider: Send + Sync {
     ) -> Result<DbTransformDraft, ServiceError>;
     /// Bucket 2 — save, primitive only. Errors if `id` is a composite draft.
     /// An optional frontend-held compiled WASM payload is saved atomically
-    /// with source after server-side introspection.
+    /// with source after server-side introspection. `name`/`description` are
+    /// optional fields on this payload (see
+    /// `agents/decisions/0012-draft-name-description-editable.md`) — `None`
+    /// leaves the existing value untouched, `Some(x)` sets it, validated
+    /// (rejected with `ServiceError::Validation` if blank) only when present.
     async fn save_draft(
         &self,
         id: TransformDraftId,

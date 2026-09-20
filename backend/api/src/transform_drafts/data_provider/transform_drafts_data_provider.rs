@@ -64,19 +64,33 @@ pub trait TransformDraftsDataProvider: Send + Sync {
     /// Bucket 2 — "save", primitive only. `source_code` must have already
     /// compiled successfully (the caller compiles before calling this); the
     /// resulting artifact is saved atomically with its source snapshot.
+    /// `name`/`description` are the caller-supplied optional overrides from
+    /// `SavePrimitiveParams` (see
+    /// `agents/decisions/0012-draft-name-description-editable.md`) — `None`
+    /// leaves the existing row value untouched; `Some(x)` sets it, taking
+    /// priority over both the existing value and `compiled`'s
+    /// introspected-from-source name/description (only ever a last-resort
+    /// seed for a row that somehow has none yet).
     async fn save_primitive_draft(
         &self,
         id: TransformDraftId,
         source_code: String,
         compiled: CompiledPrimitiveDraft,
+        name: Option<String>,
+        description: Option<String>,
     ) -> Result<DbTransformDraft, DataError>;
     /// Bucket 2 — "save", composite only. `graph_json` (the wiring graph)
     /// overwrites `transform_draft.metadata` wholesale — a composite draft
-    /// has no other bucket-2 state to preserve alongside it.
+    /// has no other bucket-2 state to preserve alongside it. `name`/
+    /// `description` are optional overrides, same semantics as
+    /// `save_primitive_draft`'s (no compiled-metadata fallback here, since a
+    /// composite draft has no compile step).
     async fn save_composite_draft(
         &self,
         id: TransformDraftId,
         graph_json: String,
+        name: Option<String>,
+        description: Option<String>,
     ) -> Result<DbTransformDraft, DataError>;
 
     /// Atomically replaces the live transform's source/binary/metadata with

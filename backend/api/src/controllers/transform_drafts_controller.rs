@@ -118,12 +118,16 @@ pub async fn get_transform_drafts(
     }
 }
 
+// name/description are optional fields on this payload (both variants) — see
+// agents/decisions/0012-draft-name-description-editable.md. Omitted/`null`
+// leaves the existing value untouched; provided, they're validated
+// (non-blank name) and take priority over the existing/compiled value.
 #[utoipa::path(put, path = "/draft_transforms/{draft_transform_id}/save", tag = "draft_transforms",
     params(TransformDraftIdPath),
     request_body = SaveDraftParams,
     responses(
         (status = 200, description = "Saved transform draft state", body = serde_json::Value),
-        (status = 400, description = "Payload does not match the draft kind, or WASM is invalid")
+        (status = 400, description = "Payload does not match the draft kind, WASM is invalid, or name is blank")
     ))]
 #[put("/{draft_transform_id}/save")]
 pub async fn save_draft(

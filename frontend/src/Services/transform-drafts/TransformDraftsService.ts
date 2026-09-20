@@ -21,10 +21,15 @@ export interface CreateTransformParams {
 //
 // Discriminated union mirroring the backend's untagged SaveDraftParams
 // (transform_drafts/dto/requests.rs) exactly — no `kind` field; the server
-// picks the variant purely from which field is present.
+// picks the variant purely from which field is present. `name`/`description`
+// are optional on both variants — folded into Save rather than living behind
+// a separate endpoint (see
+// agents/decisions/0012-draft-name-description-editable.md). Omit the keys
+// entirely for a save that isn't touching metadata; the backend's `None`
+// (absent key or explicit `null`) leaves the existing value untouched.
 export type SaveDraftParams =
-  | { source_code: string }
-  | { graph_definition: CompositeGraphDefinition };
+  | { source_code: string; name?: string; description?: string | null }
+  | { graph_definition: CompositeGraphDefinition; name?: string; description?: string | null };
 
 // Bucket 2 — publish (route lives under /draft_transforms/*, despite the
 // name). Mirrors the backend's tagged PublishDraftParams
@@ -72,6 +77,36 @@ export interface PublishDraftResponse {
 
 export async function apiCreateTransform(params: CreateTransformParams): Promise<TransformDraftDefinition> {
   return http.post<TransformDraftDefinition, CreateTransformParams>(`/draft_transforms`, params);
+}
+
+// Bucket 2 — read a single draft (name/description/source/metadata as
+// currently persisted on `transform_draft`), separate from the bucket-3
+// published `TransformDefinition` (hooks/transforms/queries.ts). Used by
+// the Creator's properties panel to source the editable name/description
+// fields, since bucket-3's `name`/`description` only ever reflect what was
+// last published.
+export async function apiGetTransformDraft(transform_id: number): Promise<TransformDraftDefinition> {
+  return http.get<TransformDraftDefinition>(`/draft_transforms/${transform_id}`);
+}
+
+// Batched draft fetch — mirrors Services/TransformService.ts's
+// apiResolveTransformDefinitions (bucket 3) shape/pattern exactly, but for
+// bucket 2. Used by the left transforms-sidebar to resolve each listed
+// transform's current draft name/description client-side, so a Save-edited
+// rename shows up there without any backend sync (see
+// agents/decisions/0012-draft-name-description-editable.md's addendum).
+// Backend response shape is `{drafts: [...]}` (TransformDraftsResponse),
+// not `{transforms: [...]}` like the bucket-3 equivalent.
+export interface TransformDraftsResponse {
+  drafts: TransformDraftDefinition[];
+}
+
+export async function apiResolveTransformDrafts(transform_ids: number[]): Promise<TransformDraftDefinition[]> {
+  const response = await http.post<TransformDraftsResponse, { ids: number[] }>(
+    `/draft_transforms/resolve`,
+    { ids: transform_ids }
+  );
+  return response.drafts;
 }
 
 // Draft deletion — only ever allowed server-side for a transform that's

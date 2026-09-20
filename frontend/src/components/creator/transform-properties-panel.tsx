@@ -1,8 +1,10 @@
+import { useEffect, useState } from "react";
 import { useCreatorStore } from "@/Stores/CreatorStore";
 import { useCreatorPlaybackStore } from "@/Stores/CreatorPlaybackStore";
 import type { TransformPort } from "@/domain/Transform/TransformPort";
 import type { TransformParam } from "@/domain/Transform/TransformParam";
 import { useGetTransformDefinition } from "@/hooks/transforms/queries";
+import { useGetTransformDraft } from "@/hooks/transform-drafts/queries";
 import { PRIMITIVE_TRANSFORM_TEMPLATE_PORTS } from "./primitive-transform-template";
 
 // Prop-driven (no store reads of its own) so it can be reused by any
@@ -120,9 +122,102 @@ export function PortsList({ direction, ports, sourceLabel = "from source" }: Por
   );
 }
 
+// Name/description are optional fields on Save (folded into
+// `PUT /draft_transforms/{id}/save`, see
+// agents/decisions/0012-draft-name-description-editable.md — this
+// supersedes that decision's original standalone PATCH endpoint). Editing
+// here only updates CreatorStore's `editingTransformMetadata` buffer
+// (mirroring `editingTransformSource`) — there is no direct network call
+// from this component. The sibling code-editor.tsx's (or
+// composite-canvas.tsx's) "Save Draft" button reads this same buffer and
+// includes `name`/`description` in its Save payload only when
+// `isMetadataDirty` is true, so an edit here persists on the next Save
+// rather than independently on blur. `key={selectedId}` at the call site
+// (below) still remounts this on selection change as a
+// belt-and-suspenders reset, even though the store buffer is also reset on
+// select/create (see CreatorStore's applyTransformAction).
+interface MetadataEditorProps {
+  transformId: number;
+  initialName: string;
+  initialDescription: string;
+}
+
+function MetadataEditor({ transformId, initialName, initialDescription }: MetadataEditorProps) {
+  const editing = useCreatorStore((s) => s.editingTransformMetadata);
+  const beginEditingTransformMetadata = useCreatorStore((s) => s.beginEditingTransformMetadata);
+  const updateEditingTransformMetadata = useCreatorStore((s) => s.updateEditingTransformMetadata);
+  const [error, setError] = useState<string | null>(null);
+
+  const editingForSelected = editing?.transformId === transformId ? editing : null;
+  useEffect(() => {
+    if (editingForSelected != null) return;
+    beginEditingTransformMetadata(transformId, initialName, initialDescription);
+  }, [transformId, initialName, initialDescription, editingForSelected, beginEditingTransformMetadata]);
+
+  const name = editingForSelected?.name ?? initialName;
+  const description = editingForSelected?.description ?? initialDescription;
+
+  // Client-side-only validation ahead of Save's server-side rejection — no
+  // network call happens here anymore, this just surfaces the error inline
+  // as early as possible (on blur/Enter) rather than waiting for Save to
+  // fail.
+  function commit(nextName: string) {
+    setError(nextName.trim().length === 0 ? "Name cannot be empty" : null);
+  }
+
+  return (
+    <>
+      <div className="flex flex-col gap-1">
+        <label className="text-[10px]" style={{ color: "var(--text-muted)" }}>
+          Name
+        </label>
+        <input
+          type="text"
+          className="w-full rounded px-2 py-1.5 text-xs"
+          style={{
+            backgroundColor: "var(--bg-dark)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            color: "var(--text-main)",
+          }}
+          value={name}
+          onChange={(e) => updateEditingTransformMetadata({ name: e.target.value })}
+          onBlur={() => commit(name)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.currentTarget.blur();
+            }
+          }}
+        />
+        {error != null && (
+          <span className="text-[9px]" style={{ color: "#ff8a8a" }}>
+            {error}
+          </span>
+        )}
+      </div>
+      <div className="flex flex-col gap-1">
+        <label className="text-[10px]" style={{ color: "var(--text-muted)" }}>
+          Description
+        </label>
+        <textarea
+          className="w-full rounded px-2 py-1.5 text-xs min-h-14"
+          style={{
+            backgroundColor: "var(--bg-dark)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            color: "var(--text-main)",
+          }}
+          value={description}
+          onChange={(e) => updateEditingTransformMetadata({ description: e.target.value })}
+          onBlur={() => commit(name)}
+        />
+      </div>
+    </>
+  );
+}
+
 export function TransformPropertiesPanel() {
   const selectedId = useCreatorStore((s) => s.selectedTransformId);
   const { data: definition } = useGetTransformDefinition(selectedId);
+  const { data: draftDefinition } = useGetTransformDraft(selectedId);
   const playbackStatus = useCreatorPlaybackStore((s) => s.status);
   const playbackTransformId = useCreatorPlaybackStore((s) => s.playbackTransformId);
   const paramValues = useCreatorPlaybackStore((s) => s.paramValues);
@@ -171,7 +266,7 @@ export function TransformPropertiesPanel() {
           PROPERTIES
         </span>
         <p className="mt-1 text-[10px]" style={{ color: "var(--text-muted)", opacity: 0.7 }}>
-          Name, ports & metadata are generated from transform source. Params are live-editable during playback.
+          Ports & params are generated from transform source. Name and description are editable. Params are live-editable during playback.
         </p>
       </div>
 
@@ -180,36 +275,18 @@ export function TransformPropertiesPanel() {
           <h3 className="text-[9px] font-mono pb-1" style={{ color: "var(--text-muted)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
             METADATA
           </h3>
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px]" style={{ color: "var(--text-muted)" }}>
-              Name
-            </label>
-            <div
-              className="w-full rounded px-2 py-1.5 text-xs"
-              style={{
-                backgroundColor: "var(--bg-dark)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                color: "var(--text-main)",
-              }}
-            >
-              {definition?.name ?? "Untitled"}
-            </div>
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px]" style={{ color: "var(--text-muted)" }}>
-              Description
-            </label>
-            <div
-              className="w-full rounded px-2 py-1.5 text-xs min-h-14"
-              style={{
-                backgroundColor: "var(--bg-dark)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                color: "var(--text-main)",
-              }}
-            >
-              {definition?.description?.trim() || "No description"}
-            </div>
-          </div>
+          {draftDefinition != null ? (
+            <MetadataEditor
+              key={selectedId}
+              transformId={selectedId}
+              initialName={draftDefinition.name ?? ""}
+              initialDescription={draftDefinition.description ?? ""}
+            />
+          ) : (
+            <span className="text-[10px]" style={{ color: "var(--text-muted)", opacity: 0.6 }}>
+              Loading…
+            </span>
+          )}
         </section>
 
         <PortsList direction="input" ports={inputs} sourceLabel={usingStarterTemplate ? "starter template" : undefined} />

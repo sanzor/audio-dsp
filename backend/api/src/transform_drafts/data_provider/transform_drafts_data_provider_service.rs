@@ -226,15 +226,28 @@ impl TransformDraftsDataProvider for PostgresTransformDraftsDataProvider {
         id: TransformDraftId,
         source_code: String,
         compiled: CompiledPrimitiveDraft,
+        name: Option<String>,
+        description: Option<String>,
     ) -> Result<DbTransformDraft, DataError> {
+        // Precedence (subtle, spelled out here since it's easy to get
+        // backwards): caller-supplied `name`/`description` ($7/$8) win when
+        // present — that's explicit user intent from the properties panel,
+        // folded into this same Save call as of
+        // agents/decisions/0012-draft-name-description-editable.md. Absence
+        // ($7/$8 are NULL) means "this call isn't touching the name", so it
+        // falls back to whatever the row already has. Only if the row
+        // somehow has no name yet (shouldn't happen on the common path,
+        // since `insert_transform_draft` always writes one at creation) does
+        // it fall back further to the freshly-compiled metadata ($4/$5) as a
+        // last-resort seed.
         let row = sqlx::query_as::<_, DbTransformDraftRow>(&format!(
             r#"
             UPDATE transform_draft
             SET source_code = $2,
                 wasm_bytecode = $3,
                 wasm_source_code = $2,
-                name = $4,
-                description = $5,
+                name = COALESCE($7, transform_draft.name, $4),
+                description = COALESCE($8, transform_draft.description, $5),
                 metadata = $6,
                 updated_at = now()
             WHERE transform_id = $1
@@ -247,6 +260,8 @@ impl TransformDraftsDataProvider for PostgresTransformDraftsDataProvider {
         .bind(compiled.name)
         .bind(compiled.description)
         .bind(compiled.metadata)
+        .bind(&name)
+        .bind(&description)
         .fetch_one(&self.pool)
         .await?;
 
@@ -257,8 +272,11 @@ impl TransformDraftsDataProvider for PostgresTransformDraftsDataProvider {
         &self,
         id: TransformDraftId,
         graph_json: String,
+        name: Option<String>,
+        description: Option<String>,
     ) -> Result<DbTransformDraft, DataError> {
-        self.save_draft_row(id, None, Some(graph_json)).await
+        self.save_draft_row(id, None, Some(graph_json), name, description)
+            .await
     }
 
     async fn publish_composite_transform(
@@ -317,18 +335,26 @@ impl TransformDraftsDataProvider for PostgresTransformDraftsDataProvider {
 }
 impl PostgresTransformDraftsDataProvider {
     /// Composite Save's structural graph update. Primitive Save has a
-    /// separate path because it may atomically replace its compiled snapshot.
+    /// separate path because it may atomically replace its compiled
+    /// snapshot. `name`/`description` follow the same "caller override wins,
+    /// absence leaves existing value untouched" precedence as
+    /// `save_primitive_draft` — just with no compiled-metadata fallback
+    /// tier, since a composite draft never compiles.
     async fn save_draft_row(
         &self,
         id: TransformDraftId,
         source_code: Option<String>,
         graph_json: Option<String>,
+        name: Option<String>,
+        description: Option<String>,
     ) -> Result<DbTransformDraft, DataError> {
         let row = sqlx::query_as::<_, DbTransformDraftRow>(&format!(
             r#"
             UPDATE transform_draft
             SET source_code = COALESCE($2, source_code),
                 metadata = COALESCE($3, metadata),
+                name = COALESCE($4, transform_draft.name),
+                description = COALESCE($5, transform_draft.description),
                 updated_at = now()
             WHERE transform_id = $1
             RETURNING {DRAFT_ROW_COLUMNS}
@@ -337,6 +363,8 @@ impl PostgresTransformDraftsDataProvider {
         .bind(id)
         .bind(&source_code)
         .bind(&graph_json)
+        .bind(&name)
+        .bind(&description)
         .fetch_one(&self.pool)
         .await?;
 

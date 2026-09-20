@@ -10,7 +10,7 @@ import ReactFlow, {
   type EdgeChange,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import { useCreatorStore } from "@/Stores/CreatorStore";
+import { useCreatorStore, isMetadataDirty } from "@/Stores/CreatorStore";
 import { useCompositeCanvasStore, type CanvasNode, type EditingCompositeGraph } from "@/Stores/CompositeCanvasStore";
 import { useGetTransformDefinition } from "@/hooks/transforms/queries";
 import { useTransformDraftController } from "@/controllers/TransformDraftController";
@@ -76,6 +76,8 @@ function isConnectionAllowed(editingGraph: EditingCompositeGraph | null, connect
 
 function CompositeCanvasInner() {
   const selectedId = useCreatorStore((s) => s.selectedTransformId);
+  const editingMetadata = useCreatorStore((s) => s.editingTransformMetadata);
+  const markTransformMetadataSaved = useCreatorStore((s) => s.markTransformMetadataSaved);
   const { data: definition, error: definitionError } = useGetTransformDefinition(selectedId);
   const { screenToFlowPosition } = useReactFlow();
 
@@ -207,7 +209,31 @@ function CompositeCanvasInner() {
   }
 
   function handleSave() {
-    saveDraft({ graph_definition: toGraphDefinition() }, () => markSaved());
+    // name/description are optional fields folded into this same Save call
+    // (agents/decisions/0012-draft-name-description-editable.md) — only
+    // included when the properties panel's metadata buffer is actually
+    // dirty for this transform, mirroring code-editor.tsx's primitive-side
+    // handling, so an unrelated graph-only save doesn't uselessly re-send
+    // unchanged name/description. Skip a blank name rather than send one
+    // Save will reject anyway; the panel's own blur/Enter commit already
+    // surfaces the "Name cannot be empty" error for that case.
+    const metadataForSelected = editingMetadata?.transformId === selectedId ? editingMetadata : null;
+    const includeMetadata =
+      isMetadataDirty(metadataForSelected) && metadataForSelected != null && metadataForSelected.name.trim().length > 0;
+    const metadataPayload = includeMetadata
+      ? { name: metadataForSelected!.name, description: metadataForSelected!.description }
+      : {};
+
+    saveDraft({ graph_definition: toGraphDefinition(), ...metadataPayload }, () => {
+      markSaved();
+      if (includeMetadata) {
+        markTransformMetadataSaved(
+          metadataForSelected!.transformId,
+          metadataForSelected!.name,
+          metadataForSelected!.description
+        );
+      }
+    });
   }
 
   // Validates the live in-progress canvas graph (including uncommitted
@@ -235,7 +261,15 @@ function CompositeCanvasInner() {
           className="flex items-center justify-end gap-2 px-3 h-8 flex-shrink-0"
           style={{ borderBottom: "1px solid rgba(255,255,255,0.06)", backgroundColor: "var(--bg-darker)" }}
         >
-          <ToolbarButton variant="save" onClick={handleSave} disabled={!isDirty || saveMutation.isPending}>
+          <ToolbarButton
+            variant="save"
+            onClick={handleSave}
+            disabled={
+              (!isDirty &&
+                !isMetadataDirty(editingMetadata?.transformId === selectedId ? editingMetadata : null)) ||
+              saveMutation.isPending
+            }
+          >
             {saveMutation.isPending ? "Saving…" : "Save Draft"}
           </ToolbarButton>
           <ToolbarButton

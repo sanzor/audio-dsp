@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { useListTransforms } from "@/hooks/transforms/queries";
+import { useResolveTransformDrafts } from "@/hooks/transform-drafts/queries";
 import { useCreatorStore } from "@/Stores/CreatorStore";
 import { useTransformDraftController } from "@/controllers/TransformDraftController";
 import { creatorToolbarColors } from "./creatorToolbarColors";
@@ -47,9 +48,41 @@ export function TransformsSidebar() {
   }
 
   const allTransforms = query.data?.pages.flatMap((p) => p.transforms) ?? [];
+
+  // Merge each row's bucket-3 (published) summary with its resolved bucket-2
+  // draft, so a Save-edited name/description shows up here without any
+  // backend sync (see agents/decisions/0012-draft-name-description-editable.md's
+  // addendum — this replaces an earlier, reverted backend-sync approach).
+  // `get_transform_drafts` fails its entire batch on the first
+  // access-denied id, so a resolve failure (or an id simply missing from
+  // the response) falls back to the bucket-3 display for that row rather
+  // than blanking the whole list.
+  const transformIds = useMemo(() => allTransforms.map((t) => t.transform_id), [allTransforms]);
+  const draftsQuery = useResolveTransformDrafts(transformIds);
+  const draftsById = useMemo(() => {
+    const map = new Map<number, { name: string | null; description: string | null }>();
+    for (const draft of draftsQuery.data ?? []) {
+      map.set(draft.transform_id, { name: draft.name, description: draft.description });
+    }
+    return map;
+  }, [draftsQuery.data]);
+
+  const displayTransforms = useMemo(
+    () =>
+      allTransforms.map((t) => {
+        const draft = draftsById.get(t.transform_id);
+        return {
+          ...t,
+          name: draft?.name || t.name,
+          description: draft ? draft.description ?? undefined : t.description,
+        };
+      }),
+    [allTransforms, draftsById]
+  );
+
   const filtered = filter
-    ? allTransforms.filter((t) => t.name.toLowerCase().includes(filter.toLowerCase()))
-    : allTransforms;
+    ? displayTransforms.filter((t) => t.name.toLowerCase().includes(filter.toLowerCase()))
+    : displayTransforms;
 
   return (
     <aside

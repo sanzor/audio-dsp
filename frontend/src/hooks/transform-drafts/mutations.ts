@@ -28,7 +28,17 @@ export function useCreateTransform() {
 // Bucket 2 — save. Takes a discriminated union: `{source_code}` compiles
 // synchronously server-side and rejects the whole save if it doesn't
 // build; `{graph_definition}` writes the working wiring graph
-// unconditionally, no validation.
+// unconditionally, no validation. Both variants may optionally carry
+// `name`/`description` (folded in per
+// agents/decisions/0012-draft-name-description-editable.md, superseding the
+// removed standalone PATCH endpoint) — so a save that includes a rename
+// needs to invalidate every query key that could be backing a merged
+// draft+published view, same set the old PATCH mutation used to invalidate:
+// this draft's own byId key (the properties panel's useGetTransformDraft),
+// the bucket-3 byId key defensively, and *all*
+// transformDrafts.resolve(...) keys (the left sidebar's batched resolve,
+// keyed by the full sorted id list rather than this one id, so a predicate
+// match is used instead of an exact key).
 export function useSaveTransform(transformId: number) {
   const qc = useQueryClient();
   return useMutation({
@@ -36,6 +46,8 @@ export function useSaveTransform(transformId: number) {
     onSuccess: (draft) => {
       useTransformDraftStore.getState().upsertDraft(draft);
       qc.invalidateQueries({ queryKey: QUERY_KEYS.transforms.byId(transformId) });
+      qc.invalidateQueries({ queryKey: QUERY_KEYS.transformDrafts.byId(transformId) });
+      qc.invalidateQueries({ predicate: (q) => q.queryKey[0] === "transform-draft" && q.queryKey[1] === "resolve" });
     },
   });
 }

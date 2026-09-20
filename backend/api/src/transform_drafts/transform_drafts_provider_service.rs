@@ -7,6 +7,22 @@ use crate::{
         PublishDraftParams, SaveCompositeParams, SaveDraftParams, SavePrimitiveParams,
     },
 };
+
+/// Shared by `save_primitive_draft`/`save_composite_draft` (and
+/// unit-tested in isolation, since this module has no DB-backed test
+/// harness) — a draft's name may never be blank when the caller supplies
+/// one on Save (see `agents/decisions/0012-draft-name-description-editable.md`),
+/// mirroring `CreateTransformParams.name`'s required-non-blank expectation
+/// at creation time. Only called when `name.is_some()` — `None` means the
+/// caller isn't touching the name, not that it should be validated/cleared.
+fn validate_draft_name(name: &str) -> Result<(), ServiceError> {
+    if name.trim().is_empty() {
+        return Err(ServiceError::Validation(
+            "name must not be empty".to_string(),
+        ));
+    }
+    Ok(())
+}
 use domain::db::{
     db_transform::{DbTransform, TransformId},
     db_transform_draft::{DbTransformDraft, TransformDraftId},
@@ -14,9 +30,7 @@ use domain::db::{
 use domain::domain_user::UserId;
 
 use super::{
-    data_provider::transform_drafts_data_provider::{
-        CompiledPrimitiveDraft, TransformDraftsDataProvider,
-    },
+    data_provider::transform_drafts_data_provider::TransformDraftsDataProvider,
     graph_validator::{
         graph_definition::GraphDefinition,
         transform_info::TransformInfo,
@@ -207,13 +221,22 @@ impl TransformDraftsProviderService {
         params: SavePrimitiveParams,
     ) -> Result<DbTransformDraft, ServiceError> {
         require_kind(&self.data.get_transform_draft(id).await?, "primitive")?;
+        if let Some(name) = &params.name {
+            validate_draft_name(name)?;
+        }
         let primitive_draft = self
             .processor
             .compile_primitive(&params.source_code)
             .await
             .map_err(ServiceError::Validation)?;
         self.data
-            .save_primitive_draft(id, params.source_code, primitive_draft)
+            .save_primitive_draft(
+                id,
+                params.source_code,
+                primitive_draft,
+                params.name,
+                params.description,
+            )
             .await
             .map_err(ServiceError::from)
     }
@@ -224,11 +247,14 @@ impl TransformDraftsProviderService {
         params: SaveCompositeParams,
     ) -> Result<DbTransformDraft, ServiceError> {
         require_kind(&self.data.get_transform_draft(id).await?, "composite")?;
+        if let Some(name) = &params.name {
+            validate_draft_name(name)?;
+        }
         let graph_json = serde_json::to_string(&params.graph_definition).map_err(|e| {
             ServiceError::Validation(format!("graph_definition must be valid JSON: {e}"))
         })?;
         self.data
-            .save_composite_draft(id, graph_json)
+            .save_composite_draft(id, graph_json, params.name, params.description)
             .await
             .map_err(ServiceError::from)
     }
@@ -311,5 +337,33 @@ impl TransformDraftsProviderService {
             )
             .await
             .map_err(ServiceError::from)
+    }
+}
+
+// This module has no DB-backed test harness (no other test in
+// `transform_drafts` exercises a data-provider-backed service method
+// end-to-end — see `dto/requests_tests.rs` and the validator modules for
+// the existing pure-logic-only convention), so `save_draft`'s optional
+// name/description path is covered by its reuse of the existing
+// `require_owner` authz guard (already used identically by `publish_draft`,
+// also untested at that layer) and by the SQL itself; what's unit-testable
+// here without a DB is the pure name-blank guard.
+#[cfg(test)]
+mod tests {
+    use super::validate_draft_name;
+
+    #[test]
+    fn rejects_blank_name() {
+        assert!(validate_draft_name("").is_err());
+    }
+
+    #[test]
+    fn rejects_whitespace_only_name() {
+        assert!(validate_draft_name("   ").is_err());
+    }
+
+    #[test]
+    fn accepts_non_blank_name() {
+        assert!(validate_draft_name("Gain").is_ok());
     }
 }
