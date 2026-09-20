@@ -175,6 +175,41 @@ pub async fn validate_transform_draft_source_code(
     }
 }
 
+/// Returns the binary already produced by a successful primitive-draft Save.
+/// This is a read-only owner-only retrieval; it never compiles, saves, or
+/// publishes a transform.
+#[utoipa::path(get, path = "/draft_transforms/{draft_transform_id}/binary", tag = "draft_transforms",
+    params(TransformDraftIdPath),
+    responses((status = 200, description = "Saved primitive draft WASM binary"),
+              (status = 400, description = "Draft is not primitive or has not been saved successfully")))]
+#[get("/{draft_transform_id}/binary")]
+pub async fn get_primitive_draft_binary(
+    jwt: JwtContext,
+    path: web::Path<TransformDraftIdPath>,
+    app: web::Data<TransformDraftsAppData>,
+) -> HttpResponse {
+    let draft_transform_id = path.into_inner().draft_transform_id;
+    if let Err(resp) = require_owner(&app, draft_transform_id, &jwt).await {
+        return resp;
+    }
+    match app
+        .transform_drafts_service
+        .get_transform_draft(draft_transform_id)
+        .await
+    {
+        Ok(draft) if draft.kind != "primitive" => {
+            HttpResponse::BadRequest().body("only primitive drafts have a preview binary")
+        }
+        Ok(draft) => match draft.wasm_bytecode {
+            Some(wasm) => HttpResponse::Ok()
+                .insert_header(("Content-Type", "application/wasm"))
+                .body(wasm),
+            None => HttpResponse::BadRequest().body("save a successfully compiled draft before previewing"),
+        },
+        Err(e) => map_service_error(e),
+    }
+}
+
 #[utoipa::path(post, path = "/draft_transforms/{draft_transform_id}/validate-graph", tag = "draft_transforms",
     params(TransformDraftIdPath),
     request_body = crate::transform_drafts::dto::requests::ValidateGraphParams,
@@ -261,6 +296,7 @@ pub fn init(cfg: &mut web::ServiceConfig) {
         .service(get_transform_drafts)
         .service(save_draft)
         .service(validate_transform_draft_source_code)
+        .service(get_primitive_draft_binary)
         .service(validate_graph_draft)
         .service(publish_draft)
         .service(delete_transform_draft);

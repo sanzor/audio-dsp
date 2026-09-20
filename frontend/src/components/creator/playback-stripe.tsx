@@ -30,6 +30,10 @@ export function PlaybackStripe() {
   const playbackStatus = useCreatorPlaybackStore((s) => s.status);
   const playbackTransformId = useCreatorPlaybackStore((s) => s.playbackTransformId);
   const stopPlayback = useCreatorPlaybackStore((s) => s.stop);
+  const recordingStatus = useCreatorPlaybackStore((s) => s.recordingStatus);
+  const recordingError = useCreatorPlaybackStore((s) => s.recordingError);
+  const startRecording = useCreatorPlaybackStore((s) => s.startRecording);
+  const stopRecording = useCreatorPlaybackStore((s) => s.stopRecording);
 
   const selectedId = useCreatorStore((s) => s.selectedTransformId);
   const { data: definition } = useGetTransformDefinition(selectedId);
@@ -39,7 +43,7 @@ export function PlaybackStripe() {
   const compositeControls = useCompositePlaybackControls(selectedId ?? -1);
   const primitiveControls = usePrimitivePlaybackControls(selectedId);
 
-  const canShow = playbackInputMode === "source" && playbackSourceId != null;
+  const canShow = playbackInputMode === "microphone" || (playbackInputMode === "source" && playbackSourceId != null);
   if (!canShow) return null;
 
   const isPlaying =
@@ -75,6 +79,29 @@ export function PlaybackStripe() {
         onPlay={handlePlay}
         onStop={handleStop}
       />
+      {playbackInputMode === "microphone" && (
+        <button
+          className="text-[10px] px-3 py-1 rounded ml-3 disabled:opacity-40"
+          style={{ border: "1px solid rgba(255,255,255,0.2)" }}
+          disabled={!isPlaying && !canPlay}
+          title={!canPlay ? playDisabledTitle : undefined}
+          onClick={isPlaying ? handleStop : handlePlay}
+        >
+          {isPlaying ? "Stop preview" : "Preview microphone"}
+        </button>
+      )}
+      <div className="flex items-center gap-1 px-3">
+        {recordingStatus === "recording" ? (
+          <button className="text-[10px] px-2 py-1 rounded" style={{ color: "#ff6b6b", border: "1px solid #ff6b6b" }} onClick={stopRecording}>Stop recording</button>
+        ) : (
+          <>
+            <button className="text-[10px] px-2 py-1 rounded disabled:opacity-40" style={{ border: "1px solid rgba(255,255,255,0.2)" }} disabled={!isPlaying} onClick={() => startRecording("dry")}>Record dry</button>
+            <button className="text-[10px] px-2 py-1 rounded disabled:opacity-40" style={{ border: "1px solid rgba(255,255,255,0.2)" }} disabled={!isPlaying} onClick={() => startRecording("processed")}>Record processed</button>
+          </>
+        )}
+        {recordingStatus === "saving" && <span className="text-[10px]">Saving…</span>}
+        {recordingError && <span className="text-[10px]" style={{ color: "#ff6b6b" }}>{recordingError}</span>}
+      </div>
     </div>
   );
 }

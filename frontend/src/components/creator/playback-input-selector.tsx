@@ -15,11 +15,15 @@ export function PlaybackInputSelector() {
   const setPlaybackInputMode = useCreatorPlaybackStore((s) => s.setPlaybackInputMode);
   const setPlaybackInputSource = useCreatorPlaybackStore((s) => s.setPlaybackInputSource);
 
-  const selectValue = mode === "source" && sourceId != null ? `source:${sourceId}` : "tone";
+  const selectValue = mode === "source" && sourceId != null ? `source:${sourceId}` : mode;
 
   function handleChange(value: string) {
     if (value === "tone") {
       setPlaybackInputMode("tone");
+      return;
+    }
+    if (value === "microphone") {
+      setPlaybackInputMode("microphone");
       return;
     }
     const id = Number(value.slice("source:".length));
@@ -42,6 +46,7 @@ export function PlaybackInputSelector() {
         }}
       >
         <option value="tone">Tone (440Hz)</option>
+        <option value="microphone">Microphone</option>
         {sources?.map((s) => (
           <option key={s.source_id} value={`source:${s.source_id}`}>
             {s.source_info.name}

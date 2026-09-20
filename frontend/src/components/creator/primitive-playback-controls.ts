@@ -1,45 +1,52 @@
 import { useCreatorPlaybackStore } from "@/Stores/CreatorPlaybackStore";
+import { useCreatorStore } from "@/Stores/CreatorStore";
+import { apiGetPrimitiveDraftBinary } from "@/Services/transform-drafts/TransformDraftsService";
+import { useGetTransformDraft } from "@/hooks/transform-drafts/queries";
+import { buildPrimitivePlaybackGraph, PRIMITIVE_PLAYBACK_NODE_ID } from "./creatorTransformPlayback";
 
 // Extracted from code-editor.tsx's original inline play/stop toggle closure so
 // the always-visible bottom playback stripe (playback-stripe.tsx) can drive
 // the same "Try it" playback session for a primitive transform.
 //
-// As of the transform-draft API reshape (see
-// agents/decisions/0011-transform-draft-api-reshape.md), there is no data
-// source left for this: the ticket-compiled wasm this used to run
-// (compiledDraftByTransform) no longer exists, Save's response carries no
-// wasm bytes (TransformDraftDto only has `has_binary: bool`), and there is
-// no backend route to fetch a draft's own not-yet-published wasm either.
-// "Try it" for a primitive is disabled outright rather than silently
-// broken — see this pass's final report for the backend gap this implies
-// (a route to fetch a draft's own compiled-but-unpublished binary would be
-// needed to bring this back). Composite "Try it" is unaffected — it runs
-// entirely client-side via GraphCompiler, not this hook (see
-// composite/composite-playback-controls.ts).
+// Preview retrieves the binary from the current saved primitive draft. Save
+// remains the only action that compiles and updates that binary; Publish is
+// still an independent action.
 export function usePrimitivePlaybackControls(transformId: number | null) {
   const playbackStatus = useCreatorPlaybackStore((s) => s.status);
   const playbackTransformId = useCreatorPlaybackStore((s) => s.playbackTransformId);
   const stopPlayback = useCreatorPlaybackStore((s) => s.stop);
+  const editing = useCreatorStore((s) => s.editingTransformSource);
+  const { data: draft } = useGetTransformDraft(transformId);
+  const savedSourceIsOpen =
+    editing?.transformId === transformId && editing.source === draft?.source_code;
 
   const isPlayingThis =
     transformId != null && playbackTransformId === transformId && playbackStatus !== "idle" && playbackStatus !== "error";
   const isLoading = transformId != null && playbackTransformId === transformId && playbackStatus === "loading";
 
-  function togglePlayback() {
+  async function togglePlayback() {
     if (transformId == null) return;
     if (isPlayingThis) {
       stopPlayback();
+      return;
     }
-    // No else branch: starting playback has no data source anymore (see
-    // module comment above) — canStartPlayback is always false, so
-    // playback-stripe.tsx never calls this to start, only to stop.
+    if (draft == null || !draft.has_binary) return;
+    const wasm = await apiGetPrimitiveDraftBinary(transformId);
+    const graph = buildPrimitivePlaybackGraph([]);
+    await useCreatorPlaybackStore.getState().play(
+      transformId,
+      draft.source_code ?? String(transformId),
+      graph,
+      { [PRIMITIVE_PLAYBACK_NODE_ID]: wasm },
+      [],
+    );
   }
 
   return {
     togglePlayback,
     isPlayingThis,
     isLoading,
-    canStartPlayback: false,
-    disabledReason: "Preview isn't available for unpublished/unsaved-since-publish primitives yet — there's no way to fetch a draft's compiled binary before it's published.",
+    canStartPlayback: transformId != null && draft?.kind === "primitive" && draft.has_binary && savedSourceIsOpen,
+    disabledReason: "Save a successfully compiled primitive draft before previewing it.",
   };
 }

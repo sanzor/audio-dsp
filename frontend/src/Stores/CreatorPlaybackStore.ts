@@ -2,6 +2,8 @@ import { create } from "zustand";
 import { CreatorTransformPlayback } from "@/components/creator/creatorTransformPlayback";
 import type { CompiledGraph } from "@/audio/pipeline/compile-graph/compiledGraph";
 import { apiGetSourceAudio } from "@/Services/SourceService";
+import { apiAddSourceMulti } from "@/Services/SourceService";
+import { encodeWav, interleave } from "@/audio/utils";
 
 // Shared "Try it" live-audition session for the creator surface. Unpersisted
 // — mirrors WorkletStore.ts's shape (a module-scope class instance held
@@ -22,7 +24,9 @@ export type PlaybackStatus = "idle" | "loading" | "playing" | "error";
 // is, the input is hot-swapped in place without reloading the worklet graph
 // (see attachInputSource below); if not, the choice is picked up by the
 // next play().
-export type PlaybackInputMode = "tone" | "source";
+export type PlaybackInputMode = "tone" | "source" | "microphone";
+export type RecordingMode = "dry" | "processed";
+export type RecordingStatus = "idle" | "recording" | "saving" | "error";
 
 export interface LevelReading {
   peak: number;
@@ -45,7 +49,8 @@ const playback = new CreatorTransformPlayback();
 // mode) or an AudioBufferSourceNode (source mode). Both implement
 // AudioScheduledSourceNode's start()/stop(), so attachInputSource can treat
 // them uniformly.
-let inputSourceNode: AudioScheduledSourceNode | null = null;
+let inputSourceNode: AudioNode | null = null;
+let stopInputSource: (() => void) | null = null;
 let inputAnalyser: AnalyserNode | null = null;
 let outputAnalyser: AnalyserNode | null = null;
 let inputBuffer: Float32Array | null = null;
@@ -53,6 +58,8 @@ let outputBuffer: Float32Array | null = null;
 let rafHandle: number | null = null;
 let lastMeterUpdate = 0;
 let unsubscribeCpuLoad: (() => void) | null = null;
+let mediaRecorder: MediaRecorder | null = null;
+let recordingConnection: AudioNode | null = null;
 
 // Decoded source audio, keyed by source_id -- avoids re-fetching/re-decoding
 // on every play() or input hot-swap. AudioBuffer isn't tied to the
@@ -78,11 +85,8 @@ async function getDecodedSourceBuffer(audioCtx: AudioContext, sourceId: number):
 // leaves inputAnalyser itself (and its downstream connection to the worklet
 // input node) untouched -- only the upstream source swaps.
 async function attachInputSource(audioCtx: AudioContext, analyser: AnalyserNode): Promise<void> {
-  try {
-    inputSourceNode?.stop();
-  } catch {
-    // Already stopped or never started -- fine either way.
-  }
+  stopInputSource?.();
+  stopInputSource = null;
   inputSourceNode?.disconnect();
   inputSourceNode = null;
 
@@ -110,6 +114,9 @@ async function attachInputSource(audioCtx: AudioContext, analyser: AnalyserNode)
       bufferSource.connect(analyser);
       bufferSource.start(0, offset);
       inputSourceNode = bufferSource;
+      stopInputSource = () => {
+        try { bufferSource.stop(); } catch { /* already stopped */ }
+      };
       useCreatorPlaybackStore.setState({ playbackInputError: null });
       return;
     } catch (err) {
@@ -121,11 +128,30 @@ async function attachInputSource(audioCtx: AudioContext, analyser: AnalyserNode)
     }
   }
 
+  if (playbackInputMode === "microphone") {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const microphone = audioCtx.createMediaStreamSource(stream);
+      microphone.connect(analyser);
+      inputSourceNode = microphone;
+      stopInputSource = () => stream.getTracks().forEach((track) => track.stop());
+      useCreatorPlaybackStore.setState({ playbackInputError: null });
+      return;
+    } catch (err) {
+      useCreatorPlaybackStore.setState({
+        playbackInputError: err instanceof Error ? err.message : "Microphone access was denied.",
+      });
+    }
+  }
+
   const osc = audioCtx.createOscillator();
   osc.frequency.value = TEST_TONE_FREQUENCY_HZ;
   osc.connect(analyser);
   osc.start();
   inputSourceNode = osc;
+  stopInputSource = () => {
+    try { osc.stop(); } catch { /* already stopped */ }
+  };
 }
 
 interface CreatorPlaybackState {
@@ -169,9 +195,14 @@ interface CreatorPlaybackState {
   // audio failed -- the session falls back to the test tone rather than
   // going silent, and this surfaces why for the input selector UI.
   playbackInputError: string | null;
+  recordingStatus: RecordingStatus;
+  recordingError: string | null;
+  recordingMode: RecordingMode | null;
   setPlaybackInputMode: (mode: PlaybackInputMode) => void;
   setPlaybackInputSource: (sourceId: number | null) => void;
   setPlaybackSourceOffset: (seconds: number) => void;
+  startRecording: (mode: RecordingMode) => void;
+  stopRecording: () => void;
   play: (
     transformId: number,
     resourceKey: string,
@@ -216,11 +247,12 @@ function teardownSession(): void {
   unsubscribeCpuLoad?.();
   unsubscribeCpuLoad = null;
 
-  try {
-    inputSourceNode?.stop();
-  } catch {
-    // Already stopped or never started — fine either way.
-  }
+  mediaRecorder?.stop();
+  mediaRecorder = null;
+  recordingConnection?.disconnect();
+  recordingConnection = null;
+  stopInputSource?.();
+  stopInputSource = null;
   inputSourceNode?.disconnect();
   inputSourceNode = null;
   inputAnalyser?.disconnect();
@@ -250,6 +282,9 @@ export const useCreatorPlaybackStore = create<CreatorPlaybackState>()((set, get)
   playbackSourceId: null,
   playbackSourceOffsetSeconds: 0,
   playbackInputError: null,
+  recordingStatus: "idle",
+  recordingError: null,
+  recordingMode: null,
 
   setPlaybackInputMode: (mode) => {
     set({ playbackInputMode: mode, playbackInputError: null });
@@ -257,6 +292,69 @@ export const useCreatorPlaybackStore = create<CreatorPlaybackState>()((set, get)
     if (get().status === "playing" && audioCtx && inputAnalyser) {
       void attachInputSource(audioCtx, inputAnalyser);
     }
+  },
+
+  startRecording: (mode) => {
+    const audioCtx = playback.audioContext;
+    const inputNode = playback.inputNode;
+    if (get().status !== "playing" || !audioCtx || !inputNode || !inputAnalyser) {
+      set({ recordingStatus: "error", recordingError: "Start preview playback before recording." });
+      return;
+    }
+    if (typeof MediaRecorder === "undefined") {
+      set({ recordingStatus: "error", recordingError: "This browser does not support recording." });
+      return;
+    }
+    const destination = audioCtx.createMediaStreamDestination();
+    // Dry means the microphone/input signal before the transform; processed
+    // means the worklet output after the active draft's transform chain.
+    const recordingNode = mode === "dry" ? inputAnalyser : inputNode;
+    recordingNode.connect(destination);
+    recordingConnection = recordingNode;
+    const chunks: BlobPart[] = [];
+    const recorder = new MediaRecorder(destination.stream);
+    recorder.ondataavailable = (event) => {
+      if (event.data.size > 0) chunks.push(event.data);
+    };
+    recorder.onerror = () => set({ recordingStatus: "error", recordingError: "Recording failed." });
+    recorder.onstop = async () => {
+      recordingConnection?.disconnect();
+      recordingConnection = null;
+      mediaRecorder = null;
+      if (chunks.length === 0) {
+        set({ recordingStatus: "error", recordingError: "No audio was captured." });
+        return;
+      }
+      set({ recordingStatus: "saving", recordingMode: mode });
+      try {
+        const encoded = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
+        const decoded = await audioCtx.decodeAudioData(await encoded.arrayBuffer());
+        const channels = Array.from({ length: decoded.numberOfChannels }, (_, index) => decoded.getChannelData(index));
+        const wav = encodeWav(interleave(channels), decoded.sampleRate, decoded.numberOfChannels);
+        const created = await apiAddSourceMulti({
+          name: `recording-${new Date().toISOString().replace(/[:.]/g, "-")}`,
+          extension: "wav",
+          fileBlob: wav,
+        });
+        set({
+          recordingStatus: "idle",
+          recordingMode: null,
+          playbackInputMode: "source",
+          playbackSourceId: created.source_id,
+          playbackSourceOffsetSeconds: 0,
+        });
+        window.dispatchEvent(new Event("creator-source-created"));
+      } catch (err) {
+        set({ recordingStatus: "error", recordingError: err instanceof Error ? err.message : "Could not save recording." });
+      }
+    };
+    mediaRecorder = recorder;
+    recorder.start();
+    set({ recordingStatus: "recording", recordingMode: mode, recordingError: null });
+  },
+
+  stopRecording: () => {
+    if (mediaRecorder?.state === "recording") mediaRecorder.stop();
   },
 
   setPlaybackInputSource: (sourceId) => {
@@ -290,6 +388,9 @@ export const useCreatorPlaybackStore = create<CreatorPlaybackState>()((set, get)
       outputLevel: SILENT_LEVEL,
       cpuLoadPct: null,
       latencyMs: null,
+      recordingStatus: "idle",
+      recordingError: null,
+      recordingMode: null,
     });
 
     try {

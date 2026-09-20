@@ -156,6 +156,24 @@ export async function apiValidateTransformSourceCode(transform_id: number, sourc
   }
 }
 
+/** Fetches the binary already attached by a successful primitive-draft Save.
+ * This read never compiles, saves, or publishes the transform. */
+export async function apiGetPrimitiveDraftBinary(transform_id: number): Promise<Uint8Array> {
+  const token = useAuthStore.getState().token ?? undefined;
+  const activeProjectId = useProjectStore.getState().activeProject?.project_id;
+  const response = await fetch(`${API_BASE_URL}/draft_transforms/${transform_id}/binary`, {
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(activeProjectId != null ? { "X-Project-Id": String(activeProjectId) } : {}),
+    },
+  });
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message || `Could not fetch saved draft binary: ${response.status}`);
+  }
+  return new Uint8Array(await response.arrayBuffer());
+}
+
 export async function apiValidateCompositeGraph(
   transform_id: number,
   graph_definition: CompositeGraphDefinition

@@ -20,6 +20,10 @@ Core responsibilities:
 - submit compile jobs
 - inspect compile status and build output
 - publish or version transforms so they can be used in editor graphs
+- audition a successfully saved primitive draft locally through the shared worklet
+  runtime, using an uploaded source or live microphone input
+- record the dry microphone input or the active draft's processed output as a
+  Creator signal source for later audition
 
 This is not the DAW graph-editing experience. It is a transform authoring and packaging workflow.
 

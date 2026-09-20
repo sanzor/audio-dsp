@@ -3,6 +3,7 @@ import Editor from "@monaco-editor/react";
 import { useCreatorStore, isMetadataDirty } from "@/Stores/CreatorStore";
 import { useCreatorPlaybackStore } from "@/Stores/CreatorPlaybackStore";
 import { useGetTransformDefinition } from "@/hooks/transforms/queries";
+import { useGetTransformDraft } from "@/hooks/transform-drafts/queries";
 import { useTransformDraftController } from "@/controllers/TransformDraftController";
 import { validateTransformSource } from "./validateTransformSource";
 import { ToolbarButton } from "./toolbar-button";
@@ -38,6 +39,7 @@ export function CreatorCodeEditor() {
   const editingMetadata = useCreatorStore((s) => s.editingTransformMetadata);
   const markTransformMetadataSaved = useCreatorStore((s) => s.markTransformMetadataSaved);
   const { data: definition } = useGetTransformDefinition(selectedId);
+  const { data: draft, isLoading: isDraftLoading } = useGetTransformDraft(selectedId);
   const [activeTab, setActiveTab] = useState("impl");
 
   const playbackStatus = useCreatorPlaybackStore((s) => s.status);
@@ -51,9 +53,14 @@ export function CreatorCodeEditor() {
   const editingForSelected = editing?.transformId === selectedId ? editing : null;
   useEffect(() => {
     if (selectedId == null || editingForSelected != null) return;
+    if (isDraftLoading) return;
+    if (draft?.transform_id === selectedId && draft.source_code != null) {
+      beginEditingTransformSource(selectedId, draft.source_code);
+      return;
+    }
     if (definition == null || definition.transform_id !== selectedId) return;
     beginEditingTransformSource(selectedId, definition.source_code || PRIMITIVE_TRANSFORM_TEMPLATE_SOURCE);
-  }, [selectedId, definition, editingForSelected, beginEditingTransformSource]);
+  }, [selectedId, definition, draft, isDraftLoading, editingForSelected, beginEditingTransformSource]);
 
   const code = editingForSelected?.source ?? "";
   const isDirty = editingForSelected != null && editingForSelected.source !== editingForSelected.originalSource;

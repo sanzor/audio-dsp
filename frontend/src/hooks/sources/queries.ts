@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiListSources, apiGetSourceAudio } from "@/Services/SourceService";
 import { useSourceAudioCacheStore } from "@/Stores/SourceAudioCacheStore";
 import { useAuthStore } from "@/Stores/authStore";
@@ -10,6 +10,14 @@ import { QUERY_KEYS } from "@/constants/queryKeys";
 // authenticated, not on an active project.
 export function useListSources() {
   const user = useAuthStore((state) => state.user);
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    const refresh = () => {
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.sources.all() });
+    };
+    window.addEventListener("creator-source-created", refresh);
+    return () => window.removeEventListener("creator-source-created", refresh);
+  }, [queryClient]);
   return useQuery({
     queryKey: QUERY_KEYS.sources.all(),
     queryFn: apiListSources,
