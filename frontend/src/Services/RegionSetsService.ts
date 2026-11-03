@@ -76,7 +76,7 @@ export interface EditRegionSetResult {
 export interface RemoveRegionSetParams {
   regionSetId: number;
 }
-export interface RemoveRegionSetResult {}
+export type RemoveRegionSetResult = Record<string, never>;
 
 // ─── API ──────────────────────────────────────────────────────────────────────
 

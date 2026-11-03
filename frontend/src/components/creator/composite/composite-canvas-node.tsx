@@ -8,7 +8,8 @@ import { useCompositeCanvasStore } from "@/Stores/CompositeCanvasStore";
 import { useTransformStore } from "@/Stores/TransformStore";
 import { IO_NODE_PORT_NAME } from "@/domain/Transform/CompositeGraphDefinition";
 import type { NodeDisableSafety } from "./compositeReachability";
-import { NodeHeader, SAFETY_COLOR } from "./composite-node-header";
+import { NodeHeader } from "./composite-node-header";
+import { SAFETY_COLOR } from "./compositeSafetyColors";
 import { PortColumn, ROW_HEIGHT } from "./composite-node-ports";
 import { RemoveNodeButton } from "./composite-node-remove-button";
 

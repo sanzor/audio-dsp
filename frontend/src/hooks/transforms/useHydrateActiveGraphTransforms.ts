@@ -23,6 +23,8 @@ export function useHydrateActiveGraphTransforms(): void {
           .filter((id): id is number => id != null)
       )
     );
+    // activeGraphVersion is a deliberate recompute trigger for in-place graph edits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeGraph, activeGraphVersion]);
 
   usePreloadBinaries(transformIds);

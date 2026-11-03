@@ -31,6 +31,8 @@ export const useOrgStore = create<OrgState>()(
       name: "vigul-org-storage",
       version: 3,
       migrate: (persistedState, version) => {
+        // Shape of older persisted versions is unknown by definition; migrated field by field below.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const state = persistedState as any;
         if (version < 2) {
           delete state?.memberships;

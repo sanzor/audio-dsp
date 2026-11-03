@@ -17,7 +17,7 @@ import type { TransformDefinition } from "@/domain/Transform/TransformDefinition
 
 const PAGE_SIZE = 20;
 
-function getTransformBinaries(transformIds: number[]): Map<number, Uint8Array> {
+function useTransformBinaries(transformIds: number[]): Map<number, Uint8Array> {
   const binaries = useWasmBinaryStore((s) => s.binaries)
 
   const missingIds = useMemo(
@@ -50,11 +50,11 @@ export function useGraphBinaries(nodes: RFNode[]): Map<number, Uint8Array> {
     }))],
     [nodes],
   )
-  return getTransformBinaries(transformIds)
+  return useTransformBinaries(transformIds)
 }
 
 export function usePreloadBinaries(transformIds: number[]): void {
-  getTransformBinaries(transformIds)
+  useTransformBinaries(transformIds)
 }
 
 export const useListTransforms = () => {

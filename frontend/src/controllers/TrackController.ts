@@ -6,7 +6,7 @@ import { useCopyTrack, useCreateTrack, useDeleteTrack, useRenameTrack } from "@/
 import { useTrackStore } from "@/Stores/TrackStore";
 import type { CreateTrackParams } from "@/Services/TracksService";
 import type { CreateTrackResult } from "@/Services/TracksService";
-import type { CanonicalAudio } from "@/Audio/CanonicalAudio";
+import type { CanonicalAudio } from "@/audio/canonicalAudio";
 
 
 export function useTrackController() {

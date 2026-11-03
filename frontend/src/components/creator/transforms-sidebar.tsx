@@ -8,7 +8,7 @@ import { creatorToolbarColors } from "./creatorToolbarColors";
 import type { TransformSummary } from "@/domain/Transform/TransformSummary";
 
 // Persistent per-kind color used for the small dot before each row's name --
-// sibling convention to composite-node-header.tsx's SAFETY_COLOR (a style
+// sibling convention to compositeSafetyColors.ts's SAFETY_COLOR (a style
 // reference only, not reused directly: that one is a three-state
 // safe/load-bearing/disabled indicator, this is a fixed two-state kind
 // indicator that never changes for a given row).
@@ -47,7 +47,10 @@ export function TransformsSidebar() {
     }
   }
 
-  const allTransforms = query.data?.pages.flatMap((p) => p.transforms) ?? [];
+  const allTransforms = useMemo(
+    () => query.data?.pages.flatMap((p) => p.transforms) ?? [],
+    [query.data],
+  );
 
   // Merge each row's bucket-3 (published) summary with its resolved bucket-2
   // draft, so a Save-edited name/description shows up here without any

@@ -15,7 +15,7 @@ export class MessageService {
   constructor(eventBus: EventBus) {
     this.eventBus = eventBus;
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   public handleMessage(data: any) {
     void this.eventBus;
     switch (data.kind) {
@@ -30,7 +30,7 @@ export class MessageService {
 
 
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   private handleCommandResult(data: any) {
     switch (data.command) {
       case PLAY_COMMAND:

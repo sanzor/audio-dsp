@@ -80,8 +80,9 @@ export function createWaveFormPlayer(
     onRegionDetails?.(Number(region.id));
   });
 
-  regions.on("region-updated", (region, side) => {
-    void onRegionUpdated?.(region, side);
+  // "region-updated" only carries the region (no drag side) in wavesurfer 7.
+  regions.on("region-updated", (region) => {
+    void onRegionUpdated?.(region);
   });
 
   wave.on("interaction", () => {

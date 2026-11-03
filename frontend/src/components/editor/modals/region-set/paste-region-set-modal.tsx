@@ -12,7 +12,7 @@ export interface PasteRegionSetModalProps {
  params:PasteRegionSetParams
   open: boolean;
   onClose: () => void;
-  onSubmit: (destTrackId:string,sourceRegionSetId:string, copyRegionSetName: string) => void;
+  onSubmit: (destTrackId: number, sourceRegionSetId: number, copyRegionSetName: string) => void;
 }
 
 export function PasteRegionSetModal({
