@@ -1,60 +1,48 @@
-name: Rust CD (GitOps)
+# Reusable — called by ci.yml after a published backend image; also runnable by hand.
+name: cd
 
 on:
-  workflow_run:
-    workflows: ["Rust CI/CD"]
-    types:
-      - completed
-  workflow_dispatch:  # manual trigger option
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+        required: true
+      image-repo:
+        type: string
+        required: true
+      image-tag:
+        type: string
+        required: true
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment folder in infrastructure-configs (dev, staging, main)
+        type: string
+        required: true
+      image-repo:
+        description: e.g. ghcr.io/owner/repo
+        type: string
+        required: true
+      image-tag:
+        description: Image tag (commit SHA)
+        type: string
+        required: true
 
 jobs:
   update-config-repo:
-    name: Update GitOps Config
+    name: update gitops config
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
-
     steps:
-      - name: Determine environment
-        id: env
-        run: |
-            ENV_NAME=${{ github.event.workflow_run.head_branch }}
-            if [ -z "$ENV_NAME" ]; then
-                ENV_NAME=dev
-            fi
-            echo "ENV_NAME=$ENV_NAME" >> $GITHUB_ENV
-            echo "Environment set to: $ENV_NAME"  
-
-      - name: Checkout config repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
-          repository: sanzor/infrastructure-configs  # your GitOps repo
-          token: ${{ secrets.GH_PAT }}  # Personal Access Token or fine-scoped PAT
+          path: app
+
+      - uses: actions/checkout@v4
+        with:
+          repository: sanzor/infrastructure-configs
+          token: ${{ secrets.GH_PAT }}
           ref: main
-          persist-credentials: false
-          fetch-depth: 0
+          path: infra
 
-      - name: Update image tag
-        run: |
-          echo "Updating image tag in environment manifests..."
-          # Update only the relevant env (based on branch name)
-          ENV_NAME=${{ github.event.workflow_run.head_branch }}
-
-
-          FILE=environments/$ENV_NAME/rust-api-deployment.yaml
-          echo "Target manifest: $FILE"
-
-          # Replace old image tag with new commit SHA
-          sed -i "s#image: ghcr.io/.*/rust-api:.*#image: ghcr.io/${{ github.repository }}:${{ github.event.workflow_run.head_sha }}#g" "$FILE"
-
-
-      - name: Commit and push changes
-        run: |
-                git config user.name "github-actions[bot]"
-                git config user.email "github-actions[bot]@users.noreply.github.com"
-                git add environments/
-                if git diff --cached --quiet; then
-                    echo "No changes to commit."
-                else
-                    git commit -m "Update image to ${{ github.event.workflow_run.head_sha }} for $ENV_NAME"
-                    git push origin main
-                fi
+      - working-directory: infra
+        run: ../app/scripts/ci/gitops-update-image.sh "${{ inputs.environment }}" "${{ inputs.image-repo }}" "${{ inputs.image-tag }}"

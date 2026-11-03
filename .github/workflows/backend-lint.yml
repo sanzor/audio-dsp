@@ -1,0 +1,38 @@
+# Reusable — called by backend.yml.
+name: backend-lint
+
+on:
+  workflow_call:
+
+jobs:
+  audit:
+    name: audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
+      - run: ./scripts/ci/backend-audit.sh
+
+  clippy:
+    name: clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-rust
+        with:
+          components: clippy
+          cache-key: clippy
+      - run: ./scripts/ci/backend-clippy.sh
+
+  fmt:
+    name: fmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-rust
+        with:
+          components: rustfmt
+          system-deps: "false"
+      - run: ./scripts/ci/backend-fmt.sh

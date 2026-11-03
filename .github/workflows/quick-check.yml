@@ -1,35 +1,26 @@
+# Fast feedback on feature branches (the full pipeline runs via ci.yml on main/staging/dev and PRs).
 name: Quick Check
 
 on:
   push:
-    branches-ignore:
-      - main
-      - staging
-    # workflow_dispatch:
+    branches-ignore: [main, staging, dev]
+    paths:
+      - "backend/**"
+      - "scripts/ci/**"
+      - ".github/actions/setup-rust/**"
+      - ".github/workflows/quick-check.yml"
 
 jobs:
   fast-check:
-    name: Fast Lint & Compile
+    name: fmt + check
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache Cargo dependencies
-        uses: actions/cache@v4
+      - uses: ./.github/actions/setup-rust
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            backend/target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
-
-      - name: Run fast checks
-        run: |
-          cargo fmt -- --check
-          # cargo clippy -- -D warnings
-          cargo check
+          components: rustfmt
+          cache-key: check
+      - run: ./scripts/ci/backend-fmt.sh
+      - name: cargo check
         working-directory: backend
+        run: cargo check --workspace --all-targets

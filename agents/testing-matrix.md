@@ -61,3 +61,14 @@ Before closing a change, confirm:
 - the relevant invariant in `agents/invariants.md` still holds
 - at least one targeted automated test or deterministic manual validation exists
 - docs were updated if the change altered architecture or workflow assumptions
+
+## CI
+
+`.github/workflows/ci.yml` is the entry point; every job calls a script in `scripts/ci/`, so run the same script locally to reproduce a CI failure:
+
+- backend lint: `backend-audit.sh`, `backend-clippy.sh`, `backend-fmt.sh` (`--fix` to rewrite)
+- backend build: image build + `backend-unit-tests.sh`
+- integration: `backend-integration-tests.sh` (the `#[ignore]`d wasm compile-pipeline tests; runs serially — concurrent compiles share one output path)
+- frontend: `frontend.sh lint|test|build`
+
+Advisory ignores for `cargo audit` live in `backend/.cargo/audit.toml`, each with a reason; remove them when upstream fixes land.
