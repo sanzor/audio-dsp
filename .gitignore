@@ -2,12 +2,14 @@
 /backend/target
 /frontend/node_modules
 /frontend/dist
-/frontend/.pnpm-store
+.pnpm-store/
 /node_modules
 *.wav
 .env
-.gitignore
 .VSCodeCounter
 frt/*
 frontend/node_modules/*
 /temp/
+
+# Claude Code per-machine settings
+.claude/settings.local.json

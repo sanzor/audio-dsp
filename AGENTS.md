@@ -123,6 +123,12 @@ Prefer product workflows over file-level instructions. Ask for creator work, edi
   - Use when schema or seed data must change for creator/editor features.
   - Example prompt: "Add the schema and seed changes needed for transform version metadata."
 
+### Git
+
+- `git/commit-and-push`
+  - Use when changes should be committed with a descriptive message and pushed.
+  - Example prompt: "Commit the regions fix and push it."
+
 ### Debug
 
 - `debug/debug-playback-desync`

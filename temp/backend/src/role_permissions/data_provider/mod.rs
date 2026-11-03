@@ -1,2 +1,0 @@
-pub mod role_permissions_data_provider;
-pub mod role_permissions_data_provider_service;

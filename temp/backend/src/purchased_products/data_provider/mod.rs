@@ -1,2 +1,0 @@
-pub mod purchased_products_data_provider;
-pub mod purchased_products_data_provider_service;
