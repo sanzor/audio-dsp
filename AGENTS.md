@@ -133,7 +133,7 @@ Prefer product workflows over file-level instructions. Ask for creator work, edi
   - Use when a pushed branch should be reviewed and merged; covers pre-checks, title/body template, and the `ci-ok` merge gate.
   - Example prompt: "Open a PR for this branch against main."
 
-- `git/commit-and-push`
+- `git/commit-and-push` (also `/commit-and-push`)
   - Use when changes should be committed with a descriptive message and pushed.
   - Example prompt: "Commit the regions fix and push it."
 
