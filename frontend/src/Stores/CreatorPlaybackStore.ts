@@ -59,7 +59,32 @@ let rafHandle: number | null = null;
 let lastMeterUpdate = 0;
 let unsubscribeCpuLoad: (() => void) | null = null;
 let mediaRecorder: MediaRecorder | null = null;
+// The node currently tapped for recording (inputAnalyser for "dry",
+// playback.inputNode for "processed") and the recording-only passthrough
+// GainNode it's routed through on its way to the MediaStreamDestination.
+// Two independent reasons this indirection exists, both found live (see
+// CreatorPlaybackStore's recording round-trip investigation):
+//
+// 1. Connecting playback.inputNode (an AudioWorkletNode) directly to a
+//    MediaStreamAudioDestinationNode captures an effectively empty stream in
+//    Chromium -- observed as a single ~100-byte dataavailable chunk that
+//    fails decodeAudioData, even though the exact same node's audio reaches
+//    audioCtx.destination/outputAnalyser correctly. Routing it through an
+//    ordinary native GainNode first reliably fixes the capture. "dry" mode
+//    taps a plain AnalyserNode and doesn't strictly need this, but it's
+//    applied uniformly rather than branching the plumbing per mode.
+// 2. Recording stop must disconnect *only the recording tap edge* --
+//    AudioNode.disconnect() with no arguments tears down *every* outgoing
+//    connection from the node. Calling recordingConnection.disconnect()
+//    directly (the previous shape) would silently sever inputAnalyser's real
+//    playback fan-out to playback.inputNode (or inputNode's fan-out to
+//    audioCtx.destination/outputAnalyser) the moment any recording stopped,
+//    leaving the session reporting status "playing" while no audio actually
+//    reached the transform or the speakers anymore. Recording into a
+//    dedicated tap node means the source node's own connection to disconnect
+//    is always "source -> tap" specifically, never "source -> everything".
 let recordingConnection: AudioNode | null = null;
+let recordingTapNode: GainNode | null = null;
 
 // Decoded source audio, keyed by source_id -- avoids re-fetching/re-decoding
 // on every play() or input hot-swap. AudioBuffer isn't tied to the
@@ -249,8 +274,17 @@ function teardownSession(): void {
 
   mediaRecorder?.stop();
   mediaRecorder = null;
-  recordingConnection?.disconnect();
+  // Disconnect only the recording tap edge, not every outgoing connection
+  // from the shared node -- see the recordingConnection/recordingTapNode doc
+  // comment above. (Harmless here even though inputAnalyser/inputNode get
+  // their own full disconnect() a few lines down as part of full teardown --
+  // kept precise for consistency with the onstop handler below.)
+  if (recordingConnection && recordingTapNode) {
+    recordingConnection.disconnect(recordingTapNode);
+  }
+  recordingTapNode?.disconnect();
   recordingConnection = null;
+  recordingTapNode = null;
   stopInputSource?.();
   stopInputSource = null;
   inputSourceNode?.disconnect();
@@ -309,8 +343,17 @@ export const useCreatorPlaybackStore = create<CreatorPlaybackState>()((set, get)
     // Dry means the microphone/input signal before the transform; processed
     // means the worklet output after the active draft's transform chain.
     const recordingNode = mode === "dry" ? inputAnalyser : inputNode;
-    recordingNode.connect(destination);
+    // Route through a recording-only passthrough GainNode -- see the
+    // recordingConnection/recordingTapNode doc comment above for why this
+    // indirection is required (both the AudioWorkletNode-into-
+    // MediaStreamDestination empty-capture issue and precise single-edge
+    // disconnect on stop depend on it).
+    const tap = audioCtx.createGain();
+    tap.gain.value = 1;
+    recordingNode.connect(tap);
+    tap.connect(destination);
     recordingConnection = recordingNode;
+    recordingTapNode = tap;
     const chunks: BlobPart[] = [];
     const recorder = new MediaRecorder(destination.stream);
     recorder.ondataavailable = (event) => {
@@ -318,8 +361,12 @@ export const useCreatorPlaybackStore = create<CreatorPlaybackState>()((set, get)
     };
     recorder.onerror = () => set({ recordingStatus: "error", recordingError: "Recording failed." });
     recorder.onstop = async () => {
-      recordingConnection?.disconnect();
+      if (recordingConnection && recordingTapNode) {
+        recordingConnection.disconnect(recordingTapNode);
+      }
+      recordingTapNode?.disconnect();
       recordingConnection = null;
+      recordingTapNode = null;
       mediaRecorder = null;
       if (chunks.length === 0) {
         set({ recordingStatus: "error", recordingError: "No audio was captured." });
