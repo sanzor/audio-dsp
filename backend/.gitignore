@@ -1,1 +1,2 @@
-.cargo/
+.cargo/*
+!.cargo/audit.toml

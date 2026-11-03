@@ -1,0 +1,17 @@
+# cargo-audit config (scripts/ci/backend-audit.sh). Every ignore needs a reason
+# and should be removed as soon as an upstream fix lands — re-check periodically.
+[advisories]
+ignore = [
+    # rsa: Marvin timing attack. No fixed version exists. Pulled in by
+    # jsonwebtoken's rust_crypto backend; we only sign/verify HS256
+    # (api/src/token/token_utils.rs), so RSA code paths are never executed.
+    "RUSTSEC-2023-0071",
+    # crypto-bigint 0.5 timing variability. Pulled in by jsonwebtoken via
+    # p256/p384 (ES256/ES384), which we don't use (HS256 only). Needs a
+    # jsonwebtoken release on crypto-bigint >=0.7.
+    "RUSTSEC-2026-0387",
+    # h2 0.3 unbounded empty DATA frames. Pulled in by actix-http 3.x, which
+    # only uses h2 for HTTP/2; no fixed 0.3.x exists. Drop once actix-http
+    # moves to h2 0.4.
+    "RUSTSEC-2026-0258",
+]

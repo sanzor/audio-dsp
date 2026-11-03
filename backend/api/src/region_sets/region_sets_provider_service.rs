@@ -84,7 +84,7 @@ impl RegionSetsProvider for RegionSetsProviderService {
         let sets = self.data.get_region_sets().await?;
         let mut map: HashMap<TrackId, Vec<DbRegionSet>> = HashMap::new();
         for set in sets {
-            map.entry(set.track_id.clone()).or_default().push(set);
+            map.entry(set.track_id).or_default().push(set);
         }
         Ok(map)
     }

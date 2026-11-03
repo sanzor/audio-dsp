@@ -204,7 +204,8 @@ pub async fn get_primitive_draft_binary(
             Some(wasm) => HttpResponse::Ok()
                 .insert_header(("Content-Type", "application/wasm"))
                 .body(wasm),
-            None => HttpResponse::BadRequest().body("save a successfully compiled draft before previewing"),
+            None => HttpResponse::BadRequest()
+                .body("save a successfully compiled draft before previewing"),
         },
         Err(e) => map_service_error(e),
     }

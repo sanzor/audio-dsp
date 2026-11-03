@@ -1,6 +1,6 @@
 use domain::{
     db::{
-        db_region::{DbRegion, RegionId},
+        db_region::DbRegion,
         db_region_set::{DbRegionSet, RegionSetId},
         db_track::{DbTrack, TrackId},
     },

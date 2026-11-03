@@ -1,9 +1,7 @@
 use std::env;
 
-use base64::{engine::general_purpose, Engine};
 use domain::domain_user::UserId;
 use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
-use rand::Rng;
 
 use crate::dtos::claims::Claims;
 
@@ -62,11 +60,7 @@ pub(crate) fn create_invite_token(invitee_email: &str, workspace_id: i32, role: 
     )
 }
 
-pub(crate) fn generate_csrf_token() -> String {
-    let bytes: [u8; 32] = rand::rng().random();
-    general_purpose::STANDARD_NO_PAD.encode(bytes)
-}
-
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn create_token(
     user_id: UserId,
     email: Option<&str>,

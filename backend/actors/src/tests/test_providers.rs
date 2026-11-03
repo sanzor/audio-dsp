@@ -33,6 +33,12 @@ pub struct StubTracksProvider {
     tracks: Mutex<HashMap<DbTrackId, DbTrack>>,
 }
 
+impl Default for StubTracksProvider {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl StubTracksProvider {
     pub fn new() -> Self {
         Self {
@@ -128,6 +134,12 @@ pub struct StubRegionSetsProvider {
     next_region_id: AtomicI32,
     sets: Mutex<HashMap<RegionSetId, DbRegionSet>>,
     regions: Mutex<HashMap<RegionSetId, Vec<DbRegion>>>,
+}
+
+impl Default for StubRegionSetsProvider {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl StubRegionSetsProvider {
@@ -229,7 +241,7 @@ impl RegionSetsProvider for StubRegionSetsProvider {
         let region_id = self.next_region_id.fetch_add(1, Ordering::Relaxed);
         let region = DbRegion {
             region_id,
-            region_set_id: params.region_set_id.clone(),
+            region_set_id: params.region_set_id,
             name: params.name,
             start_time_seconds: params.start_time,
             end_time_seconds: params.end_time,
@@ -275,7 +287,7 @@ impl RegionSetsProvider for StubRegionSetsProvider {
         let region_id = self.next_region_id.fetch_add(1, Ordering::Relaxed);
         let region = DbRegion {
             region_id,
-            region_set_id: params.destination_region_set_id.clone(),
+            region_set_id: params.destination_region_set_id,
             name: params.region_copy_name,
             start_time_seconds: source.start_time_seconds,
             end_time_seconds: source.end_time_seconds,

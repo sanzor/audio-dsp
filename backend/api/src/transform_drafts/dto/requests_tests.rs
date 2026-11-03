@@ -27,7 +27,9 @@ fn save_composite_payload_accepts_graph_definition() {
             .expect("composite save payload should deserialize");
 
     match payload {
-        SaveDraftParams::Composite(SaveCompositeParams { name, description, .. }) => {
+        SaveDraftParams::Composite(SaveCompositeParams {
+            name, description, ..
+        }) => {
             assert_eq!(name, None);
             assert_eq!(description, None);
         }
@@ -43,7 +45,9 @@ fn save_primitive_payload_accepts_optional_name_and_description() {
     .expect("primitive save payload with name/description should deserialize");
 
     match payload {
-        SaveDraftParams::Primitive(SavePrimitiveParams { name, description, .. }) => {
+        SaveDraftParams::Primitive(SavePrimitiveParams {
+            name, description, ..
+        }) => {
             assert_eq!(name.as_deref(), Some("Gain"));
             assert_eq!(description.as_deref(), Some("boosts signal"));
         }
@@ -59,7 +63,9 @@ fn save_primitive_payload_allows_null_description() {
     .expect("payload should deserialize");
 
     match payload {
-        SaveDraftParams::Primitive(SavePrimitiveParams { name, description, .. }) => {
+        SaveDraftParams::Primitive(SavePrimitiveParams {
+            name, description, ..
+        }) => {
             assert_eq!(name.as_deref(), Some("Gain"));
             assert_eq!(description, None);
         }
@@ -75,7 +81,9 @@ fn save_composite_payload_accepts_optional_name_and_description() {
     .expect("composite save payload with name/description should deserialize");
 
     match payload {
-        SaveDraftParams::Composite(SaveCompositeParams { name, description, .. }) => {
+        SaveDraftParams::Composite(SaveCompositeParams {
+            name, description, ..
+        }) => {
             assert_eq!(name.as_deref(), Some("Chain"));
             assert_eq!(description.as_deref(), Some("a chain"));
         }

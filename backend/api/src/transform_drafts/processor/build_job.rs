@@ -22,9 +22,6 @@ fn next_job_id(prefix: &str) -> String {
     )
 }
 
-/// Config for the subprocess Rust->wasm32 build. All paths/limits are backend
-/// operator settings, never user-controlled.
-
 /// Writes `source_code` as a creator transform's `src/lib.rs` plus a
 /// backend-authored `Cargo.toml` (the user has no way to add dependencies)
 /// into a fresh job directory, and removes that directory again once `run`

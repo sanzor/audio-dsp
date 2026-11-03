@@ -75,7 +75,7 @@ pub struct Validator;
 
 impl Validator {
     pub fn new() -> Self {
-        Self::default()
+        Self
     }
 
     /// Parses `input.metadata_json` as a `GraphDefinition` and validates

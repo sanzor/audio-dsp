@@ -125,8 +125,8 @@ impl RegionsDataProvider for PostgresRegionsDataProvider {
             WHERE region_id = $1 AND region_set_id = $2
             "#,
         )
-        .bind(&params.source_region_id)
-        .bind(&params.source_region_set_id)
+        .bind(params.source_region_id)
+        .bind(params.source_region_set_id)
         .fetch_one(&self.pool)
         .await
         .map_err(|e| e.to_string())?;

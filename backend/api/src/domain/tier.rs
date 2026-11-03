@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use sqlx::{
     postgres::{PgTypeInfo, PgValueRef},
-    Decode, Encode, Type,
+    Decode, Encode,
 };
 use utoipa::ToSchema;
 
@@ -56,8 +56,8 @@ impl<'r> sqlx::Decode<'r, sqlx::Postgres> for Tier {
 impl<'q> sqlx::Encode<'q, sqlx::Postgres> for Tier {
     fn encode_by_ref(
         &self,
-        buf: &mut <sqlx::Postgres as sqlx::database::HasArguments<'q>>::ArgumentBuffer,
-    ) -> sqlx::encode::IsNull {
+        buf: &mut <sqlx::Postgres as sqlx::Database>::ArgumentBuffer<'q>,
+    ) -> Result<sqlx::encode::IsNull, sqlx::error::BoxDynError> {
         <String as Encode<sqlx::Postgres>>::encode_by_ref(&self.to_string(), buf)
     }
 }

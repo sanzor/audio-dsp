@@ -1,3 +1,6 @@
+// Module layout convention here is `foo/mod.rs` + `foo/foo.rs`.
+#![allow(clippy::module_inception)]
+
 pub mod app_data;
 pub mod auth;
 pub mod config;

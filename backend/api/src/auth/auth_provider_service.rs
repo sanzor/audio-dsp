@@ -221,7 +221,7 @@ impl AuthProvider for AuthProviderService {
         let role_str = claims
             .role
             .ok_or_else(|| ServiceError::Internal("missing role in token".to_string()))?;
-        let role = WorkspaceRole::from_str(&role_str)
+        let role = WorkspaceRole::parse(&role_str)
             .ok_or_else(|| ServiceError::Internal(format!("unknown role: {role_str}")))?;
 
         // Verify that the authenticated caller's email matches the invite

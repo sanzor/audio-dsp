@@ -104,7 +104,7 @@ impl RegionsProvider for RegionsProviderService {
                 name: params.name,
                 end_time,
                 start_time: params.start_time,
-                region_set_id: params.region_set_id.clone(),
+                region_set_id: params.region_set_id,
             })
             .await?;
 
@@ -141,7 +141,7 @@ impl RegionsProvider for RegionsProviderService {
                 source_region_set_id: params.source_region_set_id,
                 source_region_id: params.source_region_id,
                 source_track_id: params.source_track_id,
-                destination_region_set_id: params.destination_region_set_id.clone(),
+                destination_region_set_id: params.destination_region_set_id,
                 destination_track_id: params.destination_track_id,
                 region_copy_name: params.copy_name,
             })

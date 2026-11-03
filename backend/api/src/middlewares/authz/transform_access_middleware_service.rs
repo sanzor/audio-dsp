@@ -5,7 +5,6 @@ use actix_web::{
 };
 use std::{future::Future, pin::Pin, rc::Rc, sync::Arc};
 
-use domain::domain_user::UserId;
 use tracing::warn;
 
 use crate::{

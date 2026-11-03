@@ -1,6 +1,6 @@
 use domain::{
     db::{
-        db_region::{DbRegion, RegionId},
+        db_region::DbRegion,
         db_region_set::{DbRegionSet, RegionSetId},
         db_track::{DbTrack, TrackId},
     },
@@ -145,7 +145,7 @@ impl RegionSetsDataProvider for PostgresRegionSetsDataProvider {
             WHERE region_set_id = $1
             "#,
         )
-        .bind(&params.region_set_id)
+        .bind(params.region_set_id)
         .fetch_one(&mut *tx)
         .await
         .map_err(|e| e.to_string())?;
@@ -157,7 +157,7 @@ impl RegionSetsDataProvider for PostgresRegionSetsDataProvider {
             RETURNING region_set_id, track_id, name, track_length_seconds, created_at
             "#,
         )
-        .bind(&source_set.track_id)
+        .bind(source_set.track_id)
         .bind(&params.region_set_name)
         .bind(source_set.track_length_seconds)
         .fetch_one(&mut *tx)
@@ -172,7 +172,7 @@ impl RegionSetsDataProvider for PostgresRegionSetsDataProvider {
             ORDER BY start_time_seconds ASC
             "#,
         )
-        .bind(&params.region_set_id)
+        .bind(params.region_set_id)
         .fetch_all(&mut *tx)
         .await
         .map_err(|e| e.to_string())?;

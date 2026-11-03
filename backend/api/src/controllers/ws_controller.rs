@@ -60,7 +60,7 @@ pub async fn run_player(
     app_state: web::Data<PlayerAppData>,
 ) -> Result<HttpResponse, actix_web::Error> {
     let user_id = jwt.user_id;
-    let track_id = query.track_id.clone();
+    let track_id = query.track_id;
     let player_service = Arc::clone(&app_state.player_service);
 
     // Create sink/source pair
@@ -74,12 +74,12 @@ pub async fn run_player(
     let attach_result = player_service
         .attach_sink(AttachSinkParams {
             user_id,
-            track_id: track_id.clone(),
+            track_id,
             workspace_id: workspace.0,
             sink: Box::new(sink),
         })
         .await
-        .map_err(|e| actix_web::error::ErrorInternalServerError(e))?;
+        .map_err(actix_web::error::ErrorInternalServerError)?;
 
     let sink_id = attach_result.sink_id;
 
@@ -91,13 +91,10 @@ pub async fn run_player(
         loop {
             tokio::select! {
                 _ = interval.tick() => {
-                    match source.next_frame().await {
-                        Some(frame) => {
-                            if let Err(e) = send_audio_frame(&mut session, &frame).await {
-                                eprintln!("Failed to send audio frame: {e}");
-                            }
+                    if let Some(frame) = source.next_frame().await {
+                        if let Err(e) = send_audio_frame(&mut session, &frame).await {
+                            eprintln!("Failed to send audio frame: {e}");
                         }
-                        None => {}
                     }
                 },
                 msg = ws_stream.next() => {

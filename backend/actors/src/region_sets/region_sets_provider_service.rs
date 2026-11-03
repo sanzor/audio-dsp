@@ -43,7 +43,7 @@ impl RegionSetsProvider for PostgresRegionSetsProvider {
              RETURNING region_set_id, track_id, name, track_length_seconds, created_at",
         )
         .bind(&id)
-        .bind(&params.track_id)
+        .bind(params.track_id)
         .bind(params.name.unwrap_or_else(|| "set".into()))
         .bind(params.track_length)
         .fetch_one(&self.pool)
@@ -90,7 +90,7 @@ impl RegionSetsProvider for PostgresRegionSetsProvider {
              RETURNING region_set_id, track_id, name, track_length_seconds, created_at",
         )
         .bind(params.name)
-        .bind(&params.region_set_id)
+        .bind(params.region_set_id)
         .fetch_one(&self.pool)
         .await
         .map_err(|e| e.to_string())
@@ -114,7 +114,7 @@ impl RegionSetsProvider for PostgresRegionSetsProvider {
         )
         .bind(&new_id)
         .bind(&params.region_set_name)
-        .bind(&params.region_set_id)
+        .bind(params.region_set_id)
         .fetch_one(&self.pool)
         .await
         .map_err(|e| e.to_string())
@@ -141,7 +141,7 @@ impl RegionSetsProvider for PostgresRegionSetsProvider {
              RETURNING region_id, region_set_id, name, start_time_seconds, end_time_seconds, created_at"
         )
         .bind(&region_id)
-        .bind(&params.region_set_id)
+        .bind(params.region_set_id)
         .bind(&params.name)
         .bind(params.start_time)
         .bind(params.end_time)
@@ -162,7 +162,7 @@ impl RegionSetsProvider for PostgresRegionSetsProvider {
         .bind(params.name)
         .bind(params.start_time)
         .bind(params.end_time)
-        .bind(&params.region_id)
+        .bind(params.region_id)
         .fetch_one(&self.pool)
         .await
         .map_err(|e| e.to_string())
@@ -170,7 +170,7 @@ impl RegionSetsProvider for PostgresRegionSetsProvider {
 
     async fn delete_region(&self, params: DeleteRegionParams) -> Result<(), String> {
         sqlx::query("DELETE FROM regions WHERE region_id = $1")
-            .bind(&params.region_id)
+            .bind(params.region_id)
             .execute(&self.pool)
             .await
             .map(|_| ())
@@ -185,9 +185,9 @@ impl RegionSetsProvider for PostgresRegionSetsProvider {
              RETURNING region_id, region_set_id, name, start_time_seconds, end_time_seconds, created_at"
         )
         .bind(&new_id)
-        .bind(&params.destination_region_set_id)
+        .bind(params.destination_region_set_id)
         .bind(&params.region_copy_name)
-        .bind(&params.source_region_id)
+        .bind(params.source_region_id)
         .fetch_one(&self.pool)
         .await
         .map_err(|e| e.to_string())

@@ -270,7 +270,7 @@ pub async fn get_all_users(
             let filtered: Vec<_> = users
                 .into_iter()
                 .filter(|u| {
-                    search.as_deref().map_or(true, |s| {
+                    search.as_deref().is_none_or(|s| {
                         u.email.to_lowercase().contains(s) || u.full_name.to_lowercase().contains(s)
                     })
                 })

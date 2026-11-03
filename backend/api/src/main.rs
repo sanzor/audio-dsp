@@ -237,7 +237,7 @@ async fn start_server(app_config: api::config::AppConfig) -> std::io::Result<()>
         .acquire_timeout(std::time::Duration::from_secs(5))
         .connect(&app_config.database.url)
         .await
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+        .map_err(|e| std::io::Error::other(e.to_string()))?;
 
     let user_provider: Arc<dyn UserProvider> = Arc::new(UserProviderService::new(Arc::new(
         UserDataProviderService::new(pool.clone()),
