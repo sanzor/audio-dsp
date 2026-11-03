@@ -125,6 +125,14 @@ Prefer product workflows over file-level instructions. Ask for creator work, edi
 
 ### Git
 
+- `git/create-branch`
+  - Use before starting a change: creates `<area>/<purpose>` from current `origin/main`. Never work directly on `main`/`staging`/`dev` — pushes there trigger CD.
+  - Example prompt: "Start a branch for fixing the seek drift in the editor."
+
+- `git/open-pull-request`
+  - Use when a pushed branch should be reviewed and merged; covers pre-checks, title/body template, and the `ci-ok` merge gate.
+  - Example prompt: "Open a PR for this branch against main."
+
 - `git/commit-and-push`
   - Use when changes should be committed with a descriptive message and pushed.
   - Example prompt: "Commit the regions fix and push it."
