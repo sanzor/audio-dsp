@@ -20,10 +20,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/backend/setup-rust
+      - run: ./scripts/ci/backend/setup-toolchain.sh --components clippy --system-deps
+      - uses: Swatinem/rust-cache@v2
         with:
-          components: clippy
-          cache-key: clippy
+          workspaces: backend
+          shared-key: clippy
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - run: ./scripts/ci/backend/clippy.sh
 
   fmt:
@@ -31,8 +33,5 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/backend/setup-rust
-        with:
-          components: rustfmt
-          system-deps: "false"
+      - run: ./scripts/ci/backend/setup-toolchain.sh --components rustfmt
       - run: ./scripts/ci/backend/fmt.sh

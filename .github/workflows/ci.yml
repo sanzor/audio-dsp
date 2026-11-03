@@ -40,19 +40,16 @@ jobs:
             shared: &shared
               - 'scripts/ci/lib.sh'
               - 'scripts/ci/shared/**'
-              - '.github/actions/shared/**'
               - '.github/workflows/ci.yml'
             backend:
               - *shared
               - 'backend/**'
               - 'scripts/ci/backend/**'
-              - '.github/actions/backend/**'
               - '.github/workflows/backend-*.yml'
             frontend:
               - *shared
               - 'frontend/**'
               - 'scripts/ci/frontend/**'
-              - '.github/actions/frontend/**'
               - '.github/workflows/frontend-*.yml'
 
   backend-ci:

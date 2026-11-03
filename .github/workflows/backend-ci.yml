@@ -24,8 +24,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/backend/setup-rust
+      - run: ./scripts/ci/backend/setup-toolchain.sh --targets wasm32-unknown-unknown --system-deps
+      - uses: Swatinem/rust-cache@v2
         with:
-          targets: wasm32-unknown-unknown
-          cache-key: test
+          workspaces: backend
+          shared-key: test
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - run: ./scripts/ci/backend/integration-tests.sh

@@ -7,7 +7,6 @@ on:
     paths:
       - "backend/**"
       - "scripts/ci/backend/**"
-      - ".github/actions/backend/**"
       - ".github/workflows/quick-check.yml"
 
 jobs:
@@ -16,10 +15,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/backend/setup-rust
+      - run: ./scripts/ci/backend/setup-toolchain.sh --components rustfmt --system-deps
+      - uses: Swatinem/rust-cache@v2
         with:
-          components: rustfmt
-          cache-key: check
+          workspaces: backend
+          shared-key: check
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - run: ./scripts/ci/backend/fmt.sh
       - name: cargo check
         working-directory: backend

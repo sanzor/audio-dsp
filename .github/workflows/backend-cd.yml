@@ -18,13 +18,19 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/shared/publish-image
+      - uses: actions/download-artifact@v4
         with:
-          artifact: backend-image
-          local-image: audio-dsp-api:ci
-          image-repo: ghcr.io/${{ github.repository }}
-          tags: ${{ github.sha }} ${{ github.ref_name }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+          name: backend-image   # built by backend-ci.yml
+          path: ${{ runner.temp }}
+      - run: docker load -i "${{ runner.temp }}/image.tar"
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - run: >
+          ./scripts/ci/shared/publish-image.sh audio-dsp-api:ci
+          "ghcr.io/${{ github.repository }}" "${{ github.sha }}" "${{ github.ref_name }}"
 
   deploy:
     name: deploy
@@ -32,11 +38,17 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/shared/gitops-deploy
+      - name: Checkout this repo (for scripts)
+        uses: actions/checkout@v4
+      - name: Checkout config repo
+        uses: actions/checkout@v4
         with:
-          environment: ${{ inputs.environment }}
-          manifest: rust-api-deployment.yaml
-          image-repo: ghcr.io/${{ github.repository }}
-          image-tag: ${{ github.sha }}
+          repository: sanzor/infrastructure-configs
           token: ${{ secrets.GH_PAT }}
+          ref: main
+          path: .gitops
+      - working-directory: .gitops
+        run: >
+          ../scripts/ci/shared/gitops-update-image.sh
+          "${{ inputs.environment }}" rust-api-deployment.yaml
+          "ghcr.io/${{ github.repository }}" "${{ github.sha }}"
