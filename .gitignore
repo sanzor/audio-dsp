@@ -13,3 +13,6 @@ frontend/node_modules/*
 
 # Claude Code per-machine settings
 .claude/settings.local.json
+
+# Machine-specific cargo config (host-absolute rustc path)
+backend/.cargo/
