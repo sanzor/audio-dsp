@@ -1,0 +1,51 @@
+services:
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ..:/workspace:cached
+      # Persist the crates.io cache across container rebuilds
+      - devcontainer-cargo-registry:/usr/local/cargo/registry
+      # Persist Claude Code login/settings/history across container rebuilds
+      - devcontainer-claude:/home/dev/.claude
+    working_dir: /workspace
+    command: sleep infinity
+    environment:
+      # Preexisting env wins over dev.env/.env in the api's layered loader
+      PG_HOST: postgres
+      PG_PORT: "5432"
+      PG_USER: postgres
+      PG_PASS: postgres
+      PG_DB: audio_dsp
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/audio_dsp
+      JWT_SECRET: test_secret
+      HOST: 0.0.0.0
+      PORT: "3080"
+      # Overrides backend/.cargo/config.toml's host-absolute build.rustc path
+      RUSTC: rustc
+      # Keeps .claude.json inside the persisted ~/.claude volume too
+      CLAUDE_CONFIG_DIR: /home/dev/.claude
+      DISABLE_AUTOUPDATER: "1"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: audio_dsp
+    volumes:
+      - devcontainer-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d audio_dsp"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  devcontainer-postgres:
+  devcontainer-cargo-registry:
+  devcontainer-claude:

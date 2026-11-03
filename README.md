@@ -38,3 +38,21 @@ make up
 # Local dev (manual)
 - Backend: `cargo run -p api` (from `./backend`)
 - Frontend: `pnpm install && pnpm dev` (from `./frontend`)
+
+# Development container
+
+Install Docker and the VS Code Dev Containers extension, then choose **Dev Containers: Reopen in Container**. The first build installs Rust 1.90, the WASM target, Node, pnpm, SQLx CLI, and native audio dependencies; it may take a while. A separate PostgreSQL 16 service starts with the container and keeps its data in a Docker volume.
+
+Inside the container, initialize the database and start the application in separate terminals:
+
+```sh
+make -e migrate
+make -e db-seed
+cargo run -p api
+```
+
+```sh
+cd frontend && pnpm dev
+```
+
+Open `http://localhost:3000`; ports 3000 and 3080 are forwarded. The `-e` flag lets the container's PostgreSQL settings take precedence over the root `.env` file. The container database is separate from the host Compose stack; `make up` and the Docker-based stack commands are intended to run on the host. To use Playwright in the container, install its browser and system dependencies separately (`npx playwright install --with-deps chromium` from `frontend`).

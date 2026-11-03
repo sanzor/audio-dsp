@@ -1,0 +1,26 @@
+{
+  "name": "audio-dsp",
+  "dockerComposeFile": "compose.yml",
+  "service": "dev",
+  "workspaceFolder": "/workspace",
+  "remoteUser": "dev",
+  "forwardPorts": [3000, 3080],
+  "portsAttributes": {
+    "3000": { "label": "frontend (vite)" },
+    "3080": { "label": "backend (api)" }
+  },
+  // DATABASE_URL is passed explicitly: the Makefile's `-include .env` would
+  // otherwise override the container env with the host's localhost:5433 URL.
+  "postCreateCommand": "cd frontend && pnpm install --frozen-lockfile && cd .. && make migrate DATABASE_URL=$DATABASE_URL",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "rust-lang.rust-analyzer",
+        "tamasfe.even-better-toml",
+        "dbaeumer.vscode-eslint",
+        "bradlc.vscode-tailwindcss",
+        "anthropic.claude-code"
+      ]
+    }
+  }
+}

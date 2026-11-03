@@ -1,3 +1,4 @@
 {
-  "lldb.launch.terminal": "console"
+  "lldb.launch.terminal": "console",
+  "git.ignoreLimitWarning": true
 }
