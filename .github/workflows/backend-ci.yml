@@ -1,0 +1,31 @@
+# Backend CI: lint -> build -> integration tests. Produces the "backend-image" artifact.
+# Called by ci.yml; can't be triggered on its own.
+name: backend-ci
+
+on:
+  workflow_call:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  lint:
+    name: lint
+    uses: ./.github/workflows/backend-ci-lint.yml
+
+  build:
+    name: build
+    needs: lint
+    uses: ./.github/workflows/backend-ci-build.yml
+
+  integration-tests:
+    name: integration tests
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/backend/setup-rust
+        with:
+          targets: wasm32-unknown-unknown
+          cache-key: test
+      - run: ./scripts/ci/backend/integration-tests.sh

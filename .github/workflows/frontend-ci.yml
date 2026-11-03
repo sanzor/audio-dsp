@@ -1,0 +1,45 @@
+# Frontend CI: lint, unit tests, production image build (which runs tsc + vite build).
+# Produces the "frontend-image" artifact. Called by ci.yml.
+name: frontend-ci
+
+on:
+  workflow_call:
+
+jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/frontend/setup-node
+      - run: ./scripts/ci/frontend/lint.sh
+
+  unit-tests:
+    name: unit-tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/frontend/setup-node
+      - run: ./scripts/ci/frontend/test.sh
+
+  build-image:
+    name: build-image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      # Same build as scripts/ci/frontend/build-image.sh; the action adds GHA layer caching.
+      - uses: docker/build-push-action@v6
+        with:
+          context: frontend
+          file: frontend/deploy/Dockerfile
+          tags: audio-dsp-web:ci
+          outputs: type=docker,dest=${{ runner.temp }}/image.tar
+          cache-from: type=gha,scope=frontend-web
+          cache-to: type=gha,scope=frontend-web,mode=max
+      - uses: actions/upload-artifact@v4
+        with:
+          name: frontend-image   # consumed by frontend-cd.yml
+          path: ${{ runner.temp }}/image.tar
+          retention-days: 3
+          if-no-files-found: error

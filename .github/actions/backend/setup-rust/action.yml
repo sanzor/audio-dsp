@@ -1,5 +1,5 @@
 name: Setup Rust (backend)
-description: Pinned toolchain + system deps (scripts/ci/backend-setup-toolchain.sh) and the cargo cache.
+description: Pinned toolchain + system deps (scripts/ci/backend/setup-toolchain.sh) and the cargo cache.
 
 inputs:
   components:
@@ -23,7 +23,7 @@ runs:
       run: |
         args=(--components "${{ inputs.components }}" --targets "${{ inputs.targets }}")
         [[ "${{ inputs.system-deps }}" == "true" ]] && args+=(--system-deps)
-        ./scripts/ci/backend-setup-toolchain.sh "${args[@]}"
+        ./scripts/ci/backend/setup-toolchain.sh "${args[@]}"
 
     - uses: Swatinem/rust-cache@v2
       with:

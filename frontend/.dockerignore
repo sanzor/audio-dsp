@@ -2,4 +2,7 @@ node_modules/
 dist/
 .git/
 .env
-
+playwright-report/
+e2e/.results/
+# Playwright login state (session cookies) must never end up in an image.
+e2e/.auth/

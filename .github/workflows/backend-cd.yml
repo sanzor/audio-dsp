@@ -1,0 +1,42 @@
+# Backend CD: push the image backend-ci built, then point the environment at it.
+# Called by ci.yml after backend-ci passes on main/staging/dev.
+name: backend-cd
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+        required: true
+
+jobs:
+  publish-image:
+    name: publish image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/shared/publish-image
+        with:
+          artifact: backend-image
+          local-image: audio-dsp-api:ci
+          image-repo: ghcr.io/${{ github.repository }}
+          tags: ${{ github.sha }} ${{ github.ref_name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  deploy:
+    name: deploy
+    needs: publish-image
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/shared/gitops-deploy
+        with:
+          environment: ${{ inputs.environment }}
+          manifest: rust-api-deployment.yaml
+          image-repo: ghcr.io/${{ github.repository }}
+          image-tag: ${{ github.sha }}
+          token: ${{ secrets.GH_PAT }}

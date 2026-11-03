@@ -64,11 +64,10 @@ Before closing a change, confirm:
 
 ## CI
 
-`.github/workflows/ci.yml` is the entry point; every job calls a script in `scripts/ci/`, so run the same script locally to reproduce a CI failure:
+`.github/workflows/ci.yml` is the entry point and calls four lanes: `backend-ci`, `backend-cd`, `frontend-ci`, `frontend-cd` (CD only on pushes to main/staging/dev). `ci-ok` is the single required check. Every job calls a script, so run the same script locally to reproduce a CI failure:
 
-- backend lint: `backend-audit.sh`, `backend-clippy.sh`, `backend-fmt.sh` (`--fix` to rewrite)
-- backend build: image build + `backend-unit-tests.sh`
-- integration: `backend-integration-tests.sh` (the `#[ignore]`d wasm compile-pipeline tests; runs serially — concurrent compiles share one output path)
-- frontend: `frontend.sh lint|test|build`
+- `scripts/ci/backend/`: `audit.sh`, `clippy.sh`, `fmt.sh` (`--fix` to rewrite), `unit-tests.sh`, `integration-tests.sh` (the `#[ignore]`d wasm compile-pipeline tests; serial — concurrent compiles share one output path), `build-image.sh`
+- `scripts/ci/frontend/`: `install.sh`, `lint.sh`, `test.sh`, `build.sh`, `build-image.sh` (production nginx image from `frontend/deploy/`)
+- `scripts/ci/shared/`: image publish, GitOps manifest update, the `ci-ok` gate
 
 Advisory ignores for `cargo audit` live in `backend/.cargo/audit.toml`, each with a reason; remove them when upstream fixes land.

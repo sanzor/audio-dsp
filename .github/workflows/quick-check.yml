@@ -1,4 +1,4 @@
-# Fast feedback on feature branches (the full pipeline runs via ci.yml on main/staging/dev and PRs).
+# Fast feedback on feature-branch pushes (the full pipeline runs via ci.yml on main/staging/dev and PRs).
 name: Quick Check
 
 on:
@@ -6,8 +6,8 @@ on:
     branches-ignore: [main, staging, dev]
     paths:
       - "backend/**"
-      - "scripts/ci/**"
-      - ".github/actions/setup-rust/**"
+      - "scripts/ci/backend/**"
+      - ".github/actions/backend/**"
       - ".github/workflows/quick-check.yml"
 
 jobs:
@@ -16,11 +16,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup-rust
+      - uses: ./.github/actions/backend/setup-rust
         with:
           components: rustfmt
           cache-key: check
-      - run: ./scripts/ci/backend-fmt.sh
+      - run: ./scripts/ci/backend/fmt.sh
       - name: cargo check
         working-directory: backend
         run: cargo check --workspace --all-targets

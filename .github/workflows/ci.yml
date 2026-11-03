@@ -1,3 +1,9 @@
+# Entry point. GitHub only runs workflows from this folder (no subfolders), so the
+# lanes are separate files grouped by prefix: backend-ci / backend-cd / frontend-ci / frontend-cd.
+#
+#   changes ─┬─ backend-ci ── backend-cd     (cd: pushes to main/staging/dev only)
+#            └─ frontend-ci ─ frontend-cd
+#   ci-ok  ← make this the single required status check
 name: CI
 
 on:
@@ -22,50 +28,76 @@ jobs:
       contents: read
       pull-requests: read
     outputs:
-      backend: ${{ steps.filter.outputs.backend }}
-      frontend: ${{ steps.filter.outputs.frontend }}
+      backend: ${{ steps.filter.outputs.backend == 'true' || github.event_name == 'workflow_dispatch' }}
+      frontend: ${{ steps.filter.outputs.frontend == 'true' || github.event_name == 'workflow_dispatch' }}
+      deploy: ${{ github.event_name != 'pull_request' && contains(fromJSON('["main","staging","dev"]'), github.ref_name) }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
         id: filter
         with:
           filters: |
+            shared: &shared
+              - 'scripts/ci/lib.sh'
+              - 'scripts/ci/shared/**'
+              - '.github/actions/shared/**'
+              - '.github/workflows/ci.yml'
             backend:
+              - *shared
               - 'backend/**'
-              - 'scripts/ci/**'
-              - '.github/actions/setup-rust/**'
-              - '.github/workflows/ci.yml'
-              - '.github/workflows/backend*.yml'
+              - 'scripts/ci/backend/**'
+              - '.github/actions/backend/**'
+              - '.github/workflows/backend-*.yml'
             frontend:
+              - *shared
               - 'frontend/**'
-              - 'scripts/ci/**'
-              - '.github/workflows/ci.yml'
-              - '.github/workflows/frontend.yml'
+              - 'scripts/ci/frontend/**'
+              - '.github/actions/frontend/**'
+              - '.github/workflows/frontend-*.yml'
 
-  backend:
-    name: backend
+  backend-ci:
+    name: backend-ci
     needs: changes
-    if: needs.changes.outputs.backend == 'true' || github.event_name == 'workflow_dispatch'
+    if: needs.changes.outputs.backend == 'true'
+    uses: ./.github/workflows/backend-ci.yml
+
+  frontend-ci:
+    name: frontend-ci
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    uses: ./.github/workflows/frontend-ci.yml
+
+  backend-cd:
+    name: backend-cd
+    needs: [changes, backend-ci]
+    if: needs.changes.outputs.deploy == 'true'
     permissions:
       contents: read
       packages: write
-    uses: ./.github/workflows/backend.yml
-    with:
-      publish: ${{ github.event_name != 'pull_request' }}
-
-  frontend:
-    name: frontend
-    needs: changes
-    if: needs.changes.outputs.frontend == 'true' || github.event_name == 'workflow_dispatch'
-    uses: ./.github/workflows/frontend.yml
-
-  deploy:
-    name: deploy
-    needs: backend
-    if: github.event_name != 'pull_request' && needs.backend.outputs.image-tag != ''
-    uses: ./.github/workflows/cd.yml
+    uses: ./.github/workflows/backend-cd.yml
     secrets: inherit
     with:
       environment: ${{ github.ref_name }}
-      image-repo: ${{ needs.backend.outputs.image-repo }}
-      image-tag: ${{ needs.backend.outputs.image-tag }}
+
+  frontend-cd:
+    name: frontend-cd
+    needs: [changes, frontend-ci]
+    if: needs.changes.outputs.deploy == 'true'
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/frontend-cd.yml
+    secrets: inherit
+    with:
+      environment: ${{ github.ref_name }}
+
+  ci-ok:
+    name: ci-ok
+    needs: [backend-ci, frontend-ci, backend-cd, frontend-cd]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./scripts/ci/shared/check-results.sh
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}

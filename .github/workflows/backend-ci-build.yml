@@ -1,13 +1,8 @@
-# Reusable — called by backend.yml.
-name: backend-build
+# Part of backend-ci.yml — shows as "backend-ci / build / {build-image,unit-tests}".
+name: backend-ci-build
 
 on:
   workflow_call:
-    inputs:
-      image-artifact:
-        description: Artifact name the built image tarball is uploaded as
-        type: string
-        required: true
 
 jobs:
   build-image:
@@ -16,9 +11,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
-      # Same build as scripts/ci/backend-build-image.sh; the action is used here for GHA layer caching.
-      - name: Build API image
-        uses: docker/build-push-action@v6
+      # Same build as scripts/ci/backend/build-image.sh; the action adds GHA layer caching.
+      - uses: docker/build-push-action@v6
         with:
           context: backend
           file: backend/api/Dockerfile
@@ -28,7 +22,7 @@ jobs:
           cache-to: type=gha,scope=backend-api,mode=max
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ inputs.image-artifact }}
+          name: backend-image   # consumed by backend-cd.yml
           path: ${{ runner.temp }}/image.tar
           retention-days: 3
           if-no-files-found: error
@@ -38,7 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup-rust
+      - uses: ./.github/actions/backend/setup-rust
         with:
           cache-key: test
-      - run: ./scripts/ci/backend-unit-tests.sh
+      - run: ./scripts/ci/backend/unit-tests.sh

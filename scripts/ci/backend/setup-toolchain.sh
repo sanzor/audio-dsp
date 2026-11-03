@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Install the toolchain pinned in backend/rust-toolchain.toml, plus optional components/targets.
-# Usage: backend-setup-toolchain.sh [--components "clippy rustfmt"] [--targets "wasm32-unknown-unknown"] [--system-deps]
-source "$(dirname "${BASH_SOURCE[0]}")/_lib.sh"
+# Usage: setup-toolchain.sh [--components "clippy rustfmt"] [--targets "wasm32-unknown-unknown"] [--system-deps]
+source "$(dirname "${BASH_SOURCE[0]}")/../lib.sh"
 
 components="" targets="" system_deps=false
 while [[ $# -gt 0 ]]; do
@@ -9,7 +9,7 @@ while [[ $# -gt 0 ]]; do
     --components) components="$2"; shift 2 ;;
     --targets) targets="$2"; shift 2 ;;
     --system-deps) system_deps=true; shift ;;
-    *) echo "unknown arg: $1" >&2; exit 2 ;;
+    *) die "unknown arg: $1" ;;
   esac
 done
 

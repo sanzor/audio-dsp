@@ -1,0 +1,45 @@
+# Frontend CD: push the image frontend-ci built, then point the environment at it.
+# Called by ci.yml after frontend-ci passes on main/staging/dev.
+name: frontend-cd
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+        required: true
+
+jobs:
+  publish-image:
+    name: publish image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/shared/publish-image
+        with:
+          artifact: frontend-image
+          local-image: audio-dsp-web:ci
+          image-repo: ghcr.io/${{ github.repository }}-frontend
+          tags: ${{ github.sha }} ${{ github.ref_name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  deploy:
+    name: deploy
+    needs: publish-image
+    # Off until environments/<env>/frontend-deployment.yaml exists in the config repo:
+    # set repository variable FRONTEND_DEPLOY_ENABLED=true to turn it on.
+    if: vars.FRONTEND_DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/shared/gitops-deploy
+        with:
+          environment: ${{ inputs.environment }}
+          manifest: frontend-deployment.yaml
+          image-repo: ghcr.io/${{ github.repository }}-frontend
+          image-tag: ${{ github.sha }}
+          token: ${{ secrets.GH_PAT }}
