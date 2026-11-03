@@ -48,7 +48,7 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: frontend
-          file: frontend/deploy/Dockerfile
+          file: frontend/Dockerfile
           tags: audio-dsp-web:ci
           outputs: type=docker,dest=${{ runner.temp }}/image.tar
           cache-from: type=gha,scope=frontend-web
