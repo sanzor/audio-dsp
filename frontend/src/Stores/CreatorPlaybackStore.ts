@@ -58,6 +58,7 @@ let outputBuffer: Float32Array | null = null;
 let rafHandle: number | null = null;
 let lastMeterUpdate = 0;
 let unsubscribeCpuLoad: (() => void) | null = null;
+let unsubscribeRuntimeError: (() => void) | null = null;
 let mediaRecorder: MediaRecorder | null = null;
 let recordingConnection: AudioNode | null = null;
 
@@ -246,6 +247,8 @@ function teardownSession(): void {
   }
   unsubscribeCpuLoad?.();
   unsubscribeCpuLoad = null;
+  unsubscribeRuntimeError?.();
+  unsubscribeRuntimeError = null;
 
   mediaRecorder?.stop();
   mediaRecorder = null;
@@ -428,6 +431,11 @@ export const useCreatorPlaybackStore = create<CreatorPlaybackState>()((set, get)
     await attachInputSource(audioCtx, inputAnalyser);
 
     unsubscribeCpuLoad = playback.onCpuLoad((value) => set({ cpuLoadPct: value * 100 }));
+    // The worklet keeps running (dry pass-through) after a trap, so this only
+    // surfaces the failure; Stop / Play again reloads the graph.
+    unsubscribeRuntimeError = playback.onRuntimeError(({ error }) =>
+      set({ status: "error", error: `Transform crashed during playback: ${error}` }),
+    );
 
     // Real, standard Web Audio numbers — not a measurement of the transform's
     // own algorithmic/lookahead latency, which the ABI doesn't expose.

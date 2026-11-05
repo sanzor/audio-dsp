@@ -196,82 +196,64 @@ describe("GraphCompiler cycle handling (composite preview call path)", () => {
 // ─── Worklet code generation ───────────────────────────────────────────────
 //
 // generateTransformFunction (graph-worklet.js) turns a CompiledGraph into a
-// flat sequence of statements. Rather than standing up a real AudioWorklet
-// runtime, assert directly on the generated source string for the buffer
-// write / output write decision per node — graph-worklet.js is guarded so it
-// can be imported under plain Node (see the AudioWorkletProcessor presence
-// check at the bottom of that file).
+// flat sequence of statements. These run the generated function for real
+// against a lane from createLane and a stub callWasm that fills each node's
+// output with a constant, then check where that output ended up (its buffer
+// slot, the worklet output, or both). graph-worklet.js is guarded so it can
+// be imported under plain Node (see the AudioWorkletProcessor presence check
+// near the bottom of that file).
+
+type WorkletModule = typeof import("../worklet/graph-worklet.js");
+
+function runOnce(mod: WorkletModule, compiledGraph: Parameters<WorkletModule["generateTransformFunction"]>[0], fillValue: number) {
+  const lane = mod.createLane(compiledGraph, compiledGraph.executionOrder.map(() => null));
+  const fn = mod.generateTransformFunction(compiledGraph);
+  const params = compiledGraph.executionOrder.map(() => new Float32Array(0));
+  const stubCallWasm = (_i: unknown, _p: Float32Array, _ports: Float32Array[], out: Float32Array) => out.fill(fillValue);
+  const output = fn(new Float32Array(mod.BLOCK_SIZE), lane, params, stubCallWasm, mod.addInto);
+  return { lane, output };
+}
 
 describe("generateTransformFunction write-through codegen", () => {
-  it("emits both a buffer write and an output write for a node with a real buffer AND no forward consumer", async () => {
-    const { generateTransformFunction } = await import("../worklet/graph-worklet.js");
-
-    const compiledGraph = {
+  it("writes both the buffer and the output for a node with a real buffer AND no forward consumer", async () => {
+    const mod = await import("../worklet/graph-worklet.js");
+    const { lane, output } = runOnce(mod, {
       executionOrder: [
-        {
-          nodeId: 3,
-          transformId: 3,
-          params: [],
-          inputs: [[]],
-          outputBufferIndex: 0,
-          writesToOutput: true,
-        },
+        { nodeId: 3, transformId: 3, params: [], inputs: [[]], outputBufferIndex: 0, writesToOutput: true },
       ],
       bufferCount: 1,
       feedbackBufferIndices: [0],
-    };
+    }, 0.5);
 
-    const source = generateTransformFunction(compiledGraph).toString();
-
-    expect(source).toContain("buffers[0].set(out_0)");
-    expect(source).toContain("output = addAll(output, out_0)");
+    expect(lane.buffers[0][0]).toBe(0.5);
+    expect(output[0]).toBe(0.5);
   });
 
-  it("emits only a buffer write for a node with a forward consumer and no back edge", async () => {
-    const { generateTransformFunction } = await import("../worklet/graph-worklet.js");
-
-    const compiledGraph = {
+  it("writes only the buffer for a node with a forward consumer and no back edge", async () => {
+    const mod = await import("../worklet/graph-worklet.js");
+    const { lane, output } = runOnce(mod, {
       executionOrder: [
-        {
-          nodeId: 2,
-          transformId: 2,
-          params: [],
-          inputs: [[]],
-          outputBufferIndex: 0,
-          writesToOutput: false,
-        },
+        { nodeId: 2, transformId: 2, params: [], inputs: [[]], outputBufferIndex: 0, writesToOutput: false },
       ],
       bufferCount: 1,
       feedbackBufferIndices: [],
-    };
+    }, 0.5);
 
-    const source = generateTransformFunction(compiledGraph).toString();
-
-    expect(source).toContain("buffers[0].set(out_0)");
-    expect(source).not.toContain("output = addAll(output, out_0)");
+    expect(lane.buffers[0][0]).toBe(0.5);
+    expect(output[0]).toBe(0);
   });
 
-  it("emits only an output write for a true sink node (no buffer, no back edge)", async () => {
-    const { generateTransformFunction } = await import("../worklet/graph-worklet.js");
-
-    const compiledGraph = {
+  it("writes only the output for a true sink node (no buffer, no back edge)", async () => {
+    const mod = await import("../worklet/graph-worklet.js");
+    const { lane, output } = runOnce(mod, {
       executionOrder: [
-        {
-          nodeId: 3,
-          transformId: 3,
-          params: [],
-          inputs: [[]],
-          outputBufferIndex: -1,
-          writesToOutput: true,
-        },
+        { nodeId: 3, transformId: 3, params: [], inputs: [[]], outputBufferIndex: -1, writesToOutput: true },
       ],
       bufferCount: 0,
       feedbackBufferIndices: [],
-    };
+    }, 0.5);
 
-    const source = generateTransformFunction(compiledGraph).toString();
-
-    expect(source).not.toContain(".set(out_0)");
-    expect(source).toContain("output = addAll(output, out_0)");
+    expect(lane.buffers).toHaveLength(0);
+    expect(output[0]).toBe(0.5);
   });
 });

@@ -22,6 +22,17 @@ export class WorkletController {
       setWorkletState('error', error)
     })
 
+    sender.onRuntimeError(({ transformId, error }) => {
+      const { setGraphPlaybackState, setWorkletState } = useWorkletStore.getState()
+      const which = transformId != null ? `Transform ${transformId}` : 'A transform'
+      setGraphPlaybackState({
+        compiled: true,
+        playable: false,
+        reason: `${which} crashed during playback; effects are bypassed until the graph is reloaded.`,
+      })
+      setWorkletState('error', error)
+    })
+
     useWorkletStore.getState().setWorkletConnected(true)
   }
 

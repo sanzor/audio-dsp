@@ -10,7 +10,18 @@ export type WorkletInboundMessage =
 export type WorkletOutboundMessage =
   | { type: 'GRAPH_READY' }
   | { type: 'MODULE_ERROR'; transformId: number; error: string }
+  | { type: 'RUNTIME_ERROR'; nodeIndex: number; transformId: number | null; error: string }
   | { type: 'CPU_LOAD'; value: number };
+
+// A transform trapped inside the worklet's process(). The worklet has already
+// retired the graph (dry pass-through) and stays that way until the next
+// SET_GRAPH. `nodeIndex` is the position in CompiledGraph.executionOrder, or
+// -1 if the failure couldn't be attributed to a node.
+export interface WorkletRuntimeError {
+  nodeIndex: number;
+  transformId: number | null;
+  error: string;
+}
 
 // ─── Sender ───────────────────────────────────────────────────────────────────
 
@@ -65,6 +76,14 @@ export class WorkletMessageSender {
   onModuleError(cb: (transformId: number, error: string) => void): UnsubscribeFn {
     return this.subscribe('MODULE_ERROR', (data) => {
       if (data.type === 'MODULE_ERROR') cb(data.transformId, data.error);
+    });
+  }
+
+  onRuntimeError(cb: (error: WorkletRuntimeError) => void): UnsubscribeFn {
+    return this.subscribe('RUNTIME_ERROR', (data) => {
+      if (data.type === 'RUNTIME_ERROR') {
+        cb({ nodeIndex: data.nodeIndex, transformId: data.transformId, error: data.error });
+      }
     });
   }
 

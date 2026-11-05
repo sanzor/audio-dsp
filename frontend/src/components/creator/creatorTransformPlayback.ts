@@ -23,7 +23,8 @@
 //     (wired to a Wavesurfer media element the creator surface doesn't
 //     have). Reusing either would corrupt editor playback state once both
 //     surfaces are visited in one session.
-import { WorkletMessageSender } from "@/audio/transport/WorkletMessageSender";
+import { WorkletMessageSender, type WorkletRuntimeError } from "@/audio/transport/WorkletMessageSender";
+import { GRAPH_WORKLET_NODE_OPTIONS } from "@/audio/worklet/graphWorkletNodeOptions";
 import type { CompiledGraph } from "@/audio/pipeline/compile-graph/compiledGraph";
 import type { CompiledNode } from "@/audio/pipeline/GraphCompiler";
 
@@ -72,7 +73,7 @@ export class CreatorTransformPlayback {
 
     const audioCtx = new AudioContext();
     await audioCtx.audioWorklet.addModule(GRAPH_WORKLET_URL);
-    const node = new AudioWorkletNode(audioCtx, "graph-worklet");
+    const node = new AudioWorkletNode(audioCtx, "graph-worklet", GRAPH_WORKLET_NODE_OPTIONS);
     const sender = new WorkletMessageSender(node.port);
 
     this.audioCtx = audioCtx;
@@ -146,6 +147,12 @@ export class CreatorTransformPlayback {
 
   onCpuLoad(cb: (value: number) => void): () => void {
     return this.sender?.onCpuLoad(cb) ?? (() => {});
+  }
+
+  // Fires once when a transform traps mid-playback; the worklet has already
+  // dropped to dry pass-through and stays there until the next load().
+  onRuntimeError(cb: (error: WorkletRuntimeError) => void): () => void {
+    return this.sender?.onRuntimeError(cb) ?? (() => {});
   }
 
   // Tears down cleanly — safe to call multiple times, and required on

@@ -1,6 +1,7 @@
 import { useCallback, useRef } from 'react'
 import type WaveSurfer from 'wavesurfer.js'
 import { useWorkletStore } from '@/Stores/WorkletStore'
+import { GRAPH_WORKLET_NODE_OPTIONS } from '@/audio/worklet/graphWorkletNodeOptions'
 
 const GRAPH_WORKLET_URL = new URL('../worklet/graph-worklet.js', import.meta.url).href
 
@@ -25,7 +26,7 @@ export function useWorkletSetup() {
 
         source = audioCtx.createMediaElementSource(mediaElement)
         try {
-          workletNode = new AudioWorkletNode(audioCtx, 'graph-worklet')
+          workletNode = new AudioWorkletNode(audioCtx, 'graph-worklet', GRAPH_WORKLET_NODE_OPTIONS)
         } catch (error) {
           if (disposed) return
           if (error instanceof DOMException && error.name === 'InvalidStateError') {

@@ -41,6 +41,8 @@
 ## Audio correctness
 
 - Channel layout, sample rate assumptions, and transform ordering must be explicit in code or tests.
+- Every `graph-worklet` node (editor and creator preview alike) is constructed with `GRAPH_WORKLET_NODE_OPTIONS` (`frontend/src/audio/worklet/graphWorkletNodeOptions.ts`): exactly 2 channels in/out, `explicit` count mode, `speakers` interpretation. The worklet runs one lane per channel, each with its own WASM instances, so processing is dual-mono/unlinked — a sidechain/detector port sees only its own channel. Changing to linked-stereo or N-channel processing is an ABI-level decision, not a worklet tweak.
+- `graph-worklet.js`'s `process()` must not allocate (all per-quantum buffers are created in `_loadGraph`), and must never let an exception escape: a trapping transform retires the whole graph to dry pass-through and posts `RUNTIME_ERROR` once, until the next `SET_GRAPH`. A trapped instance is not retried — under `panic = "abort"` its state mutex is never released. Covered by `frontend/src/audio/worklet/graph-worklet.test.ts`.
 - The transform order derived from the editor DAG must match the order executed by the frontend worklet chain.
 - Playback controls such as play, pause, stop, and seek must preserve expected timing semantics.
 - Transform changes need at least one deterministic verification path, even if the final UX is interactive.
