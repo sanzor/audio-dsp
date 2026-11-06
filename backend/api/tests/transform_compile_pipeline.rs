@@ -127,3 +127,73 @@ async fn valid_rust_missing_export_macro_fails_introspection_not_silently() {
     );
     assert!(err.contains("transform_metadata_ptr"));
 }
+
+/// Server secrets live in the API's environment. Creator source must not be
+/// able to read them at compile time through `env!`/`option_env!` — the
+/// compile subprocess has to start from a cleared environment.
+const LEAK_PROBE_VAR: &str = "AUDIO_DSP_LEAK_PROBE";
+const LEAK_PROBE_VALUE: &str = "leak-probe-sentinel-7f3a";
+
+const ENV_ECHO_SOURCE: &str = r#"
+use transform_sdk::{Transform, TransformMetadata, Params};
+
+#[derive(Default)]
+pub struct EnvEcho;
+
+impl Transform for EnvEcho {
+    fn process(&mut self, samples: &[&[f32]], _params: &Params<'_>) -> Vec<f32> {
+        samples[0].to_vec()
+    }
+    fn metadata() -> TransformMetadata {
+        TransformMetadata {
+            name: option_env!("AUDIO_DSP_LEAK_PROBE").unwrap_or("absent").to_string(),
+            description: None,
+            ports: vec![],
+            params: vec![],
+        }
+    }
+}
+
+transform_sdk::export_transform!(EnvEcho);
+"#;
+
+const ENV_IN_COMPILE_ERROR_SOURCE: &str = r#"
+compile_error!(env!("AUDIO_DSP_LEAK_PROBE"));
+"#;
+
+#[tokio::test]
+#[ignore]
+async fn server_env_is_not_visible_to_option_env_in_compiled_source() {
+    std::env::set_var(LEAK_PROBE_VAR, LEAK_PROBE_VALUE);
+    let config = test_config();
+    let bytes = compile_transform_source(&config, ENV_ECHO_SOURCE)
+        .await
+        .expect("env-echo source should compile");
+
+    let parsed = parse_wasm(WasmInput {
+        wasm_bytes: &bytes,
+        fuel_limit: 10_000_000,
+    })
+    .expect("metadata should introspect cleanly");
+
+    assert_eq!(parsed.metadata.name, "absent");
+}
+
+#[tokio::test]
+#[ignore]
+async fn server_env_does_not_leak_through_compile_error_output() {
+    std::env::set_var(LEAK_PROBE_VAR, LEAK_PROBE_VALUE);
+    let config = test_config();
+    let err = compile_transform_source(&config, ENV_IN_COMPILE_ERROR_SOURCE)
+        .await
+        .expect_err("source using env! on an unset variable must not compile");
+
+    assert!(
+        !err.contains(LEAK_PROBE_VALUE),
+        "compiler output leaked env: {err}"
+    );
+    assert!(
+        err.contains(LEAK_PROBE_VAR),
+        "expected an env!-not-defined error, got: {err}"
+    );
+}

@@ -10,6 +10,13 @@ use crate::transform_drafts::processor::build_job_config::BuildJobConfig;
 /// is meant to be genuinely readable, not a raw dump.
 const MAX_ERROR_MESSAGE_BYTES: usize = 64 * 1024;
 
+/// The only server environment variables a transform compile inherits:
+/// enough for the `cargo` rustup proxy to find its toolchain, nothing else.
+/// `CARGO_HOME`/`CARGO_TARGET_DIR` are set explicitly from `BuildJobConfig`.
+/// Never add anything that can hold a secret — creator source can read every
+/// variable listed here via `env!`.
+const INHERITED_ENV_VARS: &[&str] = &["PATH", "HOME", "RUSTUP_HOME", "RUSTUP_TOOLCHAIN"];
+
 static NEXT_JOB_ID: AtomicU64 = AtomicU64::new(0);
 
 /// Scratch-dir name for one build/check job — unique per process run, not
@@ -60,7 +67,6 @@ async fn with_job_dir<T>(
     if let Err(e) = tokio::fs::remove_dir_all(&job_dir).await {
         tracing::warn!(job_id, error = %e, "failed to clean up build job directory");
     }
-
     result
 }
 
@@ -151,6 +157,18 @@ async fn run_cargo(
     args: &[&str],
 ) -> Result<(), String> {
     let mut command = Command::new("cargo");
+    // The compiled source is creator-controlled, and `env!`/`option_env!`
+    // expand at compile time with whatever environment cargo/rustc inherit —
+    // with compiler errors echoed back to the user, an inherited environment
+    // would hand them JWT_SECRET, DATABASE_URL, etc. This clears only the
+    // child's environment (the server's own is untouched); pass through just
+    // what the toolchain needs.
+    command.env_clear();
+    for key in INHERITED_ENV_VARS {
+        if let Some(value) = std::env::var_os(key) {
+            command.env(key, value);
+        }
+    }
     command
         .args(args)
         .current_dir(job_dir)
